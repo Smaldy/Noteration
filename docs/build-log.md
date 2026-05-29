@@ -134,10 +134,18 @@
     (cards at SM-2 defaults). Tested via the queue: success commits rows;
     missing-notes and malformed-JSON both roll back and defer (no partial rows).
     11 tests; suite **113 passed**.
-  - **7c (NEXT)** — Formula vision: detect-then-crop (PyMuPDF), `transcribe_image` via
-    waterfall, store `Formula` with confidence; exam-critical first (queue
-    priority + formula stage order already enforce this).
-  - **7d** — Real SDK wiring into the gemini/claude/ollama stubs
+  - **7c (DONE)** — Formula vision. `services/pipeline/formula.py`:
+    `detect_math_regions` (delimiter heuristic: `$$`/`$`/`\[`/`\(`/`\begin{env}`,
+    deduped), `crop_pdf_region` (PyMuPDF `search_for` → clip render → PNG+bbox),
+    and `make_formula_processor` → a `StageProcessor` that, per detected region,
+    crops + `transcribe_image`s via the vision waterfall and stores a `Formula`
+    (`reconstructed`, bbox, confidence=None) on the topic's get-or-created AI
+    `Note`. No-math/unlocatable topics do **no** model call (stamped `none`).
+    Refactored 7a's notes stage to get-or-create that same Note and embed the
+    transcribed LaTeX in its prompt (chosen reconciliation of the
+    formula-before-notes order with the `Formula→Note` FK). 8 formula tests
+    (+ refactored 10 notes tests still green); suite **121 passed**.
+  - **7d (NEXT)** — Real SDK wiring into the gemini/claude/ollama stubs
     (generate/transcribe_image/budget_probe); add SDK deps.
   - **7e** — Stage→processor registry the queue's `run_batch` uses; end-to-end
     confirmed-document processing test (mocks).
@@ -243,6 +251,20 @@
   rows uncommitted; the queue owns commit/failover/retry (the Phase-4
   `StageProcessor` seam). `source_loader` and `max_tokens` are injected so the
   processor is testable with `MockProvider` and a stub loader.
+- **Equation detection method (Phase 7c; resolves review.md "Still open" #2).**
+  Cheapest viable detector chosen: a **delimiter heuristic** over the topic's
+  source markdown (`$$`,`$`,`\[`,`\(`,`\begin{equation|align|gather|multline|
+  math}`). Per-page vision escalation for math that carries no delimiters is a
+  documented future refinement, not built in v1.
+- **Formula↔Note reconciliation (Phase 7c; user decision).** Formula runs before
+  notes (queue order) but `Formula→Note` (FK). Resolution: the formula stage
+  **get-or-creates the topic's AI Note** and attaches `Formula` rows; the notes
+  stage fills that same Note's `content_md`, embedding the transcribed LaTeX in
+  its prompt. Both stages share `get_or_create_ai_note`.
+- **Formula stage spends only when there's math (Phase 7c).** No detected
+  regions, or none locatable on the page, → zero model calls; the job is stamped
+  `assigned_provider="none"`. Confidence is stored as `None` for now (the stub
+  vision path returns no confidence signal; revisit when real SDKs land in 7d).
 
 ## BLOCKED
 

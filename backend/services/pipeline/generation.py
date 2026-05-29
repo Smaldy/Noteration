@@ -48,8 +48,22 @@ class AssessmentParseError(Exception):
     """The model's assessment output was not valid/usable JSON."""
 
 
-def build_notes_prompt(topic_title: str, source_text: str) -> str:
-    """Prompt for dense, engineer-level notes on one topic."""
+def build_notes_prompt(
+    topic_title: str, source_text: str, *, formulas: list[str] | None = None
+) -> str:
+    """Prompt for dense, engineer-level notes on one topic.
+
+    ``formulas`` are LaTeX transcriptions produced by the (earlier) formula stage;
+    when present they are handed to the model to embed, so notes use the cleaned
+    equations rather than the garbled source text.
+    """
+    formula_block = ""
+    if formulas:
+        joined = "\n".join(f"- {latex}" for latex in formulas)
+        formula_block = (
+            "\n# Transcribed formulas (LaTeX) — use these where relevant\n"
+            f"{joined}\n"
+        )
     return (
         "You are an expert engineering tutor. Write dense, accurate, "
         "exam-useful study notes in Markdown for the topic below. Cover the key "
@@ -57,7 +71,26 @@ def build_notes_prompt(topic_title: str, source_text: str) -> str:
         "invent material that is not supported by the source.\n\n"
         f"# Topic\n{topic_title}\n\n"
         f"# Source material\n{source_text}\n"
+        f"{formula_block}"
     )
+
+
+def get_or_create_ai_note(session: Session, topic: Topic) -> Note:
+    """Return the topic's AI note, creating an empty one if needed (flushed).
+
+    Shared by the formula stage (attaches Formula rows) and the notes stage
+    (fills ``content_md``) so both operate on the same Note — see DECISIONS.
+    """
+    note = session.scalars(
+        select(Note)
+        .where(Note.topic_id == topic.id, Note.is_manual.is_(False))
+        .order_by(Note.id.desc())
+    ).first()
+    if note is None:
+        note = Note(topic_id=topic.id, content_md="", is_manual=False)
+        session.add(note)
+        session.flush()
+    return note
 
 
 def load_topic_source(session: Session, topic: Topic) -> str:
@@ -113,9 +146,11 @@ def make_notes_processor(
     def process(job: QueueJob, session: Session) -> ProviderResult:
         topic = session.get(Topic, job.topic_id)
         source = source_loader(session, topic)
-        prompt = build_notes_prompt(topic.title, source)
+        note = get_or_create_ai_note(session, topic)
+        formulas = [formula.latex for formula in note.formulas]
+        prompt = build_notes_prompt(topic.title, source, formulas=formulas or None)
         result = waterfall.generate(prompt, max_tokens=max_tokens)
-        session.add(Note(topic_id=topic.id, content_md=result.text, is_manual=False))
+        note.content_md = result.text
         return result
 
     return process
