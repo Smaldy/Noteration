@@ -1,0 +1,13 @@
+# Noteration backend — Phase 1 (Scaffold) dependencies.
+# Pipeline/provider deps (markitdown, pymupdf, provider SDKs) are added in
+# their own phases to keep the install lean and the tree green.
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+pydantic
+pydantic-settings
+
+# Test/dev
+pytest
+httpx
