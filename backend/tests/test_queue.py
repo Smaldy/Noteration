@@ -3,7 +3,7 @@
 Processing, failover, and resume-from-DB are covered in 4b–4c.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
@@ -297,9 +297,10 @@ def test_mid_job_limit_then_restart_completes_all(session: Session) -> None:
     pending[0].state = QueueState.running
     session.commit()
 
-    # Restart: a fresh process/session reading only from the DB.
+    # Restart: a fresh process/session reading only from the DB, woken at the
+    # reset time (its clock now reports `resume_at`, so deferred jobs are due).
     fresh = Session(bind=session.get_bind())
-    restarted = QueueService(fresh)
+    restarted = QueueService(fresh, clock=lambda: resume_at)
     assert restarted.recover_orphaned_jobs() == 1
     assert restarted.earliest_resume_after() == resume_at
 
@@ -315,6 +316,41 @@ def test_mid_job_limit_then_restart_completes_all(session: Session) -> None:
     assert all(j.state is QueueState.done for j in all_jobs)  # no work lost
     assert len(fresh.scalars(select(Note)).all()) == 3  # exactly one per topic
     fresh.close()
+
+
+def test_claim_skips_jobs_deferred_into_the_future(session: Session) -> None:
+    # A job deferred past `now` must not be claimed (don't hit a cooling provider).
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    queue = QueueService(session, clock=lambda: now)
+    topic = _topic(session)
+    job = _claim(queue, topic, QueueStage.notes)
+    queue.process_job(
+        job,
+        lambda j, db: _raise(AllProvidersExhausted(retry_at=now + timedelta(hours=1))),
+    )
+    assert job.state is QueueState.pending
+    assert queue.claim_next() is None  # deferred — not due yet
+
+
+def test_run_batch_continues_past_a_failing_topic(session: Session) -> None:
+    # A transiently failing topic is deferred, not allowed to block other topics.
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    queue = QueueService(session, clock=lambda: now)
+    bad = _topic(session, order_index=0, title="bad")
+    good = _topic(session, order_index=1, title="good")
+    queue.enqueue_topic(bad, stages=(QueueStage.notes,))
+    queue.enqueue_topic(good, stages=(QueueStage.notes,))
+
+    def processor(job: QueueJob, db: Session) -> ProviderResult:
+        if job.topic.title == "bad":
+            raise ProviderUnavailableError("boom")
+        db.add(Note(topic_id=job.topic_id, content_md="good notes"))
+        return ProviderResult(text="ok", provider="gemini_free")
+
+    processed = queue.run_batch(processor, max_jobs=10)
+
+    assert processed == 2  # both attempted; bad deferred, good done
+    assert session.scalars(select(Note)).one().content_md == "good notes"
 
 
 def _raise(exc: Exception) -> ProviderResult:

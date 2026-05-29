@@ -1,24 +1,24 @@
 """Persistent, budget-aware processing queue (reliability core).
 
-Sub-wave 4a: enqueue topics as per-stage ``QueueJob`` rows, order work
-priority-first (``exam_critical`` before ``medium``; ``skip`` never enqueued),
-respect per-topic stage dependencies (formula → notes → assessment), compute how
-many jobs current provider headroom allows, and atomically claim the next
-eligible job. Actual processing/failover/resume land in 4b–4c.
-
-The topic is the atomic unit; nothing here ever spans the whole document.
+Enqueues topics as per-stage ``QueueJob`` rows, orders work priority-first
+(``exam_critical`` before ``medium``; ``skip`` never enqueued), respects per-topic
+stage dependencies (formula → notes → assessment), processes a job through an
+injected stage processor with atomic sub-stage commits, fails over / defers on
+provider exhaustion, retries transient failures, and resumes from the DB after a
+restart. The topic is the atomic unit; nothing here ever spans the whole document.
 """
 
 from __future__ import annotations
 
+import enum
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models.enums import QueueStage, QueueState, TopicPriority
-from backend.models.hierarchy import Topic
+from backend.models.hierarchy import Topic, utcnow
 from backend.models.processing import ProviderState, QueueJob
 from backend.services.providers.base import (
     AllProvidersExhausted,
@@ -31,9 +31,23 @@ from backend.services.providers.base import (
 # half-written. It returns the ProviderResult for stamping + cost, or raises.
 StageProcessor = Callable[[QueueJob, Session], ProviderResult]
 
-# A job goes to `error` after this many failed attempts (then it poisons only
-# itself; every other topic is unaffected).
+
+class JobOutcome(enum.StrEnum):
+    """Result of processing one job — drives the batch loop."""
+
+    done = "done"
+    failed = "failed"  # terminal: exceeded max_attempts
+    deferred_retry = "deferred_retry"  # transient failure, will retry later
+    exhausted = "exhausted"  # all providers down — stop the batch, wait for wake-up
+
+
+# A job goes to `failed` after this many attempts (then it poisons only itself;
+# every other topic is unaffected).
 MAX_ATTEMPTS = 3
+# Default wait before retrying a transiently-failed job.
+RETRY_DELAY = timedelta(minutes=1)
+# Fallback defer when exhaustion reports no concrete reset time (avoid spinning).
+DEFAULT_DEFER = timedelta(minutes=5)
 
 # Stage execution order within a topic: formulas first (notes embed them), then
 # notes, then assessment (which uses notes as context).
@@ -55,9 +69,20 @@ DEFAULT_STAGES: tuple[QueueStage, ...] = STAGE_ORDER
 class QueueService:
     """Thin persistence-facing queue API over a SQLAlchemy session."""
 
-    def __init__(self, session: Session, *, max_attempts: int = MAX_ATTEMPTS) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        max_attempts: int = MAX_ATTEMPTS,
+        clock: Callable[[], datetime] = utcnow,
+        retry_delay: timedelta = RETRY_DELAY,
+        default_defer: timedelta = DEFAULT_DEFER,
+    ) -> None:
         self.session = session
         self.max_attempts = max_attempts
+        self.clock = clock
+        self.retry_delay = retry_delay
+        self.default_defer = default_defer
 
     def enqueue_topic(
         self, topic: Topic, stages: tuple[QueueStage, ...] = DEFAULT_STAGES
@@ -96,49 +121,59 @@ class QueueService:
     def claim_next(self) -> QueueJob | None:
         """Atomically move the next eligible pending job to ``running``.
 
-        Eligible = highest priority whose earlier-stage jobs for the same topic
-        are all ``done``. Returns the claimed job, or None if nothing is ready.
+        Eligible = highest priority, **due now** (``resume_after`` unset or in the
+        past — a deferred job is never dispatched before its provider's reset),
+        whose earlier-stage jobs for the same topic are all ``done``. Returns the
+        claimed job, or None if nothing is ready.
         """
+        now = self.clock()
         for job in self.pending_in_priority_order():
+            if job.resume_after is not None and job.resume_after > now:
+                continue  # deferred until its reset/retry window
             if self._prerequisites_done(job):
                 job.state = QueueState.running
                 self.session.commit()
                 return job
         return None
 
-    def process_job(self, job: QueueJob, processor: StageProcessor) -> QueueJob:
+    def process_job(self, job: QueueJob, processor: StageProcessor) -> JobOutcome:
         """Run one claimed job's stage and commit the result atomically.
 
         Success: the processor's domain rows + the job's `done`/stamping + the
         provider's cost are committed together — a sub-stage commit that never
-        leaves a topic half-written. Budget exhaustion defers the job back to
-        `pending` with a `resume_after`; any other failure rolls back partial
-        writes and retries, going to `error` after `max_attempts`.
+        leaves a topic half-written. Budget exhaustion rolls back any partial
+        write and defers the job (attempts unchanged) until its reset. Any other
+        failure rolls back, increments attempts, defers a retry, and goes to
+        `failed` after `max_attempts`.
         """
+        now = self.clock()
         try:
             result = processor(job, self.session)
         except AllProvidersExhausted as exc:
-            # Not a job failure — a budget pause. Roll back any partial write,
-            # requeue, and record when to resume. Attempts unchanged.
+            # Not a job failure — a budget pause. Defer until the reset (or a
+            # default if none is known, to avoid spinning). Attempts unchanged.
             self.session.rollback()
             job = self.session.get(QueueJob, job.id)
             job.state = QueueState.pending
-            job.resume_after = exc.retry_at
+            job.resume_after = exc.retry_at or (now + self.default_defer)
             self.session.commit()
-            return job
+            return JobOutcome.exhausted
         except Exception as exc:  # noqa: BLE001 - a failed topic must poison only itself
             self.session.rollback()
             job = self.session.get(QueueJob, job.id)
             job.attempts += 1
             job.last_error = str(exc)
-            job.resume_after = None  # a failure, not a budget defer
-            job.state = (
-                QueueState.failed
-                if job.attempts >= self.max_attempts
-                else QueueState.pending
-            )
+            if job.attempts >= self.max_attempts:
+                job.state = QueueState.failed
+                job.resume_after = None
+                outcome = JobOutcome.failed
+            else:
+                # Defer the retry so it isn't re-claimed immediately this batch.
+                job.state = QueueState.pending
+                job.resume_after = now + self.retry_delay
+                outcome = JobOutcome.deferred_retry
             self.session.commit()
-            return job
+            return outcome
 
         job.assigned_provider = result.provider
         job.last_error = None
@@ -146,7 +181,7 @@ class QueueService:
         job.state = QueueState.done
         self._record_provider_usage(result)
         self.session.commit()
-        return job
+        return JobOutcome.done
 
     def recover_orphaned_jobs(self) -> int:
         """Reset jobs stuck in `running` (interrupted mid-process) to `pending`.
@@ -175,20 +210,22 @@ class QueueService:
         ).first()
 
     def run_batch(self, processor: StageProcessor, *, max_jobs: int) -> int:
-        """Claim and process eligible jobs until budget exhaustion or max_jobs.
+        """Claim and process due jobs until exhaustion, max_jobs, or none left.
 
-        Returns the count successfully processed. Stops early when a job is
-        deferred by provider exhaustion (the caller then sleeps until
-        ``earliest_resume_after``) — never spins.
+        Returns the number of jobs processed (done/failed/deferred-retry). Stops
+        immediately on provider exhaustion — every job would also be exhausted —
+        and the caller then sleeps until ``earliest_resume_after``. Transiently
+        failed jobs are deferred (not re-claimed this batch), so the loop moves on
+        to other topics and never spins.
         """
         processed = 0
         while processed < max_jobs:
             job = self.claim_next()
             if job is None:
                 break
-            self.process_job(job, processor)
-            if job.state is QueueState.pending and job.resume_after is not None:
-                break  # all providers exhausted — wait for the wake-up
+            outcome = self.process_job(job, processor)
+            if outcome is JobOutcome.exhausted:
+                break
             processed += 1
         return processed
 

@@ -65,6 +65,17 @@
     mid-job-limit + restart proves no work lost, nothing half-written, resumes
     to completion across a fresh session.
   - Tree green: full suite **54 passed** (warning-clean). Reliability core done.
+- **Phase 3–4 review (Wave 4r)** — Self-reviewed the provider+queue core before
+  building on it. Found one real bug: `claim_next` ignored `resume_after`, so a
+  job deferred to a provider's reset window was immediately re-claimable — the
+  queue would hammer a cooling provider before it reset (defeating the
+  cost-strategy) and `run_batch` could busy-loop when exhaustion had no
+  `retry_at`. Fix: injected `clock`; `claim_next` skips not-yet-due jobs;
+  `process_job` returns a `JobOutcome` and defers transient failures
+  (`retry_delay`) and `retry_at`-less exhaustion (`default_defer`); `run_batch`
+  stops on `exhausted` and steps past a failing topic instead of blocking on it.
+  +2 tests (deferred-not-claimed; failing topic doesn't block others). Waterfall,
+  atomic commits, and recovery held up. Tree green: full suite **56 passed**.
 
 ## IN PROGRESS
 
