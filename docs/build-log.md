@@ -32,19 +32,31 @@
   (round-trip, defaults, enums, JSON, cascades, FK enforcement) on an isolated
   in-memory DB. Tree green: `pytest` 17 passed (warning-clean under `-W error`).
 
+- **Phase 3 — Provider layer (Wave 3, reliability core)** — `services/providers/`:
+  `base.py` (`Provider` ABC: generate / transcribe_image / budget_probe;
+  `BudgetProbe` reporting the *binding* axis; `ProviderResult` with stamping +
+  cost; failover exceptions). `mock.py` (controllable provider, reused by the
+  Phase-4 queue tests). Gemini/Claude/Ollama dependency-free stubs (real static
+  metadata; probe unconfigured; calls raise until Phase 7). `waterfall.py` —
+  cheapest-first selection, failover on limit/hard error, per-provider cooldown
+  (until `reset_at`) + exponential backoff (capped), vision routing, and
+  `AllProvidersExhausted(retry_at=earliest reset)` so the queue schedules one
+  wake-up (no spin). Clock injected — the waterfall never sleeps. 18 tests
+  (failover, cooldown+recovery, backoff growth+cap, vision routing/exhaustion,
+  disabled/never-spend). Tree green: `pytest` 35 passed (warning-clean).
+
 ## IN PROGRESS
 
-- (none — Wave 2 checkpoint committed)
+- (none — Wave 3 checkpoint committed)
 
 ## NEXT
 
-1. **Phase 3 — Provider layer** (reliability core, TDD, sequential): `base.py`
-   interface, mock provider, Gemini/Claude/Ollama stubs, `waterfall.py`
-   (cheapest-first, failover, single-wake-up backoff). Test failover.
-2. **Phase 4 — Persistent queue** (reliability core, TDD, sequential):
+1. **Phase 4 — Persistent queue** (reliability core, TDD, sequential):
    topic-atomic transactions, pre-flight budget dispatch, priority ordering,
-   sub-stage commits, resume-from-DB. Mid-job-limit + restart test.
-3. Phases 5–11 per `RUFLO-BUILD.md` build order.
+   sub-stage commits, resume-from-DB. Mid-job-limit + restart test. Wire the
+   waterfall's `AllProvidersExhausted.retry_at` to the single wake-up; persist
+   provider cooldown/cost to `ProviderState`.
+2. Phases 5–11 per `RUFLO-BUILD.md` build order.
 
 ## DECISIONS
 
@@ -78,6 +90,15 @@
   all re-exported from `models/__init__.py` so Alembic/`create_all` see them.
 - **Timestamps (Phase 2).** Timezone-aware UTC via a Python `utcnow()` default
   (and `onupdate` for `QueueJob.updated_at`), not DB `server_default`.
+- **Provider stubs dependency-free (Phase 3).** No SDKs added yet (google-genai,
+  anthropic, ollama) — stubs probe as unconfigured and raise on call, keeping the
+  install lean and the tree green; SDKs land in Phase 7 when calls are wired.
+- **Waterfall is pure/synchronous (Phase 3).** It never sleeps; time is injected
+  via `clock` and exhaustion surfaces `retry_at`. The queue (Phase 4) owns the
+  actual waiting/wake-up. Keeps the reliability core deterministic + testable.
+- **Backoff model (Phase 3).** Limit-hit → cool until the provider's `reset_at`;
+  hard error → exponential backoff `base·2^(n-1)` capped (default 1m base, 1h cap).
+  Earliest of all cooling/unavailable resets becomes the wake-up.
 
 ## BLOCKED
 
