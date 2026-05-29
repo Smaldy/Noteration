@@ -47,16 +47,23 @@
 
 ## IN PROGRESS
 
-- (none — Wave 3 checkpoint committed)
+- **Phase 4 — Persistent queue** (reliability core, TDD), split into sub-waves:
+  - [x] **4a — Queue service** (`services/queue.py`): `enqueue_topic`
+    (idempotent per stage, `skip` enqueues nothing), priority ordering
+    (exam_critical first), stage-dependency eligibility (formula→notes→
+    assessment), `budget_count` (floor headroom/est), `claim_next`
+    (pending→running). DB-queried sibling/existing checks (no stale collections).
+    11 tests; full suite 46 passed. **Committed.**
+  - [ ] **4b — Processing**: run a claimed job through the waterfall; per-topic
+    transaction + sub-stage commits; failover → `resume_after`; retry/attempts →
+    `error` after N; persist provider cost/cooldown to `ProviderState`.
+  - [ ] **4c — Resume + restart proof**: resume-from-DB on startup
+    (running→pending recovery, nothing half-written); single wake-up at earliest
+    `retry_at`; mid-job-limit + restart test proving no work lost.
 
 ## NEXT
 
-1. **Phase 4 — Persistent queue** (reliability core, TDD, sequential):
-   topic-atomic transactions, pre-flight budget dispatch, priority ordering,
-   sub-stage commits, resume-from-DB. Mid-job-limit + restart test. Wire the
-   waterfall's `AllProvidersExhausted.retry_at` to the single wake-up; persist
-   provider cooldown/cost to `ProviderState`.
-2. Phases 5–11 per `RUFLO-BUILD.md` build order.
+1. Phases 5–11 per `RUFLO-BUILD.md` build order.
 
 ## DECISIONS
 
