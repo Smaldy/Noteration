@@ -1,0 +1,45 @@
+# ───── Python / backend ─────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ───── Node / frontend ─────
+node_modules/
+dist/
+build/
+.vite/
+*.local
+
+# ───── Noteration runtime data (never commit) ─────
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+backend/cache/
+backend/benchmark/samples/*.pdf
+
+# ───── Secrets / env ─────
+.env
+.env.*
+*.key
+secrets.*
+
+# ───── Editor / OS ─────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ───── Ruflo / Claude Code runtime (keep config, ignore state) ─────
+.claude/*.local.json.bak
+.ruflo/
+.swarm/
+*.hive
+memory.db
