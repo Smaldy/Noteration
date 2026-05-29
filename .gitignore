@@ -38,6 +38,7 @@ secrets.*
 Thumbs.db
 
 # ───── Ruflo / Claude Code runtime (keep config, ignore state) ─────
+.claude/settings.local.json
 .claude/*.local.json.bak
 .ruflo/
 .swarm/
