@@ -146,11 +146,12 @@ def ingest(
         # Removes leftovers on failure; harmless no-op after a successful swap.
         shutil.rmtree(staging, ignore_errors=True)
 
+    pages_dir = cache_dir / PAGES_DIRNAME
     return IngestionResult(
         file_hash=file_hash,
         markdown=markdown,
         markdown_path=cache_dir / MARKDOWN_NAME,
-        page_image_paths=[cache_dir / PAGES_DIRNAME / name for name in manifest["page_files"]],
+        page_image_paths=[pages_dir / name for name in manifest["page_files"]],
         page_count=page_count,
         is_scanned=is_scanned,
         from_cache=False,
@@ -199,12 +200,22 @@ def _load_cache(cache_dir: Path, file_hash: str) -> IngestionResult | None:
 def _commit_cache(staging: Path, cache_dir: Path) -> None:
     """Move the freshly built staging dir into its final hash-keyed location.
 
-    A rebuild (cache invalidated or ``force``) must overwrite any existing dir,
-    so a stale/incomplete cache is cleared first. The queue is the single writer
-    in this local app, so the brief window where the target is absent only ever
-    looks like a cache miss to a concurrent reader (which then rebuilds).
+    A rebuild (cache invalidated or ``force``) must overwrite any existing dir.
+    Rather than delete-then-recreate the same name — which races on Windows,
+    where directory deletion can lag and the immediate recreate fails — the stale
+    dir is moved aside first (a reliable atomic rename), the new one swapped in,
+    and only then is the old one deleted. On failure the old dir is restored.
     """
     cache_dir.parent.mkdir(parents=True, exist_ok=True)
-    if cache_dir.exists():
-        shutil.rmtree(cache_dir, ignore_errors=True)
-    os.replace(staging, cache_dir)  # atomic on the same filesystem
+    if not cache_dir.exists():
+        os.replace(staging, cache_dir)  # atomic on the same filesystem
+        return
+
+    backup = cache_dir.with_name(f"{cache_dir.name}.old-{uuid.uuid4().hex}")
+    os.replace(cache_dir, backup)
+    try:
+        os.replace(staging, cache_dir)
+    except OSError:
+        os.replace(backup, cache_dir)  # restore the previous cache on failure
+        raise
+    shutil.rmtree(backup, ignore_errors=True)
