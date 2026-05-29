@@ -14,6 +14,11 @@ python-multipart  # multipart/form-data for PDF upload (Phase 6)
 markitdown[pdf]
 pymupdf
 
+# Phase 7 — provider SDKs (lazily imported; see services/providers/)
+google-genai
+anthropic
+ollama
+
 # Test/dev
 pytest
 httpx

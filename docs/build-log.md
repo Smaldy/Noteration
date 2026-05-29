@@ -115,10 +115,8 @@
     Schema enforces ≥1 chapter / ≥1 topic. 6 service + 3 HTTP tests.
   - Tree green: full suite **92 passed**, `npm run build` clean.
 
-## IN PROGRESS
-
-- **Phase 7 — Generation + formula vision (Wave 7).** Sub-waves:
-  - **7a (DONE)** — Notes generation. `services/pipeline/generation.py`:
+- **Phase 7 — Generation + formula vision (Wave 7).** Five committed sub-waves:
+  - **7a** — Notes generation. `services/pipeline/generation.py`:
     `build_notes_prompt`, per-topic `load_topic_source` (slices the cached
     markdown by topic heading → chapter section → whole doc), and
     `make_notes_processor(waterfall)` → a queue `StageProcessor` that writes a
@@ -127,14 +125,14 @@
     parser. Tested through the real `QueueService.process_job` with `MockProvider`
     (success stamps provider + commits the Note; exhaustion writes nothing and
     defers). 10 tests; suite **102 passed**.
-  - **7b (DONE)** — Assessment. `build_assessment_prompt` (notes as context →
+  - **7b** — Assessment. `build_assessment_prompt` (notes as context →
     one JSON object), `parse_assessment` (tolerant `_extract_json_object` +
     strict validation: ≥2 options, in-range non-bool `correct_index`, ≥1 MCQ and
     ≥1 flashcard), and `make_assessment_processor` writing MCQ + Flashcard rows
     (cards at SM-2 defaults). Tested via the queue: success commits rows;
     missing-notes and malformed-JSON both roll back and defer (no partial rows).
     11 tests; suite **113 passed**.
-  - **7c (DONE)** — Formula vision. `services/pipeline/formula.py`:
+  - **7c** — Formula vision. `services/pipeline/formula.py`:
     `detect_math_regions` (delimiter heuristic: `$$`/`$`/`\[`/`\(`/`\begin{env}`,
     deduped), `crop_pdf_region` (PyMuPDF `search_for` → clip render → PNG+bbox),
     and `make_formula_processor` → a `StageProcessor` that, per detected region,
@@ -145,21 +143,35 @@
     transcribed LaTeX in its prompt (chosen reconciliation of the
     formula-before-notes order with the `Formula→Note` FK). 8 formula tests
     (+ refactored 10 notes tests still green); suite **121 passed**.
-  - **7e (DONE)** — Stage dispatcher. `services/pipeline/processors.py`
+  - **7e** — Stage dispatcher. `services/pipeline/processors.py`
     `make_pipeline_processor(waterfall)` routes a job to formula/notes/assessment
     by `job.stage` over one waterfall (source_loader/cropper injectable). End-to-end
     test: confirm a document → `run_batch` drives a topic through formula (no-op) →
     notes → assessment via prerequisites, producing a Note + MCQ + Flashcard; plus
     a restart/resume test. 2 tests; suite **123 passed**.
-  - **7d (NEXT — last of Phase 7)** — Real SDK wiring into the gemini/claude/ollama
-    stubs (generate/transcribe_image/budget_probe); add SDK deps. Network code is
-    not unit-tested green; structure request-building/response-parsing/probe behind
-    injectable clients so logic is testable with fakes.
+  - **7d** — Real SDK wiring. `providers/budget.py` (FreeTierLimiter rpm/rpd +
+    RollingTokenWindow, clock-injected); Gemini (google-genai), Claude (anthropic,
+    cost + 5h token window), Ollama (local $0, vision-gated) rewritten with lazy
+    SDK imports + injectable client/clock, response parsing, usage/cost, and
+    error→`ProviderLimitError`/`ProviderUnavailableError` mapping;
+    `providers/factory.py` `build_waterfall[_from_settings]` (cheapest-first,
+    `allow_paid` gate, order override). Network never touched in tests (fake
+    clients). Deps: `google-genai`, `anthropic`, `ollama` (cp314 wheels). 17
+    tests; suite **140 passed**. Real API calls await user keys / the Phase-11
+    benchmark for live verification.
+  - Tree green: full suite **140 passed**, `npm run build` clean. Phase 7 done.
+
+## IN PROGRESS
+
+- (none — Phase 7 complete, all five sub-waves committed)
 
 ## NEXT
 
-1. Finish Phase 7 sub-waves 7b–7e (above).
-2. Phases 8–11 per `RUFLO-BUILD.md` build order.
+1. **Phase 8 — Scheduler**: SM-2 (+ deadline mode) over flashcards →
+   `ScheduleEntry`/calendar; self-grade (Correct/Incorrect/Skip) → SM-2 quality
+   update (settle review.md "Still open" #3, the grade→quality mapping).
+2. **Phase 9 — Frontend** (feature-based) per `ux-flows.md`, one feature
+   end-to-end at a time; then Phases 10–11 per `RUFLO-BUILD.md`.
 
 ## DECISIONS
 
@@ -271,6 +283,22 @@
   regions, or none locatable on the page, → zero model calls; the job is stamped
   `assigned_provider="none"`. Confidence is stored as `None` for now (the stub
   vision path returns no confidence signal; revisit when real SDKs land in 7d).
+- **Provider SDKs lazy + client-injectable (Phase 7d).** Each provider imports
+  its SDK inside the method that needs it (package loads without the SDKs) and
+  accepts an injected `client` + `clock`, so request/response/cost/error logic is
+  unit-tested with fakes and the budget probes are deterministic. Real network
+  calls are intentionally not covered by the suite — they need live keys and are
+  verified via the Phase-11 benchmark.
+- **Local budget modelling (Phase 7d).** No provider exposes remaining quota, so
+  headroom is modelled from our own call history: Gemini by rpm(15)/rpd(1500)
+  (binding axis wins; ties → minute), Claude by a rolling ~5h token window with
+  per-token cost (defaults Sonnet-class, tunable), Ollama as always-available
+  hardware-bound. All defaults are conservative and overridable.
+- **Provider defaults (Phase 7d).** Gemini model `gemini-2.0-flash`; Claude model
+  `claude-sonnet-4-6` (cheaper than Opus for bulk, paid is last resort); Ollama
+  model unset (benchmark-gated, review.md "Still open" #1) so it stays out of the
+  waterfall until chosen. `build_waterfall_from_settings` reads keys/flags from
+  the `Settings` singleton; Settings CRUD endpoints come with the frontend.
 
 ## BLOCKED
 
@@ -280,6 +308,11 @@
 
 - `StarletteDeprecationWarning`: TestClient suggests `httpx2`. Cosmetic; revisit
   if it becomes noisy. Not a blocker.
+- `DeprecationWarning` from `google.genai.types` on import (`_UnionGenericAlias`,
+  Python 3.17). Comes from the SDK, not our code; cosmetic. Watch on SDK upgrades.
+- Provider SDK calls are unverified against live APIs (no keys in CI). Verify
+  Gemini/Claude/Ollama end-to-end during the Phase-11 benchmark with real keys;
+  confidence-from-vision and exact free-tier quotas may need tuning then.
 - The four "Still open" items in `docs/review.md` (Ollama model, equation
   detector, SM-2 grade mapping, second free tier) are decided in their relevant
   phases (3–4, 7–8), not now.

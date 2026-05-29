@@ -11,6 +11,10 @@ from backend.services.providers.base import (
     VisionNotSupportedError,
 )
 from backend.services.providers.claude import ClaudeProvider
+from backend.services.providers.factory import (
+    build_waterfall,
+    build_waterfall_from_settings,
+)
 from backend.services.providers.gemini import GeminiProvider
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.ollama import OllamaProvider
@@ -30,4 +34,6 @@ __all__ = [
     "GeminiProvider",
     "ClaudeProvider",
     "OllamaProvider",
+    "build_waterfall",
+    "build_waterfall_from_settings",
 ]
