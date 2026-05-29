@@ -1,6 +1,43 @@
-"""SQLAlchemy ORM models.
+"""SQLAlchemy ORM models, per docs/data-model.md.
 
-Empty in Phase 1 — the data model (Subject, Chapter, Topic, QueueJob,
-ProviderState, SM-2 fields) lands in Phase 2 per docs/data-model.md. Import
-model modules here so Alembic autogenerate sees them on Base.metadata.
+Importing this package registers every model on ``Base.metadata`` so Alembic
+autogenerate and ``create_all`` see the full schema.
 """
+
+from backend.models.content import MCQ, Flashcard, Formula, Note, SourcePage
+from backend.models.enums import (
+    DocumentStatus,
+    FormulaState,
+    QueueStage,
+    QueueState,
+    ScheduleSource,
+    TopicPriority,
+    TopicStatus,
+)
+from backend.models.hierarchy import Chapter, Document, Subject, Topic
+from backend.models.processing import ProviderState, QueueJob
+from backend.models.schedule import ScheduleEntry
+from backend.models.settings import Settings
+
+__all__ = [
+    "Subject",
+    "Document",
+    "Chapter",
+    "Topic",
+    "Note",
+    "Formula",
+    "MCQ",
+    "Flashcard",
+    "SourcePage",
+    "ScheduleEntry",
+    "QueueJob",
+    "ProviderState",
+    "Settings",
+    "DocumentStatus",
+    "TopicPriority",
+    "TopicStatus",
+    "QueueStage",
+    "QueueState",
+    "FormulaState",
+    "ScheduleSource",
+]

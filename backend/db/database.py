@@ -7,7 +7,7 @@ concurrently — no writer-blocks-readers stalls. See docs/tech-stack.md.
 from collections.abc import Generator
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -34,8 +34,21 @@ def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:  # noqa: A
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
+# Stable constraint names so Alembic (incl. SQLite batch ALTERs) generates
+# deterministic, named constraints instead of anonymous ones.
+NAMING_CONVENTION = {
+    "ix": "ix_%(table_name)s_%(column_0_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+
 class Base(DeclarativeBase):
-    """Declarative base shared by every ORM model (populated in Phase 2)."""
+    """Declarative base shared by every ORM model."""
+
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
 def get_session() -> Generator[Session, None, None]:
