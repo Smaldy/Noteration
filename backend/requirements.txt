@@ -8,6 +8,7 @@ sqlalchemy
 alembic
 pydantic
 pydantic-settings
+python-multipart  # multipart/form-data for PDF upload (Phase 6)
 
 # Phase 5 — ingestion (PDF → markdown + page renders)
 markitdown[pdf]

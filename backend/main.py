@@ -11,6 +11,8 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.routers import documents
+
 # Built Vite bundle. Produced by `npm run build`; gitignored.
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "dist"
 
@@ -24,6 +26,8 @@ def health() -> dict[str, str]:
     """Liveness probe used by tests and the frontend boot check."""
     return {"status": "ok"}
 
+
+api.include_router(documents.router)
 
 # API routes are registered before the SPA catch-all so they always win.
 app.include_router(api)
