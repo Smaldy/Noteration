@@ -3,6 +3,8 @@
 Processing, failover, and resume-from-DB are covered in 4b–4c.
 """
 
+from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -226,3 +228,94 @@ def test_process_through_waterfall(session: Session) -> None:
     assert job.state is QueueState.done
     assert job.assigned_provider == "claude_paid"  # failed over from gemini
     assert session.scalars(select(Note)).one().content_md == "notes!"
+
+
+# --- 4c: resume-from-DB + restart proof -----------------------------------
+
+
+def test_recover_orphaned_running_jobs(session: Session) -> None:
+    queue = QueueService(session)
+    topic = _topic(session)
+    job = _claim(queue, topic, QueueStage.notes)  # left in `running`
+    assert job.state is QueueState.running
+
+    recovered = QueueService(session).recover_orphaned_jobs()
+    assert recovered == 1
+    assert job.state is QueueState.pending
+
+
+def test_earliest_resume_after(session: Session) -> None:
+    queue = QueueService(session)
+    assert queue.earliest_resume_after() is None
+
+    sooner = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    later = datetime(2026, 6, 2, tzinfo=timezone.utc)
+    for resume_at in (later, sooner):
+        topic = _topic(session)
+        job = _claim(queue, topic, QueueStage.notes)
+        queue.process_job(
+            job, lambda j, db, r=resume_at: _raise(AllProvidersExhausted(retry_at=r))
+        )
+
+    assert queue.earliest_resume_after() == sooner
+
+
+def test_mid_job_limit_then_restart_completes_all(session: Session) -> None:
+    """The reliability proof: a limit hit mid-batch loses no work, writes nothing
+    half, survives a restart, and resumes to completion."""
+    queue = QueueService(session)
+    for i in range(3):
+        topic = _topic(
+            session, priority=TopicPriority.exam_critical, order_index=i, title=f"t{i}"
+        )
+        queue.enqueue_topic(topic, stages=(QueueStage.notes,))
+
+    resume_at = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    calls = {"n": 0}
+
+    def limited(job: QueueJob, db: Session) -> ProviderResult:
+        calls["n"] += 1
+        if calls["n"] == 1:  # first topic succeeds before the window closes
+            db.add(Note(topic_id=job.topic_id, content_md="committed"))
+            return ProviderResult(text="committed", provider="gemini_free")
+        db.add(Note(topic_id=job.topic_id, content_md="PARTIAL"))  # must roll back
+        raise AllProvidersExhausted(retry_at=resume_at)
+
+    # Run 1: one topic commits, then the window is exhausted.
+    queue.run_batch(limited, max_jobs=10)
+    done = session.scalars(select(QueueJob).where(QueueJob.state == QueueState.done)).all()
+    assert len(done) == 1
+    notes = session.scalars(select(Note)).all()
+    assert [n.content_md for n in notes] == ["committed"]  # partial write discarded
+    assert queue.earliest_resume_after() == resume_at
+
+    # Simulate a crash mid-process on another job.
+    pending = session.scalars(
+        select(QueueJob).where(QueueJob.state == QueueState.pending)
+    ).all()
+    assert len(pending) == 2
+    pending[0].state = QueueState.running
+    session.commit()
+
+    # Restart: a fresh process/session reading only from the DB.
+    fresh = Session(bind=session.get_bind())
+    restarted = QueueService(fresh)
+    assert restarted.recover_orphaned_jobs() == 1
+    assert restarted.earliest_resume_after() == resume_at
+
+    # Resume: window reopened, provider healthy.
+    def healthy(job: QueueJob, db: Session) -> ProviderResult:
+        db.add(Note(topic_id=job.topic_id, content_md=f"resumed-{job.topic_id}"))
+        return ProviderResult(text="ok", provider="gemini_free")
+
+    restarted.run_batch(healthy, max_jobs=10)
+
+    all_jobs = fresh.scalars(select(QueueJob)).all()
+    assert len(all_jobs) == 3
+    assert all(j.state is QueueState.done for j in all_jobs)  # no work lost
+    assert len(fresh.scalars(select(Note)).all()) == 3  # exactly one per topic
+    fresh.close()
+
+
+def _raise(exc: Exception) -> ProviderResult:
+    raise exc

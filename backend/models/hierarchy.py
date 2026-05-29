@@ -15,6 +15,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.database import Base
+from backend.db.types import UTCDateTime
 from backend.models.enums import DocumentStatus, TopicPriority, TopicStatus
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ class Subject(Base):
     name: Mapped[str]
     accent_color: Mapped[str | None] = mapped_column(default=None)
     exam_date: Mapped[date | None] = mapped_column(default=None)
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     documents: Mapped[list[Document]] = relationship(
         back_populates="subject", cascade="all, delete-orphan"
@@ -59,7 +60,7 @@ class Document(Base):
     status: Mapped[DocumentStatus] = mapped_column(
         SAEnum(DocumentStatus, native_enum=False), default=DocumentStatus.uploaded
     )
-    uploaded_at: Mapped[datetime] = mapped_column(default=utcnow)
+    uploaded_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     subject: Mapped[Subject] = relationship(back_populates="documents")
     chapters: Mapped[list[Chapter]] = relationship(

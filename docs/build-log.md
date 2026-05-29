@@ -45,30 +45,37 @@
   (failover, cooldown+recovery, backoff growth+cap, vision routing/exhaustion,
   disabled/never-spend). Tree green: `pytest` 35 passed (warning-clean).
 
+- **Phase 4 — Persistent queue (Wave 4, reliability core)** — `services/queue.py`,
+  built in three committed sub-waves:
+  - **4a** — `enqueue_topic` (idempotent per stage; `skip` enqueues nothing),
+    priority ordering (exam_critical first), stage-dependency eligibility
+    (formula→notes→assessment), `budget_count`, atomic `claim_next`. DB-queried
+    sibling/existing checks (no stale collections).
+  - **4b** — `process_job`: runs a claimed job through an injected stage
+    processor (uses the waterfall); commits domain rows + `done`/stamping +
+    provider cost in one transaction (sub-stage commit; never half-written).
+    Budget exhaustion → rollback + requeue with `resume_after` (attempts
+    unchanged); other failure → rollback + `attempts += 1`, `failed` after
+    `max_attempts`. Spend accrues to `ProviderState`.
+  - **4c** — `recover_orphaned_jobs` (running→pending on startup),
+    `earliest_resume_after` (single wake-up), `run_batch` (stops on exhaustion,
+    never spins). Added `UTCDateTime` type (`db/types.py`) so datetimes stay
+    tz-aware UTC through SQLite — fixes naive/aware comparison for wake-ups (no
+    migration: impl is DateTime; `alembic check` clean). Headline test:
+    mid-job-limit + restart proves no work lost, nothing half-written, resumes
+    to completion across a fresh session.
+  - Tree green: full suite **54 passed** (warning-clean). Reliability core done.
+
 ## IN PROGRESS
 
-- **Phase 4 — Persistent queue** (reliability core, TDD), split into sub-waves:
-  - [x] **4a — Queue service** (`services/queue.py`): `enqueue_topic`
-    (idempotent per stage, `skip` enqueues nothing), priority ordering
-    (exam_critical first), stage-dependency eligibility (formula→notes→
-    assessment), `budget_count` (floor headroom/est), `claim_next`
-    (pending→running). DB-queried sibling/existing checks (no stale collections).
-    11 tests; full suite 46 passed. **Committed.**
-  - [x] **4b — Processing** (`process_job`): runs a claimed job through an
-    injected stage processor (which uses the waterfall); commits domain rows +
-    `done`/stamping + provider cost atomically (sub-stage commit). Budget
-    exhaustion → roll back partial write, requeue with `resume_after`, attempts
-    unchanged. Other failure → roll back, `attempts += 1`, `failed` after
-    `max_attempts`. Provider spend accrues to `ProviderState`. 6 tests
-    (incl. waterfall integration + never-half-written rollback); full suite 51.
-    **Committed.** Note: job terminal failure state is `QueueState.failed`.
-  - [ ] **4c — Resume + restart proof**: resume-from-DB on startup
-    (running→pending recovery, nothing half-written); single wake-up at earliest
-    `retry_at`; mid-job-limit + restart test proving no work lost.
+- (none — Phase 4 complete, all sub-waves committed)
 
 ## NEXT
 
-1. Phases 5–11 per `RUFLO-BUILD.md` build order.
+1. **Phase 5 — Ingestion**: markitdown → markdown + PyMuPDF page renders +
+   `file_hash` cache + cache-check; tiny fixture-PDF test. (Adds markitdown,
+   pymupdf deps.)
+2. Phases 6–11 per `RUFLO-BUILD.md` build order.
 
 ## DECISIONS
 
@@ -111,6 +118,16 @@
 - **Backoff model (Phase 3).** Limit-hit → cool until the provider's `reset_at`;
   hard error → exponential backoff `base·2^(n-1)` capped (default 1m base, 1h cap).
   Earliest of all cooling/unavailable resets becomes the wake-up.
+- **Queue ↔ generation seam (Phase 4).** The queue owns transaction/failover/
+  retry/resume; the actual model calls are an injected `StageProcessor`
+  (`(job, session) -> ProviderResult`) that writes domain rows uncommitted. Real
+  processors land in Phase 7; the queue is fully testable now via fakes.
+- **`QueueState.failed`** is the job terminal-failure state (the data model's
+  QueueJob enum has no `error`; `error` belongs to `TopicStatus`).
+- **`UTCDateTime` everywhere (Phase 4c).** All datetime columns use a
+  TypeDecorator that stores/returns tz-aware UTC, so SQLite's naive round-trip
+  can't break `resume_after`/`reset_at` vs `now()` comparisons. Schema-compatible
+  (impl=DateTime); no migration needed.
 
 ## BLOCKED
 

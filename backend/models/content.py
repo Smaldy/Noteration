@@ -11,6 +11,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.database import Base
+from backend.db.types import UTCDateTime
 from backend.models.enums import FormulaState
 from backend.models.hierarchy import utcnow
 
@@ -28,7 +29,7 @@ class Note(Base):
     locked: Mapped[bool] = mapped_column(default=False)
     # Set true when notes are regenerated and assessment not yet re-run.
     stale: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     topic: Mapped[Topic] = relationship(back_populates="notes")
     formulas: Mapped[list[Formula]] = relationship(

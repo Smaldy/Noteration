@@ -12,6 +12,7 @@ The topic is the atomic unit; nothing here ever spans the whole document.
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -130,6 +131,7 @@ class QueueService:
             job = self.session.get(QueueJob, job.id)
             job.attempts += 1
             job.last_error = str(exc)
+            job.resume_after = None  # a failure, not a budget defer
             job.state = (
                 QueueState.failed
                 if job.attempts >= self.max_attempts
@@ -140,10 +142,55 @@ class QueueService:
 
         job.assigned_provider = result.provider
         job.last_error = None
+        job.resume_after = None
         job.state = QueueState.done
         self._record_provider_usage(result)
         self.session.commit()
         return job
+
+    def recover_orphaned_jobs(self) -> int:
+        """Reset jobs stuck in `running` (interrupted mid-process) to `pending`.
+
+        Called on startup. Safe because `process_job` commits a stage
+        atomically: an interrupted job never wrote its domain rows, so
+        re-running it loses nothing and leaves nothing half-written.
+        """
+        orphaned = self.session.scalars(
+            select(QueueJob).where(QueueJob.state == QueueState.running)
+        ).all()
+        for job in orphaned:
+            job.state = QueueState.pending
+        self.session.commit()
+        return len(orphaned)
+
+    def earliest_resume_after(self) -> datetime | None:
+        """The single wake-up time: earliest `resume_after` among deferred jobs."""
+        return self.session.scalars(
+            select(QueueJob.resume_after)
+            .where(
+                QueueJob.state == QueueState.pending,
+                QueueJob.resume_after.is_not(None),
+            )
+            .order_by(QueueJob.resume_after.asc())
+        ).first()
+
+    def run_batch(self, processor: StageProcessor, *, max_jobs: int) -> int:
+        """Claim and process eligible jobs until budget exhaustion or max_jobs.
+
+        Returns the count successfully processed. Stops early when a job is
+        deferred by provider exhaustion (the caller then sleeps until
+        ``earliest_resume_after``) — never spins.
+        """
+        processed = 0
+        while processed < max_jobs:
+            job = self.claim_next()
+            if job is None:
+                break
+            self.process_job(job, processor)
+            if job.state is QueueState.pending and job.resume_after is not None:
+                break  # all providers exhausted — wait for the wake-up
+            processed += 1
+        return processed
 
     @staticmethod
     def budget_count(headroom: int, est_cost_per_topic: int) -> int:
