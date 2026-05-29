@@ -11,12 +11,28 @@ The topic is the atomic unit; nothing here ever spans the whole document.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models.enums import QueueStage, QueueState, TopicPriority
 from backend.models.hierarchy import Topic
-from backend.models.processing import QueueJob
+from backend.models.processing import ProviderState, QueueJob
+from backend.services.providers.base import (
+    AllProvidersExhausted,
+    ProviderResult,
+)
+
+# A stage processor runs the stage's model call(s) (via the waterfall) and
+# writes its domain rows (Note/MCQ/Formula/...) to the session WITHOUT
+# committing — the queue commits everything atomically so a stage is never
+# half-written. It returns the ProviderResult for stamping + cost, or raises.
+StageProcessor = Callable[[QueueJob, Session], ProviderResult]
+
+# A job goes to `error` after this many failed attempts (then it poisons only
+# itself; every other topic is unaffected).
+MAX_ATTEMPTS = 3
 
 # Stage execution order within a topic: formulas first (notes embed them), then
 # notes, then assessment (which uses notes as context).
@@ -38,8 +54,9 @@ DEFAULT_STAGES: tuple[QueueStage, ...] = STAGE_ORDER
 class QueueService:
     """Thin persistence-facing queue API over a SQLAlchemy session."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, max_attempts: int = MAX_ATTEMPTS) -> None:
         self.session = session
+        self.max_attempts = max_attempts
 
     def enqueue_topic(
         self, topic: Topic, stages: tuple[QueueStage, ...] = DEFAULT_STAGES
@@ -88,6 +105,46 @@ class QueueService:
                 return job
         return None
 
+    def process_job(self, job: QueueJob, processor: StageProcessor) -> QueueJob:
+        """Run one claimed job's stage and commit the result atomically.
+
+        Success: the processor's domain rows + the job's `done`/stamping + the
+        provider's cost are committed together — a sub-stage commit that never
+        leaves a topic half-written. Budget exhaustion defers the job back to
+        `pending` with a `resume_after`; any other failure rolls back partial
+        writes and retries, going to `error` after `max_attempts`.
+        """
+        try:
+            result = processor(job, self.session)
+        except AllProvidersExhausted as exc:
+            # Not a job failure — a budget pause. Roll back any partial write,
+            # requeue, and record when to resume. Attempts unchanged.
+            self.session.rollback()
+            job = self.session.get(QueueJob, job.id)
+            job.state = QueueState.pending
+            job.resume_after = exc.retry_at
+            self.session.commit()
+            return job
+        except Exception as exc:  # noqa: BLE001 - a failed topic must poison only itself
+            self.session.rollback()
+            job = self.session.get(QueueJob, job.id)
+            job.attempts += 1
+            job.last_error = str(exc)
+            job.state = (
+                QueueState.failed
+                if job.attempts >= self.max_attempts
+                else QueueState.pending
+            )
+            self.session.commit()
+            return job
+
+        job.assigned_provider = result.provider
+        job.last_error = None
+        job.state = QueueState.done
+        self._record_provider_usage(result)
+        self.session.commit()
+        return job
+
     @staticmethod
     def budget_count(headroom: int, est_cost_per_topic: int) -> int:
         """How many jobs current headroom allows: floor(headroom / est).
@@ -109,6 +166,20 @@ class QueueService:
             chapter.order_index,
             topic.order_index,
             STAGE_RANK[job.stage],
+        )
+
+    def _record_provider_usage(self, result: ProviderResult) -> None:
+        """Accumulate spend/usage on the serving provider's ProviderState row."""
+        state = self.session.scalars(
+            select(ProviderState).where(ProviderState.provider == result.provider)
+        ).one_or_none()
+        if state is None:
+            state = ProviderState(provider=result.provider)
+            self.session.add(state)
+        # Column defaults apply at flush, so a freshly-added row reads None here.
+        state.total_cost = (state.total_cost or 0.0) + result.cost
+        state.total_tokens = (
+            (state.total_tokens or 0) + result.input_tokens + result.output_tokens
         )
 
     def _prerequisites_done(self, job: QueueJob) -> bool:

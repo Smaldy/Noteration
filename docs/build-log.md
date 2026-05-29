@@ -54,9 +54,14 @@
     assessment), `budget_count` (floor headroom/est), `claim_next`
     (pending→running). DB-queried sibling/existing checks (no stale collections).
     11 tests; full suite 46 passed. **Committed.**
-  - [ ] **4b — Processing**: run a claimed job through the waterfall; per-topic
-    transaction + sub-stage commits; failover → `resume_after`; retry/attempts →
-    `error` after N; persist provider cost/cooldown to `ProviderState`.
+  - [x] **4b — Processing** (`process_job`): runs a claimed job through an
+    injected stage processor (which uses the waterfall); commits domain rows +
+    `done`/stamping + provider cost atomically (sub-stage commit). Budget
+    exhaustion → roll back partial write, requeue with `resume_after`, attempts
+    unchanged. Other failure → roll back, `attempts += 1`, `failed` after
+    `max_attempts`. Provider spend accrues to `ProviderState`. 6 tests
+    (incl. waterfall integration + never-half-written rollback); full suite 51.
+    **Committed.** Note: job terminal failure state is `QueueState.failed`.
   - [ ] **4c — Resume + restart proof**: resume-from-DB on startup
     (running→pending recovery, nothing half-written); single wake-up at earliest
     `retry_at`; mid-job-limit + restart test proving no work lost.
