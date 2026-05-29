@@ -127,9 +127,14 @@
     parser. Tested through the real `QueueService.process_job` with `MockProvider`
     (success stamps provider + commits the Note; exhaustion writes nothing and
     defers). 10 tests; suite **102 passed**.
-  - **7b (NEXT)** — Assessment: MCQs+flashcards prompt + JSON parse +
-    `make_assessment_processor` (notes as context, writes MCQ + Flashcard rows).
-  - **7c** — Formula vision: detect-then-crop (PyMuPDF), `transcribe_image` via
+  - **7b (DONE)** — Assessment. `build_assessment_prompt` (notes as context →
+    one JSON object), `parse_assessment` (tolerant `_extract_json_object` +
+    strict validation: ≥2 options, in-range non-bool `correct_index`, ≥1 MCQ and
+    ≥1 flashcard), and `make_assessment_processor` writing MCQ + Flashcard rows
+    (cards at SM-2 defaults). Tested via the queue: success commits rows;
+    missing-notes and malformed-JSON both roll back and defer (no partial rows).
+    11 tests; suite **113 passed**.
+  - **7c (NEXT)** — Formula vision: detect-then-crop (PyMuPDF), `transcribe_image` via
     waterfall, store `Formula` with confidence; exam-critical first (queue
     priority + formula stage order already enforce this).
   - **7d** — Real SDK wiring into the gemini/claude/ollama stubs
