@@ -75,11 +75,15 @@ def detect_structure(markdown: str) -> ProposedStructure:
 # --- heading extraction -----------------------------------------------------
 
 
-def _extract_atx_headings(markdown: str) -> list[tuple[int, str]]:
-    """Return ``(level, title)`` for each ATX heading outside code fences."""
-    headings: list[tuple[int, str]] = []
+def iter_atx_headings(markdown: str) -> list[tuple[int, str, int]]:
+    """Return ``(level, title, line_no)`` for each ATX heading outside fences.
+
+    ``line_no`` indexes ``markdown.splitlines()`` so callers can slice the source
+    section that follows a heading (used by generation's per-topic source loader).
+    """
+    headings: list[tuple[int, str, int]] = []
     in_fence = False
-    for line in markdown.splitlines():
+    for line_no, line in enumerate(markdown.splitlines()):
         if _FENCE_RE.match(line):
             in_fence = not in_fence
             continue
@@ -90,8 +94,13 @@ def _extract_atx_headings(markdown: str) -> list[tuple[int, str]]:
             continue
         title = _clean_title(match.group(2))
         if title:
-            headings.append((len(match.group(1)), title))
+            headings.append((len(match.group(1)), title, line_no))
     return headings
+
+
+def _extract_atx_headings(markdown: str) -> list[tuple[int, str]]:
+    """Return ``(level, title)`` for each ATX heading outside code fences."""
+    return [(level, title) for level, title, _ in iter_atx_headings(markdown)]
 
 
 def _extract_text_chapters(markdown: str) -> list[tuple[int, str]]:

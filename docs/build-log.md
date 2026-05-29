@@ -117,15 +117,29 @@
 
 ## IN PROGRESS
 
-- (none — Phase 6 complete, all sub-waves committed)
+- **Phase 7 — Generation + formula vision (Wave 7).** Sub-waves:
+  - **7a (DONE)** — Notes generation. `services/pipeline/generation.py`:
+    `build_notes_prompt`, per-topic `load_topic_source` (slices the cached
+    markdown by topic heading → chapter section → whole doc), and
+    `make_notes_processor(waterfall)` → a queue `StageProcessor` that writes a
+    `Note` uncommitted and returns the `ProviderResult`. Exposed
+    `structure.iter_atx_headings` (level+title+line_no) as the single heading
+    parser. Tested through the real `QueueService.process_job` with `MockProvider`
+    (success stamps provider + commits the Note; exhaustion writes nothing and
+    defers). 10 tests; suite **102 passed**.
+  - **7b (NEXT)** — Assessment: MCQs+flashcards prompt + JSON parse +
+    `make_assessment_processor` (notes as context, writes MCQ + Flashcard rows).
+  - **7c** — Formula vision: detect-then-crop (PyMuPDF), `transcribe_image` via
+    waterfall, store `Formula` with confidence; exam-critical first (queue
+    priority + formula stage order already enforce this).
+  - **7d** — Real SDK wiring into the gemini/claude/ollama stubs
+    (generate/transcribe_image/budget_probe); add SDK deps.
+  - **7e** — Stage→processor registry the queue's `run_batch` uses; end-to-end
+    confirmed-document processing test (mocks).
 
 ## NEXT
 
-1. **Phase 7 — Generation + formula vision**: notes call; MCQs+flashcards call
-   (notes as context); detect-then-crop vision, exam-critical first, confidence
-   stored. Wires the real provider SDKs (google-genai, anthropic, ollama) into the
-   Phase-3 stubs and the queue's `StageProcessor` seam. (Settled "Still open":
-   equation detection method, per `docs/review.md`.)
+1. Finish Phase 7 sub-waves 7b–7e (above).
 2. Phases 8–11 per `RUFLO-BUILD.md` build order.
 
 ## DECISIONS
@@ -212,6 +226,18 @@
   the `processing` status flip commit in a single transaction (`enqueue_topic
   commit=False`); re-confirming a document that already has chapters is refused
   (409) rather than duplicating the tree.
+- **Per-topic source text derived, not stored (Phase 7a).** The data model has no
+  topic↔source column, so generation slices the document's cached markdown at
+  generation time: match the topic title to a heading (case-insensitive) → its
+  section; else the chapter section; else the whole document (never zero context).
+  Cheapest reasonable option that needs no schema change; renamed/merged topics
+  fall back to chapter/full-doc context. Refinement (persist source spans at
+  confirm so edited trees map exactly) is logged for later, not needed for v1.
+- **Generation processors are pure of persistence-control (Phase 7a).** A
+  processor only builds the prompt, calls the `Waterfall`, and adds its domain
+  rows uncommitted; the queue owns commit/failover/retry (the Phase-4
+  `StageProcessor` seam). `source_loader` and `max_tokens` are injected so the
+  processor is testable with `MockProvider` and a stub loader.
 
 ## BLOCKED
 
