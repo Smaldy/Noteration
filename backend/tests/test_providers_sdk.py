@@ -232,6 +232,14 @@ def test_factory_default_order_and_paid_gate() -> None:
     assert claude.enabled is False  # never-spend by default
 
 
+def test_factory_default_settings_yield_bool_flags() -> None:
+    # A transient Settings has None boolean columns; flags must coerce to bool.
+    waterfall = build_waterfall_from_settings(Settings())
+    by_name = {p.name: p for p in waterfall.providers}
+    assert by_name["claude_paid"].enabled is False
+    assert by_name["ollama"].enabled is False
+
+
 def test_factory_enables_paid_and_custom_order() -> None:
     settings = Settings(
         api_key_gemini="g",

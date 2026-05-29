@@ -82,6 +82,14 @@ def test_parse_rejects_empty_lists() -> None:
         parse_assessment(json.dumps({"mcqs": [], "flashcards": []}))
 
 
+def test_parse_rejects_non_list_fields() -> None:
+    # Present-but-not-a-list must raise AssessmentParseError, not a bare TypeError.
+    with pytest.raises(AssessmentParseError):
+        parse_assessment(json.dumps({"mcqs": None, "flashcards": None}))
+    with pytest.raises(AssessmentParseError):
+        parse_assessment(json.dumps({"mcqs": {"q": "x"}, "flashcards": []}))
+
+
 def test_parse_rejects_bool_correct_index() -> None:
     bad = json.loads(_valid_json())
     bad["mcqs"][0]["correct_index"] = True  # bool is not a valid index

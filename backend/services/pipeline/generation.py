@@ -207,11 +207,21 @@ def parse_assessment(text: str) -> AssessmentData:
     if not isinstance(data, dict):
         raise AssessmentParseError("top-level JSON is not an object")
 
-    mcqs = [_parse_mcq(item) for item in data.get("mcqs", [])]
-    flashcards = [_parse_flashcard(item) for item in data.get("flashcards", [])]
+    mcqs = [_parse_mcq(item) for item in _as_list(data.get("mcqs"), "mcqs")]
+    flashcards = [
+        _parse_flashcard(item) for item in _as_list(data.get("flashcards"), "flashcards")
+    ]
     if not mcqs or not flashcards:
         raise AssessmentParseError("expected at least one MCQ and one flashcard")
     return AssessmentData(mcqs=mcqs, flashcards=flashcards)
+
+
+def _as_list(value: object, label: str) -> list:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise AssessmentParseError(f"{label} must be a list")
+    return value
 
 
 def make_assessment_processor(

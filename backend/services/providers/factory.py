@@ -37,14 +37,19 @@ def build_waterfall(
 ) -> Waterfall:
     """Build a configured ``Waterfall`` cheapest-first (or per ``provider_order``)."""
     clock_kwargs = {"clock": clock} if clock is not None else {}
+    # Coerce to bool: a transient (un-flushed) Settings row reads None for its
+    # boolean columns (SQLAlchemy defaults apply only on flush), and None must
+    # not leak into provider `enabled` flags.
     by_name: dict[str, Provider] = {
         "gemini_free": GeminiProvider(gemini_key, **clock_kwargs),
         "ollama": OllamaProvider(
             model=ollama_model,
             host=ollama_host,
-            enabled=ollama_enabled and bool(ollama_model),
+            enabled=bool(ollama_enabled and ollama_model),
         ),
-        "claude_paid": ClaudeProvider(claude_key, enabled=allow_paid, **clock_kwargs),
+        "claude_paid": ClaudeProvider(
+            claude_key, enabled=bool(allow_paid), **clock_kwargs
+        ),
     }
 
     names = provider_order or list(DEFAULT_ORDER)
