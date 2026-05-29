@@ -85,11 +85,17 @@ class QueueService:
         self.default_defer = default_defer
 
     def enqueue_topic(
-        self, topic: Topic, stages: tuple[QueueStage, ...] = DEFAULT_STAGES
+        self,
+        topic: Topic,
+        stages: tuple[QueueStage, ...] = DEFAULT_STAGES,
+        *,
+        commit: bool = True,
     ) -> list[QueueJob]:
         """Create pending jobs for a topic's stages (idempotent per stage).
 
         ``skip``-priority topics are never sent to a model, so none are created.
+        ``commit=False`` lets a caller batch several topics into one transaction
+        (e.g. structure confirmation enqueues a whole document atomically).
         """
         if topic.priority is TopicPriority.skip:
             return []
@@ -108,7 +114,8 @@ class QueueService:
             job = QueueJob(topic_id=topic.id, stage=stage)
             self.session.add(job)
             created.append(job)
-        self.session.commit()
+        if commit:
+            self.session.commit()
         return created
 
     def pending_in_priority_order(self) -> list[QueueJob]:

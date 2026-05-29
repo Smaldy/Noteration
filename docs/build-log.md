@@ -92,16 +92,41 @@
   `Document` is a later phase. Deps added: `markitdown[pdf]`, `pymupdf` (both
   cp314 wheels). Tree green: full suite **64 passed**, `npm run build` clean.
 
+- **Phase 6 — Structure detection + review API (Wave 6)** — three committed
+  sub-waves:
+  - **6a** — `services/pipeline/structure.py`: pure `detect_structure(markdown)`
+    (no model). ATX headings primary (code fences ignored); conservative
+    "Chapter/Unit/Part N" (decimal/Roman) text fallback; no headings →
+    `needs_manual` for the manual path. Topmost heading level → chapters, deeper →
+    topics; every chapter guaranteed ≥1 processable topic. 11 tests.
+  - **6b** — Documents API: `POST /api/documents` (multipart) validates `%PDF`
+    magic, persists the original under `cache/uploads/<hash>.pdf`, ingests
+    (cached), creates a `Document`; `GET /api/documents/{id}/structure` re-runs
+    detection over the cached markdown. Logic in `services/documents.py` (ingest
+    injectable); thin router + Pydantic schemas (`schemas/structure.py`); routers
+    wired into `main.py` before the SPA catch-all. Added `python-multipart`.
+    9 tests (service + TestClient, shared in-memory DB via StaticPool).
+  - **6c** — `POST /api/documents/{id}/structure` confirms the reviewed tree:
+    creates Chapters (denormalized `subject_id`) + Topics with priorities, sets
+    the subject `exam_date`, flips the document to `processing`, and enqueues
+    non-`skip` topics. Made **atomic** — `enqueue_topic` gained `commit=False` so
+    the whole tree+jobs+status commit in one transaction (no confirmed-but-
+    partially-queued state); re-confirm refused (409); empty tree → 422.
+    Schema enforces ≥1 chapter / ≥1 topic. 6 service + 3 HTTP tests.
+  - Tree green: full suite **92 passed**, `npm run build` clean.
+
 ## IN PROGRESS
 
-- (none — Phase 5 complete, committed)
+- (none — Phase 6 complete, all sub-waves committed)
 
 ## NEXT
 
-1. **Phase 6 — Structure detection + review API**: heading detection
-   (`#`/`##`/"Chapter X"/Roman) over the ingested markdown → proposed
-   chapter/topic tree; manual fallback for scanned/no-heading docs; review API.
-2. Phases 7–11 per `RUFLO-BUILD.md` build order.
+1. **Phase 7 — Generation + formula vision**: notes call; MCQs+flashcards call
+   (notes as context); detect-then-crop vision, exam-critical first, confidence
+   stored. Wires the real provider SDKs (google-genai, anthropic, ollama) into the
+   Phase-3 stubs and the queue's `StageProcessor` seam. (Settled "Still open":
+   equation detection method, per `docs/review.md`.)
+2. Phases 8–11 per `RUFLO-BUILD.md` build order.
 
 ## DECISIONS
 
@@ -171,6 +196,22 @@
 - **Scanned detection heuristic (Phase 5).** `is_scanned` when markdown has
   < ~8 non-whitespace chars per page; flags the manual-structure fallback path
   (`docs/ai-pipeline.md` stage 1) instead of feeding empty text to Phase 6.
+- **Structure mapping rule (Phase 6a).** Topmost heading level → chapters; any
+  deeper level → topics; every chapter is guaranteed ≥1 topic (defaults to the
+  chapter title) so it is always processable. A flat single-level doc therefore
+  yields N chapters each with one topic; users split/merge in review. Text
+  fallback is chapter-keyword-only (decimal list numbering in prose is too
+  false-positive-prone); finer-grained no-heading docs fall through to manual.
+- **Detection recomputed on demand (Phase 6).** `Document` stores `markdown_path`
+  but no detected tree; `GET …/structure` re-runs detection from the cached
+  markdown each call. The tree only becomes persistent rows when confirmed.
+- **Original PDF retained (Phase 6b).** Uploads are content-addressed to
+  `cache/uploads/<hash>.pdf` (gitignored) so a future forced re-ingest has the
+  source; the `Document` model intentionally has no `pdf_path` column.
+- **Confirm is atomic + one-shot (Phase 6c).** Tree creation, topic enqueue, and
+  the `processing` status flip commit in a single transaction (`enqueue_topic
+  commit=False`); re-confirming a document that already has chapters is refused
+  (409) rather than duplicating the tree.
 
 ## BLOCKED
 

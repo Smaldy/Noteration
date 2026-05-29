@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from datetime import date
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.models.enums import DocumentStatus, TopicPriority
 
@@ -59,20 +61,20 @@ class ProposedStructureOut(BaseModel):
 class TopicIn(BaseModel):
     """A topic as edited by the student in structure review."""
 
-    title: str
+    title: str = Field(min_length=1)
     priority: TopicPriority = TopicPriority.medium
 
 
 class ChapterIn(BaseModel):
-    title: str
-    topics: list[TopicIn]
+    title: str = Field(min_length=1)
+    topics: list[TopicIn] = Field(min_length=1)
 
 
 class ConfirmStructureIn(BaseModel):
     """The reviewed tree plus the optional exam date that drives the scheduler."""
 
-    chapters: list[ChapterIn]
-    exam_date: str | None = None  # ISO date; sets the subject's exam_date
+    chapters: list[ChapterIn] = Field(min_length=1)
+    exam_date: date | None = None  # sets the subject's exam_date (deadline mode)
 
 
 class ConfirmStructureResult(BaseModel):

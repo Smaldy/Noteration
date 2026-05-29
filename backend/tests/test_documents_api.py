@@ -224,3 +224,61 @@ def test_upload_unknown_subject_returns_404(
 
 def test_structure_unknown_document_returns_404(client: TestClient) -> None:
     assert client.get("/api/documents/999/structure").status_code == 404
+
+
+def _upload_real_doc(client: TestClient, db_factory: sessionmaker, tmp_path: Path) -> int:
+    with db_factory() as db:
+        subject = Subject(name="Physics")
+        db.add(subject)
+        db.commit()
+        subject_id = subject.id
+    pdf_bytes = _make_real_pdf(tmp_path / "real.pdf")
+    response = client.post(
+        "/api/documents",
+        data={"subject_id": str(subject_id)},
+        files={"file": ("real.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()["document"]["id"]
+
+
+def test_confirm_structure_http_flow(
+    client: TestClient, db_factory: sessionmaker, tmp_path: Path
+) -> None:
+    document_id = _upload_real_doc(client, db_factory, tmp_path)
+
+    payload = {
+        "exam_date": "2026-06-20",
+        "chapters": [
+            {
+                "title": "Chapter 1",
+                "topics": [
+                    {"title": "Kinematics", "priority": "exam_critical"},
+                    {"title": "Appendix", "priority": "skip"},
+                ],
+            }
+        ],
+    }
+    response = client.post(f"/api/documents/{document_id}/structure", json=payload)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body == {
+        "document_id": document_id,
+        "chapters_created": 1,
+        "topics_created": 2,
+        "topics_enqueued": 1,
+    }
+
+    # Re-confirming the same document is a conflict.
+    again = client.post(f"/api/documents/{document_id}/structure", json=payload)
+    assert again.status_code == 409
+
+
+def test_confirm_empty_chapters_is_422(
+    client: TestClient, db_factory: sessionmaker, tmp_path: Path
+) -> None:
+    document_id = _upload_real_doc(client, db_factory, tmp_path)
+    response = client.post(
+        f"/api/documents/{document_id}/structure", json={"chapters": []}
+    )
+    assert response.status_code == 422
