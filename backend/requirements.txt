@@ -1,12 +1,17 @@
-# Noteration backend — Phase 1 (Scaffold) dependencies.
-# Pipeline/provider deps (markitdown, pymupdf, provider SDKs) are added in
-# their own phases to keep the install lean and the tree green.
+# Noteration backend dependencies. Provider SDKs (google-genai, anthropic,
+# ollama) are still deferred to Phase 7, when the real calls are wired.
+
+# Phase 1 — scaffold/API/persistence
 fastapi
 uvicorn[standard]
 sqlalchemy
 alembic
 pydantic
 pydantic-settings
+
+# Phase 5 — ingestion (PDF → markdown + page renders)
+markitdown[pdf]
+pymupdf
 
 # Test/dev
 pytest

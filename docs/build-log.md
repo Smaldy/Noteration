@@ -77,16 +77,31 @@
   +2 tests (deferred-not-claimed; failing topic doesn't block others). Waterfall,
   atomic commits, and recovery held up. Tree green: full suite **56 passed**.
 
+- **Phase 5 — Ingestion (Wave 5)** — `services/pipeline/ingestion.py`: `ingest()`
+  hashes the PDF (SHA-256, streamed) → checks a `file_hash`-keyed disk cache
+  (`backend/cache/<hash>/`, gitignored) → on miss runs markitdown→markdown +
+  PyMuPDF per-page PNG renders, writes them to a private staging dir, then swaps
+  it into place atomically (no partial cache is ever trusted). Cache-check
+  validates every referenced artifact exists (a missing page render invalidates
+  and rebuilds); `force=True` rebuilds; rebuild overwrites the stale dir.
+  Scanned/no-text PDFs flagged via `is_scanned` (< ~8 non-ws chars/page) for the
+  manual-structure fallback. Converter + renderer are injected (default
+  markitdown/PyMuPDF) so caching logic is dependency-free unit-testable; one
+  fixture-PDF test (generated with PyMuPDF) exercises the real backends end-to-
+  end + the cache hit. Stage is DB-free (returns `IngestionResult`); wiring to
+  `Document` is a later phase. Deps added: `markitdown[pdf]`, `pymupdf` (both
+  cp314 wheels). Tree green: full suite **64 passed**, `npm run build` clean.
+
 ## IN PROGRESS
 
-- (none — Phase 4 complete, all sub-waves committed)
+- (none — Phase 5 complete, committed)
 
 ## NEXT
 
-1. **Phase 5 — Ingestion**: markitdown → markdown + PyMuPDF page renders +
-   `file_hash` cache + cache-check; tiny fixture-PDF test. (Adds markitdown,
-   pymupdf deps.)
-2. Phases 6–11 per `RUFLO-BUILD.md` build order.
+1. **Phase 6 — Structure detection + review API**: heading detection
+   (`#`/`##`/"Chapter X"/Roman) over the ingested markdown → proposed
+   chapter/topic tree; manual fallback for scanned/no-heading docs; review API.
+2. Phases 7–11 per `RUFLO-BUILD.md` build order.
 
 ## DECISIONS
 
@@ -139,6 +154,23 @@
   TypeDecorator that stores/returns tz-aware UTC, so SQLite's naive round-trip
   can't break `resume_after`/`reset_at` vs `now()` comparisons. Schema-compatible
   (impl=DateTime); no migration needed.
+- **Ingestion is pure + injectable (Phase 5).** `ingest()` is DB-free (returns
+  `IngestionResult`; the queue/router attaches it to a `Document` later) and takes
+  injectable `convert`/`render` callables (default markitdown/PyMuPDF), mirroring
+  the waterfall's injected `clock` — caching logic is unit-testable without the
+  heavy libs, with one real fixture-PDF integration test.
+- **Cache is content-addressed + atomically swapped (Phase 5).** Key = SHA-256 of
+  the file bytes; artifacts live in `backend/cache/<hash>/` with a
+  `manifest.json` (v1). Build happens in a `.tmp-<hash>-<uuid>` staging dir then
+  `os.replace`d in, so a crash never leaves a half-cache. Cache-check requires the
+  manifest version to match and every referenced file to exist, else rebuild;
+  rebuild overwrites the stale dir (queue is the single writer).
+- **markitdown needs the `[pdf]` extra (Phase 5).** Plain `markitdown` raises
+  `MissingDependencyException` on PDFs; `markitdown[pdf]` pulls pdfminer.six.
+  Verified end-to-end on Python 3.14 (cp314 wheels for pymupdf + the stack).
+- **Scanned detection heuristic (Phase 5).** `is_scanned` when markdown has
+  < ~8 non-whitespace chars per page; flags the manual-structure fallback path
+  (`docs/ai-pipeline.md` stage 1) instead of feeding empty text to Phase 6.
 
 ## BLOCKED
 
