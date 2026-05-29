@@ -7,7 +7,7 @@ the API is fully usable without it.
 
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -40,7 +40,11 @@ def mount_frontend() -> None:
         app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
     @app.get("/{full_path:path}")
-    def spa(full_path: str) -> FileResponse:  # noqa: ARG001 - path captured by router
+    def spa(full_path: str) -> FileResponse:
+        # Unknown API routes must 404 as an API, not silently return the SPA
+        # shell with a 200 — otherwise fetch() gets HTML and JSON.parse fails.
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
         return FileResponse(index)
 
 

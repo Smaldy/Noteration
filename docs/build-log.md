@@ -14,6 +14,12 @@
   endpoint `GET /api/health` with a passing test (`backend/tests/test_health.py`).
   Tree green: `pytest` 1 passed, `npm run build` clean, WAL verified, serving
   verified end-to-end (API + `/` + SPA route).
+- **Phase 1 — Audit + fix (Wave 1b)** — Reviewed the scaffold. Fixed a routing
+  defect: when the bundle is mounted, the SPA catch-all swallowed unknown
+  `/api/*` paths, returning `200` + index.html instead of a JSON `404` (would
+  feed HTML to `fetch()` and break `JSON.parse`). Catch-all now 404s any
+  unmatched `/api/*`; `/docs` + `/openapi.json` confirmed unaffected. Added a
+  regression test. Tree green: `pytest` 2 passed.
 
 ## IN PROGRESS
 
