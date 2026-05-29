@@ -145,10 +145,16 @@
     transcribed LaTeX in its prompt (chosen reconciliation of the
     formula-before-notes order with the `Formula→Note` FK). 8 formula tests
     (+ refactored 10 notes tests still green); suite **121 passed**.
-  - **7d (NEXT)** — Real SDK wiring into the gemini/claude/ollama stubs
-    (generate/transcribe_image/budget_probe); add SDK deps.
-  - **7e** — Stage→processor registry the queue's `run_batch` uses; end-to-end
-    confirmed-document processing test (mocks).
+  - **7e (DONE)** — Stage dispatcher. `services/pipeline/processors.py`
+    `make_pipeline_processor(waterfall)` routes a job to formula/notes/assessment
+    by `job.stage` over one waterfall (source_loader/cropper injectable). End-to-end
+    test: confirm a document → `run_batch` drives a topic through formula (no-op) →
+    notes → assessment via prerequisites, producing a Note + MCQ + Flashcard; plus
+    a restart/resume test. 2 tests; suite **123 passed**.
+  - **7d (NEXT — last of Phase 7)** — Real SDK wiring into the gemini/claude/ollama
+    stubs (generate/transcribe_image/budget_probe); add SDK deps. Network code is
+    not unit-tested green; structure request-building/response-parsing/probe behind
+    injectable clients so logic is testable with fakes.
 
 ## NEXT
 
