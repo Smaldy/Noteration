@@ -181,11 +181,16 @@
     no/past exam → standard SM-2. `subject_exam_date` joins Flashcard→Topic→
     Chapter→Subject. Clock-free (today injected); caller commits. 7 DB tests;
     suite **157 passed**.
-  - **8c (next)** — Materialise the `ScheduleEntry` calendar (topic_id, date,
-    is_revision_buffer, source[sm2/deadline/manual]) from flashcard due dates;
-    revision-buffer days near the exam; rebuilt per review. No daily-card-limit
-    knobs exist in the data model, so none are invented.
-  - **8d** — Review + Calendar API (router/schemas; touches `main.py`).
+  - **8c (done)** — `rebuild_schedule(session, subject, *, today)` materialises
+    the `ScheduleEntry` calendar (one row per (topic, date) a card is due, deduped)
+    from flashcard due dates; `source=deadline` when the subject has a current exam
+    date (else `sm2`); the trailing `REVISION_BUFFER_DAYS` (=2, through exam day)
+    are flagged `is_revision_buffer`; user `manual` drag-drop entries are preserved
+    on rebuild, machine ones replaced. Plus `due_flashcards(session, *, today,
+    limit)` — the study queue (due reviews first, then new/never-scheduled cards).
+    No daily-card-limit knobs exist in the data model, so none are invented.
+    8 tests; suite **165 passed**.
+  - **8d (next)** — Review + Calendar API (router/schemas; touches `main.py`).
 
 ## NEXT
 

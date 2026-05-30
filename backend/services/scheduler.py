@@ -26,13 +26,18 @@ import enum
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from backend.models import Chapter, Flashcard, Subject, Topic
+from backend.models import Chapter, Flashcard, ScheduleEntry, Subject, Topic
+from backend.models.enums import ScheduleSource
 
 DEFAULT_EASE_FACTOR = 2.5
 MIN_EASE_FACTOR = 1.3
+
+# Trailing days (including the exam day) flagged as revision buffer in deadline
+# mode — the cram window where scheduled reviews are visually distinct.
+REVISION_BUFFER_DAYS = 2
 
 
 class Grade(enum.StrEnum):
@@ -160,3 +165,89 @@ def review_flashcard(
     flashcard.repetitions = new_state.repetitions
     flashcard.interval = interval
     flashcard.due_date = today + timedelta(days=interval)
+
+
+# --------------------------------------------------------------------------- #
+# Calendar + study queue (Phase 8c). The calendar (``ScheduleEntry``) is a
+# projection of the flashcards' due dates onto topics/dates, rebuilt after each
+# review. ``due_flashcards`` is the study-session read side. Both are clock-free
+# (today injected); callers commit.
+# --------------------------------------------------------------------------- #
+
+
+def _subject_topic_ids(session: Session, subject: Subject) -> list[int]:
+    """Topic ids belonging to ``subject`` (via its chapters)."""
+    return list(
+        session.scalars(
+            select(Topic.id)
+            .join(Chapter, Topic.chapter_id == Chapter.id)
+            .where(Chapter.subject_id == subject.id)
+        ).all()
+    )
+
+
+def rebuild_schedule(
+    session: Session, subject: Subject, *, today: date
+) -> list[ScheduleEntry]:
+    """Rebuild ``subject``'s machine-generated calendar from flashcard due dates.
+
+    One ``ScheduleEntry`` per (topic, date) a card is due — deduped across cards.
+    ``source`` is ``deadline`` when the subject has a current exam date, else
+    ``sm2``; in deadline mode the trailing ``REVISION_BUFFER_DAYS`` (through the
+    exam day) are flagged ``is_revision_buffer``. User-placed ``manual`` entries
+    (drag-drop reschedules) are preserved. Does not commit.
+    """
+    topic_ids = _subject_topic_ids(session, subject)
+    if not topic_ids:
+        return []
+
+    # Replace only machine-generated entries; manual drag-drops survive.
+    session.execute(
+        delete(ScheduleEntry).where(
+            ScheduleEntry.topic_id.in_(topic_ids),
+            ScheduleEntry.source != ScheduleSource.manual,
+        ),
+        execution_options={"synchronize_session": False},
+    )
+
+    exam_date = subject.exam_date
+    deadline = exam_date is not None and exam_date >= today
+    source = ScheduleSource.deadline if deadline else ScheduleSource.sm2
+    buffer_start = (
+        exam_date - timedelta(days=REVISION_BUFFER_DAYS - 1) if deadline else None
+    )
+
+    entries: list[ScheduleEntry] = []
+    for topic_id in topic_ids:
+        due_dates = session.scalars(
+            select(Flashcard.due_date)
+            .where(Flashcard.topic_id == topic_id, Flashcard.due_date.is_not(None))
+            .distinct()
+        ).all()
+        for due in sorted(set(due_dates)):
+            is_buffer = bool(deadline and buffer_start <= due <= exam_date)
+            entry = ScheduleEntry(
+                topic_id=topic_id,
+                date=due,
+                source=source,
+                is_revision_buffer=is_buffer,
+            )
+            session.add(entry)
+            entries.append(entry)
+    return entries
+
+
+def due_flashcards(
+    session: Session, *, today: date, limit: int | None = None
+) -> list[Flashcard]:
+    """Cards to study now: due reviews (``due_date <= today``) first, then new
+    (never-scheduled, ``due_date is None``) cards. ``limit`` caps the result."""
+    stmt = (
+        select(Flashcard)
+        .where((Flashcard.due_date <= today) | (Flashcard.due_date.is_(None)))
+        # Dated reviews first (by date), then new cards; stable by id.
+        .order_by(Flashcard.due_date.is_(None), Flashcard.due_date, Flashcard.id)
+    )
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    return list(session.scalars(stmt).all())
