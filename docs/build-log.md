@@ -232,8 +232,13 @@
 
 ## IN PROGRESS
 
-- **Phase 9 — Frontend (Wave 9), continued: Upload + Structure Review.** The gate
-  before a document starts processing. Committed steps:
+- **Phase 9 — Frontend (Wave 9): Study View is next.** Upload + Structure Review
+  (9c) is **done** end-to-end. Next feature: the Study View (sidebar tree with
+  per-topic status; Notes/Quiz/Flashcards tabs inside a topic — ux-flows.md §4–7).
+  Needs read endpoints for a document's confirmed tree + per-topic notes/MCQs/
+  flashcards (some may need new routers, mirroring the 9c pattern).
+
+- **Phase 9c — Upload + Structure Review (done).** Committed steps:
   - **9c-1 (done)** — Subjects endpoint (unblocker). Phase-6 `POST /api/documents`
     requires an existing `subject_id`, but nothing could create a `Subject` (it's
     the top of the hierarchy: Subject → Document → Chapter → Topic, and owns the
@@ -254,10 +259,22 @@
     Library's Upload button (header + empty-state CTA) now opens the dialog.
     Verified live: `POST`/`GET /api/subjects` 201/list, blank name → 422. Tree
     green: backend **190 passed**, `tsc -b` + `npm run build` clean.
-  - **9c-3 (NEXT)** — Structure Review screen: `GET …/structure` → editable
-    chapter/topic tree (rename/merge/split), per-topic priority pills
-    (exam_critical/medium/skip), exam-date picker, pre-flight estimate, Confirm →
-    `POST …/structure` → navigate (Study View lands in a later sub-wave).
+  - **9c-3 (done)** — Structure Review screen at `/documents/:id/review`
+    (`features/upload/StructureReviewPage.tsx`). `GET …/structure` → an editable
+    chapter/topic tree held in a pure `useReducer` (`structureReducer.ts`:
+    rename/add/remove chapter+topic, set priority; `isConfirmable`,
+    `generatableTopicCount`, `toConfirmPayload` helpers). Per-topic priority pills
+    (`PriorityPills.tsx`, exam_critical/medium/skip), optional exam-date picker,
+    a pre-flight estimate ("~N topics to generate · free tier ($0) · paid only if
+    enabled"), and Confirm → `POST …/structure` → navigate to Library. Handles the
+    `needs_manual` case (banner + build-from-scratch via add buttons) and load/
+    confirm errors (404/409). Upload's `onUploaded` now routes here. Explicit
+    merge/split affordances are deferred — add/remove/rename covers them for v1;
+    the pre-flight time/cost is a rough frontend-only placeholder until the Phase-10
+    cost service. Verified live end-to-end with a real PDF: subject→upload→GET
+    structure→confirm; `skip` topic correctly excluded from enqueue
+    (topics_enqueued 1 of 2), exam_date persisted, doc flips to `processing`. Tree
+    green: `tsc -b` + `npm run build` clean (backend unchanged, **190 passed**).
 
 ## NEXT
 
@@ -420,6 +437,16 @@
   creation into the upload call. Subject is intentionally a thin entity for now
   (name + optional accent_color + exam_date); exam_date is also settable later in
   structure review (which writes `Subject.exam_date`, the deadline-mode driver).
+- **Pre-flight estimate is a placeholder (Phase 9c-3; unspecified).** ux-flows.md §3
+  wants "~N topics · ~H hours on free tier · ~$0". We show the non-skip topic count
+  and the $0/free-tier framing now, but **omit a fabricated hours figure** — there's
+  no throughput data yet (free-tier rate limits + per-topic stage count are
+  benchmark-dependent). A real estimate lands with the Phase-10 cost service /
+  Phase-11 benchmark. Cheapest honest option: don't invent a number.
+- **Structure-review editing = add/remove/rename (Phase 9c-3).** The spec lists
+  "rename, merge, split topics"; v1 ships rename + add + remove for chapters and
+  topics, which functionally cover merge (remove one, rename the other) and split
+  (add a topic). Dedicated merge/split affordances are deferred, not needed for v1.
 
 ## BLOCKED
 

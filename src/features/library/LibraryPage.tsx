@@ -1,5 +1,6 @@
 import { BookOpen, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { UploadDialog } from "@/features/upload/UploadDialog";
@@ -10,6 +11,7 @@ import { DocumentCard } from "./DocumentCard";
 export function LibraryPage() {
   const { documents, status, error, fetchDocuments } = useLibraryStore();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     void fetchDocuments();
@@ -30,7 +32,11 @@ export function LibraryPage() {
         </Button>
       </header>
 
-      <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <UploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onUploaded={(documentId) => navigate(`/documents/${documentId}/review`)}
+      />
 
 
       {status === "loading" && (
