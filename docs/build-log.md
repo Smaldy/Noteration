@@ -163,7 +163,22 @@
 
 ## IN PROGRESS
 
-- (none — Phase 7 complete, all five sub-waves committed)
+- **Phase 8 — Scheduler (Wave 8).** Building in committed sub-waves:
+  - **8a (done)** — Pure SM-2 core. `services/scheduler.py`: `Grade` (StrEnum:
+    correct/incorrect/skip — transient review input, never persisted), `CardState`
+    (ease_factor/interval/repetitions, mirroring the `Flashcard` columns),
+    `quality_for(grade)` (Correct→5, Incorrect→2, Skip→None), `sm2_update(state,
+    quality)` (q<3 lapse resets reps + interval→1; q≥3 advances 1→6→round(I·EF);
+    EF nudged by the SM-2 formula, floored at 1.3), and `apply_grade` (Skip =
+    inert). Pure: no clock, no DB (mirrors the provider/queue seam). 10 unit
+    tests; suite **150 passed**, tree green.
+  - **8b (next)** — `review_flashcard(session, card, grade, *, today)`: apply
+    SM-2 to a `Flashcard` row, set the calendar-`date` `due_date` (= today +
+    interval), with deadline-mode interval capping toward `Subject.exam_date`.
+  - **8c** — Materialise the `ScheduleEntry` calendar from flashcards (one row per
+    (topic, date); `daily_new_cards`/`daily_review_cards` caps with roll-forward;
+    revision-buffer days + `source=deadline` in deadline mode). Rebuilt per review.
+  - **8d** — Review + Calendar API (router/schemas; touches `main.py`).
 
 ## NEXT
 
@@ -299,6 +314,15 @@
   model unset (benchmark-gated, review.md "Still open" #1) so it stays out of the
   waterfall until chosen. `build_waterfall_from_settings` reads keys/flags from
   the `Settings` singleton; Settings CRUD endpoints come with the frontend.
+- **SM-2 grade mapping (Phase 8a; resolves review.md "Still open" #3).** The
+  three-button self-grade maps to SM-2 quality as Correct→5, Incorrect→2, and Skip
+  → no update at all. A 3-button UI carries no latency signal, so finer gradations
+  aren't justified; `q<3` (Incorrect) triggers the standard SM-2 lapse (reset
+  repetitions, interval→1 day), and Skip stays inert so a user can triage a deck
+  (card reappears in-session) without corrupting scheduling state. `Grade` lives in
+  the scheduler service as transient input — there is no grade column in the data
+  model. The SM-2 core is pure (caller injects "today" and owns the transaction),
+  matching the generation/queue seam.
 
 ## BLOCKED
 
