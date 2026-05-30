@@ -92,8 +92,8 @@ export function LibraryPage() {
 
       {status === "loaded" && documents.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {documents.map((doc) => (
-            <DocumentCard key={doc.id} doc={doc} />
+          {documents.map((doc, i) => (
+            <DocumentCard key={doc.id} doc={doc} index={i} />
           ))}
         </div>
       )}

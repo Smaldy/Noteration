@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -74,28 +75,31 @@ export function FlashcardsTab({ flashcards }: FlashcardsTabProps) {
         Card {index + 1} of {flashcards.length}
       </p>
 
-      <button
-        type="button"
+      <div
+        className="w-full max-w-xl cursor-pointer [perspective:1600px]"
         onClick={() => setFlipped((f) => !f)}
-        className={cn(
-          "flex min-h-44 w-full max-w-xl items-center justify-center rounded-xl border p-8 text-center text-lg shadow-sm transition-colors",
-          flipped ? "bg-muted/40" : "bg-card",
-        )}
       >
-        <div>
-          <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-            {flipped ? "Back" : "Front"}
-          </p>
-          <p>{flipped ? card.back : card.front}</p>
-        </div>
-      </button>
+        <motion.div
+          className="relative min-h-48 w-full [transform-style:preserve-3d]"
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <CardFace label="Front" text={card.front} />
+          <CardFace label="Back" text={card.back} flipped />
+        </motion.div>
+      </div>
 
       {!flipped ? (
         <p className="mt-4 text-sm text-muted-foreground">
           Click the card to reveal the answer.
         </p>
       ) : (
-        <div className="mt-5 flex gap-2">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="mt-5 flex gap-2"
+        >
           <Button
             variant="outline"
             onClick={() => void grade("incorrect")}
@@ -113,10 +117,36 @@ export function FlashcardsTab({ flashcards }: FlashcardsTabProps) {
           <Button onClick={() => void grade("correct")} disabled={busy}>
             Correct
           </Button>
-        </div>
+        </motion.div>
       )}
 
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function CardFace({
+  label,
+  text,
+  flipped = false,
+}: {
+  label: string;
+  text: string;
+  flipped?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 flex items-center justify-center rounded-xl border bg-card p-8 text-center text-lg shadow-sm [backface-visibility:hidden]",
+        flipped && "[transform:rotateY(180deg)]",
+      )}
+    >
+      <div>
+        <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p>{text}</p>
+      </div>
     </div>
   );
 }

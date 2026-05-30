@@ -232,7 +232,29 @@
 
 ## IN PROGRESS
 
-- **Phase 9g — Calendar** (ux-flows.md §8). Committed steps:
+- **Phase 9p — UI polish (user-requested: animations, professional buttons, more
+  appearance customization).**
+  - **9p-1 (done)** — Motion + visual refinement. Added Framer Motion (locked
+    stack, previously deferred): real 3D **flashcard flip** (`FlashcardsTab`),
+    document-card entrance stagger + hover lift, and route-level page transitions
+    (`AnimatePresence` keyed on location in `App.tsx`). Wired `tw-animate-css` so
+    shadcn dialog/tabs actually animate. Refined `Button` (rounded-lg, smooth
+    transitions, hover lift + shadow, `active:scale` press, ring offset). Global
+    CSS: theme/accent cross-fade, `animate-rise` util, thin theme-aware
+    scrollbars, font smoothing. Bundled **Inter** via `@fontsource-variable/inter`
+    (self-hosted, no network).
+  - **9p-2 (done)** — Settings appearance now live + richer. `applyAppearance`
+    (exported from the settings store) drives `--primary`/`--ring`/
+    `--primary-foreground` (auto-contrast) from the accent and `--app-font` from the
+    font choice; the Settings page previews every change instantly and reverts
+    unsaved previews on leave. New controls: segmented **theme** switch, an
+    **accent palette** (8 presets + "theme default" + custom picker), a **font
+    family** picker (System/Inter/Serif/Mono, each shown in its own face), and a
+    **font-size slider**. `font_family` now sent on save (backend already
+    supported it; verified the accent/font/size round-trip via TestClient). Tree
+    green: `tsc -b` + `npm run build` clean.
+
+- **Phase 9g — Calendar** (ux-flows.md §8) — **DONE**. Committed steps:
   - **9g-1 (done)** — Calendar backend. Enriched `GET /api/study/calendar` to
     include `topic_title` (study service `get_calendar` now `selectinload`s the
     topic — no N+1; router maps to `CalendarEntryOut`), and added

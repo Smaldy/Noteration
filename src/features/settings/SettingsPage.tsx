@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useSettingsStore } from "@/stores/settings";
+import { cn } from "@/lib/utils";
+import { applyAppearance, useSettingsStore } from "@/stores/settings";
 import type { Settings, Theme } from "@/types/settings";
 
 interface FormState {
@@ -15,9 +16,37 @@ interface FormState {
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   theme: Theme;
-  accent_color: string;
+  accent_color: string; // "" = follow theme default
+  font_family: string;
   font_size: number;
 }
+
+// Curated accent palette (hex drives --primary live).
+const PRESET_ACCENTS: { name: string; hex: string }[] = [
+  { name: "Indigo", hex: "#6366f1" },
+  { name: "Violet", hex: "#8b5cf6" },
+  { name: "Blue", hex: "#3b82f6" },
+  { name: "Sky", hex: "#0ea5e9" },
+  { name: "Emerald", hex: "#10b981" },
+  { name: "Amber", hex: "#f59e0b" },
+  { name: "Rose", hex: "#f43f5e" },
+  { name: "Slate", hex: "#475569" },
+];
+
+const FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "inter", label: "Inter" },
+  { value: "serif", label: "Serif" },
+  { value: "mono", label: "Monospace" },
+];
+
+// Render each font button in its own typeface as a preview.
+const FONT_PREVIEW: Record<string, string> = {
+  system: "system-ui, sans-serif",
+  inter: '"Inter Variable", system-ui, sans-serif',
+  serif: "Georgia, serif",
+  mono: '"JetBrains Mono", ui-monospace, monospace',
+};
 
 function toForm(s: Settings): FormState {
   return {
@@ -26,7 +55,8 @@ function toForm(s: Settings): FormState {
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
     theme: (s.theme as Theme) ?? "system",
-    accent_color: s.accent_color ?? "#6366f1",
+    accent_color: s.accent_color ?? "",
+    font_family: s.font_family ?? "system",
     font_size: s.font_size,
   };
 }
@@ -48,6 +78,32 @@ export function SettingsPage() {
   useEffect(() => {
     if (settings) setForm(toForm(settings));
   }, [settings]);
+
+  // Live preview: reflect appearance edits immediately (persisted on Save).
+  useEffect(() => {
+    if (!form) return;
+    applyAppearance({
+      theme: form.theme,
+      font_size: form.font_size,
+      accent_color: form.accent_color || null,
+      font_family: form.font_family || null,
+    });
+  }, [form]);
+
+  // On leaving, snap back to the persisted appearance (discard unsaved preview).
+  useEffect(() => {
+    return () => {
+      const s = useSettingsStore.getState().settings;
+      if (s) {
+        applyAppearance({
+          theme: s.theme,
+          font_size: s.font_size,
+          accent_color: s.accent_color,
+          font_family: s.font_family,
+        });
+      }
+    };
+  }, []);
 
   if (loadState === "error") {
     return (
@@ -79,6 +135,7 @@ export function SettingsPage() {
         pomodoro_break_min: form.pomodoro_break_min,
         theme: form.theme,
         accent_color: form.accent_color || null,
+        font_family: form.font_family,
         font_size: form.font_size,
         ...(geminiKey.trim() ? { api_key_gemini: geminiKey.trim() } : {}),
         ...(claudeKey.trim() ? { api_key_claude: claudeKey.trim() } : {}),
@@ -155,34 +212,88 @@ export function SettingsPage() {
         </Field>
       </Section>
 
-      <Section title="Appearance">
+      <Section title="Appearance" description="Changes preview instantly; Save to keep them.">
         <Field label="Theme">
-          <select
-            className="flex h-9 w-40 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={form.theme}
-            onChange={(e) => set("theme", e.target.value as Theme)}
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <div className="inline-flex rounded-lg border p-1">
+            {(["system", "light", "dark"] as Theme[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => set("theme", t)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-sm font-medium capitalize transition-colors",
+                  form.theme === t
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </Field>
+
         <Field label="Accent color">
-          <Input
-            type="color"
-            value={form.accent_color}
-            onChange={(e) => set("accent_color", e.target.value)}
-            className="h-9 w-16 p-1"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Swatch
+              selected={form.accent_color === ""}
+              onClick={() => set("accent_color", "")}
+              title="Theme default"
+              dashed
+            />
+            {PRESET_ACCENTS.map((c) => (
+              <Swatch
+                key={c.hex}
+                color={c.hex}
+                title={c.name}
+                selected={form.accent_color.toLowerCase() === c.hex.toLowerCase()}
+                onClick={() => set("accent_color", c.hex)}
+              />
+            ))}
+            <label
+              className="relative ml-1 inline-flex size-7 cursor-pointer items-center justify-center rounded-full border text-xs text-muted-foreground"
+              title="Custom color"
+            >
+              +
+              <input
+                type="color"
+                value={form.accent_color || "#6366f1"}
+                onChange={(e) => set("accent_color", e.target.value)}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+            </label>
+          </div>
         </Field>
-        <Field label="Base font size">
-          <Input
-            type="number"
-            min={10}
-            max={32}
+
+        <Field label="Font">
+          <div className="inline-flex flex-wrap gap-2">
+            {FONT_OPTIONS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => set("font_family", f.value)}
+                style={{ fontFamily: FONT_PREVIEW[f.value] }}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-sm transition-colors",
+                  form.font_family === f.value
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label={`Base font size — ${form.font_size}px`}>
+          <input
+            type="range"
+            min={12}
+            max={22}
             value={form.font_size}
             onChange={(e) => set("font_size", Number(e.target.value))}
-            className="w-28"
+            className="w-64 accent-[var(--primary)]"
           />
         </Field>
       </Section>
@@ -233,6 +344,36 @@ function Section({
       )}
       <div className="mt-3 space-y-4">{children}</div>
     </section>
+  );
+}
+
+function Swatch({
+  color,
+  selected,
+  onClick,
+  title,
+  dashed = false,
+}: {
+  color?: string;
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  dashed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      style={color ? { backgroundColor: color } : undefined}
+      className={cn(
+        "size-7 rounded-full transition-transform hover:scale-110",
+        dashed && "border-2 border-dashed border-muted-foreground/50",
+        selected
+          ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+          : "ring-1 ring-black/10",
+      )}
+    />
   );
 }
 

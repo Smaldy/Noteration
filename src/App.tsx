@@ -1,6 +1,6 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { CalendarPage } from "@/features/calendar/CalendarPage";
 import { LibraryPage } from "@/features/library/LibraryPage";
@@ -20,16 +20,28 @@ export default function App() {
     void fetchSettings();
   }, [fetchSettings]);
 
+  const location = useLocation();
+
   return (
-    <Routes>
-      <Route path="/" element={<LibraryPage />} />
-      <Route path="/calendar" element={<CalendarPage />} />
-      <Route path="/queue" element={<QueuePage />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/documents/:id/review" element={<StructureReviewPage />} />
-      <Route path="/documents/:id/study" element={<StudyPage />} />
-      <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Routes location={location}>
+          <Route path="/" element={<LibraryPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/queue" element={<QueuePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/documents/:id/review" element={<StructureReviewPage />} />
+          <Route path="/documents/:id/study" element={<StudyPage />} />
+          <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </motion.div>
+    </AnimatePresence>
   );
 }

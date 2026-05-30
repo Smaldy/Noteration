@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { CalendarDays, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,7 +24,7 @@ function formatExamDate(iso: string | null): string {
   });
 }
 
-export function DocumentCard({ doc }: { doc: DocumentSummary }) {
+export function DocumentCard({ doc, index = 0 }: { doc: DocumentSummary; index?: number }) {
   const navigate = useNavigate();
   const progress =
     doc.topics_total === 0
@@ -37,18 +38,25 @@ export function DocumentCard({ doc }: { doc: DocumentSummary }) {
       : `/documents/${doc.id}/study`;
 
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      onClick={() => navigate(destination)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          navigate(destination);
-        }
-      }}
-      className="cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.3), ease: "easeOut" }}
+      whileHover={{ y: -4 }}
+      className="h-full"
     >
+      <Card
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(destination)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            navigate(destination);
+          }
+        }}
+        className="h-full cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -68,6 +76,7 @@ export function DocumentCard({ doc }: { doc: DocumentSummary }) {
           {formatExamDate(doc.exam_date)}
         </p>
       </CardContent>
-    </Card>
+      </Card>
+    </motion.div>
   );
 }
