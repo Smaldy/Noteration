@@ -172,12 +172,16 @@
     EF nudged by the SM-2 formula, floored at 1.3), and `apply_grade` (Skip =
     inert). Pure: no clock, no DB (mirrors the provider/queue seam). 10 unit
     tests; suite **150 passed**, tree green.
-  - **8b (next)** — `review_flashcard(session, card, grade, *, today)`: apply
-    SM-2 to a `Flashcard` row, set the calendar-`date` `due_date` (= today +
-    interval). Deadline mode is driven by `Subject.exam_date` presence (NOT a
-    settings flag — `Settings` has no such column; per ai-pipeline.md Stage 5):
-    when the topic's subject has an exam date, compress intervals toward it.
-  - **8c** — Materialise the `ScheduleEntry` calendar (topic_id, date,
+  - **8b (done)** — `review_flashcard(session, card, grade, *, today)` applies
+    SM-2 to a `Flashcard` row and sets the calendar-`date` `due_date` (= today +
+    interval); Skip is inert. Deadline mode is driven by `Subject.exam_date`
+    presence (NOT a settings flag — `Settings` has no such column; per
+    ai-pipeline.md Stage 5): when the card's subject has a *future* exam date the
+    interval is compressed so no review lands past it (`min(interval, days_left)`);
+    no/past exam → standard SM-2. `subject_exam_date` joins Flashcard→Topic→
+    Chapter→Subject. Clock-free (today injected); caller commits. 7 DB tests;
+    suite **157 passed**.
+  - **8c (next)** — Materialise the `ScheduleEntry` calendar (topic_id, date,
     is_revision_buffer, source[sm2/deadline/manual]) from flashcard due dates;
     revision-buffer days near the exam; rebuilt per review. No daily-card-limit
     knobs exist in the data model, so none are invented.

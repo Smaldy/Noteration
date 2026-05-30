@@ -24,6 +24,12 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
+from datetime import date, timedelta
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from backend.models import Chapter, Flashcard, Subject, Topic
 
 DEFAULT_EASE_FACTOR = 2.5
 MIN_EASE_FACTOR = 1.3
@@ -99,3 +105,58 @@ def apply_grade(state: CardState, grade: Grade) -> CardState | None:
     if quality is None:
         return None
     return sm2_update(state, quality)
+
+
+# --------------------------------------------------------------------------- #
+# DB layer (Phase 8b): apply a self-grade to a Flashcard row and set its next
+# review date. The pure SM-2 core above does the arithmetic; this owns the row
+# mutation but not the transaction (the caller commits, mirroring the
+# queue/generation seam). "today" is injected so the layer stays clock-free.
+#
+# Deadline mode is driven by the subject's exam date (ai-pipeline.md Stage 5):
+# there is no settings flag. When the card's subject has an exam date still in
+# the future, intervals are compressed so no review is scheduled past it.
+# --------------------------------------------------------------------------- #
+
+
+def subject_exam_date(session: Session, flashcard: Flashcard) -> date | None:
+    """The exam date of the subject this flashcard belongs to (or None)."""
+    return session.execute(
+        select(Subject.exam_date)
+        .join(Chapter, Chapter.subject_id == Subject.id)
+        .join(Topic, Topic.chapter_id == Chapter.id)
+        .where(Topic.id == flashcard.topic_id)
+    ).scalar_one_or_none()
+
+
+def review_flashcard(
+    session: Session,
+    flashcard: Flashcard,
+    grade: Grade,
+    *,
+    today: date,
+) -> None:
+    """Apply a self-grade to ``flashcard`` and schedule its next review.
+
+    Correct/Incorrect advance the card's SM-2 state and set ``due_date`` to
+    ``today + interval`` (a calendar date). In deadline mode (the subject has a
+    future exam date) the interval is compressed so the next review never lands
+    past the exam. Skip is inert — it returns without touching the card, so the
+    caller can re-show it later in the session. Does not commit.
+    """
+    new_state = apply_grade(
+        CardState(flashcard.ease_factor, flashcard.interval, flashcard.repetitions),
+        grade,
+    )
+    if new_state is None:  # Skip
+        return
+
+    interval = new_state.interval
+    exam_date = subject_exam_date(session, flashcard)
+    if exam_date is not None and exam_date > today:
+        interval = min(interval, (exam_date - today).days)
+
+    flashcard.ease_factor = new_state.ease_factor
+    flashcard.repetitions = new_state.repetitions
+    flashcard.interval = interval
+    flashcard.due_date = today + timedelta(days=interval)
