@@ -171,8 +171,9 @@
   - **8b** — `review_flashcard(session, card, grade, *, today)`: apply SM-2 to a
     `Flashcard` and set the calendar-`date` `due_date`. Deadline mode = presence of
     a future `Subject.exam_date` (not a settings flag; per ai-pipeline.md Stage 5):
-    a live exam compresses the interval (`min(interval, days_left)`) so no review
-    lands past it.
+    a live exam pulls the **review date** forward (`min(interval, days_left)`) so no
+    review lands past it, while the stored interval keeps the true SM-2 value (see
+    8-review-fix). Returns a `changed` bool (False for Skip).
   - **8c** — `rebuild_schedule(session, subject, *, today)`: materialise the
     `ScheduleEntry` calendar (one row per (topic, date), deduped) from flashcard
     due dates; `source=deadline` under a live exam date (else `sm2`); trailing
@@ -200,7 +201,7 @@
     (3) the router now derives "today" from `utcnow().date()` (UTC, matching the
     app convention) instead of local-time `date.today()`. N+1 in `rebuild_schedule`
     and the triple subject-traversal were noted but left as acceptable for v1.
-  - Tree green: full suite **177 passed**, `npm run build` clean. Phase 8 done.
+  - Tree green: full suite **176 passed**, `npm run build` clean. Phase 8 done.
 
 ## IN PROGRESS
 
