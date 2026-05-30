@@ -11,7 +11,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.routers import documents, study
+from backend.routers import documents, study, subjects
 
 # Built Vite bundle. Produced by `npm run build`; gitignored.
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "dist"
@@ -27,6 +27,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+api.include_router(subjects.router)
 api.include_router(documents.router)
 api.include_router(study.router)
 

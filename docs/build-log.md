@@ -232,10 +232,24 @@
 
 ## IN PROGRESS
 
-- **Phase 9 — Frontend (Wave 9), continued.** NEXT sub-wave: Upload + Structure
-  Review (the gate before a document starts processing). Wire `POST /api/documents`
-  (multipart) and `GET`/`POST …/structure` (all live + tested from Phase 6) to a
-  file picker + reviewable chapter/topic tree; enable the Library's Upload button.
+- **Phase 9 — Frontend (Wave 9), continued: Upload + Structure Review.** The gate
+  before a document starts processing. Committed steps:
+  - **9c-1 (done)** — Subjects endpoint (unblocker). Phase-6 `POST /api/documents`
+    requires an existing `subject_id`, but nothing could create a `Subject` (it's
+    the top of the hierarchy: Subject → Document → Chapter → Topic, and owns the
+    deadline `exam_date`). Cheapest reasonable fix (logged below): a minimal
+    `services/subjects.py` + `routers/subjects.py` — `GET /api/subjects` (list,
+    name-sorted, for the upload picker) and `POST /api/subjects` (create:
+    name + optional accent_color/exam_date). No uniqueness constraint (no
+    migration); the picker makes dupes unlikely. `schemas/subject.py`
+    (SubjectCreate/SubjectOut). Tests: service + HTTP via StaticPool.
+  - **9c-2 (NEXT)** — Upload UI: a dialog to pick an existing subject or name a new
+    one + choose a PDF → `POST /api/documents` (multipart) → on 201 route to
+    structure review. Enable the Library's Upload button.
+  - **9c-3 (after)** — Structure Review screen: `GET …/structure` → editable
+    chapter/topic tree (rename/merge/split), per-topic priority pills
+    (exam_critical/medium/skip), exam-date picker, pre-flight estimate, Confirm →
+    `POST …/structure` → navigate (Study View lands in a later sub-wave).
 
 ## NEXT
 
@@ -388,6 +402,16 @@
   feature-based `src/` layout (`features/`, `components/ui/`, `stores/`, `lib/`,
   `types/`) follows `project-structure.md`'s locked Option A. TipTap, FullCalendar,
   and Framer Motion stay deferred until their feature waves (study/calendar).
+- **Subject creation = minimal subjects endpoint (Phase 9c-1; unspecified gap).**
+  The spec's upload flow (ux-flows.md §3) shows file-picker → structure review and
+  never names a "create subject" step, but the data model makes Subject the top of
+  the hierarchy and `POST /api/documents` requires a `subject_id`. Cheapest
+  reasonable resolution: a small `GET`/`POST /api/subjects` (list + create) so the
+  upload UI can pick an existing subject or create one inline. No DB uniqueness on
+  `name` (avoids a migration); a future refinement could dedupe or fold subject
+  creation into the upload call. Subject is intentionally a thin entity for now
+  (name + optional accent_color + exam_date); exam_date is also settable later in
+  structure review (which writes `Subject.exam_date`, the deadline-mode driver).
 
 ## BLOCKED
 
