@@ -33,6 +33,7 @@ class CalendarEntryOut(BaseModel):
     id: int
     topic_id: int
     topic_title: str
+    document_id: int  # for navigating into the Study View
     date: date
     is_revision_buffer: bool
     source: ScheduleSource

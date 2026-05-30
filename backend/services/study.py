@@ -61,7 +61,7 @@ def get_calendar(db: Session, *, start: date, end: date) -> list[ScheduleEntry]:
         db.scalars(
             select(ScheduleEntry)
             .where(ScheduleEntry.date >= start, ScheduleEntry.date <= end)
-            .options(selectinload(ScheduleEntry.topic))
+            .options(selectinload(ScheduleEntry.topic).selectinload(Topic.chapter))
             .order_by(ScheduleEntry.date, ScheduleEntry.topic_id)
         ).all()
     )

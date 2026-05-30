@@ -1,4 +1,4 @@
-import { BookOpen, ListChecks, Plus, Settings } from "lucide-react";
+import { BookOpen, CalendarDays, ListChecks, Plus, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -27,6 +27,10 @@ export function LibraryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/calendar")}>
+            <CalendarDays />
+            Calendar
+          </Button>
           <Button variant="outline" onClick={() => navigate("/queue")}>
             <ListChecks />
             Queue

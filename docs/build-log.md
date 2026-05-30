@@ -240,9 +240,25 @@
     `study.reschedule_entry`: set date + `source=manual`, which the scheduler
     rebuild preserves; 404 unknown). `RescheduleRequest` schema. +3 tests
     (title present, reschedule→manual, 404). Suite **219 passed**.
-  - **9g-2 (NEXT)** — Calendar page with FullCalendar: month grid of scheduled
-    topics (revision-buffer days distinct), click a session → study view,
-    drag-drop → reschedule.
+  - **9g-2 (done)** — Calendar page at `/calendar` (`features/calendar/CalendarPage.tsx`)
+    with FullCalendar (dayGrid + interaction). Month grid of scheduled topics
+    colored by kind (revision-buffer amber · deadline rose · manual violet · sm2
+    indigo); `datesSet` fetches the visible range; **click** a session → study
+    view (`/documents/:documentId/study/:topicId`); **drag-drop** → `PATCH
+    …/schedule/{id}` (reverts on failure). `stores/calendar.ts`,
+    `types/calendar.ts`; Calendar link in the Library header. Also enriched the
+    calendar entry with `document_id` (so a click can route into study; service
+    `selectinload`s topic→chapter, router builds via a shared `_entry_out`). Deps:
+    `@fullcalendar/{react,daygrid,interaction}`. Verified live: entry carries
+    topic_title + document_id; reschedule flips `source`→`manual`; 404 unknown.
+    Tree green: `tsc -b` + `npm run build` clean (FullCalendar pushes the bundle
+    to ~693 KB — fine for a localhost app; route-level code-splitting is deferred
+    polish), backend **219 passed**.
+
+  **Phase 9 (frontend) is feature-complete:** Library, Upload + Structure Review,
+  Study View, Queue, Settings, Calendar — all wired end-to-end. Deferred polish
+  tracked inline (TipTap editing, KaTeX, PDF source panel, Pomodoro top-bar timer,
+  provider reorder, overnight mode, bundle code-splitting).
 
 - **Phase 9f — Settings** (ux-flows.md §10) — **DONE**. Committed steps:
   - **9f-1 (done)** — Settings API. `services/settings.py`: `get_settings`

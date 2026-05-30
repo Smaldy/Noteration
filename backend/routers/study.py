@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
-from backend.models import Flashcard
+from backend.models import Flashcard, ScheduleEntry
 from backend.models.hierarchy import utcnow
 from backend.schemas.study import (
     CalendarEntryOut,
@@ -48,6 +48,18 @@ def review_flashcard(
     return study_service.review(db, flashcard, payload.grade, today=_today())
 
 
+def _entry_out(entry: ScheduleEntry) -> CalendarEntryOut:
+    return CalendarEntryOut(
+        id=entry.id,
+        topic_id=entry.topic_id,
+        topic_title=entry.topic.title,
+        document_id=entry.topic.chapter.document_id,
+        date=entry.date,
+        is_revision_buffer=entry.is_revision_buffer,
+        source=entry.source,
+    )
+
+
 @router.get("/calendar", response_model=list[CalendarEntryOut])
 def get_calendar(
     start: date,
@@ -57,17 +69,7 @@ def get_calendar(
     if end < start:
         raise HTTPException(status_code=422, detail="end must be on or after start")
     entries = study_service.get_calendar(db, start=start, end=end)
-    return [
-        CalendarEntryOut(
-            id=entry.id,
-            topic_id=entry.topic_id,
-            topic_title=entry.topic.title,
-            date=entry.date,
-            is_revision_buffer=entry.is_revision_buffer,
-            source=entry.source,
-        )
-        for entry in entries
-    ]
+    return [_entry_out(entry) for entry in entries]
 
 
 @router.patch("/schedule/{entry_id}", response_model=CalendarEntryOut)
@@ -80,11 +82,4 @@ def reschedule(
     entry = study_service.reschedule_entry(db, entry_id, new_date=payload.date)
     if entry is None:
         raise HTTPException(status_code=404, detail="Schedule entry not found")
-    return CalendarEntryOut(
-        id=entry.id,
-        topic_id=entry.topic_id,
-        topic_title=entry.topic.title,
-        date=entry.date,
-        is_revision_buffer=entry.is_revision_buffer,
-        source=entry.source,
-    )
+    return _entry_out(entry)
