@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
+from backend.schemas.library import DocumentSummaryOut
 from backend.schemas.structure import (
     ConfirmStructureIn,
     ConfirmStructureResult,
@@ -16,6 +17,14 @@ from backend.schemas.structure import (
 from backend.services import documents as docsvc
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+@router.get("", response_model=list[DocumentSummaryOut])
+def list_documents(
+    session: Session = Depends(get_session),
+) -> list[docsvc.DocumentSummary]:
+    """The Library list: all documents with subject info and topic-ready progress."""
+    return docsvc.list_documents(session)
 
 
 @router.post("", response_model=UploadResult, status_code=201)

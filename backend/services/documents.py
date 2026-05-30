@@ -9,15 +9,16 @@ from __future__ import annotations
 import hashlib
 import os
 from collections.abc import Callable, Sequence
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import NamedTuple
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Subject, Topic
-from backend.models.enums import DocumentStatus, TopicPriority
+from backend.models.enums import DocumentStatus, TopicPriority, TopicStatus
 from backend.schemas.structure import ChapterIn
 from backend.services.pipeline.ingestion import CACHE_ROOT, IngestionResult, ingest
 from backend.services.pipeline.structure import ProposedStructure, detect_structure
@@ -54,6 +55,64 @@ class ConfirmCounts(NamedTuple):
     chapters_created: int
     topics_created: int
     topics_enqueued: int  # excludes 'skip' topics
+
+
+@dataclass
+class DocumentSummary:
+    """One Library row: a document plus its subject and topic-ready progress."""
+
+    id: int
+    filename: str
+    subject_id: int
+    subject_name: str
+    exam_date: date | None
+    status: DocumentStatus
+    uploaded_at: datetime
+    topics_total: int
+    topics_ready: int
+
+
+def list_documents(session: Session) -> list[DocumentSummary]:
+    """All documents (newest first) with subject info and topic-ready counts.
+
+    A freshly uploaded document (structure not yet confirmed) has no topics and
+    reports 0/0. Counts are computed in one grouped query, not per-document, to
+    avoid an N+1 over the library.
+    """
+    count_rows = session.execute(
+        select(
+            Chapter.document_id,
+            func.count(Topic.id),
+            func.sum(case((Topic.status == TopicStatus.ready, 1), else_=0)),
+        )
+        .join(Topic, Topic.chapter_id == Chapter.id)
+        .group_by(Chapter.document_id)
+    ).all()
+    counts = {doc_id: (total, ready or 0) for doc_id, total, ready in count_rows}
+
+    rows = session.execute(
+        select(Document, Subject.name, Subject.exam_date)
+        .join(Subject, Document.subject_id == Subject.id)
+        .order_by(Document.uploaded_at.desc(), Document.id.desc())
+    ).all()
+
+    summaries: list[DocumentSummary] = []
+    for document, subject_name, exam_date in rows:
+        total, ready = counts.get(document.id, (0, 0))
+        summaries.append(
+            DocumentSummary(
+                id=document.id,
+                filename=document.filename,
+                subject_id=document.subject_id,
+                subject_name=subject_name,
+                exam_date=exam_date,
+                status=document.status,
+                uploaded_at=document.uploaded_at,
+                topics_total=total,
+                topics_ready=ready,
+            )
+        )
+    return summaries
 
 
 def create_document(

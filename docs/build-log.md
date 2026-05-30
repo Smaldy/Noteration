@@ -205,13 +205,24 @@
 
 ## IN PROGRESS
 
-- (none — Phase 8 complete, all four sub-waves committed)
+- **Phase 9 — Frontend (Wave 9), Library feature first.** Committed sub-waves:
+  - **9a (done)** — Library list endpoint (the spec's feature-based order starts
+    with Library, but no `GET /api/documents` existed). `docsvc.list_documents`
+    returns `DocumentSummary` rows (subject name + exam date + topic-ready
+    progress), newest first; ready counts come from one grouped
+    `case`/`sum` query (no N+1). Router `GET /api/documents` →
+    `schemas/library.DocumentSummaryOut`. 7 tests (service + HTTP via StaticPool);
+    suite **183 passed**.
+  - **9b (next)** — Library screen in `src/`: add deps (react-router, zustand,
+    Tailwind/shadcn per locked stack), `lib/api.ts`, a `library` feature
+    (document cards with progress, empty state, upload button stub), real App
+    shell. `tsc --noEmit` + `npm run build` green.
 
 ## NEXT
 
-1. **Phase 9 — Frontend** (feature-based) per `ux-flows.md`, one feature
-   end-to-end at a time (Library → Upload/Structure Review → Study View →
-   Calendar → Queue → Settings); then Phases 10–11 per `RUFLO-BUILD.md`.
+1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
+   → Calendar → Queue → Settings, one feature end-to-end at a time.
+2. Phases 10–11 (Cost UX, Benchmark harness) per `RUFLO-BUILD.md`.
 
 ## DECISIONS
 

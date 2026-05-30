@@ -1,0 +1,25 @@
+"""Schemas for the Library (home screen) document list (Phase 9)."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+
+from pydantic import BaseModel, ConfigDict
+
+from backend.models.enums import DocumentStatus
+
+
+class DocumentSummaryOut(BaseModel):
+    """A document as shown in the Library list: metadata + topic-ready progress."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    filename: str
+    subject_id: int
+    subject_name: str
+    exam_date: date | None
+    status: DocumentStatus
+    uploaded_at: datetime
+    topics_total: int
+    topics_ready: int
