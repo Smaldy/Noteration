@@ -11,7 +11,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.routers import documents, queue, study, subjects, topics
+from backend.routers import documents, queue, settings, study, subjects, topics
 
 # Built Vite bundle. Produced by `npm run build`; gitignored.
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "dist"
@@ -32,6 +32,7 @@ api.include_router(documents.router)
 api.include_router(topics.router)
 api.include_router(queue.router)
 api.include_router(study.router)
+api.include_router(settings.router)
 
 # API routes are registered before the SPA catch-all so they always win.
 app.include_router(api)

@@ -232,7 +232,21 @@
 
 ## IN PROGRESS
 
-- **Phase 9e — Queue / Processing view** (ux-flows.md §9). Committed steps:
+- **Phase 9f — Settings** (ux-flows.md §10). Committed steps:
+  - **9f-1 (done)** — Settings API. `services/settings.py`: `get_settings`
+    (get-or-create the singleton, id=1, with defaults) + `update_settings`
+    (partial: only provided fields; an empty `api_key_*` clears it).
+    `routers/settings.py`: `GET /api/settings` and `PATCH /api/settings`.
+    `schemas/settings.py`: `SettingsOut` reports API keys as `gemini_key_set` /
+    `claude_key_set` booleans only (secrets never echoed); `SettingsUpdate` is
+    all-optional with validation (pomodoro 1–180/1–120, theme system|light|dark,
+    font_size 10–32) applied via `exclude_unset`. 7 tests (singleton create,
+    partial update, key clear/mask, validation 422s). Suite **216 passed**.
+  - **9f-2 (NEXT)** — Settings page: API keys (masked, set/clear), allow-paid +
+    Ollama toggles, Pomodoro durations, appearance (theme/accent/font), with live
+    theme application.
+
+- **Phase 9e — Queue / Processing view** (ux-flows.md §9) — **DONE**. Committed steps:
   - **9e-0 (done, queue-core fix)** — `Topic.status` was never updated by the
     pipeline (stuck at `queued` forever), so the sidebar/library status shipped in
     9b/9d was meaningless. The queue is the single writer of processing state, so
