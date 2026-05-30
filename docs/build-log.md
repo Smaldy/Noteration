@@ -174,10 +174,13 @@
     tests; suite **150 passed**, tree green.
   - **8b (next)** — `review_flashcard(session, card, grade, *, today)`: apply
     SM-2 to a `Flashcard` row, set the calendar-`date` `due_date` (= today +
-    interval), with deadline-mode interval capping toward `Subject.exam_date`.
-  - **8c** — Materialise the `ScheduleEntry` calendar from flashcards (one row per
-    (topic, date); `daily_new_cards`/`daily_review_cards` caps with roll-forward;
-    revision-buffer days + `source=deadline` in deadline mode). Rebuilt per review.
+    interval). Deadline mode is driven by `Subject.exam_date` presence (NOT a
+    settings flag — `Settings` has no such column; per ai-pipeline.md Stage 5):
+    when the topic's subject has an exam date, compress intervals toward it.
+  - **8c** — Materialise the `ScheduleEntry` calendar (topic_id, date,
+    is_revision_buffer, source[sm2/deadline/manual]) from flashcard due dates;
+    revision-buffer days near the exam; rebuilt per review. No daily-card-limit
+    knobs exist in the data model, so none are invented.
   - **8d** — Review + Calendar API (router/schemas; touches `main.py`).
 
 ## NEXT
