@@ -23,8 +23,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
-      headers: { Accept: "application/json", ...init?.headers },
       ...init,
+      headers: { Accept: "application/json", ...init?.headers },
     });
   } catch {
     // Network/connection failure (backend down) — surface as a 0-status error.
