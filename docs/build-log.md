@@ -250,9 +250,25 @@
     `GET /api/queue/status` (optional `?document_id=`), `POST /api/queue/topics/{id}/retry`
     (404 unknown). `schemas/queue.py`. 6 tests (counts/scoping/errors/retry/HTTP).
     Suite **208 passed**.
-  - **9e-2 (NEXT)** — Queue view UI: a `/queue` route (and a per-document entry):
-    status counts, resume countdown, errored topics with a Retry button, store +
-    poll/refresh.
+  - **9e-1b (done, fix)** — Found while wiring the UI: `_sync_topic_status`
+    re-SELECTed job states, but production `SessionLocal` is `autoflush=False`, so
+    it read **stale** states (the just-set job change wasn't flushed) — retry/
+    process left `Topic.status` wrong (live repro: retried job went `pending` but
+    topic stayed `error`). The conftest test session is `autoflush=True`, which
+    masked it. Fix: `self.session.flush()` before the SELECT in
+    `_sync_topic_status`. +1 regression test on an `autoflush=False` session
+    (verified it fails without the flush). Suite **209 passed**.
+  - **9e-2 (done)** — Queue view UI at `/queue` (`features/queue/QueuePage.tsx`):
+    four status stat-cards (ready/processing/queued/errored), a resume countdown
+    ("a provider quota is cooling — resuming around HH:MM (~N min)") when
+    `resume_at` is set, and a "needs attention" list of errored topics each with a
+    Retry button → `POST …/retry` → refresh. `stores/queue.ts` polls every 5s
+    (no spinner flash on background polls). A "Queue" link added to the Library
+    header. `types/queue.ts`. Verified live: status counts + retry flip the topic
+    back to queued. Tree green: `tsc -b` + `npm run build` clean, backend
+    **209 passed**.
+    Deferred to Phase 10 (Cost UX): live spend vs all-paid, active provider +
+    waterfall order, per-topic reorder/repriority, overnight mode.
 
 - **Phase 9d — Study View** (ux-flows.md §4–7: sidebar topic tree + Notes/Quiz/
   Flashcards tabs inside a topic) — **DONE**. Committed steps:

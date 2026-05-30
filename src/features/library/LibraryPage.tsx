@@ -1,4 +1,4 @@
-import { BookOpen, Plus } from "lucide-react";
+import { BookOpen, ListChecks, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,10 +26,16 @@ export function LibraryPage() {
             Your uploaded documents and their study progress.
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Plus />
-          Upload PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/queue")}>
+            <ListChecks />
+            Queue
+          </Button>
+          <Button onClick={() => setUploadOpen(true)}>
+            <Plus />
+            Upload PDF
+          </Button>
+        </div>
       </header>
 
       <UploadDialog
