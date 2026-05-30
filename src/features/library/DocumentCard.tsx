@@ -1,4 +1,5 @@
 import { CalendarDays, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -23,13 +24,31 @@ function formatExamDate(iso: string | null): string {
 }
 
 export function DocumentCard({ doc }: { doc: DocumentSummary }) {
+  const navigate = useNavigate();
   const progress =
     doc.topics_total === 0
       ? "No topics yet"
       : `${doc.topics_ready} of ${doc.topics_total} topics ready`;
 
+  // Not-yet-confirmed documents go to structure review; confirmed ones to study.
+  const destination =
+    doc.status === "uploaded"
+      ? `/documents/${doc.id}/review`
+      : `/documents/${doc.id}/study`;
+
   return (
-    <Card className="transition-shadow hover:shadow-md">
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(destination)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          navigate(destination);
+        }
+      }}
+      className="cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">

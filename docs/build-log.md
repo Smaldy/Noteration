@@ -244,13 +244,32 @@
     `routers/topics.py` (prefix `/topics`), tree endpoint added to the documents
     router; topics router wired into `main.py`. 8 tests (service ordering/grouping
     + content load + HTTP + 404s). Suite **198 passed**.
-  - **9d-2 (NEXT)** — Study shell + sidebar: route `/documents/:id/study`
-    (+ `:topicId`), chapter/topic sidebar with per-topic status icons (✓ ready /
-    ⟳ processing / … queued / ! error), topic selection, study store. Library
-    document cards link here.
-  - **9d-3 (after)** — The three tabs: Notes (render markdown; TipTap editing
-    deferred), Quiz (MCQ one-at-a-time → reveal), Flashcards (flip + self-grade
-    reusing `POST /api/study/flashcards/{id}/review`).
+  - **9d-2 (done)** — Full Study View (shell + sidebar + all three tabs).
+    Routes `/documents/:id/study` and `/documents/:id/study/:topicId`
+    (`features/study/StudyPage.tsx`): a chapter/topic sidebar
+    (`StudySidebar` + `TopicStatusIcon`: ✓ ready / ⟳ processing (spin) / … queued /
+    ! error / skip), topic selection driven by the URL, and a `stores/study.ts`
+    Zustand store (tree + topic content, each with its own load state). The content
+    panel (`TopicContentPanel`) is a shadcn `Tabs` (Notes/Quiz/Flashcards):
+    • **Notes** — `react-markdown` + `remark-gfm` (Tailwind typography `prose`),
+      plus a formulas list with reconstructed/verified badges;
+    • **Quiz** — MCQ one-at-a-time, click to reveal correct/explanation, progress
+      bar + score summary + retry;
+    • **Flashcards** — click-to-flip card, self-grade Correct/Incorrect/Skip →
+      `POST /api/study/flashcards/{id}/review` → advance (Framer Motion flip
+      deferred; simple toggle for v1).
+    Library document cards are now clickable (keyboard-accessible) → review if
+    `uploaded`, else study. New UI primitive `components/ui/tabs.tsx`; deps added:
+    `@radix-ui/react-tabs`, `react-markdown`, `remark-gfm`,
+    `@tailwindcss/typography`. Verified live against seeded data: tree + topic
+    content shapes match the TS types, and flashcard review ran SM-2 (ease
+    2.5→2.6, interval→1, due date advanced). Tree green: `tsc -b` +
+    `npm run build` clean, backend **198 passed**.
+
+## NEXT-WITHIN-9D
+  - TipTap inline note editing + regenerate/diff, KaTeX formula rendering, the
+    collapsible PDF source-page panel, and keyboard nav for the quiz — all
+    deferred polish on top of the working read-only Study View.
 
 - **Phase 9c — Upload + Structure Review (done).** Committed steps:
   - **9c-1 (done)** — Subjects endpoint (unblocker). Phase-6 `POST /api/documents`
