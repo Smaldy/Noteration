@@ -213,10 +213,28 @@
     `case`/`sum` query (no N+1). Router `GET /api/documents` →
     `schemas/library.DocumentSummaryOut`. 7 tests (service + HTTP via StaticPool);
     suite **183 passed**.
-  - **9b (next)** — Library screen in `src/`: add deps (react-router, zustand,
-    Tailwind/shadcn per locked stack), `lib/api.ts`, a `library` feature
-    (document cards with progress, empty state, upload button stub), real App
-    shell. `tsc --noEmit` + `npm run build` green.
+  - **9b (NEXT — start here)** — Library screen in `src/`. NOT STARTED; no `src/`
+    changes committed. Scaffold today is bare React+Vite+TS (only react/react-dom;
+    `tsc --noEmit` green). Plan:
+    1. **DECIDE the frontend toolchain first** (see BLOCKED — asked the user, who
+       soft-stopped before answering). Options weighed: (a) full locked stack now
+       (Tailwind + shadcn/ui + Zustand + react-router-dom) — matches
+       tech-stack.md, no re-setup later; (b) minimal now (Zustand + router + plain
+       CSS), defer Tailwind/shadcn; (c) Tailwind + Zustand + router now, adopt
+       shadcn when a complex primitive first appears. tech-stack.md locks
+       shadcn/ui + Zustand + Tailwind, so (a) is the spec-true default unless the
+       user says otherwise.
+    2. `npm install` the chosen deps (registry reachable; node v24.16, npm 11.13).
+       NOTE: an earlier `npm install` of zustand/react-router-dom/cva/clsx/
+       tailwind-merge/lucide-react was run then **reverted** (package.json/lock
+       back to react-only) when the user deferred the decision — `node_modules`
+       may still contain them (gitignored, harmless). Re-run install per the
+       decision.
+    3. `lib/api.ts` (typed fetch wrapper for `/api`), `types/` for
+       `DocumentSummaryOut`, a `library` feature (document cards: subject, exam
+       date, "X of Y topics ready", status; empty state; upload button stub), App
+       shell + routing. Backend `GET /api/documents` (9a) is live and tested.
+    4. `tsc --noEmit` + `npm run build` green before commit.
 
 ## NEXT
 
@@ -362,7 +380,11 @@
 
 ## BLOCKED
 
-- (none)
+- **Phase 9b frontend toolchain — needs a one-word user decision.** Before any
+  `src/` code: pick (a) full locked stack now [spec-true default], (b) minimal +
+  defer, or (c) Tailwind+Zustand+router now / shadcn later. See the 9b entry under
+  IN PROGRESS for the trade-offs. Not blocking other work, but 9b shouldn't start
+  until chosen so the foundation isn't redone.
 
 ## NOTES / WATCH
 
