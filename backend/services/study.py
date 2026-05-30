@@ -33,8 +33,15 @@ def _subject_of(db: Session, flashcard: Flashcard) -> Subject | None:
 
 
 def review(db: Session, flashcard: Flashcard, grade: Grade, *, today: date) -> Flashcard:
-    """Apply a self-grade to ``flashcard``, rebuild its subject's calendar, commit."""
-    scheduler.review_flashcard(db, flashcard, grade, today=today)
+    """Apply a self-grade to ``flashcard``, rebuild its subject's calendar, commit.
+
+    Skip is inert: it changes no scheduling state, so it skips the calendar
+    rebuild + commit entirely (rebuilding would needlessly churn every
+    non-manual entry for the subject and reassign entry IDs for no change).
+    """
+    changed = scheduler.review_flashcard(db, flashcard, grade, today=today)
+    if not changed:  # Skip
+        return flashcard
     db.flush()  # make the card's new due_date visible to the calendar rebuild
     subject = _subject_of(db, flashcard)
     if subject is not None:

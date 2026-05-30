@@ -140,31 +140,36 @@ def review_flashcard(
     grade: Grade,
     *,
     today: date,
-) -> None:
+) -> bool:
     """Apply a self-grade to ``flashcard`` and schedule its next review.
 
-    Correct/Incorrect advance the card's SM-2 state and set ``due_date`` to
-    ``today + interval`` (a calendar date). In deadline mode (the subject has a
-    future exam date) the interval is compressed so the next review never lands
-    past the exam. Skip is inert — it returns without touching the card, so the
-    caller can re-show it later in the session. Does not commit.
+    Returns ``True`` if the card was updated, ``False`` for Skip (inert — the
+    caller can re-show the card later in the session). Does not commit.
+
+    Correct/Incorrect advance the card's SM-2 state, storing the *true* learned
+    ``interval`` and setting ``due_date``. In deadline mode (the subject has a
+    future exam date) only the **review date** is pulled forward so it never
+    lands past the exam — the stored interval keeps the real SM-2 value, so
+    normal scheduling resumes once the exam has passed (compression must not
+    permanently depress the card's schedule).
     """
     new_state = apply_grade(
         CardState(flashcard.ease_factor, flashcard.interval, flashcard.repetitions),
         grade,
     )
     if new_state is None:  # Skip
-        return
+        return False
 
-    interval = new_state.interval
+    due_interval = new_state.interval
     exam_date = subject_exam_date(session, flashcard)
     if exam_date is not None and exam_date > today:
-        interval = min(interval, (exam_date - today).days)
+        due_interval = min(due_interval, (exam_date - today).days)
 
     flashcard.ease_factor = new_state.ease_factor
     flashcard.repetitions = new_state.repetitions
-    flashcard.interval = interval
-    flashcard.due_date = today + timedelta(days=interval)
+    flashcard.interval = new_state.interval  # true SM-2 interval, not compressed
+    flashcard.due_date = today + timedelta(days=due_interval)
+    return True
 
 
 # --------------------------------------------------------------------------- #

@@ -62,18 +62,41 @@ def test_skip_is_inert(session):
     card = _make_card(session, ease=2.4, interval=6, reps=2, due_date=TODAY - timedelta(days=1))
     before = (card.ease_factor, card.interval, card.repetitions, card.due_date)
 
-    review_flashcard(session, card, Grade.skip, today=TODAY)
+    changed = review_flashcard(session, card, Grade.skip, today=TODAY)
 
+    assert changed is False
     assert (card.ease_factor, card.interval, card.repetitions, card.due_date) == before
 
 
-def test_deadline_mode_compresses_interval(session):
-    # SM-2 would give round(6 * 2.7) = 16 days, but the exam is in 3 days.
+def test_review_returns_true_when_card_updated(session):
+    card = _make_card(session)
+    assert review_flashcard(session, card, Grade.correct, today=TODAY) is True
+
+
+def test_deadline_mode_pulls_due_date_forward_only(session):
+    # SM-2 gives round(6 * 2.7) = 16 days, but the exam is in 3 days: only the
+    # review *date* is pulled forward — the stored interval keeps the true value.
     card = _make_card(session, exam_date=TODAY + timedelta(days=3), ease=2.7, interval=6, reps=2)
     review_flashcard(session, card, Grade.correct, today=TODAY)
 
-    assert card.interval == 3
+    assert card.interval == 16  # not corrupted by compression
     assert card.due_date == TODAY + timedelta(days=3)
+
+
+def test_deadline_compression_does_not_depress_post_exam_schedule(session):
+    # Regression: compressing the *stored* interval would shrink every future
+    # interval after the exam passes. The interval must survive compression.
+    card = _make_card(session, exam_date=TODAY + timedelta(days=3), ease=2.7, interval=6, reps=2)
+    review_flashcard(session, card, Grade.correct, today=TODAY)
+    # First review: interval 16, ease 2.8, reps 3 (due pulled to exam).
+    assert card.interval == 16
+
+    # A later review once the exam has passed (no compression) must grow from the
+    # true interval (round(16 * 2.8) = 45), not from a compressed 3.
+    later = TODAY + timedelta(days=4)
+    review_flashcard(session, card, Grade.correct, today=later)
+    assert card.interval == 45
+    assert card.due_date == later + timedelta(days=45)
 
 
 def test_far_exam_does_not_compress(session):

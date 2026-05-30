@@ -190,7 +190,17 @@
     to the repo's `db_factory` + `StaticPool` + `get_session`-override pattern
     (mirrors test_documents_api.py). Scheduler logic was always green; only the
     harness was wrong.
-  - Tree green: full suite **174 passed**, `npm run build` clean. Phase 8 done.
+  - **8-review-fix** — `/code-review` (high) on the Phase-8 diff. Fixed three:
+    (1) deadline compression was writing the *compressed* interval back to
+    `Flashcard.interval`, permanently depressing the card's schedule after the
+    exam passed — now only `due_date` is pulled forward; the stored interval keeps
+    the true SM-2 value (regression test added). (2) `review_flashcard` returns a
+    `changed` bool so a Skip no longer triggers a full subject calendar rebuild +
+    commit (was churning every non-manual `ScheduleEntry` for no state change).
+    (3) the router now derives "today" from `utcnow().date()` (UTC, matching the
+    app convention) instead of local-time `date.today()`. N+1 in `rebuild_schedule`
+    and the triple subject-traversal were noted but left as acceptable for v1.
+  - Tree green: full suite **177 passed**, `npm run build` clean. Phase 8 done.
 
 ## IN PROGRESS
 
