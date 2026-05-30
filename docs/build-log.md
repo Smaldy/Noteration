@@ -243,10 +243,18 @@
     name + optional accent_color/exam_date). No uniqueness constraint (no
     migration); the picker makes dupes unlikely. `schemas/subject.py`
     (SubjectCreate/SubjectOut). Tests: service + HTTP via StaticPool.
-  - **9c-2 (NEXT)** — Upload UI: a dialog to pick an existing subject or name a new
-    one + choose a PDF → `POST /api/documents` (multipart) → on 201 route to
-    structure review. Enable the Library's Upload button.
-  - **9c-3 (after)** — Structure Review screen: `GET …/structure` → editable
+  - **9c-2 (done)** — Upload UI. `features/upload/UploadDialog.tsx`: a modal to
+    pick an existing subject (or create one inline by name) + choose a PDF →
+    `POST /api/documents` (multipart) → refreshes the Library and exposes the new
+    document id via `onUploaded` (routing to review lands in 9c-3). Added shadcn
+    primitives `dialog`/`input`/`label` (radix dialog+label installed); `api.upload`
+    (FormData, no forced Content-Type so the browser sets the multipart boundary);
+    `types/subject.ts` + `types/document.ts`; `stores/subjects.ts` (list + create)
+    and a `uploadDocument` action on the library store (uploads then refetches).
+    Library's Upload button (header + empty-state CTA) now opens the dialog.
+    Verified live: `POST`/`GET /api/subjects` 201/list, blank name → 422. Tree
+    green: backend **190 passed**, `tsc -b` + `npm run build` clean.
+  - **9c-3 (NEXT)** — Structure Review screen: `GET …/structure` → editable
     chapter/topic tree (rename/merge/split), per-topic priority pills
     (exam_critical/medium/skip), exam-date picker, pre-flight estimate, Confirm →
     `POST …/structure` → navigate (Study View lands in a later sub-wave).

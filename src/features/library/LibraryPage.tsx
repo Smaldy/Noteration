@@ -1,13 +1,15 @@
 import { BookOpen, Plus } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { UploadDialog } from "@/features/upload/UploadDialog";
 import { useLibraryStore } from "@/stores/library";
 
 import { DocumentCard } from "./DocumentCard";
 
 export function LibraryPage() {
   const { documents, status, error, fetchDocuments } = useLibraryStore();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
     void fetchDocuments();
@@ -22,12 +24,14 @@ export function LibraryPage() {
             Your uploaded documents and their study progress.
           </p>
         </div>
-        {/* Upload flow arrives in a later Phase-9 sub-wave. */}
-        <Button disabled title="Upload coming soon">
+        <Button onClick={() => setUploadOpen(true)}>
           <Plus />
           Upload PDF
         </Button>
       </header>
+
+      <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+
 
       {status === "loading" && (
         <p className="text-sm text-muted-foreground">Loading your library…</p>
@@ -55,6 +59,10 @@ export function LibraryPage() {
             Upload an engineering PDF to generate notes, MCQs, flashcards, and a
             study schedule.
           </p>
+          <Button className="mt-5" onClick={() => setUploadOpen(true)}>
+            <Plus />
+            Upload PDF
+          </Button>
         </div>
       )}
 
