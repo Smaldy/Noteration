@@ -14,6 +14,7 @@ from backend.schemas.structure import (
     ProposedStructureOut,
     UploadResult,
 )
+from backend.schemas.topic import DocumentTreeOut
 from backend.services import documents as docsvc
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -69,6 +70,18 @@ def document_structure(
             status_code=409, detail="Document markdown unavailable; re-ingest needed"
         )
     return ProposedStructureOut.model_validate(structure)
+
+
+@router.get("/{document_id}/tree", response_model=DocumentTreeOut)
+def document_tree(
+    document_id: int,
+    session: Session = Depends(get_session),
+) -> docsvc.DocumentTree:
+    """The confirmed chapter/topic tree (Study View sidebar)."""
+    try:
+        return docsvc.get_document_tree(session, document_id)
+    except docsvc.DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="Document not found")
 
 
 @router.post(

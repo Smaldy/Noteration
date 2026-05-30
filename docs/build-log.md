@@ -232,11 +232,25 @@
 
 ## IN PROGRESS
 
-- **Phase 9 — Frontend (Wave 9): Study View is next.** Upload + Structure Review
-  (9c) is **done** end-to-end. Next feature: the Study View (sidebar tree with
-  per-topic status; Notes/Quiz/Flashcards tabs inside a topic — ux-flows.md §4–7).
-  Needs read endpoints for a document's confirmed tree + per-topic notes/MCQs/
-  flashcards (some may need new routers, mirroring the 9c pattern).
+- **Phase 9d — Study View** (ux-flows.md §4–7: sidebar topic tree + Notes/Quiz/
+  Flashcards tabs inside a topic). Committed steps:
+  - **9d-1 (done)** — Backend read endpoints. `GET /api/documents/{id}/tree`
+    (`docsvc.get_document_tree` → `DocumentTreeOut`: chapters→topics with
+    status/priority/studied, ordered by order_index+id, grouped in one pass — no
+    N+1; 404 unknown) for the sidebar, and `GET /api/topics/{id}`
+    (`services/topics.py::get_topic_content` → `TopicContentOut`: notes
+    (+formulas), MCQs, flashcards; `selectinload` eager-loads to avoid N+1 during
+    serialization; 404 unknown) for the tabs. New `schemas/topic.py`,
+    `routers/topics.py` (prefix `/topics`), tree endpoint added to the documents
+    router; topics router wired into `main.py`. 8 tests (service ordering/grouping
+    + content load + HTTP + 404s). Suite **198 passed**.
+  - **9d-2 (NEXT)** — Study shell + sidebar: route `/documents/:id/study`
+    (+ `:topicId`), chapter/topic sidebar with per-topic status icons (✓ ready /
+    ⟳ processing / … queued / ! error), topic selection, study store. Library
+    document cards link here.
+  - **9d-3 (after)** — The three tabs: Notes (render markdown; TipTap editing
+    deferred), Quiz (MCQ one-at-a-time → reveal), Flashcards (flip + self-grade
+    reusing `POST /api/study/flashcards/{id}/review`).
 
 - **Phase 9c — Upload + Structure Review (done).** Committed steps:
   - **9c-1 (done)** — Subjects endpoint (unblocker). Phase-6 `POST /api/documents`

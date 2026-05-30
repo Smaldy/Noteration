@@ -226,6 +226,88 @@ def confirm_structure(
     return ConfirmCounts(len(chapters), len(created_topics), enqueued)
 
 
+@dataclass
+class TopicNode:
+    id: int
+    title: str
+    priority: TopicPriority
+    status: TopicStatus
+    studied: bool
+    order_index: int
+
+
+@dataclass
+class ChapterNode:
+    id: int
+    title: str
+    order_index: int
+    topics: list[TopicNode]
+
+
+@dataclass
+class DocumentTree:
+    document_id: int
+    status: DocumentStatus
+    chapters: list[ChapterNode]
+
+
+def get_document_tree(session: Session, document_id: int) -> DocumentTree:
+    """The confirmed chapter/topic tree for the Study View sidebar.
+
+    Chapters and topics come back ordered (order_index, id); topics are grouped
+    into chapters in one pass, so no N+1 over the tree.
+    """
+    document = session.get(Document, document_id)
+    if document is None:
+        raise DocumentNotFoundError(document_id)
+
+    chapters = (
+        session.execute(
+            select(Chapter)
+            .where(Chapter.document_id == document_id)
+            .order_by(Chapter.order_index, Chapter.id)
+        )
+        .scalars()
+        .all()
+    )
+    topics = (
+        session.execute(
+            select(Topic)
+            .join(Chapter, Topic.chapter_id == Chapter.id)
+            .where(Chapter.document_id == document_id)
+            .order_by(Topic.order_index, Topic.id)
+        )
+        .scalars()
+        .all()
+    )
+
+    by_chapter: dict[int, list[TopicNode]] = {}
+    for topic in topics:
+        by_chapter.setdefault(topic.chapter_id, []).append(
+            TopicNode(
+                id=topic.id,
+                title=topic.title,
+                priority=topic.priority,
+                status=topic.status,
+                studied=topic.studied,
+                order_index=topic.order_index,
+            )
+        )
+
+    chapter_nodes = [
+        ChapterNode(
+            id=chapter.id,
+            title=chapter.title,
+            order_index=chapter.order_index,
+            topics=by_chapter.get(chapter.id, []),
+        )
+        for chapter in chapters
+    ]
+    return DocumentTree(
+        document_id=document.id, status=document.status, chapters=chapter_nodes
+    )
+
+
 def _persist_upload(data: bytes, uploads_dir: Path) -> Path:
     """Write the PDF under uploads/<hash>.pdf (idempotent, atomic)."""
     uploads_dir.mkdir(parents=True, exist_ok=True)
