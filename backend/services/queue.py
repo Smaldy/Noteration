@@ -318,6 +318,9 @@ class QueueService:
         queued otherwise. Topics with no jobs (``skip``) are left untouched.
         Mutates in the caller's open transaction — never commits on its own.
         """
+        # Flush so the just-set job states are visible to this SELECT even when
+        # the session has autoflush off (production SessionLocal does).
+        self.session.flush()
         states = self.session.scalars(
             select(QueueJob.state).where(QueueJob.topic_id == topic_id)
         ).all()

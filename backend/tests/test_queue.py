@@ -6,8 +6,11 @@ Processing, failover, and resume-from-DB are covered in 4b–4c.
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from backend.db.database import Base
 
 from backend.models import (
     Chapter,
@@ -256,6 +259,35 @@ def test_topic_status_error_on_terminal_failure(session: Session) -> None:
     )
     session.refresh(topic)
     assert topic.status is TopicStatus.error
+
+
+def test_topic_status_sync_without_autoflush() -> None:
+    """Production SessionLocal uses autoflush=False; the status sync must see the
+    job states it just set without relying on the test session's autoflush."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def _fk_on(dbapi_connection, _record) -> None:  # noqa: ANN001
+        cur = dbapi_connection.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()
+    try:
+        topic = _topic(db)
+        queue = QueueService(db)
+        job = _claim(queue, topic, QueueStage.notes)
+        queue.process_job(job, _ok)
+        db.refresh(topic)
+        assert topic.status is TopicStatus.ready
+    finally:
+        db.close()
+        engine.dispose()
 
 
 def test_process_through_waterfall(session: Session) -> None:
