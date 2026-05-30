@@ -161,44 +161,40 @@
     benchmark for live verification.
   - Tree green: full suite **140 passed**, `npm run build` clean. Phase 7 done.
 
+- **Phase 8 — Scheduler (Wave 8)** — SM-2 spaced repetition + deadline mode +
+  calendar + study API, in four committed sub-waves (`services/scheduler.py`,
+  `services/study.py`, `routers/study.py`, `schemas/study.py`):
+  - **8a** — Pure SM-2 core: `Grade` (StrEnum correct/incorrect/skip — transient,
+    never persisted), `CardState`, `quality_for` (Correct→5, Incorrect→2,
+    Skip→None), `sm2_update` (q<3 lapse resets reps + interval→1; q≥3 advances
+    1→6→round(I·EF); EF floored at 1.3), `apply_grade` (Skip inert). Clock/DB-free.
+  - **8b** — `review_flashcard(session, card, grade, *, today)`: apply SM-2 to a
+    `Flashcard` and set the calendar-`date` `due_date`. Deadline mode = presence of
+    a future `Subject.exam_date` (not a settings flag; per ai-pipeline.md Stage 5):
+    a live exam compresses the interval (`min(interval, days_left)`) so no review
+    lands past it.
+  - **8c** — `rebuild_schedule(session, subject, *, today)`: materialise the
+    `ScheduleEntry` calendar (one row per (topic, date), deduped) from flashcard
+    due dates; `source=deadline` under a live exam date (else `sm2`); trailing
+    `REVISION_BUFFER_DAYS` (=2) flagged `is_revision_buffer`; `manual` drag-drops
+    preserved (bulk delete uses `synchronize_session="fetch"`). Plus
+    `due_flashcards` (study queue). No daily-card-limit knobs in the model.
+  - **8d** — Study API under `/api/study` (router on the `/api` sub-router,
+    `get_session` dep): `GET /due` (queue, `limit`), `POST /flashcards/{id}/review`
+    (self-grade → SM-2 + calendar rebuild + commit; 404 unknown, 422 bad grade),
+    `GET /calendar?start&end` (422 inverted). Thin router → `study` service (owns
+    the transaction) → scheduler primitives.
+  - Tree green: full suite **174 passed**, `npm run build` clean. Phase 8 done.
+
 ## IN PROGRESS
 
-- **Phase 8 — Scheduler (Wave 8).** Building in committed sub-waves:
-  - **8a (done)** — Pure SM-2 core. `services/scheduler.py`: `Grade` (StrEnum:
-    correct/incorrect/skip — transient review input, never persisted), `CardState`
-    (ease_factor/interval/repetitions, mirroring the `Flashcard` columns),
-    `quality_for(grade)` (Correct→5, Incorrect→2, Skip→None), `sm2_update(state,
-    quality)` (q<3 lapse resets reps + interval→1; q≥3 advances 1→6→round(I·EF);
-    EF nudged by the SM-2 formula, floored at 1.3), and `apply_grade` (Skip =
-    inert). Pure: no clock, no DB (mirrors the provider/queue seam). 10 unit
-    tests; suite **150 passed**, tree green.
-  - **8b (done)** — `review_flashcard(session, card, grade, *, today)` applies
-    SM-2 to a `Flashcard` row and sets the calendar-`date` `due_date` (= today +
-    interval); Skip is inert. Deadline mode is driven by `Subject.exam_date`
-    presence (NOT a settings flag — `Settings` has no such column; per
-    ai-pipeline.md Stage 5): when the card's subject has a *future* exam date the
-    interval is compressed so no review lands past it (`min(interval, days_left)`);
-    no/past exam → standard SM-2. `subject_exam_date` joins Flashcard→Topic→
-    Chapter→Subject. Clock-free (today injected); caller commits. 7 DB tests;
-    suite **157 passed**.
-  - **8c (done)** — `rebuild_schedule(session, subject, *, today)` materialises
-    the `ScheduleEntry` calendar (one row per (topic, date) a card is due, deduped)
-    from flashcard due dates; `source=deadline` when the subject has a current exam
-    date (else `sm2`); the trailing `REVISION_BUFFER_DAYS` (=2, through exam day)
-    are flagged `is_revision_buffer`; user `manual` drag-drop entries are preserved
-    on rebuild, machine ones replaced. Plus `due_flashcards(session, *, today,
-    limit)` — the study queue (due reviews first, then new/never-scheduled cards).
-    No daily-card-limit knobs exist in the data model, so none are invented.
-    8 tests; suite **165 passed**.
-  - **8d (next)** — Review + Calendar API (router/schemas; touches `main.py`).
+- (none — Phase 8 complete, all four sub-waves committed)
 
 ## NEXT
 
-1. **Phase 8 — Scheduler**: SM-2 (+ deadline mode) over flashcards →
-   `ScheduleEntry`/calendar; self-grade (Correct/Incorrect/Skip) → SM-2 quality
-   update (settle review.md "Still open" #3, the grade→quality mapping).
-2. **Phase 9 — Frontend** (feature-based) per `ux-flows.md`, one feature
-   end-to-end at a time; then Phases 10–11 per `RUFLO-BUILD.md`.
+1. **Phase 9 — Frontend** (feature-based) per `ux-flows.md`, one feature
+   end-to-end at a time (Library → Upload/Structure Review → Study View →
+   Calendar → Queue → Settings); then Phases 10–11 per `RUFLO-BUILD.md`.
 
 ## DECISIONS
 

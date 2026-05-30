@@ -207,7 +207,7 @@ def rebuild_schedule(
             ScheduleEntry.topic_id.in_(topic_ids),
             ScheduleEntry.source != ScheduleSource.manual,
         ),
-        execution_options={"synchronize_session": False},
+        execution_options={"synchronize_session": "fetch"},
     )
 
     exam_date = subject.exam_date
