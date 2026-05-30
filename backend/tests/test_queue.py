@@ -17,7 +17,7 @@ from backend.models import (
     Subject,
     Topic,
 )
-from backend.models.enums import QueueStage, QueueState, TopicPriority
+from backend.models.enums import QueueStage, QueueState, TopicPriority, TopicStatus
 from backend.models.processing import QueueJob
 from backend.services.providers import (
     AllProvidersExhausted,
@@ -203,6 +203,59 @@ def test_failure_rolls_back_partial_write_and_retries(session: Session) -> None:
     queue.process_job(job, failing)
     assert job.state is QueueState.failed  # max_attempts reached
     assert job.attempts == 2
+
+
+# --- topic-status lifecycle (the queue owns Topic.status) -----------------
+
+
+def _ok(job: QueueJob, db: Session) -> ProviderResult:
+    return ProviderResult(text="x", provider="gemini_free")
+
+
+def test_topic_status_processing_on_claim(session: Session) -> None:
+    queue = QueueService(session)
+    topic = _topic(session)
+    assert topic.status is TopicStatus.queued
+    queue.enqueue_topic(topic, stages=(QueueStage.notes,))
+    queue.claim_next()
+    session.refresh(topic)
+    assert topic.status is TopicStatus.processing
+
+
+def test_topic_status_partial_is_processing(session: Session) -> None:
+    queue = QueueService(session)
+    topic = _topic(session)
+    queue.enqueue_topic(topic, stages=(QueueStage.notes, QueueStage.assessment))
+    notes = queue.claim_next()
+    assert notes is not None
+    queue.process_job(notes, _ok)
+    session.refresh(topic)
+    # notes done, assessment still pending → partial progress is "processing"
+    assert topic.status is TopicStatus.processing
+
+
+def test_topic_status_ready_when_all_stages_done(session: Session) -> None:
+    queue = QueueService(session)
+    topic = _topic(session)
+    queue.enqueue_topic(topic, stages=(QueueStage.notes, QueueStage.assessment))
+    for _ in range(2):
+        job = queue.claim_next()
+        assert job is not None
+        queue.process_job(job, _ok)
+    session.refresh(topic)
+    assert topic.status is TopicStatus.ready
+
+
+def test_topic_status_error_on_terminal_failure(session: Session) -> None:
+    queue = QueueService(session, max_attempts=1)
+    topic = _topic(session)
+    job = _claim(queue, topic, QueueStage.notes)
+    queue.process_job(
+        job,
+        lambda j, db: (_ for _ in ()).throw(ProviderUnavailableError("boom")),
+    )
+    session.refresh(topic)
+    assert topic.status is TopicStatus.error
 
 
 def test_process_through_waterfall(session: Session) -> None:

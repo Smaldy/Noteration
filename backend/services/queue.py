@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.models.enums import QueueStage, QueueState, TopicPriority
+from backend.models.enums import QueueStage, QueueState, TopicPriority, TopicStatus
 from backend.models.hierarchy import Topic, utcnow
 from backend.models.processing import ProviderState, QueueJob
 from backend.services.providers.base import (
@@ -139,6 +139,7 @@ class QueueService:
                 continue  # deferred until its reset/retry window
             if self._prerequisites_done(job):
                 job.state = QueueState.running
+                self._sync_topic_status(job.topic_id)
                 self.session.commit()
                 return job
         return None
@@ -179,6 +180,7 @@ class QueueService:
                 job.state = QueueState.pending
                 job.resume_after = now + self.retry_delay
                 outcome = JobOutcome.deferred_retry
+            self._sync_topic_status(job.topic_id)
             self.session.commit()
             return outcome
 
@@ -187,6 +189,7 @@ class QueueService:
         job.resume_after = None
         job.state = QueueState.done
         self._record_provider_usage(result)
+        self._sync_topic_status(job.topic_id)
         self.session.commit()
         return JobOutcome.done
 
@@ -204,6 +207,29 @@ class QueueService:
             job.state = QueueState.pending
         self.session.commit()
         return len(orphaned)
+
+    def retry_topic(self, topic_id: int) -> int:
+        """Requeue a topic's terminally-failed jobs (the retry UI action).
+
+        Resets each ``failed`` job to ``pending`` with a fresh attempt budget and
+        cleared error/defer, then re-derives the topic status. Returns how many
+        jobs were requeued (0 if the topic had none failed).
+        """
+        failed = self.session.scalars(
+            select(QueueJob).where(
+                QueueJob.topic_id == topic_id,
+                QueueJob.state == QueueState.failed,
+            )
+        ).all()
+        for job in failed:
+            job.state = QueueState.pending
+            job.attempts = 0
+            job.last_error = None
+            job.resume_after = None
+        if failed:
+            self._sync_topic_status(topic_id)
+        self.session.commit()
+        return len(failed)
 
     def earliest_resume_after(self) -> datetime | None:
         """The single wake-up time: earliest `resume_after` among deferred jobs."""
@@ -283,3 +309,28 @@ class QueueService:
             for sibling in siblings
             if STAGE_RANK[sibling.stage] < rank
         )
+
+    def _sync_topic_status(self, topic_id: int) -> None:
+        """Derive the topic's status from its jobs (the queue owns this lifecycle).
+
+        error if any stage failed terminally · ready once every stage is done ·
+        processing while any stage is running or already done (partial progress) ·
+        queued otherwise. Topics with no jobs (``skip``) are left untouched.
+        Mutates in the caller's open transaction — never commits on its own.
+        """
+        states = self.session.scalars(
+            select(QueueJob.state).where(QueueJob.topic_id == topic_id)
+        ).all()
+        if not states:
+            return
+        topic = self.session.get(Topic, topic_id)
+        if topic is None:
+            return
+        if any(state == QueueState.failed for state in states):
+            topic.status = TopicStatus.error
+        elif all(state == QueueState.done for state in states):
+            topic.status = TopicStatus.ready
+        elif any(state in (QueueState.done, QueueState.running) for state in states):
+            topic.status = TopicStatus.processing
+        else:
+            topic.status = TopicStatus.queued

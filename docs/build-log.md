@@ -232,8 +232,30 @@
 
 ## IN PROGRESS
 
+- **Phase 9e — Queue / Processing view** (ux-flows.md §9). Committed steps:
+  - **9e-0 (done, queue-core fix)** — `Topic.status` was never updated by the
+    pipeline (stuck at `queued` forever), so the sidebar/library status shipped in
+    9b/9d was meaningless. The queue is the single writer of processing state, so
+    it now owns the topic lifecycle: `QueueService._sync_topic_status` derives
+    status from the topic's jobs (error if any failed · ready when all done ·
+    processing while any running/partially-done · else queued) and is called on
+    claim and on each `process_job` outcome, **inside the existing atomic commits**
+    (no extra commits, never half-written). +4 queue tests
+    (queued→processing→ready and →error). 
+  - **9e-1 (done)** — Queue API. `services/queue_view.get_queue_status(session,
+    document_id=None)` → counts (ready/processing/queued/error, `skip` excluded),
+    next provider wake-up (`earliest_resume_after`), and errored topics with their
+    `last_error`; `QueueService.retry_topic` requeues a topic's failed jobs (reset
+    to pending, attempts→0, error/defer cleared, status re-synced). `routers/queue.py`:
+    `GET /api/queue/status` (optional `?document_id=`), `POST /api/queue/topics/{id}/retry`
+    (404 unknown). `schemas/queue.py`. 6 tests (counts/scoping/errors/retry/HTTP).
+    Suite **208 passed**.
+  - **9e-2 (NEXT)** — Queue view UI: a `/queue` route (and a per-document entry):
+    status counts, resume countdown, errored topics with a Retry button, store +
+    poll/refresh.
+
 - **Phase 9d — Study View** (ux-flows.md §4–7: sidebar topic tree + Notes/Quiz/
-  Flashcards tabs inside a topic). Committed steps:
+  Flashcards tabs inside a topic) — **DONE**. Committed steps:
   - **9d-1 (done)** — Backend read endpoints. `GET /api/documents/{id}/tree`
     (`docsvc.get_document_tree` → `DocumentTreeOut`: chapters→topics with
     status/priority/studied, ordered by order_index+id, grouped in one pass — no
