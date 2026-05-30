@@ -1,14 +1,24 @@
-"""Phase 8d — study API: review queue, self-grading, calendar."""
+"""Phase 8d — study API: review queue, self-grading, calendar.
+
+Uses a shared in-memory DB across threads (StaticPool) with a `get_session`
+override, mirroring test_documents_api.py — the TestClient runs requests on a
+worker thread, so a plain per-connection in-memory DB would be empty there.
+"""
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from backend.db.database import get_session
+import backend.models  # noqa: F401 - register models on Base.metadata
+from backend.db.database import Base, get_session
 from backend.main import app
 from backend.models import Chapter, Document, Flashcard, Subject, Topic
 
@@ -17,66 +27,95 @@ D = timedelta(days=1)
 
 
 @pytest.fixture
-def client(session) -> TestClient:
-    app.dependency_overrides[get_session] = lambda: session
-    test_client = TestClient(app)
-    yield test_client
+def db_factory() -> Generator[sessionmaker, None, None]:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,  # one shared in-memory connection across threads
+    )
+
+    @event.listens_for(engine, "connect")
+    def _fk_on(dbapi_connection, _record) -> None:  # noqa: ANN001
+        cur = dbapi_connection.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
+    Base.metadata.create_all(engine)
+    yield sessionmaker(bind=engine, expire_on_commit=False)
+    engine.dispose()
+
+
+@pytest.fixture
+def client(db_factory: sessionmaker) -> Generator[TestClient, None, None]:
+    def _override() -> Generator[Session, None, None]:
+        db = db_factory()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_session] = _override
+    with TestClient(app) as test_client:
+        yield test_client
     app.dependency_overrides.clear()
 
 
-def _make_card(session, *, exam_date=None, due_date=None, ease=2.5, interval=0, reps=0):
-    subj = Subject(name="Math", exam_date=exam_date)
-    session.add(subj)
-    session.flush()
-    doc = Document(subject_id=subj.id, filename="f.pdf", file_hash=uuid.uuid4().hex)
-    session.add(doc)
-    session.flush()
-    ch = Chapter(document_id=doc.id, subject_id=subj.id, title="Ch")
-    session.add(ch)
-    session.flush()
-    top = Topic(chapter_id=ch.id, title="T")
-    session.add(top)
-    session.flush()
-    card = Flashcard(
-        topic_id=top.id,
-        front="Q",
-        back="A",
-        ease_factor=ease,
-        interval=interval,
-        repetitions=reps,
-        due_date=due_date,
-    )
-    session.add(card)
-    session.commit()
-    return card
+def _make_card(
+    db_factory, *, exam_date=None, due_date=None, ease=2.5, interval=0, reps=0
+) -> int:
+    with db_factory() as db:
+        subj = Subject(name="Math", exam_date=exam_date)
+        db.add(subj)
+        db.flush()
+        doc = Document(subject_id=subj.id, filename="f.pdf", file_hash=uuid.uuid4().hex)
+        db.add(doc)
+        db.flush()
+        ch = Chapter(document_id=doc.id, subject_id=subj.id, title="Ch")
+        db.add(ch)
+        db.flush()
+        top = Topic(chapter_id=ch.id, title="T")
+        db.add(top)
+        db.flush()
+        card = Flashcard(
+            topic_id=top.id,
+            front="Q",
+            back="A",
+            ease_factor=ease,
+            interval=interval,
+            repetitions=reps,
+            due_date=due_date,
+        )
+        db.add(card)
+        db.commit()
+        return card.id
 
 
-def test_due_endpoint_reviews_then_new(client, session):
-    overdue = _make_card(session, due_date=TODAY - 2 * D)
-    _make_card(session, due_date=TODAY + 5 * D)  # future: excluded
-    new = _make_card(session, due_date=None)
+def test_due_endpoint_reviews_then_new(client, db_factory):
+    overdue = _make_card(db_factory, due_date=TODAY - 2 * D)
+    _make_card(db_factory, due_date=TODAY + 5 * D)  # future: excluded
+    new = _make_card(db_factory, due_date=None)
 
     resp = client.get("/api/study/due")
     assert resp.status_code == 200
     ids = [c["id"] for c in resp.json()]
-    assert ids == [overdue.id, new.id]
+    assert ids == [overdue, new]
 
 
-def test_due_endpoint_limit(client, session):
-    _make_card(session, due_date=TODAY - 2 * D)
-    _make_card(session, due_date=TODAY - 1 * D)
-    _make_card(session, due_date=None)
+def test_due_endpoint_limit(client, db_factory):
+    _make_card(db_factory, due_date=TODAY - 2 * D)
+    _make_card(db_factory, due_date=TODAY - 1 * D)
+    _make_card(db_factory, due_date=None)
 
     resp = client.get("/api/study/due", params={"limit": 2})
     assert resp.status_code == 200
     assert len(resp.json()) == 2
 
 
-def test_review_correct_schedules_and_returns_card(client, session):
-    card = _make_card(session)
+def test_review_correct_schedules_and_returns_card(client, db_factory):
+    card_id = _make_card(db_factory)
 
     resp = client.post(
-        f"/api/study/flashcards/{card.id}/review", json={"grade": "correct"}
+        f"/api/study/flashcards/{card_id}/review", json={"grade": "correct"}
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -86,11 +125,11 @@ def test_review_correct_schedules_and_returns_card(client, session):
     assert body["due_date"] == (TODAY + D).isoformat()
 
 
-def test_review_skip_is_inert(client, session):
-    card = _make_card(session, due_date=TODAY - D, ease=2.4, interval=6, reps=2)
+def test_review_skip_is_inert(client, db_factory):
+    card_id = _make_card(db_factory, due_date=TODAY - D, ease=2.4, interval=6, reps=2)
 
     resp = client.post(
-        f"/api/study/flashcards/{card.id}/review", json={"grade": "skip"}
+        f"/api/study/flashcards/{card_id}/review", json={"grade": "skip"}
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -104,17 +143,17 @@ def test_review_unknown_flashcard_404(client):
     assert resp.status_code == 404
 
 
-def test_review_invalid_grade_422(client, session):
-    card = _make_card(session)
+def test_review_invalid_grade_422(client, db_factory):
+    card_id = _make_card(db_factory)
     resp = client.post(
-        f"/api/study/flashcards/{card.id}/review", json={"grade": "maybe"}
+        f"/api/study/flashcards/{card_id}/review", json={"grade": "maybe"}
     )
     assert resp.status_code == 422
 
 
-def test_review_materialises_calendar(client, session):
-    card = _make_card(session)
-    client.post(f"/api/study/flashcards/{card.id}/review", json={"grade": "correct"})
+def test_review_materialises_calendar(client, db_factory):
+    card_id = _make_card(db_factory)
+    client.post(f"/api/study/flashcards/{card_id}/review", json={"grade": "correct"})
 
     resp = client.get(
         "/api/study/calendar",

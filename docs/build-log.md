@@ -184,6 +184,12 @@
     (self-grade → SM-2 + calendar rebuild + commit; 404 unknown, 422 bad grade),
     `GET /calendar?start&end` (422 inverted). Thin router → `study` service (owns
     the transaction) → scheduler primitives.
+  - **8d-fix** — The first 8d commit (0eb54db) landed red: the study-API test's
+    `client` fixture reused the plain in-memory `session` (no `StaticPool`), so the
+    TestClient's worker thread saw an empty DB ("no such table"). Rewrote the test
+    to the repo's `db_factory` + `StaticPool` + `get_session`-override pattern
+    (mirrors test_documents_api.py). Scheduler logic was always green; only the
+    harness was wrong.
   - Tree green: full suite **174 passed**, `npm run build` clean. Phase 8 done.
 
 ## IN PROGRESS
