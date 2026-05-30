@@ -1,4 +1,4 @@
-import { BookOpen, ListChecks, Plus } from "lucide-react";
+import { BookOpen, ListChecks, Plus, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -30,6 +30,14 @@ export function LibraryPage() {
           <Button variant="outline" onClick={() => navigate("/queue")}>
             <ListChecks />
             Queue
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            title="Settings"
+            onClick={() => navigate("/settings")}
+          >
+            <Settings />
           </Button>
           <Button onClick={() => setUploadOpen(true)}>
             <Plus />

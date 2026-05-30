@@ -242,9 +242,21 @@
     all-optional with validation (pomodoro 1–180/1–120, theme system|light|dark,
     font_size 10–32) applied via `exclude_unset`. 7 tests (singleton create,
     partial update, key clear/mask, validation 422s). Suite **216 passed**.
-  - **9f-2 (NEXT)** — Settings page: API keys (masked, set/clear), allow-paid +
-    Ollama toggles, Pomodoro durations, appearance (theme/accent/font), with live
-    theme application.
+  - **9f-2 (done)** — Settings page at `/settings` (`features/settings/SettingsPage.tsx`):
+    sections for API keys (password inputs; placeholder shows "(set)" when a key
+    exists; a typed value replaces it — secrets never come back from the server),
+    provider waterfall (allow-paid + Ollama `Switch` toggles; explicit reorder
+    deferred since order is auto cheapest-first), Pomodoro durations, and
+    appearance (theme select, accent color, base font size). `stores/settings.ts`
+    applies appearance live (toggles the `.dark` class + sets root font-size) on
+    load and save; `App.tsx` fetches settings once at boot so the persisted theme
+    applies app-wide. Added `api.patch`, a `Switch` primitive
+    (`@radix-ui/react-switch`), `types/settings.ts`; Settings icon-button in the
+    Library header. Verified live: GET defaults, PATCH sets key (masked
+    `gemini_key_set`) + theme + allow_paid, invalid theme → 422. Tree green:
+    `tsc -b` + `npm run build` clean, backend **216 passed**.
+    Deferred: provider-order drag reorder, key "test connection" buttons, accent
+    color → CSS-variable theming (value persists; only stored for now).
 
 - **Phase 9e — Queue / Processing view** (ux-flows.md §9) — **DONE**. Committed steps:
   - **9e-0 (done, queue-core fix)** — `Topic.status` was never updated by the
