@@ -203,8 +203,6 @@
     and the triple subject-traversal were noted but left as acceptable for v1.
   - Tree green: full suite **176 passed**, `npm run build` clean. Phase 8 done.
 
-## IN PROGRESS
-
 - **Phase 9 — Frontend (Wave 9), Library feature first.** Committed sub-waves:
   - **9a (done)** — Library list endpoint (the spec's feature-based order starts
     with Library, but no `GET /api/documents` existed). `docsvc.list_documents`
@@ -213,28 +211,31 @@
     `case`/`sum` query (no N+1). Router `GET /api/documents` →
     `schemas/library.DocumentSummaryOut`. 7 tests (service + HTTP via StaticPool);
     suite **183 passed**.
-  - **9b (NEXT — start here)** — Library screen in `src/`. NOT STARTED; no `src/`
-    changes committed. Scaffold today is bare React+Vite+TS (only react/react-dom;
-    `tsc --noEmit` green). Plan:
-    1. **DECIDE the frontend toolchain first** (see BLOCKED — asked the user, who
-       soft-stopped before answering). Options weighed: (a) full locked stack now
-       (Tailwind + shadcn/ui + Zustand + react-router-dom) — matches
-       tech-stack.md, no re-setup later; (b) minimal now (Zustand + router + plain
-       CSS), defer Tailwind/shadcn; (c) Tailwind + Zustand + router now, adopt
-       shadcn when a complex primitive first appears. tech-stack.md locks
-       shadcn/ui + Zustand + Tailwind, so (a) is the spec-true default unless the
-       user says otherwise.
-    2. `npm install` the chosen deps (registry reachable; node v24.16, npm 11.13).
-       NOTE: an earlier `npm install` of zustand/react-router-dom/cva/clsx/
-       tailwind-merge/lucide-react was run then **reverted** (package.json/lock
-       back to react-only) when the user deferred the decision — `node_modules`
-       may still contain them (gitignored, harmless). Re-run install per the
-       decision.
-    3. `lib/api.ts` (typed fetch wrapper for `/api`), `types/` for
-       `DocumentSummaryOut`, a `library` feature (document cards: subject, exam
-       date, "X of Y topics ready", status; empty state; upload button stub), App
-       shell + routing. Backend `GET /api/documents` (9a) is live and tested.
-    4. `tsc --noEmit` + `npm run build` green before commit.
+  - **9b (done)** — Frontend foundation + Library screen in `src/`. User chose the
+    **full locked stack** (spec-true): installed Tailwind v4 (`@tailwindcss/vite`
+    plugin, CSS-variable theme in `src/index.css`), shadcn/ui primitives
+    (hand-authored `components/ui/{button,card,badge}` — new-york style;
+    `@radix-ui/react-slot` for Button `asChild`; `components.json` written so the
+    shadcn CLI can add more later), Zustand, and `react-router-dom`. Wired the `@`
+    → `src` path alias (vite `resolve.alias` + tsconfig `paths`). Built the seam:
+    `lib/api.ts` (typed fetch wrapper; `ApiError` carries status + FastAPI
+    `detail`; network-down → status 0), `types/library.ts` (mirrors
+    `DocumentSummaryOut`), `stores/library.ts` (Zustand: idle/loading/loaded/error
+    + `fetchDocuments`), and a `features/library/` screen (DocumentCard with
+    subject, filename, "X of Y topics ready", exam date, StatusBadge; loading,
+    error+retry, and empty states; disabled Upload-PDF stub). `App.tsx` is now a
+    router shell (Library at `/`, unknown → redirect); `main.tsx` wraps in
+    `BrowserRouter` and imports the global CSS. Verified end-to-end against a live
+    backend: `/api/documents` → `[]`, `/` and the `/library` SPA route both serve
+    the bundle (200 HTML). Tree green: backend **183 passed**, `tsc --noEmit` +
+    `npm run build` clean (CSS emitted, 1780 modules).
+
+## IN PROGRESS
+
+- **Phase 9 — Frontend (Wave 9), continued.** NEXT sub-wave: Upload + Structure
+  Review (the gate before a document starts processing). Wire `POST /api/documents`
+  (multipart) and `GET`/`POST …/structure` (all live + tested from Phase 6) to a
+  file picker + reviewable chapter/topic tree; enable the Library's Upload button.
 
 ## NEXT
 
@@ -377,14 +378,20 @@
   the scheduler service as transient input — there is no grade column in the data
   model. The SM-2 core is pure (caller injects "today" and owns the transaction),
   matching the generation/queue seam.
+- **Frontend toolchain = full locked stack (Phase 9b; user decision).** Tailwind
+  v4 + shadcn/ui + Zustand + react-router-dom, set up now rather than deferred, so
+  the foundation matches `tech-stack.md` and isn't redone. Tailwind v4 uses the
+  `@tailwindcss/vite` plugin with a CSS-variable theme in `src/index.css` (no
+  `tailwind.config.js`); shadcn primitives are hand-authored into
+  `components/ui/` (new-york style) with `components.json` present so the CLI can
+  add more later. `@` is aliased to `src` in both vite and tsconfig. The
+  feature-based `src/` layout (`features/`, `components/ui/`, `stores/`, `lib/`,
+  `types/`) follows `project-structure.md`'s locked Option A. TipTap, FullCalendar,
+  and Framer Motion stay deferred until their feature waves (study/calendar).
 
 ## BLOCKED
 
-- **Phase 9b frontend toolchain — needs a one-word user decision.** Before any
-  `src/` code: pick (a) full locked stack now [spec-true default], (b) minimal +
-  defer, or (c) Tailwind+Zustand+router now / shadcn later. See the 9b entry under
-  IN PROGRESS for the trade-offs. Not blocking other work, but 9b shouldn't start
-  until chosen so the foundation isn't redone.
+- _(none)_
 
 ## NOTES / WATCH
 

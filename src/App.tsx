@@ -1,21 +1,14 @@
-import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-// Phase 1 placeholder: proves the served bundle can reach the FastAPI API.
-// Real feature shell (Library, Upload, Study, ...) arrives in Phase 9.
+import { LibraryPage } from "@/features/library/LibraryPage";
+
+// App shell + routing. Library is the home screen (Phase 9b); Upload, Study,
+// Calendar, Queue, and Settings routes arrive in later Phase-9 sub-waves.
 export default function App() {
-  const [health, setHealth] = useState<string>("checking…");
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data: { status: string }) => setHealth(data.status))
-      .catch(() => setHealth("unreachable"));
-  }, []);
-
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-      <h1>Noteration</h1>
-      <p>Backend health: {health}</p>
-    </main>
+    <Routes>
+      <Route path="/" element={<LibraryPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
