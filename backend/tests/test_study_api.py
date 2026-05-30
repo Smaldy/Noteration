@@ -173,3 +173,36 @@ def test_calendar_bad_range_422(client):
         params={"start": (TODAY + 5 * D).isoformat(), "end": TODAY.isoformat()},
     )
     assert resp.status_code == 422
+
+
+def test_calendar_includes_topic_title(client, db_factory):
+    card_id = _make_card(db_factory)
+    client.post(f"/api/study/flashcards/{card_id}/review", json={"grade": "correct"})
+    resp = client.get(
+        "/api/study/calendar",
+        params={"start": TODAY.isoformat(), "end": (TODAY + 30 * D).isoformat()},
+    )
+    assert resp.status_code == 200
+    assert resp.json()[0]["topic_title"] == "T"
+
+
+def test_reschedule_moves_entry_to_manual(client, db_factory):
+    card_id = _make_card(db_factory)
+    client.post(f"/api/study/flashcards/{card_id}/review", json={"grade": "correct"})
+    entries = client.get(
+        "/api/study/calendar",
+        params={"start": TODAY.isoformat(), "end": (TODAY + 30 * D).isoformat()},
+    ).json()
+    entry_id = entries[0]["id"]
+
+    new_date = (TODAY + 10 * D).isoformat()
+    resp = client.patch(f"/api/study/schedule/{entry_id}", json={"date": new_date})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["date"] == new_date
+    assert body["source"] == "manual"
+
+
+def test_reschedule_unknown_404(client):
+    resp = client.patch("/api/study/schedule/999", json={"date": TODAY.isoformat()})
+    assert resp.status_code == 404

@@ -32,6 +32,11 @@ class CalendarEntryOut(BaseModel):
 
     id: int
     topic_id: int
+    topic_title: str
     date: date
     is_revision_buffer: bool
     source: ScheduleSource
+
+
+class RescheduleRequest(BaseModel):
+    date: date

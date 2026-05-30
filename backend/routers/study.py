@@ -8,9 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
-from backend.models import Flashcard, ScheduleEntry
+from backend.models import Flashcard
 from backend.models.hierarchy import utcnow
-from backend.schemas.study import CalendarEntryOut, FlashcardOut, ReviewRequest
+from backend.schemas.study import (
+    CalendarEntryOut,
+    FlashcardOut,
+    RescheduleRequest,
+    ReviewRequest,
+)
 from backend.services import study as study_service
 
 router = APIRouter(prefix="/study", tags=["study"])
@@ -48,7 +53,38 @@ def get_calendar(
     start: date,
     end: date,
     db: Session = Depends(get_session),
-) -> list[ScheduleEntry]:
+) -> list[CalendarEntryOut]:
     if end < start:
         raise HTTPException(status_code=422, detail="end must be on or after start")
-    return study_service.get_calendar(db, start=start, end=end)
+    entries = study_service.get_calendar(db, start=start, end=end)
+    return [
+        CalendarEntryOut(
+            id=entry.id,
+            topic_id=entry.topic_id,
+            topic_title=entry.topic.title,
+            date=entry.date,
+            is_revision_buffer=entry.is_revision_buffer,
+            source=entry.source,
+        )
+        for entry in entries
+    ]
+
+
+@router.patch("/schedule/{entry_id}", response_model=CalendarEntryOut)
+def reschedule(
+    entry_id: int,
+    payload: RescheduleRequest,
+    db: Session = Depends(get_session),
+) -> CalendarEntryOut:
+    """Drag-drop reschedule: move an entry to a new date (becomes ``manual``)."""
+    entry = study_service.reschedule_entry(db, entry_id, new_date=payload.date)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+    return CalendarEntryOut(
+        id=entry.id,
+        topic_id=entry.topic_id,
+        topic_title=entry.topic.title,
+        date=entry.date,
+        is_revision_buffer=entry.is_revision_buffer,
+        source=entry.source,
+    )

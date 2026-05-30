@@ -232,7 +232,19 @@
 
 ## IN PROGRESS
 
-- **Phase 9f — Settings** (ux-flows.md §10). Committed steps:
+- **Phase 9g — Calendar** (ux-flows.md §8). Committed steps:
+  - **9g-1 (done)** — Calendar backend. Enriched `GET /api/study/calendar` to
+    include `topic_title` (study service `get_calendar` now `selectinload`s the
+    topic — no N+1; router maps to `CalendarEntryOut`), and added
+    `PATCH /api/study/schedule/{entry_id}` (drag-drop reschedule →
+    `study.reschedule_entry`: set date + `source=manual`, which the scheduler
+    rebuild preserves; 404 unknown). `RescheduleRequest` schema. +3 tests
+    (title present, reschedule→manual, 404). Suite **219 passed**.
+  - **9g-2 (NEXT)** — Calendar page with FullCalendar: month grid of scheduled
+    topics (revision-buffer days distinct), click a session → study view,
+    drag-drop → reschedule.
+
+- **Phase 9f — Settings** (ux-flows.md §10) — **DONE**. Committed steps:
   - **9f-1 (done)** — Settings API. `services/settings.py`: `get_settings`
     (get-or-create the singleton, id=1, with defaults) + `update_settings`
     (partial: only provided fields; an empty `api_key_*` clears it).

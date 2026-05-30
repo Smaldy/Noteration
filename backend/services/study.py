@@ -11,9 +11,10 @@ from __future__ import annotations
 from datetime import date
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from backend.models import Chapter, Flashcard, ScheduleEntry, Subject, Topic
+from backend.models.enums import ScheduleSource
 from backend.services import scheduler
 from backend.services.scheduler import Grade
 
@@ -52,11 +53,33 @@ def review(db: Session, flashcard: Flashcard, grade: Grade, *, today: date) -> F
 
 
 def get_calendar(db: Session, *, start: date, end: date) -> list[ScheduleEntry]:
-    """All schedule entries with ``start <= date <= end`` (calendar view)."""
+    """All schedule entries with ``start <= date <= end`` (calendar view).
+
+    Eager-loads the topic so the response can carry its title without an N+1.
+    """
     return list(
         db.scalars(
             select(ScheduleEntry)
             .where(ScheduleEntry.date >= start, ScheduleEntry.date <= end)
+            .options(selectinload(ScheduleEntry.topic))
             .order_by(ScheduleEntry.date, ScheduleEntry.topic_id)
         ).all()
     )
+
+
+def reschedule_entry(
+    db: Session, entry_id: int, *, new_date: date
+) -> ScheduleEntry | None:
+    """Move a calendar entry to a new date (drag-drop), marking it ``manual``.
+
+    ``manual`` entries are preserved across scheduler rebuilds. Returns the
+    updated entry, or None if the id is unknown.
+    """
+    entry = db.get(ScheduleEntry, entry_id)
+    if entry is None:
+        return None
+    entry.date = new_date
+    entry.source = ScheduleSource.manual
+    db.commit()
+    db.refresh(entry)
+    return entry
