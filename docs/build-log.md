@@ -465,6 +465,44 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   raises, HTTP 204 + 404 for both). Tree green: full suite **231 passed**;
   `tsc -b` + `npm run build` clean.
 
+- **Fix C — Gemini "too many requests" (429) (DONE).** Root cause in
+  `services/worker.py`: `drain_once` called `build_waterfall_from_settings` **every
+  5s tick**, constructing a fresh `GeminiProvider`/`FreeTierLimiter` each cycle — so
+  the local rpm/rpd history (the deques in `providers/budget.py`) was wiped every
+  poll. Within one tick it self-limited to 15, but the next tick started from zero,
+  so by t=5s we'd sent 30 requests in the rolling minute, t=10s → 45, … and Gemini's
+  real 15 RPM answered 429. (Regression from Fix A, which deliberately rebuilt each
+  cycle so a new key takes effect.) Fix: a `WaterfallCache` owned by `QueueWorker`
+  reuses one `Waterfall` (and its live limiters) across ticks, rebuilding **only**
+  when a settings fingerprint (gemini/claude keys, allow_paid, ollama_enabled,
+  provider_order) changes — which is also exactly when a rebuild is needed for a
+  newly-saved key to take effect. `drain_once` gained an optional `cache=`; one-shot
+  callers/tests still rebuild per call. 2 tests (cache rebuilds only on settings
+  change; two drains reuse the waterfall so the limiter caps total calls at rpm with
+  pending work held back). Caveat logged: in-memory windows still reset on process
+  restart (a `ProviderState`-backed limiter would survive restarts — deferred).
+
+- **Fix D — "structure of the PDF is never recognized" (DONE).** Root cause:
+  `detect_structure` reads only markitdown's markdown, which for real PDFs (slide
+  decks, lecture notes) emits **no ATX headings** — so every upload returned
+  `needs_manual`. Confirmed against the user's actual cached docs (a 40-slide physics
+  lecture, a 19-slide blockchain deck): both `needs_manual`, yet both carry structure
+  PyMuPDF recovers for free. New `services/pipeline/pdf_outline.py`
+  (`extract_pdf_structure`, no model — `docs/ai-pipeline.md` Stage 2's sanctioned
+  fallback): mines the embedded **outline/bookmarks** (`get_toc`, stripping generic
+  "Slide N"/"Diapositiva N" prefixes; collapses titles repeated on continuation
+  slides) and, when those are absent/generic, falls back to **font-size headings**
+  (body = most-frequent size; lines ≥1.15× larger and word-like become headings;
+  distinct sizes → levels). Reuses the markdown path's `_build_tree`/`_clean_title`.
+  `documents.detect_for_document` now runs markdown detection first and, only on
+  `needs_manual`, mines the original PDF at `cache/uploads/<hash>.pdf` — so it fixes
+  **already-uploaded** documents with no re-ingestion. Verified on the two real docs:
+  physics → 23 chapters via `pdf_outline`, blockchain → 20 via `pdf_headings`. 8
+  tests (5 extractor over real PyMuPDF fixtures: TOC, generic-TOC→font fallback,
+  consecutive-collapse, flat→None, missing-file→None; 3 service: fallback used,
+  markdown preferred, needs_manual preserved when PDF yields nothing). Tree green:
+  full suite **241 passed**; `npm run build` clean.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)

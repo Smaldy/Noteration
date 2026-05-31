@@ -17,6 +17,11 @@ from backend.main import app
 from backend.models import Document, Subject
 from backend.services import documents as docsvc
 from backend.services.pipeline.ingestion import IngestionResult
+from backend.services.pipeline.structure import (
+    ProposedChapter,
+    ProposedStructure,
+    ProposedTopic,
+)
 
 _MINIMAL_PDF = b"%PDF-1.4\n%fake bytes for tests\n"
 
@@ -119,6 +124,78 @@ def test_detect_for_document_missing_markdown(session: Session, tmp_path: Path) 
     session.commit()
     with pytest.raises(docsvc.MarkdownUnavailableError):
         docsvc.detect_for_document(session, document.id)
+
+
+def _doc_with_markdown(session: Session, tmp_path: Path, markdown: str, *, file_hash: str):
+    md = tmp_path / "doc.md"
+    md.write_text(markdown, encoding="utf-8")
+    subject = Subject(name="Physics")
+    session.add(subject)
+    session.commit()
+    document = Document(
+        subject_id=subject.id,
+        filename="f.pdf",
+        file_hash=file_hash,
+        markdown_path=str(md),
+    )
+    session.add(document)
+    session.commit()
+    return document
+
+
+def test_detect_falls_back_to_pdf_when_markdown_needs_manual(
+    session: Session, tmp_path: Path
+) -> None:
+    # No headings in the markdown → needs_manual; a PDF exists in uploads.
+    document = _doc_with_markdown(
+        session, tmp_path, "plain prose, no headings at all\n", file_hash="abc"
+    )
+    (tmp_path / "abc.pdf").write_bytes(_MINIMAL_PDF)
+    recovered = ProposedStructure(
+        chapters=[ProposedChapter("Recovered", 0, [ProposedTopic("Recovered", 0)])],
+        needs_manual=False,
+        method="pdf_outline",
+    )
+
+    structure = docsvc.detect_for_document(
+        session,
+        document.id,
+        pdf_outline_fn=lambda _path: recovered,
+        uploads_dir=tmp_path,
+    )
+    assert structure.method == "pdf_outline"
+    assert [c.title for c in structure.chapters] == ["Recovered"]
+
+
+def test_detect_prefers_markdown_over_pdf_fallback(
+    session: Session, tmp_path: Path
+) -> None:
+    # Markdown has real headings → the PDF fallback must never be consulted.
+    document = _doc_with_markdown(session, tmp_path, "# A\n# B\n", file_hash="abc")
+    (tmp_path / "abc.pdf").write_bytes(_MINIMAL_PDF)
+
+    def _boom(_path):
+        raise AssertionError("pdf fallback should not run when markdown has headings")
+
+    structure = docsvc.detect_for_document(
+        session, document.id, pdf_outline_fn=_boom, uploads_dir=tmp_path
+    )
+    assert [c.title for c in structure.chapters] == ["A", "B"]
+
+
+def test_detect_keeps_needs_manual_when_pdf_yields_nothing(
+    session: Session, tmp_path: Path
+) -> None:
+    document = _doc_with_markdown(
+        session, tmp_path, "plain prose, no headings\n", file_hash="abc"
+    )
+    (tmp_path / "abc.pdf").write_bytes(_MINIMAL_PDF)
+
+    structure = docsvc.detect_for_document(
+        session, document.id, pdf_outline_fn=lambda _path: None, uploads_dir=tmp_path
+    )
+    assert structure.needs_manual is True
+    assert structure.chapters == []
 
 
 # --- HTTP tests (shared in-memory DB via StaticPool) ------------------------

@@ -21,6 +21,7 @@ from backend.models import Chapter, Document, Subject, Topic
 from backend.models.enums import DocumentStatus, TopicPriority, TopicStatus
 from backend.schemas.structure import ChapterIn
 from backend.services.pipeline.ingestion import CACHE_ROOT, IngestionResult, ingest
+from backend.services.pipeline.pdf_outline import extract_pdf_structure
 from backend.services.pipeline.structure import ProposedStructure, detect_structure
 from backend.services.queue import QueueService
 
@@ -29,6 +30,7 @@ UPLOADS_DIR = CACHE_ROOT / "uploads"
 PDF_MAGIC = b"%PDF"
 
 IngestFn = Callable[[Path], IngestionResult]
+PdfOutlineFn = Callable[[Path], ProposedStructure | None]
 
 
 class InvalidPDFError(ValueError):
@@ -145,8 +147,21 @@ def create_document(
     return document, result
 
 
-def detect_for_document(session: Session, document_id: int) -> ProposedStructure:
-    """Re-run heading detection over a document's cached markdown."""
+def detect_for_document(
+    session: Session,
+    document_id: int,
+    *,
+    pdf_outline_fn: PdfOutlineFn = extract_pdf_structure,
+    uploads_dir: str | Path = UPLOADS_DIR,
+) -> ProposedStructure:
+    """Propose a chapter/topic tree for a document.
+
+    Heading detection over the cached markdown is the primary signal. When that
+    finds nothing (``needs_manual`` — markitdown often emits no headings for slide
+    decks/lecture PDFs), fall back to mining the original PDF's embedded outline
+    and font sizes (``docs/ai-pipeline.md`` Stage 2's sanctioned no-model
+    fallback) so a plainly-structured document isn't reported as unrecognized.
+    """
     document = session.get(Document, document_id)
     if document is None:
         raise DocumentNotFoundError(document_id)
@@ -155,7 +170,17 @@ def detect_for_document(session: Session, document_id: int) -> ProposedStructure
     path = Path(document.markdown_path)
     if not path.is_file():
         raise MarkdownUnavailableError(str(path))
-    return detect_structure(path.read_text(encoding="utf-8"))
+
+    proposed = detect_structure(path.read_text(encoding="utf-8"))
+    if not proposed.needs_manual:
+        return proposed
+
+    pdf_path = Path(uploads_dir) / f"{document.file_hash}.pdf"
+    if document.file_hash and pdf_path.is_file():
+        from_pdf = pdf_outline_fn(pdf_path)
+        if from_pdf is not None and from_pdf.chapters:
+            return from_pdf
+    return proposed
 
 
 def confirm_structure(

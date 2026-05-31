@@ -31,6 +31,7 @@ from backend.models.hierarchy import utcnow
 from backend.models.settings import Settings
 from backend.services.pipeline.processors import make_pipeline_processor
 from backend.services.providers.factory import build_waterfall_from_settings
+from backend.services.providers.waterfall import Waterfall
 from backend.services.queue import QueueService
 from backend.services.settings import get_settings
 
@@ -43,6 +44,53 @@ POLL_INTERVAL_SECONDS = 5.0
 # Jobs per drain before the loop re-reads settings and yields. Bounds one tick's
 # work so a long queue can't pin a single waterfall/config snapshot.
 MAX_JOBS_PER_TICK = 50
+
+
+def _settings_fingerprint(settings: Settings) -> tuple:
+    """The provider-relevant slice of Settings that warrants a waterfall rebuild.
+
+    The waterfall (and the per-provider rate limiters it owns) must be *reused*
+    across drain ticks — otherwise the in-memory requests/min + requests/day
+    history is wiped every cycle and the local throttle never holds, so we burst
+    past the free-tier quota and the provider answers 429. We only rebuild when
+    one of these inputs actually changes (e.g. the user saves a new key), which is
+    also exactly when a rebuild is needed for the change to take effect.
+    """
+    order = settings.provider_order
+    return (
+        settings.api_key_gemini,
+        settings.api_key_claude,
+        bool(settings.allow_paid),
+        bool(settings.ollama_enabled),
+        tuple(order) if order else (),
+    )
+
+
+class WaterfallCache:
+    """Reuses one ``Waterfall`` across ticks, rebuilding only on config change.
+
+    Keeping the same instance preserves each provider's local budget history (the
+    rolling rpm/rpd windows in ``providers/budget.py``) between drains, so the
+    cheapest-first throttle actually limits sustained throughput instead of
+    resetting to "full headroom" every poll interval.
+    """
+
+    def __init__(self) -> None:
+        self._fingerprint: tuple | None = None
+        self._waterfall: Waterfall | None = None
+
+    def for_settings(
+        self,
+        settings: Settings,
+        *,
+        clock: Callable[[], datetime] | None = None,
+    ) -> Waterfall:
+        fingerprint = _settings_fingerprint(settings)
+        if self._waterfall is None or fingerprint != self._fingerprint:
+            # Reference the module global so tests can monkeypatch the builder.
+            self._waterfall = build_waterfall_from_settings(settings, clock=clock)
+            self._fingerprint = fingerprint
+        return self._waterfall
 
 
 def _has_configured_provider(settings: Settings) -> bool:
@@ -66,13 +114,19 @@ def drain_once(
     *,
     max_jobs: int = MAX_JOBS_PER_TICK,
     clock: Callable[[], datetime] = utcnow,
+    cache: WaterfallCache | None = None,
 ) -> int:
     """Run one drain cycle on an open session; return jobs processed.
 
-    No pending work, or no provider configured → no-op (0). Otherwise build the
-    waterfall from current ``Settings`` and hand a stage-dispatching processor to
-    ``run_batch`` (which claims due jobs, respects defers, and stops on
-    exhaustion). Pure of thread/sleep concerns so it's directly unit-testable.
+    No pending work, or no provider configured → no-op (0). Otherwise reuse (via
+    ``cache``) the waterfall built from current ``Settings`` and hand a
+    stage-dispatching processor to ``run_batch`` (which claims due jobs, respects
+    defers, and stops on exhaustion). Pure of thread/sleep concerns so it's
+    directly unit-testable.
+
+    Passing a ``WaterfallCache`` keeps the provider rate-limit state alive between
+    calls (the running worker does this); without one the waterfall is rebuilt
+    each call, which is fine for one-shot callers and tests.
     """
     queue = QueueService(session, clock=clock)
     if not queue.pending_in_priority_order():
@@ -80,7 +134,10 @@ def drain_once(
     settings = get_settings(session)
     if not _has_configured_provider(settings):
         return 0
-    waterfall = build_waterfall_from_settings(settings, clock=clock)
+    if cache is not None:
+        waterfall = cache.for_settings(settings, clock=clock)
+    else:
+        waterfall = build_waterfall_from_settings(settings, clock=clock)
     processor = make_pipeline_processor(waterfall)
     return queue.run_batch(processor, max_jobs=max_jobs)
 
@@ -100,6 +157,9 @@ class QueueWorker:
         self._max_jobs = max_jobs
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        # One cache for the worker's lifetime so provider rate-limit windows
+        # persist across drains (rebuilt only when provider settings change).
+        self._waterfall_cache = WaterfallCache()
 
     def start(self) -> None:
         """Recover orphaned jobs, then spawn the daemon drain thread (idempotent)."""
@@ -145,7 +205,9 @@ class QueueWorker:
     def _tick(self) -> None:
         session = self._session_factory()
         try:
-            processed = drain_once(session, max_jobs=self._max_jobs)
+            processed = drain_once(
+                session, max_jobs=self._max_jobs, cache=self._waterfall_cache
+            )
             if processed:
                 logger.info("Queue worker processed %d job(s)", processed)
         finally:
