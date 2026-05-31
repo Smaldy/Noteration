@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from backend.models import Chapter, Topic
 from backend.models.enums import QueueState, TopicPriority, TopicStatus
 from backend.models.processing import QueueJob
+from backend.services.queue import document_token_usage
 
 
 @dataclass
@@ -37,6 +38,12 @@ class QueueStatus:
     # Why work is deferred until ``resume_at`` (the recorded provider error, e.g.
     # a 429 quota message), so a perpetually-throttled provider isn't invisible.
     paused_reason: str | None = None
+    # Per-document token budget: a document is paused once it spends ≥ its ceiling
+    # (cost guard). When scoped to a document these report that document; globally
+    # ``budget_paused`` flags that *some* document is paused on budget.
+    token_spent: int = 0
+    token_budget: int = 0
+    budget_paused: bool = False
     errors: list[QueueErrorTopic] = field(default_factory=list)
 
 
@@ -49,7 +56,10 @@ _STATUS_FIELDS = {
 
 
 def get_queue_status(
-    session: Session, *, document_id: int | None = None
+    session: Session,
+    *,
+    document_id: int | None = None,
+    per_doc_token_budget: int = 0,
 ) -> QueueStatus:
     """Counts + next wake-up + errored topics, optionally scoped to a document."""
     counts = select(Topic.status, func.count()).where(
@@ -105,4 +115,42 @@ def get_queue_status(
     earliest = session.execute(deferred_q).first()
     if earliest is not None:
         status.resume_at, status.paused_reason = earliest
+
+    _annotate_budget(session, status, document_id, per_doc_token_budget)
     return status
+
+
+def _annotate_budget(
+    session: Session,
+    status: QueueStatus,
+    document_id: int | None,
+    per_doc_token_budget: int,
+) -> None:
+    """Fill in the per-document token-budget fields (cost guard surfacing)."""
+    has_unfinished = (status.queued + status.processing) > 0
+    if document_id is not None:
+        spent, budget = document_token_usage(
+            session, document_id, override_budget=per_doc_token_budget
+        )
+        status.token_spent = spent
+        status.token_budget = budget
+        status.budget_paused = budget > 0 and spent >= budget and has_unfinished
+        return
+
+    # Global view: flag (and report) the first document that is paused on budget.
+    doc_ids = session.scalars(
+        select(Chapter.document_id)
+        .join(Topic, Topic.chapter_id == Chapter.id)
+        .join(QueueJob, QueueJob.topic_id == Topic.id)
+        .where(QueueJob.state == QueueState.pending)
+        .distinct()
+    ).all()
+    for doc_id in doc_ids:
+        spent, budget = document_token_usage(
+            session, doc_id, override_budget=per_doc_token_budget
+        )
+        if budget > 0 and spent >= budget:
+            status.token_spent = spent
+            status.token_budget = budget
+            status.budget_paused = True
+            return

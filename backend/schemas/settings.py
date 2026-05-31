@@ -25,6 +25,7 @@ class SettingsOut(BaseModel):
     provider_order: list[str] | None
     ollama_enabled: bool
     gemini_model: str
+    per_document_token_budget: int
     pomodoro_work_min: int
     pomodoro_break_min: int
     theme: str
@@ -42,6 +43,7 @@ class SettingsOut(BaseModel):
             provider_order=settings.provider_order,
             ollama_enabled=settings.ollama_enabled,
             gemini_model=settings.gemini_model,
+            per_document_token_budget=settings.per_document_token_budget,
             pomodoro_work_min=settings.pomodoro_work_min,
             pomodoro_break_min=settings.pomodoro_break_min,
             theme=settings.theme,
@@ -66,6 +68,8 @@ class SettingsUpdate(BaseModel):
     provider_order: list[str] | None = None
     ollama_enabled: bool | None = None
     gemini_model: GeminiModel | None = None
+    # 0 = automatic ceiling (estimate × factor); a positive value is a flat cap.
+    per_document_token_budget: int | None = Field(default=None, ge=0)
     pomodoro_work_min: int | None = Field(default=None, ge=1, le=180)
     pomodoro_break_min: int | None = Field(default=None, ge=1, le=120)
     theme: Theme | None = None

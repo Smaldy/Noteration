@@ -66,6 +66,23 @@ export function QueuePage() {
             </div>
           )}
 
+          {status.budget_paused && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="min-w-0">
+                <p>
+                  A document hit its token budget
+                  {status.token_budget > 0 &&
+                    ` (~${status.token_spent.toLocaleString()} / ${status.token_budget.toLocaleString()} tokens)`}{" "}
+                  and is paused to protect your quota.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Raise the per-document token budget in Settings to continue.
+                </p>
+              </div>
+            </div>
+          )}
+
           {status.errors.length > 0 && (
             <section className="mt-8">
               <h2 className="flex items-center gap-2 text-sm font-semibold">

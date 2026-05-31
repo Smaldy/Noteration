@@ -442,3 +442,77 @@ def test_run_batch_continues_past_a_failing_topic(session: Session) -> None:
 
 def _raise(exc: Exception) -> ProviderResult:
     raise exc
+
+
+# --- per-document token budget (cost guard, defense-in-depth) ----------------
+
+
+def test_estimate_topic_tokens() -> None:
+    from backend.services.queue import EST_TOKENS_PER_TOPIC, estimate_topic_tokens
+
+    assert estimate_topic_tokens(0) == 0
+    assert estimate_topic_tokens(3) == 3 * EST_TOKENS_PER_TOPIC
+
+
+def test_process_records_tokens_used(session: Session) -> None:
+    queue = QueueService(session)
+    topic = _topic(session)
+    job = _claim(queue, topic, QueueStage.notes)
+
+    queue.process_job(
+        job,
+        lambda j, db: ProviderResult(
+            text="n", provider="gemini_free", input_tokens=1200, output_tokens=800
+        ),
+    )
+
+    assert job.state is QueueState.done
+    assert job.tokens_used == 2000  # input + output recorded for the budget guard
+
+
+def test_auto_budget_pauses_runaway_document(session: Session) -> None:
+    # One non-skip topic → auto ceiling = EST_TOKENS_PER_TOPIC * factor.
+    topic = _topic(session)
+    queue = QueueService(session)  # per_doc_token_budget=0 → automatic
+    queue.enqueue_topic(topic, stages=(QueueStage.notes, QueueStage.assessment))
+
+    notes = queue.claim_next()
+    assert notes is not None and notes.stage is QueueStage.notes
+    # Notes alone blows way past the auto ceiling.
+    queue.process_job(
+        notes,
+        lambda j, db: ProviderResult(
+            text="x", provider="gemini_free", input_tokens=60_000
+        ),
+    )
+    assert notes.tokens_used == 60_000
+
+    # Assessment's prerequisites are done, but the document is over budget, so it
+    # is not claimed (paused) — it stays pending, not failed.
+    assert queue.claim_next() is None
+    assessment = session.scalars(
+        select(QueueJob).where(QueueJob.stage == QueueStage.assessment)
+    ).one()
+    assert assessment.state is QueueState.pending
+
+    # Raising the ceiling (flat override) makes the paused job claimable again.
+    generous = QueueService(session, per_doc_token_budget=1_000_000)
+    resumed = generous.claim_next()
+    assert resumed is not None and resumed.stage is QueueStage.assessment
+
+
+def test_flat_budget_override_blocks_below_auto(session: Session) -> None:
+    topic = _topic(session)
+    queue = QueueService(session, per_doc_token_budget=1000)  # tiny flat ceiling
+    queue.enqueue_topic(topic, stages=(QueueStage.notes, QueueStage.assessment))
+
+    notes = queue.claim_next()
+    assert notes is not None
+    queue.process_job(
+        notes,
+        lambda j, db: ProviderResult(
+            text="x", provider="gemini_free", output_tokens=1500
+        ),
+    )
+    # Spent 1500 ≥ 1000 ceiling → the rest of the document is paused.
+    assert queue.claim_next() is None

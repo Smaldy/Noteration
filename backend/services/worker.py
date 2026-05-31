@@ -129,10 +129,14 @@ def drain_once(
     calls (the running worker does this); without one the waterfall is rebuilt
     each call, which is fine for one-shot callers and tests.
     """
-    queue = QueueService(session, clock=clock)
+    settings = get_settings(session)
+    queue = QueueService(
+        session,
+        clock=clock,
+        per_doc_token_budget=settings.per_document_token_budget,
+    )
     if not queue.pending_in_priority_order():
         return 0
-    settings = get_settings(session)
     if not _has_configured_provider(settings):
         return 0
     if cache is not None:

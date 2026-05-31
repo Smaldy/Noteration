@@ -121,6 +121,35 @@ def test_status_surfaces_paused_reason_for_deferred_work(session: Session) -> No
     assert status.paused_reason == "gemini_free: 429 quota limit:0"
 
 
+def test_status_flags_budget_paused_document(session: Session) -> None:
+    doc_id = _seed(session)
+    # The document already spent past a tiny flat ceiling, and it still has
+    # unfinished topics (queued/processing) → it should report as budget-paused.
+    queued = session.scalars(select(Topic).where(Topic.title == "queued")).one()
+    session.add(
+        QueueJob(
+            topic_id=queued.id,
+            stage=QueueStage.notes,
+            state=QueueState.done,
+            tokens_used=5000,
+        )
+    )
+    session.commit()
+
+    status = queue_view.get_queue_status(
+        session, document_id=doc_id, per_doc_token_budget=1000
+    )
+    assert status.token_spent >= 5000
+    assert status.token_budget == 1000
+    assert status.budget_paused is True
+
+    # A generous ceiling above spend → not paused.
+    relaxed = queue_view.get_queue_status(
+        session, document_id=doc_id, per_doc_token_budget=1_000_000
+    )
+    assert relaxed.budget_paused is False
+
+
 def test_retry_topic_requeues_failed_jobs(session: Session) -> None:
     _seed(session)
     errored = session.scalars(

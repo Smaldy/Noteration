@@ -29,6 +29,10 @@ class Settings(Base):
     # Overrides the default cheapest-first order; null = default order.
     provider_order: Mapped[list[str] | None] = mapped_column(JSON, default=None)
     ollama_enabled: Mapped[bool] = mapped_column(default=False)
+    # Per-document token ceiling (defense-in-depth against a runaway document).
+    # 0 = automatic budget (estimate × overspend factor); a positive value is a
+    # flat ceiling. See services/queue.py.
+    per_document_token_budget: Mapped[int] = mapped_column(default=0)
     pomodoro_work_min: Mapped[int] = mapped_column(default=25)
     pomodoro_break_min: Mapped[int] = mapped_column(default=5)
     theme: Mapped[str] = mapped_column(default="system")

@@ -14,11 +14,11 @@ import enum
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.models.enums import QueueStage, QueueState, TopicPriority, TopicStatus
-from backend.models.hierarchy import Topic, utcnow
+from backend.models.hierarchy import Chapter, Topic, utcnow
 from backend.models.processing import ProviderState, QueueJob
 from backend.services.providers.base import (
     AllProvidersExhausted,
@@ -65,6 +65,51 @@ PRIORITY_RANK = {TopicPriority.exam_critical: 0, TopicPriority.medium: 1}
 # math; it stays in the set so ordering/eligibility are uniform.
 DEFAULT_STAGES: tuple[QueueStage, ...] = STAGE_ORDER
 
+# Rough per-topic token cost (cost-strategy.md "token budgets per call"). Source
+# input is now bounded (~generation.SOURCE_MAX_CHARS) and outputs are capped, so a
+# topic's two text stages cost ~ notes (≤2k in + ≤2k out) + assessment (≤2k in +
+# ≤2k out). Formula vision is variable/often zero and excluded. Used both for the
+# pre-flight estimate and the per-document soft cap.
+EST_TOKENS_PER_TOPIC = 8000
+# A document may legitimately run somewhat over estimate; the auto budget pauses
+# only a clear runaway (spend ≥ estimate × this factor).
+DOC_BUDGET_OVERSPEND_FACTOR = 3
+
+
+def estimate_topic_tokens(n_topics: int) -> int:
+    """Pre-flight token estimate for ``n_topics`` non-skip topics."""
+    return max(0, n_topics) * EST_TOKENS_PER_TOPIC
+
+
+def document_token_usage(
+    session: Session, document_id: int, *, override_budget: int = 0
+) -> tuple[int, int]:
+    """Return ``(tokens_spent, budget)`` for a document.
+
+    ``budget`` is the flat ``override_budget`` when positive, else the automatic
+    ceiling (estimate over the document's non-skip topics × the overspend factor).
+    A non-positive result means "no enforced limit".
+    """
+    spent = session.scalar(
+        select(func.coalesce(func.sum(QueueJob.tokens_used), 0))
+        .select_from(QueueJob)
+        .join(Topic, QueueJob.topic_id == Topic.id)
+        .join(Chapter, Topic.chapter_id == Chapter.id)
+        .where(Chapter.document_id == document_id)
+    ) or 0
+    if override_budget > 0:
+        return spent, override_budget
+    non_skip = session.scalar(
+        select(func.count(Topic.id))
+        .select_from(Topic)
+        .join(Chapter, Topic.chapter_id == Chapter.id)
+        .where(
+            Chapter.document_id == document_id,
+            Topic.priority != TopicPriority.skip,
+        )
+    ) or 0
+    return spent, estimate_topic_tokens(non_skip) * DOC_BUDGET_OVERSPEND_FACTOR
+
 
 class QueueService:
     """Thin persistence-facing queue API over a SQLAlchemy session."""
@@ -77,12 +122,16 @@ class QueueService:
         clock: Callable[[], datetime] = utcnow,
         retry_delay: timedelta = RETRY_DELAY,
         default_defer: timedelta = DEFAULT_DEFER,
+        per_doc_token_budget: int = 0,
     ) -> None:
         self.session = session
         self.max_attempts = max_attempts
         self.clock = clock
         self.retry_delay = retry_delay
         self.default_defer = default_defer
+        # Per-document token ceiling: 0 = automatic (estimate × factor); a
+        # positive value is a flat override. See ``document_token_usage``.
+        self.per_doc_token_budget = per_doc_token_budget
 
     def enqueue_topic(
         self,
@@ -134,9 +183,12 @@ class QueueService:
         claimed job, or None if nothing is ready.
         """
         now = self.clock()
+        over_budget: dict[int, bool] = {}  # document_id → over its token budget
         for job in self.pending_in_priority_order():
             if job.resume_after is not None and job.resume_after > now:
                 continue  # deferred until its reset/retry window
+            if self._document_over_budget(job.topic_id, over_budget):
+                continue  # document hit its token ceiling — pause, don't spend more
             if self._prerequisites_done(job):
                 job.state = QueueState.running
                 self._sync_topic_status(job.topic_id)
@@ -192,6 +244,7 @@ class QueueService:
         job.last_error = None
         job.resume_after = None
         job.state = QueueState.done
+        job.tokens_used = result.input_tokens + result.output_tokens
         self._record_provider_usage(result)
         self._sync_topic_status(job.topic_id)
         self.session.commit()
@@ -302,6 +355,29 @@ class QueueService:
         state.total_tokens = (
             (state.total_tokens or 0) + result.input_tokens + result.output_tokens
         )
+
+    def _document_over_budget(self, topic_id: int, cache: dict[int, bool]) -> bool:
+        """Whether the topic's document has spent ≥ its token budget (cached).
+
+        Pausing a runaway document is defense-in-depth (cost-strategy.md): its
+        pending jobs simply aren't claimed — they stay ``pending`` (no defer) so a
+        raised budget makes them claimable again on the next drain. A document with
+        no budget (auto ceiling 0, i.e. no topics) is never blocked.
+        """
+        document_id = self.session.scalar(
+            select(Chapter.document_id)
+            .select_from(Topic)
+            .join(Chapter, Topic.chapter_id == Chapter.id)
+            .where(Topic.id == topic_id)
+        )
+        if document_id is None:
+            return False
+        if document_id not in cache:
+            spent, budget = document_token_usage(
+                self.session, document_id, override_budget=self.per_doc_token_budget
+            )
+            cache[document_id] = budget > 0 and spent >= budget
+        return cache[document_id]
 
     def _prerequisites_done(self, job: QueueJob) -> bool:
         rank = STAGE_RANK[job.stage]

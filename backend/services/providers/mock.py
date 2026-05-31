@@ -36,6 +36,8 @@ class MockProvider(Provider):
         raises: Exception | None = None,
         text: str = "ok",
         cost: float = 0.0,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
     ) -> None:
         self.name = name
         self.supports_vision = supports_vision
@@ -47,6 +49,8 @@ class MockProvider(Provider):
         self.raises = raises
         self.text = text
         self.cost = cost
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
         self.generate_calls = 0
         self.transcribe_calls = 0
 
@@ -63,10 +67,19 @@ class MockProvider(Provider):
         self.generate_calls += 1
         if self.raises is not None:
             raise self.raises
-        return ProviderResult(text=self.text, provider=self.name, cost=self.cost)
+        return self._result()
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
         self.transcribe_calls += 1
         if self.raises is not None:
             raise self.raises
-        return ProviderResult(text=self.text, provider=self.name, cost=self.cost)
+        return self._result()
+
+    def _result(self) -> ProviderResult:
+        return ProviderResult(
+            text=self.text,
+            provider=self.name,
+            cost=self.cost,
+            input_tokens=self.input_tokens,
+            output_tokens=self.output_tokens,
+        )

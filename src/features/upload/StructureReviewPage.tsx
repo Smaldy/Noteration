@@ -22,6 +22,15 @@ import {
 
 type LoadStatus = "loading" | "ready" | "error";
 
+// Rough per-topic token estimate; mirrors EST_TOKENS_PER_TOPIC in
+// backend/services/queue.py (notes + assessment, bounded input + capped output).
+const EST_TOKENS_PER_TOPIC = 8000;
+
+function estTokensLabel(topics: number): string {
+  const k = Math.round((topics * EST_TOKENS_PER_TOPIC) / 1000);
+  return `${k}k tokens`;
+}
+
 export function StructureReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -229,7 +238,8 @@ export function StructureReviewPage() {
       <div className="mt-8 flex items-center justify-between gap-4 border-t pt-6">
         <p className="text-sm text-muted-foreground">
           ~{generatable} {generatable === 1 ? "topic" : "topics"} to generate ·
-          free tier ($0) · paid only if you enable it.
+          ~{estTokensLabel(generatable)} · free tier ($0) · paid only if you
+          enable it.
         </p>
         <Button onClick={() => void handleConfirm()} disabled={!confirmable}>
           {submitting ? "Confirming…" : "Confirm & start"}

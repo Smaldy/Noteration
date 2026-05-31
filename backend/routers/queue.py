@@ -10,6 +10,7 @@ from backend.models import Topic
 from backend.schemas.queue import QueueStatusOut, RetryResult
 from backend.services import queue_view
 from backend.services.queue import QueueService
+from backend.services.settings import get_settings
 
 router = APIRouter(prefix="/queue", tags=["queue"])
 
@@ -20,7 +21,10 @@ def queue_status(
     session: Session = Depends(get_session),
 ) -> queue_view.QueueStatus:
     """Topic-status counts, the next provider wake-up, and errored topics."""
-    return queue_view.get_queue_status(session, document_id=document_id)
+    budget = get_settings(session).per_document_token_budget
+    return queue_view.get_queue_status(
+        session, document_id=document_id, per_doc_token_budget=budget
+    )
 
 
 @router.post("/topics/{topic_id}/retry", response_model=RetryResult)

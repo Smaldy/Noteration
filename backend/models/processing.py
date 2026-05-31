@@ -36,6 +36,7 @@ class QueueJob(Base):
     attempts: Mapped[int] = mapped_column(default=0)  # → error after N
     assigned_provider: Mapped[str | None] = mapped_column(default=None)
     est_tokens: Mapped[int] = mapped_column(default=0)  # for budget dispatch
+    tokens_used: Mapped[int] = mapped_column(default=0)  # actual spend (in+out)
     last_error: Mapped[str | None] = mapped_column(default=None)
     # Set when a provider limit defers the job to a reset window.
     resume_after: Mapped[datetime | None] = mapped_column(UTCDateTime, default=None)

@@ -27,6 +27,10 @@ class QueueStatusOut(BaseModel):
     resume_at: datetime | None
     # Why work is paused (the recorded provider error behind ``resume_at``).
     paused_reason: str | None
+    # Per-document token-budget guard (cost defense-in-depth).
+    token_spent: int
+    token_budget: int
+    budget_paused: bool
     errors: list[QueueErrorTopicOut]
 
 

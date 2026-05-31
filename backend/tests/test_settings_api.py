@@ -27,6 +27,7 @@ def test_get_settings_creates_singleton_with_defaults(session: Session) -> None:
     assert s.pomodoro_work_min == 25
     assert s.theme == "system"
     assert s.gemini_model == "gemini-2.5-flash-lite"  # cheapest default
+    assert s.per_document_token_budget == 0  # 0 = automatic ceiling
     # Idempotent — a second call returns the same row, not a new one.
     assert settings_service.get_settings(session).id == 1
     assert session.query(Settings).count() == 1
@@ -120,3 +121,16 @@ def test_http_patch_sets_gemini_model(client: TestClient) -> None:
 def test_http_patch_rejects_unknown_gemini_model(client: TestClient) -> None:
     response = client.patch("/api/settings", json={"gemini_model": "gemini-2.0-flash"})
     assert response.status_code == 422  # only the offered 2.5 models are allowed
+
+
+def test_http_patch_sets_per_document_token_budget(client: TestClient) -> None:
+    response = client.patch(
+        "/api/settings", json={"per_document_token_budget": 50000}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["per_document_token_budget"] == 50000
+
+
+def test_http_patch_rejects_negative_token_budget(client: TestClient) -> None:
+    response = client.patch("/api/settings", json={"per_document_token_budget": -1})
+    assert response.status_code == 422

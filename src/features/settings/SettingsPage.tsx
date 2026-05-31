@@ -15,6 +15,7 @@ interface FormState {
   allow_paid: boolean;
   ollama_enabled: boolean;
   gemini_model: GeminiModel;
+  per_document_token_budget: number;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   theme: Theme;
@@ -71,6 +72,7 @@ function toForm(s: Settings): FormState {
     allow_paid: s.allow_paid,
     ollama_enabled: s.ollama_enabled,
     gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",
+    per_document_token_budget: s.per_document_token_budget,
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
     theme: (s.theme as Theme) ?? "system",
@@ -166,6 +168,7 @@ export function SettingsPage() {
         allow_paid: form.allow_paid,
         ollama_enabled: form.ollama_enabled,
         gemini_model: form.gemini_model,
+        per_document_token_budget: form.per_document_token_budget,
         pomodoro_work_min: form.pomodoro_work_min,
         pomodoro_break_min: form.pomodoro_break_min,
         theme: form.theme,
@@ -250,6 +253,22 @@ export function SettingsPage() {
           checked={form.ollama_enabled}
           onChange={(v) => set("ollama_enabled", v)}
         />
+        <Field label="Per-document token budget">
+          <Input
+            type="number"
+            min={0}
+            step={1000}
+            value={form.per_document_token_budget}
+            onChange={(e) =>
+              set("per_document_token_budget", Math.max(0, Number(e.target.value)))
+            }
+            className="w-40"
+          />
+          <p className="text-xs text-muted-foreground">
+            Safety cap: a document is paused if it spends more than this many
+            tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate).
+          </p>
+        </Field>
       </Section>
 
       <Section title="Pomodoro">

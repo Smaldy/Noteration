@@ -8,6 +8,8 @@ export interface Settings {
   provider_order: string[] | null;
   ollama_enabled: boolean;
   gemini_model: string;
+  /** Per-document token ceiling. 0 = automatic (estimate × factor). */
+  per_document_token_budget: number;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   theme: string;
@@ -26,6 +28,7 @@ export interface SettingsUpdate {
   provider_order?: string[] | null;
   ollama_enabled?: boolean;
   gemini_model?: GeminiModel;
+  per_document_token_budget?: number;
   pomodoro_work_min?: number;
   pomodoro_break_min?: number;
   theme?: Theme;

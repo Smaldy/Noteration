@@ -687,6 +687,30 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   an amber banner ("notes are scoped to each topic by its position; keep topics in
   reading order") when `has_headings` is false and it isn't the manual path. +4
   assertions across structure/detect tests. Tree green: **270 passed**, build clean.
+- **Fix C follow-up 2 — Per-document token estimate + soft-cap guard (DONE).**
+  Defense-in-depth cost guard (user asked for "both": pre-flight estimate **and**
+  enforcement). `services/queue.py` gained `EST_TOKENS_PER_TOPIC` (8000 — bounded
+  notes+assessment input/output, formula vision excluded), `estimate_topic_tokens`,
+  and `document_token_usage(session, doc_id, override_budget)` returning
+  `(spent, budget)` where budget = a positive Settings override, else the automatic
+  ceiling = estimate over the doc's non-skip topics × `DOC_BUDGET_OVERSPEND_FACTOR`
+  (3). `process_job` now records actual `tokens_used` (input+output) per job (new
+  column, migration `e4f5a6b7c8d9`, also adds `settings.per_document_token_budget`,
+  both `server_default 0`; `alembic check` clean). `claim_next` skips any job whose
+  document is over budget — those jobs stay **pending** (no defer, not failed), so
+  raising the ceiling makes them claimable on the next drain (semantics match the
+  unconfigured-provider pause; no new QueueState). The worker passes the configured
+  budget into `QueueService`. `queue_view` surfaces `token_spent`/`token_budget`/
+  `budget_paused` (per-document, or globally flags the first paused doc); the
+  Processing page shows an amber "hit its token budget — raise it in Settings"
+  banner. Settings API + page expose the budget (number input; 0 = auto); the
+  structure-review pre-flight now shows "~Xk tokens" alongside the topic count.
+  **Decision** (cheapest reasonable, logged): auto cap is **on by default** at
+  estimate × 3 — generous enough to clear normal docs (a 13-topic doc post-Fix-C
+  costs well under its ceiling) while pausing a clear runaway; a positive Settings
+  value overrides with a flat cap. +7 tests (estimate, tokens_used recorded, auto +
+  flat pause, resume on raise, settings round-trip/validation, queue-view flag).
+  Tree green: full suite **277 passed**, `npm run build` clean.
 
 ## NEXT
 
