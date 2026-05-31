@@ -5,25 +5,113 @@ import type { Settings, SettingsUpdate } from "@/types/settings";
 
 type Load = "idle" | "loading" | "loaded" | "error";
 
-/** Font-family options → CSS font stacks (Inter is bundled via @fontsource). */
+/** Font-family options → CSS font stacks (all bundled via @fontsource). */
 export const FONT_STACKS: Record<string, string> = {
+  sans: '"Plus Jakarta Sans Variable", system-ui, -apple-system, sans-serif',
   system: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   inter: '"Inter Variable", system-ui, sans-serif',
-  serif: 'Georgia, Cambria, "Times New Roman", serif',
+  serif: '"Newsreader Variable", Georgia, "Times New Roman", serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
 };
 
+/** Indigo — the brand accent used when the user hasn't picked one, so the UI
+ *  always carries color rather than falling back to neutral gray. */
+export const DEFAULT_ACCENT = "#6366f1";
+
+/** Parse #rgb / #rrggbb → {r,g,b} (0–255), or null if malformed. */
+function parseHex(hex: string): { r: number; g: number; b: number } | null {
+  let h = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())?.[1];
+  if (!h) return null;
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
 /** Pick a readable foreground (near-black/near-white) for a hex background. */
 function contrastFor(hex: string): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return "#ffffff";
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
+  const c = parseHex(hex);
+  if (!c) return "#ffffff";
   // Relative luminance (sRGB) → dark text on light accents, white on dark.
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const lum = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
   return lum > 0.6 ? "#18181b" : "#ffffff";
+}
+
+/** Hue (deg) + saturation (0–1) of a hex color, for tinting derived tokens. */
+function hueSat(hex: string): { h: number; s: number } {
+  const c = parseHex(hex);
+  if (!c) return { h: 240, s: 0.8 };
+  const r = c.r / 255;
+  const g = c.g / 255;
+  const b = c.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 240, s: 0 };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h: number;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60;
+  if (h < 0) h += 360;
+  return { h, s };
+}
+
+/** Generate a full, readable token palette from one accent hex for the active
+ *  theme. Tint saturation scales with the accent's own saturation so vivid
+ *  accents read rich and near-gray accents (e.g. slate) stay tastefully muted. */
+function buildPalette(hex: string, dark: boolean): Record<string, string> {
+  const { h, s } = hueSat(hex);
+  const hr = Math.round(h);
+  // hsl token at `baseS%` saturation (scaled by accent saturation) and `l%`.
+  const t = (baseS: number, l: number) =>
+    `hsl(${hr} ${Math.round(baseS * s)}% ${l}%)`;
+  const fg = contrastFor(hex);
+
+  return dark
+    ? {
+        "--background": t(24, 8),
+        "--foreground": t(16, 95),
+        "--card": t(22, 11),
+        "--card-foreground": t(16, 95),
+        "--popover": t(22, 12),
+        "--popover-foreground": t(16, 95),
+        "--primary": hex,
+        "--primary-foreground": fg,
+        "--primary-soft": t(34, 20),
+        "--primary-soft-foreground": t(55, 84),
+        "--secondary": t(16, 18),
+        "--secondary-foreground": t(16, 92),
+        "--muted": t(14, 16),
+        "--muted-foreground": t(12, 66),
+        "--accent": t(30, 24),
+        "--accent-foreground": t(55, 84),
+        "--border": t(16, 22),
+        "--input": t(16, 25),
+        "--ring": hex,
+      }
+    : {
+        "--background": t(36, 98.5),
+        "--foreground": t(22, 12),
+        "--card": t(40, 99.5),
+        "--card-foreground": t(22, 12),
+        "--popover": t(40, 99.5),
+        "--popover-foreground": t(22, 12),
+        "--primary": hex,
+        "--primary-foreground": fg,
+        "--primary-soft": t(62, 95),
+        "--primary-soft-foreground": t(55, 32),
+        "--secondary": t(30, 94),
+        "--secondary-foreground": t(35, 26),
+        "--muted": t(26, 95.5),
+        "--muted-foreground": t(14, 44),
+        "--accent": t(48, 92),
+        "--accent-foreground": t(50, 30),
+        "--border": t(22, 89.5),
+        "--input": t(22, 86),
+        "--ring": hex,
+      };
 }
 
 export interface Appearance {
@@ -44,15 +132,11 @@ export function applyAppearance(a: Appearance): void {
   root.classList.toggle("dark", dark);
   root.style.fontSize = `${a.font_size}px`;
 
-  // Accent: drive the primary + ring tokens (or clear to fall back to the theme).
-  if (a.accent_color) {
-    root.style.setProperty("--primary", a.accent_color);
-    root.style.setProperty("--ring", a.accent_color);
-    root.style.setProperty("--primary-foreground", contrastFor(a.accent_color));
-  } else {
-    root.style.removeProperty("--primary");
-    root.style.removeProperty("--ring");
-    root.style.removeProperty("--primary-foreground");
+  // Color: derive the entire token palette from the accent (or the brand
+  // default) so one picked color flows cohesively through the whole UI.
+  const palette = buildPalette(a.accent_color || DEFAULT_ACCENT, dark);
+  for (const [token, value] of Object.entries(palette)) {
+    root.style.setProperty(token, value);
   }
 
   // Font family: body reads var(--app-font).

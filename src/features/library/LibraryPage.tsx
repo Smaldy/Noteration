@@ -35,10 +35,10 @@ export function LibraryPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight">Library</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Your uploaded documents and their study progress.
           </p>
         </div>

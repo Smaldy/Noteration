@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import "@fontsource-variable/inter";
+import "@fontsource-variable/montserrat";
+import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/newsreader";
 
 import App from "./App";
 import "./index.css";

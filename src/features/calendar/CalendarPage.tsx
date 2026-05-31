@@ -67,36 +67,62 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto max-w-5xl animate-rise px-6 py-8">
       <button
         type="button"
         onClick={() => navigate("/")}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         Library
       </button>
 
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Calendar</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Scheduled reviews. Drag a session to reschedule, or click one to study it.
-      </p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Scheduled reviews. Drag a session to reschedule, or click one to study it.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {LEGEND.map((l) => (
+            <span key={l.label} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2.5 rounded-full" style={{ backgroundColor: l.color }} />
+              {l.label}
+            </span>
+          ))}
+        </div>
+      </div>
 
-      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
-      <FullCalendar
-        plugins={[daygridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        height="auto"
-        editable
-        eventStartEditable
-        eventDurationEditable={false}
-        events={events}
-        datesSet={onDatesSet}
-        eventClick={onEventClick}
-        eventDrop={onEventDrop}
-        headerToolbar={{ left: "prev,next today", center: "title", right: "" }}
-      />
+      <div className="rounded-2xl border bg-card/70 p-4 shadow-sm sm:p-6">
+        <FullCalendar
+          plugins={[daygridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          height="auto"
+          editable
+          eventStartEditable
+          eventDurationEditable={false}
+          events={events}
+          datesSet={onDatesSet}
+          eventClick={onEventClick}
+          eventDrop={onEventDrop}
+          headerToolbar={{ left: "prev,next today", center: "title", right: "" }}
+        />
+      </div>
     </div>
   );
 }
+
+// Mirrors `colorFor` so the legend explains what each event color means.
+const LEGEND: { label: string; color: string }[] = [
+  { label: "Review (SM-2)", color: "#6366f1" },
+  { label: "Manual", color: "#8b5cf6" },
+  { label: "Deadline", color: "#f43f5e" },
+  { label: "Revision buffer", color: "#f59e0b" },
+];

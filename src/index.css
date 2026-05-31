@@ -2,54 +2,68 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
-/* shadcn/ui design tokens (Tailwind v4 / CSS-variable theme). The frontend's
-   locked UI primitives live in `components/ui/` and read these variables. */
+/* Noteration design system (Tailwind v4 / CSS-variable theme).
+   - Type: Montserrat (display) + Plus Jakarta Sans (UI body) + Newsreader (notes).
+   - Color: a tinted, accent-derived palette. The static values below are the
+     indigo default + first-paint fallback; `applyAppearance` (stores/settings.ts)
+     recomputes every token live from the chosen accent so the whole UI carries
+     one cohesive, readable color. */
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --radius: 0.75rem;
+
+  --font-display: "Montserrat Variable", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans Variable", system-ui, -apple-system, sans-serif;
+  --font-reading: "Newsreader Variable", Georgia, "Times New Roman", serif;
+
+  /* Light, indigo-tinted defaults (hue 239). */
+  --background: hsl(240 36% 98.5%);
+  --foreground: hsl(240 24% 12%);
+  --card: hsl(240 40% 99.5%);
+  --card-foreground: hsl(240 24% 12%);
+  --popover: hsl(240 40% 99.5%);
+  --popover-foreground: hsl(240 24% 12%);
+  --primary: hsl(239 84% 67%);
+  --primary-foreground: hsl(0 0% 100%);
+  --primary-soft: hsl(240 62% 95%);
+  --primary-soft-foreground: hsl(240 55% 32%);
+  --secondary: hsl(240 30% 94%);
+  --secondary-foreground: hsl(240 35% 26%);
+  --muted: hsl(240 26% 95.5%);
+  --muted-foreground: hsl(240 14% 44%);
+  --accent: hsl(240 48% 92%);
+  --accent-foreground: hsl(240 50% 30%);
+  --destructive: hsl(352 78% 56%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(240 22% 89.5%);
+  --input: hsl(240 22% 86%);
+  --ring: hsl(239 84% 67%);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: hsl(240 24% 8%);
+  --foreground: hsl(240 16% 95%);
+  --card: hsl(240 22% 11%);
+  --card-foreground: hsl(240 16% 95%);
+  --popover: hsl(240 22% 12%);
+  --popover-foreground: hsl(240 16% 95%);
+  --primary: hsl(239 84% 70%);
+  --primary-foreground: hsl(240 30% 12%);
+  --primary-soft: hsl(240 34% 20%);
+  --primary-soft-foreground: hsl(240 60% 85%);
+  --secondary: hsl(240 16% 18%);
+  --secondary-foreground: hsl(240 16% 92%);
+  --muted: hsl(240 14% 16%);
+  --muted-foreground: hsl(240 12% 66%);
+  --accent: hsl(240 30% 24%);
+  --accent-foreground: hsl(240 55% 84%);
+  --destructive: hsl(352 70% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(240 14% 22%);
+  --input: hsl(240 14% 25%);
+  --ring: hsl(239 70% 62%);
 }
 
 @theme inline {
@@ -61,6 +75,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-foreground: var(--primary-soft-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -76,20 +92,72 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
 }
 
 @layer base {
   * {
     border-color: var(--border);
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
+    /* The font setting overrides --app-font; otherwise we fall to the body face. */
+    font-family: var(--app-font, var(--font-body));
     background-color: var(--background);
     color: var(--foreground);
-    /* Overridden live by the font-family setting; this is the fallback. */
-    font-family: var(--app-font, system-ui, -apple-system, "Segoe UI", sans-serif);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
   }
+
+  /* Atmosphere: two soft accent washes anchored to the corners. Fixed + behind
+     everything so pages float on a tinted canvas rather than flat fill. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        60rem 60rem at 100% -10%,
+        color-mix(in oklab, var(--primary) 16%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        50rem 50rem at -10% 110%,
+        color-mix(in oklab, var(--primary) 12%, transparent),
+        transparent 55%
+      );
+  }
+
+  /* Display face for headings, with tighter optical tracking. */
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Long-form notes read in a warm serif at a comfortable measure. */
+  .prose {
+    font-family: var(--font-reading);
+    font-size: 1.02rem;
+    line-height: 1.75;
+  }
+  .prose :where(h1, h2, h3, h4) {
+    font-family: var(--font-display);
+  }
+  .prose :where(code, pre) {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
   /* Smoothly cross-fade theme / accent changes instead of snapping. */
   body,
   .bg-card,
@@ -97,9 +165,9 @@
   .bg-primary,
   .text-primary {
     transition:
-      background-color 0.25s ease,
-      color 0.25s ease,
-      border-color 0.25s ease;
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease;
   }
 }
 
@@ -108,7 +176,7 @@
   @keyframes app-rise {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -116,7 +184,14 @@
     }
   }
   .animate-rise {
-    animation: app-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: app-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Frosted bar used for sticky headers / action footers. */
+  .glass {
+    background: color-mix(in oklab, var(--background) 78%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
   }
 
   /* Slimmer, theme-aware scrollbars. */
@@ -124,4 +199,121 @@
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
+}
+
+/* --- FullCalendar: re-skinned to match the design system ------------------- */
+.fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in oklab, var(--primary) 9%, transparent);
+  --fc-event-text-color: #fff;
+  --fc-small-font-size: 0.78rem;
+  font-family: var(--font-body);
+}
+.fc .fc-toolbar-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1.25rem;
+}
+/* Toolbar buttons reskinned as quiet pills. */
+.fc .fc-button {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  color: var(--secondary-foreground);
+  font-weight: 500;
+  font-size: 0.82rem;
+  text-transform: capitalize;
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.85rem;
+  box-shadow: none;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+.fc .fc-button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.fc .fc-button:active {
+  transform: scale(0.96);
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.fc .fc-button:focus,
+.fc .fc-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  outline: none;
+}
+.fc .fc-button-primary:disabled {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+/* The grid: rounded, carded, with quiet headers. */
+.fc .fc-scrollgrid {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border-color: var(--border);
+}
+.fc .fc-col-header-cell {
+  background: var(--muted);
+  padding: 0.55rem 0;
+}
+.fc .fc-col-header-cell-cushion {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  padding: 0.25rem 0.4rem;
+}
+.fc .fc-daygrid-day-number {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  padding: 0.4rem 0.55rem;
+}
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--primary);
+  font-weight: 700;
+}
+.fc .fc-daygrid-day {
+  transition: background 0.15s ease;
+}
+.fc .fc-daygrid-day:hover {
+  background: color-mix(in oklab, var(--primary) 5%, transparent);
+}
+.fc .fc-day-other .fc-daygrid-day-top {
+  opacity: 0.4;
+}
+/* Events as soft, rounded chips with a leading dot rather than hard blocks. */
+.fc .fc-daygrid-event {
+  border-radius: 0.5rem;
+  padding: 0.12rem 0.45rem;
+  margin: 0.1rem 0.35rem;
+  font-weight: 600;
+  font-size: 0.76rem;
+  border: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.fc .fc-daygrid-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.18);
+}
+.fc .fc-event-title {
+  font-weight: 600;
 }

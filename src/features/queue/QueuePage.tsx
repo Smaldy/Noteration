@@ -30,7 +30,7 @@ export function QueuePage() {
         Library
       </button>
 
-      <h1 className="text-2xl font-semibold tracking-tight">Processing queue</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Processing queue</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Topics generate in the background within free-tier budgets. Study what&apos;s
         ready now — the rest keeps going.

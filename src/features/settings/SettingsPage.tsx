@@ -1,5 +1,6 @@
-import { ArrowLeft } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Check, RotateCcw } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -35,12 +36,13 @@ const GEMINI_MODELS: { value: GeminiModel; label: string; hint: string }[] = [
   },
 ];
 
-// Curated accent palette (hex drives --primary live).
+// Curated accent palette (hex drives the whole derived palette live).
 const PRESET_ACCENTS: { name: string; hex: string }[] = [
   { name: "Indigo", hex: "#6366f1" },
   { name: "Violet", hex: "#8b5cf6" },
   { name: "Blue", hex: "#3b82f6" },
   { name: "Sky", hex: "#0ea5e9" },
+  { name: "Teal", hex: "#14b8a6" },
   { name: "Emerald", hex: "#10b981" },
   { name: "Amber", hex: "#f59e0b" },
   { name: "Rose", hex: "#f43f5e" },
@@ -48,17 +50,19 @@ const PRESET_ACCENTS: { name: string; hex: string }[] = [
 ];
 
 const FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: "sans", label: "Jakarta" },
   { value: "system", label: "System" },
   { value: "inter", label: "Inter" },
-  { value: "serif", label: "Serif" },
-  { value: "mono", label: "Monospace" },
+  { value: "serif", label: "Newsreader" },
+  { value: "mono", label: "Mono" },
 ];
 
 // Render each font button in its own typeface as a preview.
 const FONT_PREVIEW: Record<string, string> = {
+  sans: '"Plus Jakarta Sans Variable", system-ui, sans-serif',
   system: "system-ui, sans-serif",
   inter: '"Inter Variable", system-ui, sans-serif',
-  serif: "Georgia, serif",
+  serif: '"Newsreader Variable", Georgia, serif',
   mono: '"JetBrains Mono", ui-monospace, monospace',
 };
 
@@ -71,7 +75,7 @@ function toForm(s: Settings): FormState {
     pomodoro_break_min: s.pomodoro_break_min,
     theme: (s.theme as Theme) ?? "system",
     accent_color: s.accent_color ?? "",
-    font_family: s.font_family ?? "system",
+    font_family: s.font_family ?? "sans",
     font_size: s.font_size,
   };
 }
@@ -120,6 +124,14 @@ export function SettingsPage() {
     };
   }, []);
 
+  const baseline = useMemo(() => (settings ? toForm(settings) : null), [settings]);
+  const dirty =
+    !!form &&
+    !!baseline &&
+    (JSON.stringify(form) !== JSON.stringify(baseline) ||
+      geminiKey.trim() !== "" ||
+      claudeKey.trim() !== "");
+
   if (loadState === "error") {
     return (
       <Shell onBack={() => navigate("/")}>
@@ -127,7 +139,7 @@ export function SettingsPage() {
       </Shell>
     );
   }
-  if (!form || !settings) {
+  if (!form || !settings || !baseline) {
     return (
       <Shell onBack={() => navigate("/")}>
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -137,6 +149,13 @@ export function SettingsPage() {
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => (f ? { ...f, [key]: value } : f));
+    setSaved(false);
+  }
+
+  function discard() {
+    if (baseline) setForm(baseline);
+    setGeminiKey("");
+    setClaudeKey("");
     setSaved(false);
   }
 
@@ -165,8 +184,25 @@ export function SettingsPage() {
   }
 
   return (
-    <Shell onBack={() => navigate("/")}>
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+    <Shell
+      onBack={() => navigate("/")}
+      footer={
+        <ActionBar
+          dirty={dirty}
+          saving={saving}
+          saved={saved}
+          saveError={saveError}
+          onSave={() => void handleSave()}
+          onDiscard={discard}
+        />
+      }
+    >
+      <div className="animate-rise space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground">
+          Tune the providers, study rhythm, and how Noteration looks.
+        </p>
+      </div>
 
       <Section title="API keys" description="Stored locally; used by the provider waterfall.">
         <Field label={`Gemini key${settings.gemini_key_set ? " (set)" : ""}`}>
@@ -192,23 +228,12 @@ export function SettingsPage() {
         description="Free providers run first. Order is automatic (cheapest-first)."
       >
         <Field label="Gemini model">
-          <div className="inline-flex rounded-lg border p-1">
-            {GEMINI_MODELS.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => set("gemini_model", m.value)}
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm font-medium transition-colors",
-                  form.gemini_model === m.value
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            group="gemini"
+            value={form.gemini_model}
+            onChange={(v) => set("gemini_model", v)}
+            options={GEMINI_MODELS.map((m) => ({ value: m.value, label: m.label }))}
+          />
           <p className="text-xs text-muted-foreground">
             {GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hint}
           </p>
@@ -228,51 +253,45 @@ export function SettingsPage() {
       </Section>
 
       <Section title="Pomodoro">
-        <Field label="Work minutes">
-          <Input
-            type="number"
-            min={1}
-            max={180}
-            value={form.pomodoro_work_min}
-            onChange={(e) => set("pomodoro_work_min", Number(e.target.value))}
-            className="w-28"
-          />
-        </Field>
-        <Field label="Break minutes">
-          <Input
-            type="number"
-            min={1}
-            max={120}
-            value={form.pomodoro_break_min}
-            onChange={(e) => set("pomodoro_break_min", Number(e.target.value))}
-            className="w-28"
-          />
-        </Field>
+        <div className="flex flex-wrap gap-6">
+          <Field label="Work minutes">
+            <Input
+              type="number"
+              min={1}
+              max={180}
+              value={form.pomodoro_work_min}
+              onChange={(e) => set("pomodoro_work_min", Number(e.target.value))}
+              className="w-28"
+            />
+          </Field>
+          <Field label="Break minutes">
+            <Input
+              type="number"
+              min={1}
+              max={120}
+              value={form.pomodoro_break_min}
+              onChange={(e) => set("pomodoro_break_min", Number(e.target.value))}
+              className="w-28"
+            />
+          </Field>
+        </div>
       </Section>
 
       <Section title="Appearance" description="Changes preview instantly; Save to keep them.">
         <Field label="Theme">
-          <div className="inline-flex rounded-lg border p-1">
-            {(["system", "light", "dark"] as Theme[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => set("theme", t)}
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm font-medium capitalize transition-colors",
-                  form.theme === t
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            group="theme"
+            value={form.theme}
+            onChange={(v) => set("theme", v as Theme)}
+            options={(["system", "light", "dark"] as Theme[]).map((t) => ({
+              value: t,
+              label: t[0].toUpperCase() + t.slice(1),
+            }))}
+          />
         </Field>
 
         <Field label="Accent color">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Swatch
               selected={form.accent_color === ""}
               onClick={() => set("accent_color", "")}
@@ -289,7 +308,7 @@ export function SettingsPage() {
               />
             ))}
             <label
-              className="relative ml-1 inline-flex size-7 cursor-pointer items-center justify-center rounded-full border text-xs text-muted-foreground"
+              className="relative ml-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border text-base text-muted-foreground transition-transform hover:scale-110"
               title="Custom color"
             >
               +
@@ -312,10 +331,10 @@ export function SettingsPage() {
                 onClick={() => set("font_family", f.value)}
                 style={{ fontFamily: FONT_PREVIEW[f.value] }}
                 className={cn(
-                  "rounded-md border px-3 py-1.5 text-sm transition-colors",
+                  "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 active:scale-95",
                   form.font_family === f.value
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
+                    : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
                 )}
               >
                 {f.label}
@@ -335,31 +354,116 @@ export function SettingsPage() {
           />
         </Field>
       </Section>
-
-      <div className="mt-8 flex items-center gap-3 border-t pt-6">
-        <Button onClick={() => void handleSave()} disabled={saving}>
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
-        {saved && <span className="text-sm text-emerald-600">Saved</span>}
-        {saveError && <span className="text-sm text-destructive">{saveError}</span>}
-      </div>
     </Shell>
   );
 }
 
-function Shell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
+function Shell({
+  children,
+  footer,
+  onBack,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+  onBack: () => void;
+}) {
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Library
-      </button>
-      {children}
+    <div className="flex min-h-screen flex-col">
+      <header className="glass sticky top-0 z-20 border-b">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3.5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Library
+          </button>
+          <span className="font-display text-sm font-semibold tracking-tight text-muted-foreground">
+            Settings
+          </span>
+        </div>
+      </header>
+      <main className="flex-1">
+        <div className="mx-auto max-w-2xl space-y-8 px-6 py-10">{children}</div>
+      </main>
+      {footer}
     </div>
+  );
+}
+
+function ActionBar({
+  dirty,
+  saving,
+  saved,
+  saveError,
+  onSave,
+  onDiscard,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  saved: boolean;
+  saveError: string | null;
+  onSave: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <footer className="glass sticky bottom-0 z-20 border-t">
+      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-6 py-4">
+        <div className="min-h-5 text-sm">
+          <AnimatePresence mode="wait" initial={false}>
+            {saveError ? (
+              <motion.span
+                key="err"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="text-destructive"
+              >
+                {saveError}
+              </motion.span>
+            ) : saved ? (
+              <motion.span
+                key="ok"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="inline-flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400"
+              >
+                <Check className="size-4" />
+                Saved
+              </motion.span>
+            ) : dirty ? (
+              <motion.span
+                key="dirty"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="text-muted-foreground"
+              >
+                Unsaved changes
+              </motion.span>
+            ) : (
+              <span className="text-muted-foreground/60">All changes saved</span>
+            )}
+          </AnimatePresence>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDiscard}
+            disabled={!dirty || saving}
+          >
+            <RotateCcw />
+            Discard
+          </Button>
+          <Button onClick={onSave} disabled={!dirty || saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -373,15 +477,55 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="mt-8">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <section className="animate-rise rounded-2xl border bg-card/60 p-6 shadow-sm">
+      <h2 className="font-display text-xs font-bold uppercase tracking-[0.12em] text-primary">
         {title}
       </h2>
       {description && (
         <p className="mt-1 text-xs text-muted-foreground">{description}</p>
       )}
-      <div className="mt-3 space-y-4">{children}</div>
+      <div className="mt-4 space-y-5">{children}</div>
     </section>
+  );
+}
+
+function Segmented<T extends string>({
+  group,
+  value,
+  options,
+  onChange,
+}: {
+  group: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-xl border bg-secondary/40 p-1">
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "relative rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {active && (
+              <motion.span
+                layoutId={`seg-${group}`}
+                className="absolute inset-0 rounded-lg bg-primary shadow-sm"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -405,7 +549,7 @@ function Swatch({
       onClick={onClick}
       style={color ? { backgroundColor: color } : undefined}
       className={cn(
-        "size-7 rounded-full transition-transform hover:scale-110",
+        "size-8 rounded-full transition-transform duration-150 hover:scale-110 active:scale-95",
         dashed && "border-2 border-dashed border-muted-foreground/50",
         selected
           ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
@@ -417,7 +561,7 @@ function Swatch({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label>{label}</Label>
       {children}
     </div>
