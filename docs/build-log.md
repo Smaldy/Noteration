@@ -613,6 +613,18 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   Pomodoro timer bar (start/pause/reset, work/break cycles from the existing
   settings); (3) Pomodoro ambient sounds (rain/sea/none + custom audio, mute,
   alarm on finish).
+- **Pomodoro timer — Wave 2 (DONE, user-requested).** A persistent floating timer,
+  mounted once in `App` outside the route transition so it keeps running as you
+  navigate. Client-side only (`stores/pomodoro.ts`): timestamp/deadline-based
+  countdown (accurate across tab backgrounding; `tick` recomputes from `endsAt`
+  and resyncs on `visibilitychange`), work→break auto-cycling, durations synced
+  live from Settings' pomodoro minutes via `configure`. Actions: start/pause/
+  toggle, reset, skip-phase. `completedTick` counter exposed for Wave 3's alarm.
+  UI (`features/pomodoro/PomodoroWidget.tsx`): collapsed pill (time + play/pause)
+  ↔ expanded card with an SVG progress ring, Focus/Break label (primary vs
+  emerald), reset/play-pause/skip controls, and a focus-session tally. Lifts above
+  the Settings sticky save bar on `/settings`. Frontend-only; `npm run build`
+  clean, backend untouched (**263 passed**). **Next:** Wave 3 — ambient sounds.
 
 ## NEXT
 

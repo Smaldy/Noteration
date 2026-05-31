@@ -5,6 +5,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { BookmarksPage } from "@/features/bookmarks/BookmarksPage";
 import { CalendarPage } from "@/features/calendar/CalendarPage";
 import { LibraryPage } from "@/features/library/LibraryPage";
+import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
 import { QueuePage } from "@/features/queue/QueuePage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { StudyPage } from "@/features/study/StudyPage";
@@ -24,26 +25,30 @@ export default function App() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <Routes location={location}>
-          <Route path="/" element={<LibraryPage />} />
-          <Route path="/bookmarks" element={<BookmarksPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/queue" element={<QueuePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/documents/:id/review" element={<StructureReviewPage />} />
-          <Route path="/documents/:id/study" element={<StudyPage />} />
-          <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </motion.div>
-    </AnimatePresence>
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Routes location={location}>
+            <Route path="/" element={<LibraryPage />} />
+            <Route path="/bookmarks" element={<BookmarksPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/queue" element={<QueuePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/documents/:id/review" element={<StructureReviewPage />} />
+            <Route path="/documents/:id/study" element={<StudyPage />} />
+            <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </motion.div>
+      </AnimatePresence>
+      {/* Persistent across routes — the timer keeps running as you navigate. */}
+      <PomodoroWidget />
+    </>
   );
 }
