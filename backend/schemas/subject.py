@@ -28,4 +28,5 @@ class SubjectOut(BaseModel):
     name: str
     accent_color: str | None
     exam_date: date | None
+    bookmarked: bool
     created_at: datetime

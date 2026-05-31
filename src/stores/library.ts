@@ -16,6 +16,8 @@ interface LibraryStore {
   uploadDocument: (subjectId: number, file: File) => Promise<UploadResult>;
   /** Delete a subject (and all its documents/topics), then refresh the list. */
   deleteSubject: (subjectId: number) => Promise<void>;
+  /** Bookmark/unbookmark a subject (optimistic; reverts on failure). */
+  toggleSubjectBookmark: (subjectId: number, bookmarked: boolean) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
@@ -44,5 +46,19 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   deleteSubject: async (subjectId) => {
     await api.del(`/subjects/${subjectId}`);
     await get().fetchDocuments();
+  },
+  toggleSubjectBookmark: async (subjectId, bookmarked) => {
+    const apply = (value: boolean) =>
+      set((state) => ({
+        documents: state.documents.map((d) =>
+          d.subject_id === subjectId ? { ...d, subject_bookmarked: value } : d,
+        ),
+      }));
+    apply(bookmarked); // optimistic
+    try {
+      await api.put(`/subjects/${subjectId}/bookmark`, { bookmarked });
+    } catch {
+      apply(!bookmarked); // revert
+    }
   },
 }));

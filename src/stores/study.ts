@@ -20,6 +20,8 @@ interface StudyStore {
   fetchTopic: (topicId: number) => Promise<void>;
   /** Delete a topic (and its content), then refresh the document's tree. */
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
+  /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
+  toggleTopicBookmark: (topicId: number, bookmarked: boolean) => Promise<void>;
   /** Clear the selected topic's content (e.g. when none is selected). */
   clearContent: () => void;
 }
@@ -63,6 +65,33 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
   deleteTopic: async (topicId, documentId) => {
     await api.del(`/topics/${topicId}`);
     await get().fetchTree(documentId);
+  },
+
+  toggleTopicBookmark: async (topicId, bookmarked) => {
+    const apply = (value: boolean) =>
+      set((state) => ({
+        tree: state.tree
+          ? {
+              ...state.tree,
+              chapters: state.tree.chapters.map((ch) => ({
+                ...ch,
+                topics: ch.topics.map((t) =>
+                  t.id === topicId ? { ...t, bookmarked: value } : t,
+                ),
+              })),
+            }
+          : state.tree,
+        content:
+          state.content && state.content.id === topicId
+            ? { ...state.content, bookmarked: value }
+            : state.content,
+      }));
+    apply(bookmarked); // optimistic
+    try {
+      await api.put(`/topics/${topicId}/bookmark`, { bookmarked });
+    } catch {
+      apply(!bookmarked); // revert
+    }
   },
 
   clearContent: () => set({ content: null, contentStatus: "idle", contentError: null }),

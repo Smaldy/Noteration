@@ -36,6 +36,7 @@ class Subject(Base):
     name: Mapped[str]
     accent_color: Mapped[str | None] = mapped_column(default=None)
     exam_date: Mapped[date | None] = mapped_column(default=None)
+    bookmarked: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     documents: Mapped[list[Document]] = relationship(
@@ -105,6 +106,7 @@ class Topic(Base):
         SAEnum(TopicStatus, native_enum=False), default=TopicStatus.queued
     )
     studied: Mapped[bool] = mapped_column(default=False)
+    bookmarked: Mapped[bool] = mapped_column(default=False)
     order_index: Mapped[int] = mapped_column(default=0)
 
     chapter: Mapped[Chapter] = relationship(back_populates="topics")

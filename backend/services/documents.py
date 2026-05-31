@@ -67,6 +67,7 @@ class DocumentSummary:
     filename: str
     subject_id: int
     subject_name: str
+    subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
     uploaded_at: datetime
@@ -93,13 +94,13 @@ def list_documents(session: Session) -> list[DocumentSummary]:
     counts = {doc_id: (total, ready or 0) for doc_id, total, ready in count_rows}
 
     rows = session.execute(
-        select(Document, Subject.name, Subject.exam_date)
+        select(Document, Subject.name, Subject.exam_date, Subject.bookmarked)
         .join(Subject, Document.subject_id == Subject.id)
         .order_by(Document.uploaded_at.desc(), Document.id.desc())
     ).all()
 
     summaries: list[DocumentSummary] = []
-    for document, subject_name, exam_date in rows:
+    for document, subject_name, exam_date, bookmarked in rows:
         total, ready = counts.get(document.id, (0, 0))
         summaries.append(
             DocumentSummary(
@@ -107,6 +108,7 @@ def list_documents(session: Session) -> list[DocumentSummary]:
                 filename=document.filename,
                 subject_id=document.subject_id,
                 subject_name=subject_name,
+                subject_bookmarked=bookmarked,
                 exam_date=exam_date,
                 status=document.status,
                 uploaded_at=document.uploaded_at,
@@ -258,6 +260,7 @@ class TopicNode:
     priority: TopicPriority
     status: TopicStatus
     studied: bool
+    bookmarked: bool
     order_index: int
 
 
@@ -315,6 +318,7 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
                 priority=topic.priority,
                 status=topic.status,
                 studied=topic.studied,
+                bookmarked=topic.bookmarked,
                 order_index=topic.order_index,
             )
         )

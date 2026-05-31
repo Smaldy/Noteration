@@ -23,6 +23,7 @@ export function StudyPage() {
     fetchTree,
     fetchTopic,
     deleteTopic,
+    toggleTopicBookmark,
     clearContent,
   } = useStudyStore();
 
@@ -80,6 +81,7 @@ export function StudyPage() {
             selectedTopicId={selectedTopicId}
             onSelectTopic={selectTopic}
             onDeleteTopic={handleDeleteTopic}
+            onToggleBookmark={(tId, b) => void toggleTopicBookmark(tId, b)}
           />
         )}
       </aside>

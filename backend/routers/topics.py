@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models import Topic
+from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
 from backend.schemas.topic import TopicContentOut
 from backend.services import topics as topicsvc
 
@@ -21,6 +22,19 @@ def topic_content(
     """A topic's notes (+formulas), MCQs, and flashcards for the study tabs."""
     try:
         return topicsvc.get_topic_content(session, topic_id)
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+
+@router.put("/{topic_id}/bookmark", response_model=TopicBookmarkOut)
+def set_topic_bookmark(
+    topic_id: int,
+    payload: BookmarkUpdate,
+    session: Session = Depends(get_session),
+) -> Topic:
+    """Bookmark or unbookmark a topic."""
+    try:
+        return topicsvc.set_bookmark(session, topic_id, bookmarked=payload.bookmarked)
     except topicsvc.TopicNotFoundError:
         raise HTTPException(status_code=404, detail="Topic not found")
 

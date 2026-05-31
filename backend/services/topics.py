@@ -32,6 +32,17 @@ def get_topic_content(session: Session, topic_id: int) -> Topic:
     return topic
 
 
+def set_bookmark(session: Session, topic_id: int, *, bookmarked: bool) -> Topic:
+    """Set a topic's bookmark flag. Raises ``TopicNotFoundError`` if missing."""
+    topic = session.get(Topic, topic_id)
+    if topic is None:
+        raise TopicNotFoundError(topic_id)
+    topic.bookmarked = bookmarked
+    session.commit()
+    session.refresh(topic)
+    return topic
+
+
 def delete_topic(session: Session, topic_id: int) -> None:
     """Delete a topic and everything generated from it.
 

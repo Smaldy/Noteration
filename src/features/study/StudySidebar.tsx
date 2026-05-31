@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 
+import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import { cn } from "@/lib/utils";
 import type { DocumentTree } from "@/types/study";
 
@@ -10,6 +11,7 @@ interface StudySidebarProps {
   selectedTopicId: number | null;
   onSelectTopic: (topicId: number) => void;
   onDeleteTopic: (topicId: number, title: string) => void;
+  onToggleBookmark: (topicId: number, bookmarked: boolean) => void;
 }
 
 export function StudySidebar({
@@ -17,6 +19,7 @@ export function StudySidebar({
   selectedTopicId,
   onSelectTopic,
   onDeleteTopic,
+  onToggleBookmark,
 }: StudySidebarProps) {
   return (
     <nav className="space-y-4">
@@ -35,7 +38,7 @@ export function StudySidebar({
                     type="button"
                     onClick={() => onSelectTopic(topic.id)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md py-1.5 pl-2 pr-8 text-left text-sm transition-colors",
+                      "flex w-full items-center gap-2 rounded-md py-1.5 pl-2 pr-14 text-left text-sm transition-colors",
                       active
                         ? "bg-accent text-accent-foreground"
                         : "hover:bg-accent/50",
@@ -48,15 +51,28 @@ export function StudySidebar({
                     />
                     <span className="truncate">{topic.title}</span>
                   </button>
-                  <button
-                    type="button"
-                    title="Delete topic"
-                    aria-label={`Delete topic ${topic.title}`}
-                    onClick={() => onDeleteTopic(topic.id, topic.title)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground opacity-0 transition hover:text-destructive focus-visible:opacity-100 group-hover/topic:opacity-100"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center">
+                    <BookmarkButton
+                      bookmarked={topic.bookmarked}
+                      label={topic.title}
+                      size="sm"
+                      onToggle={(next) => onToggleBookmark(topic.id, next)}
+                      className={cn(
+                        "transition-opacity",
+                        !topic.bookmarked &&
+                          "opacity-0 focus-visible:opacity-100 group-hover/topic:opacity-100",
+                      )}
+                    />
+                    <button
+                      type="button"
+                      title="Delete topic"
+                      aria-label={`Delete topic ${topic.title}`}
+                      onClick={() => onDeleteTopic(topic.id, topic.title)}
+                      className="rounded p-1 text-muted-foreground opacity-0 transition hover:text-destructive focus-visible:opacity-100 group-hover/topic:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </li>
               );
             })}

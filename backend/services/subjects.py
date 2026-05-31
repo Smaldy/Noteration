@@ -47,6 +47,17 @@ class SubjectNotFoundError(LookupError):
     """Referenced subject does not exist."""
 
 
+def set_bookmark(session: Session, subject_id: int, *, bookmarked: bool) -> Subject:
+    """Set a subject's bookmark flag. Raises ``SubjectNotFoundError`` if missing."""
+    subject = session.get(Subject, subject_id)
+    if subject is None:
+        raise SubjectNotFoundError(subject_id)
+    subject.bookmarked = bookmarked
+    session.commit()
+    session.refresh(subject)
+    return subject
+
+
 def delete_subject(session: Session, subject_id: int) -> None:
     """Delete a subject and its whole hierarchy.
 

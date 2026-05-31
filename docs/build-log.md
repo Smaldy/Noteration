@@ -596,6 +596,23 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   animated results dropdown (icon, topic status dot, kind chip), topic →
   `/study/{topicId}` / chapter → document study view. +8 tests. Tree green:
   backend **257 passed**, `npm run build` clean.
+- **Bookmarks — Wave 1 of the bookmarks/pomodoro request (DONE, user-requested).**
+  Bookmark flags on subjects + topics. Models: `Subject.bookmarked`,
+  `Topic.bookmarked` (migration `c2d3e4f5a6b7`, `server_default false`, applied to
+  live DB; `alembic check` clean). Endpoints: `PUT /api/subjects/{id}/bookmark`
+  and `PUT /api/topics/{id}/bookmark` (idempotent set, not toggle), plus
+  `GET /api/bookmarks` aggregating bookmarked subjects + topics (topics carry the
+  subject/chapter/document breadcrumb for deep-linking). `bookmarked` exposed in
+  `SubjectOut`, `TopicNodeOut`/`TopicContentOut`, and `DocumentSummaryOut`
+  (`subject_bookmarked`). Frontend: reusable `BookmarkButton` (star); subject star
+  on each library `DocumentCard` (bookmarked subjects sort first); topic star in
+  the study sidebar (always shown when set, hover otherwise); a `/bookmarks` page
+  + header link listing saved subjects (chips) and topics (deep-link rows). Stores
+  toggle optimistically and revert on failure; added `api.put`. +6 tests. Tree
+  green: backend **263 passed**, `npm run build` clean. **Next waves:** (2)
+  Pomodoro timer bar (start/pause/reset, work/break cycles from the existing
+  settings); (3) Pomodoro ambient sounds (rain/sea/none + custom audio, mute,
+  alarm on finish).
 
 ## NEXT
 

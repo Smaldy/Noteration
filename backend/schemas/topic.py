@@ -24,6 +24,7 @@ class TopicNodeOut(BaseModel):
     priority: TopicPriority
     status: TopicStatus
     studied: bool
+    bookmarked: bool
     order_index: int
 
 
@@ -95,6 +96,7 @@ class TopicContentOut(BaseModel):
     title: str
     status: TopicStatus
     studied: bool
+    bookmarked: bool
     notes: list[NoteOut]
     mcqs: list[MCQOut]
     flashcards: list[FlashcardOut]

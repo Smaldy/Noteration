@@ -64,6 +64,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
   // Multipart: do NOT set Content-Type — the browser adds the boundary itself.
   upload: <T>(path: string, form: FormData) =>
     request<T>(path, { method: "POST", body: form }),

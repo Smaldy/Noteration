@@ -13,6 +13,7 @@ export interface TopicNode {
   priority: TopicPriority;
   status: TopicStatus;
   studied: boolean;
+  bookmarked: boolean;
   order_index: number;
 }
 
@@ -69,6 +70,7 @@ export interface TopicContent {
   title: string;
   status: TopicStatus;
   studied: boolean;
+  bookmarked: boolean;
   notes: Note[];
   mcqs: MCQ[];
   flashcards: FlashcardContent[];

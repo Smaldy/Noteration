@@ -1,4 +1,11 @@
-import { BookOpen, CalendarDays, ListChecks, Plus, Settings } from "lucide-react";
+import {
+  Bookmark,
+  BookOpen,
+  CalendarDays,
+  ListChecks,
+  Plus,
+  Settings,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -44,6 +51,10 @@ export function LibraryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/bookmarks")}>
+            <Bookmark />
+            Bookmarks
+          </Button>
           <Button variant="outline" onClick={() => navigate("/calendar")}>
             <CalendarDays />
             Calendar
@@ -112,9 +123,14 @@ export function LibraryPage() {
 
       {status === "loaded" && documents.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {documents.map((doc, i) => (
-            <DocumentCard key={doc.id} doc={doc} index={i} onDelete={handleDelete} />
-          ))}
+          {[...documents]
+            .sort(
+              (a, b) =>
+                Number(b.subject_bookmarked) - Number(a.subject_bookmarked),
+            )
+            .map((doc, i) => (
+              <DocumentCard key={doc.id} doc={doc} index={i} onDelete={handleDelete} />
+            ))}
         </div>
       )}
     </div>

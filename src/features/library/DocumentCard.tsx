@@ -9,6 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
+import { useLibraryStore } from "@/stores/library";
 import type { DocumentSummary } from "@/types/library";
 
 import { StatusBadge } from "./StatusBadge";
@@ -35,6 +37,7 @@ export function DocumentCard({
   onDelete?: (doc: DocumentSummary) => void;
 }) {
   const navigate = useNavigate();
+  const toggleSubjectBookmark = useLibraryStore((s) => s.toggleSubjectBookmark);
   const progress =
     doc.topics_total === 0
       ? "No topics yet"
@@ -73,6 +76,11 @@ export function DocumentCard({
             <CardTitle className="truncate">{doc.subject_name}</CardTitle>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <BookmarkButton
+              bookmarked={doc.subject_bookmarked}
+              label={doc.subject_name}
+              onToggle={(next) => void toggleSubjectBookmark(doc.subject_id, next)}
+            />
             <StatusBadge status={doc.status} />
             {onDelete && (
               <Button
