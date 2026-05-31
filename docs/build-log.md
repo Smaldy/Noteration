@@ -537,10 +537,21 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   chars only after burning 1294 thinking tokens — risks truncating the assessment
   JSON — while flash-lite returned full content cleanly). Verified live end-to-end
   through `GeminiProvider` with the user's key; 33 provider tests still green.
-  Deferred (logged, not built): (1) record `last_error` on the exhaustion-defer
-  path + surface "all providers exhausted / quota=0" as a visible Queue state so a
-  perpetually-429ing provider isn't invisible; (2) make the Gemini model
-  configurable in Settings so a future free-tier change doesn't need a code edit.
+  Deferred (logged): make the Gemini model configurable in Settings so a future
+  free-tier change doesn't need a code edit (Fix F below built the visibility half).
+
+- **Fix F — Deferred provider stalls are no longer invisible (DONE).** Companion
+  to Fix E: when every provider is exhausted, the queue used to defer jobs with a
+  `resume_after` but **no recorded reason**, so a provider stuck at 429 (free-tier
+  limit:0) looked like an idle queue. Now `AllProvidersExhausted` carries a
+  `reason` (the last provider error, stamped with the provider name — set in
+  `waterfall._dispatch`); `process_job`'s exhaustion-defer path records it as the
+  job's `last_error`; `queue_view.get_queue_status` returns `paused_reason`
+  (the recorded reason behind the earliest deferred job, document-scoped) alongside
+  `resume_at`; and the Queue page shows it in an amber "cooling" banner ("Provider
+  said: …"). +3 tests (waterfall propagates reason; exhaustion-defer records it;
+  queue view surfaces `paused_reason`). Tree green: backend **247 passed**,
+  `tsc -b` + `npm run build` clean.
 
 ## NEXT
 

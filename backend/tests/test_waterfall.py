@@ -79,6 +79,18 @@ def test_all_exhausted_raises_with_earliest_reset() -> None:
     assert exc.value.retry_at == sooner
 
 
+def test_exhaustion_carries_last_provider_error_as_reason() -> None:
+    # A provider that 429s on call (not probe) so the waterfall captures its text.
+    only = MockProvider("a", raises=ProviderLimitError("429 quota limit:0"))
+
+    with pytest.raises(AllProvidersExhausted) as exc:
+        Waterfall([only], clock=Clock()).generate("hi", max_tokens=10)
+
+    assert exc.value.reason is not None
+    assert "429 quota limit:0" in exc.value.reason
+    assert "a:" in exc.value.reason  # stamped with the provider name
+
+
 def test_vision_routes_to_vision_capable_provider() -> None:
     text_only = MockProvider("a", supports_vision=False, text="text")
     vision = MockProvider("b", supports_vision=True, text="\\int x")

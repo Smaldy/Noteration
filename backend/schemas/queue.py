@@ -25,6 +25,8 @@ class QueueStatusOut(BaseModel):
     total: int
     # Next provider-window wake-up (when work is deferred until a quota resets).
     resume_at: datetime | None
+    # Why work is paused (the recorded provider error behind ``resume_at``).
+    paused_reason: str | None
     errors: list[QueueErrorTopicOut]
 
 

@@ -53,9 +53,16 @@ export function QueuePage() {
           </div>
 
           {status.resume_at && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
-              <Clock className="size-4 text-muted-foreground" />
-              <span>{formatResume(status.resume_at)}</span>
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+              <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="min-w-0">
+                <p>{formatResume(status.resume_at)}</p>
+                {status.paused_reason && (
+                  <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                    Provider said: {status.paused_reason}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

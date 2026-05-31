@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -97,6 +98,27 @@ def test_status_global_counts_all_documents(session: Session) -> None:
     status = queue_view.get_queue_status(session)
     assert status.ready == 2  # both documents' ready topics
     assert status.total == 5
+
+
+def test_status_surfaces_paused_reason_for_deferred_work(session: Session) -> None:
+    """A job deferred on exhaustion exposes its recorded reason (not just a time)."""
+    doc_id = _seed(session)
+    queued = session.scalars(select(Topic).where(Topic.title == "queued")).one()
+    resume_at = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+    session.add(
+        QueueJob(
+            topic_id=queued.id,
+            stage=QueueStage.notes,
+            state=QueueState.pending,
+            resume_after=resume_at,
+            last_error="gemini_free: 429 quota limit:0",
+        )
+    )
+    session.commit()
+
+    status = queue_view.get_queue_status(session, document_id=doc_id)
+    assert status.resume_at == resume_at
+    assert status.paused_reason == "gemini_free: 429 quota limit:0"
 
 
 def test_retry_topic_requeues_failed_jobs(session: Session) -> None:

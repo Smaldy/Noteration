@@ -78,12 +78,17 @@ class AllProvidersExhausted(ProviderError):
 
     ``retry_at`` is the earliest moment any provider's window reopens — the
     queue schedules a single wake-up then instead of spinning. ``None`` means
-    no provider offered a reset time (e.g. all disabled).
+    no provider offered a reset time (e.g. all disabled). ``reason`` carries the
+    last provider error message (e.g. a 429 quota text) so the queue can record
+    *why* work is paused instead of deferring silently.
     """
 
-    def __init__(self, *, retry_at: datetime | None = None) -> None:
-        super().__init__("all providers exhausted")
+    def __init__(
+        self, *, retry_at: datetime | None = None, reason: str | None = None
+    ) -> None:
+        super().__init__(reason or "all providers exhausted")
         self.retry_at = retry_at
+        self.reason = reason
 
 
 class Provider(ABC):

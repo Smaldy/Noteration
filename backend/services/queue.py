@@ -160,10 +160,14 @@ class QueueService:
         except AllProvidersExhausted as exc:
             # Not a job failure — a budget pause. Defer until the reset (or a
             # default if none is known, to avoid spinning). Attempts unchanged.
+            # Record *why* so a perpetually-throttled provider (e.g. a free tier
+            # at limit:0 answering 429) isn't an invisible, forever-deferred stall
+            # — the queue view surfaces this as `paused_reason`.
             self.session.rollback()
             job = self.session.get(QueueJob, job.id)
             job.state = QueueState.pending
             job.resume_after = exc.retry_at or (now + self.default_defer)
+            job.last_error = exc.reason
             self.session.commit()
             return JobOutcome.exhausted
         except Exception as exc:  # noqa: BLE001 - a failed topic must poison only itself

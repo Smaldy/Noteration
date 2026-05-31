@@ -178,13 +178,15 @@ def test_exhaustion_defers_job_without_consuming_attempt(session: Session) -> No
 
     def processor(job: QueueJob, db: Session) -> ProviderResult:
         db.add(Note(topic_id=job.topic_id, content_md="partial"))  # must be rolled back
-        raise AllProvidersExhausted(retry_at=resume_at)
+        raise AllProvidersExhausted(retry_at=resume_at, reason="429 quota limit:0")
 
     queue.process_job(job, processor)
 
     assert job.state is QueueState.pending
     assert job.resume_after == resume_at
     assert job.attempts == 0
+    # The reason is recorded so a forever-deferred provider isn't invisible.
+    assert job.last_error == "429 quota limit:0"
     assert session.scalars(select(Note)).all() == []  # partial write discarded
 
 

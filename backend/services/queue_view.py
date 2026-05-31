@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session
 from backend.models import Chapter, Topic
 from backend.models.enums import QueueState, TopicPriority, TopicStatus
 from backend.models.processing import QueueJob
-from backend.services.queue import QueueService
 
 
 @dataclass
@@ -35,6 +34,9 @@ class QueueStatus:
     error: int = 0
     total: int = 0
     resume_at: datetime | None = None
+    # Why work is deferred until ``resume_at`` (the recorded provider error, e.g.
+    # a 429 quota message), so a perpetually-throttled provider isn't invisible.
+    paused_reason: str | None = None
     errors: list[QueueErrorTopic] = field(default_factory=list)
 
 
@@ -84,5 +86,23 @@ def get_queue_status(
         seen.add(topic_id)
         status.errors.append(QueueErrorTopic(topic_id, title, last_error))
 
-    status.resume_at = QueueService(session).earliest_resume_after()
+    # The earliest deferred job drives the wake-up; carry its recorded reason so
+    # the UI can say *why* it is paused, not just when it resumes.
+    deferred_q = (
+        select(QueueJob.resume_after, QueueJob.last_error)
+        .where(
+            QueueJob.state == QueueState.pending,
+            QueueJob.resume_after.is_not(None),
+        )
+        .order_by(QueueJob.resume_after.asc())
+    )
+    if document_id is not None:
+        deferred_q = (
+            deferred_q.join(Topic, QueueJob.topic_id == Topic.id)
+            .join(Chapter, Topic.chapter_id == Chapter.id)
+            .where(Chapter.document_id == document_id)
+        )
+    earliest = session.execute(deferred_q).first()
+    if earliest is not None:
+        status.resume_at, status.paused_reason = earliest
     return status

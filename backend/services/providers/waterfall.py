@@ -84,6 +84,7 @@ class Waterfall:
     ) -> ProviderResult:
         now = self.clock()
         wake_candidates: list[datetime] = []
+        last_error: str | None = None  # surfaced via AllProvidersExhausted.reason
 
         # Cooling providers that could serve *this* call still contribute their
         # reset time to the wake-up calculation (a text-only provider's reset is
@@ -112,17 +113,19 @@ class Waterfall:
                 until = exc.reset_at or (now + self.backoff_base)
                 self._cool(provider, until)
                 wake_candidates.append(until)
+                last_error = f"{provider.name}: {exc}"
                 continue
-            except ProviderUnavailableError:
+            except ProviderUnavailableError as exc:
                 until = self._backoff(provider, now)
                 wake_candidates.append(until)
+                last_error = f"{provider.name}: {exc}"
                 continue
 
             self._record_success(provider)
             return result
 
         retry_at = min(wake_candidates) if wake_candidates else None
-        raise AllProvidersExhausted(retry_at=retry_at)
+        raise AllProvidersExhausted(retry_at=retry_at, reason=last_error)
 
     def _cool(self, provider: Provider, until: datetime) -> None:
         """Cool a limited provider until its window reopens."""

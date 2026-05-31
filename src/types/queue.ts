@@ -14,5 +14,7 @@ export interface QueueStatus {
   total: number;
   /** ISO datetime of the next provider-window wake-up, or null. */
   resume_at: string | null;
+  /** Why work is paused (recorded provider error behind `resume_at`), or null. */
+  paused_reason: string | null;
   errors: QueueErrorTopic[];
 }
