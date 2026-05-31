@@ -625,6 +625,21 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   emerald), reset/play-pause/skip controls, and a focus-session tally. Lifts above
   the Settings sticky save bar on `/settings`. Frontend-only; `npm run build`
   clean, backend untouched (**263 passed**). **Next:** Wave 3 — ambient sounds.
+- **Pomodoro sounds — Wave 3 (DONE, user-requested; offline-only per user).**
+  Web Audio engine (`features/pomodoro/audio.ts`): ambient presets are
+  *synthesized* — Rain = high-passed white noise, Sea = brown noise through a
+  lowpass with a slow LFO swell — so they need no audio files and work offline;
+  "None" is silence. Custom = a user-picked local file decoded via
+  `decodeAudioData`; raw bytes persist in **IndexedDB** so the track survives
+  reloads (object URLs don't). Alarm = a synthesized two-note chime on phase
+  completion. `stores/sound.ts` holds kind/volume/muted/customName, persisted to
+  localStorage, and re-decodes the saved custom file on `hydrate()`. Widget gains
+  a Sound section (None/Rain/Sea/Custom chips, upload/replace/remove, mute toggle,
+  volume slider). Engine wiring via effects: ambient plays **while the timer
+  runs**, volume/mute live, alarm on `completedTick` (respects mute); the audio
+  context is unlocked on the play gesture (autoplay policy). No URL/stream support
+  by request. Frontend-only; `npm run build` clean. **The bookmarks + pomodoro
+  request is now complete across all three waves.**
 
 ## NEXT
 

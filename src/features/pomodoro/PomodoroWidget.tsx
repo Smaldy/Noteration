@@ -3,17 +3,25 @@ import {
   Brain,
   ChevronDown,
   Coffee,
+  Music,
   Pause,
   Play,
   RotateCcw,
   SkipForward,
+  Upload,
+  Volume2,
+  VolumeX,
+  X,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
+import * as audio from "@/features/pomodoro/audio";
+import type { SoundKind } from "@/features/pomodoro/audio";
 import { usePomodoroStore } from "@/stores/pomodoro";
 import { useSettingsStore } from "@/stores/settings";
+import { useSoundStore } from "@/stores/sound";
 
 function fmt(total: number): string {
   const m = Math.floor(total / 60);
@@ -31,6 +39,7 @@ export function PomodoroWidget() {
     expanded,
     workMin,
     breakMin,
+    completedTick,
     configure,
     toggle,
     reset,
@@ -39,10 +48,20 @@ export function PomodoroWidget() {
     setExpanded,
   } = usePomodoroStore();
 
+  const sound = useSoundStore();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const prevCompleted = useRef(completedTick);
+
   // Keep durations in sync with Settings (work/break minutes).
   useEffect(() => {
     if (settings) configure(settings.pomodoro_work_min, settings.pomodoro_break_min);
   }, [settings, configure]);
+
+  // Load persisted sound prefs + custom file once.
+  useEffect(() => {
+    void sound.hydrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Drive the countdown while running; also resync when the tab regains focus.
   useEffect(() => {
@@ -55,6 +74,45 @@ export function PomodoroWidget() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [running, tick]);
+
+  // Ambient bed plays while the timer is running.
+  useEffect(() => {
+    if (running && sound.kind !== "none") audio.startAmbient(sound.kind);
+    else audio.stopAmbient();
+  }, [running, sound.kind, sound.customLoaded]);
+
+  // Live volume / mute.
+  useEffect(() => {
+    audio.setVolume(sound.muted ? 0 : sound.volume);
+  }, [sound.muted, sound.volume]);
+
+  // Ring the alarm when a phase finishes.
+  useEffect(() => {
+    if (completedTick !== prevCompleted.current) {
+      prevCompleted.current = completedTick;
+      audio.playAlarm(sound.muted);
+    }
+  }, [completedTick, sound.muted]);
+
+  function onPick(kind: SoundKind) {
+    if (kind === "custom" && !sound.customLoaded) {
+      fileInput.current?.click();
+      return;
+    }
+    void audio.unlock();
+    sound.setKind(kind);
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) void sound.loadCustomFile(file);
+    e.target.value = ""; // allow re-picking the same file
+  }
+
+  function handleToggle() {
+    void audio.unlock();
+    toggle();
+  }
 
   const isWork = phase === "work";
   const total = (isWork ? workMin : breakMin) * 60;
@@ -111,7 +169,7 @@ export function PomodoroWidget() {
               </IconBtn>
               <button
                 type="button"
-                onClick={toggle}
+                onClick={handleToggle}
                 className="flex size-12 items-center justify-center rounded-full text-white shadow-md transition-transform active:scale-95"
                 style={{ backgroundColor: accent }}
                 title={running ? "Pause" : "Start"}
@@ -130,6 +188,101 @@ export function PomodoroWidget() {
             <p className="mt-4 text-center text-xs text-muted-foreground">
               {workSessions} focus {workSessions === 1 ? "session" : "sessions"} done
             </p>
+
+            {/* Ambient sound */}
+            <div className="mt-4 border-t pt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Sound
+                </span>
+                <button
+                  type="button"
+                  onClick={sound.toggleMuted}
+                  title={sound.muted ? "Unmute" : "Mute"}
+                  aria-label={sound.muted ? "Unmute" : "Mute"}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {sound.muted ? (
+                    <VolumeX className="size-4" />
+                  ) : (
+                    <Volume2 className="size-4" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ["none", "None"],
+                    ["rain", "Rain"],
+                    ["sea", "Sea"],
+                  ] as [SoundKind, string][]
+                ).map(([k, label]) => (
+                  <SoundChip
+                    key={k}
+                    label={label}
+                    active={sound.kind === k}
+                    onClick={() => onPick(k)}
+                  />
+                ))}
+                <SoundChip
+                  label={sound.customLoaded ? "Custom" : "Upload"}
+                  icon={sound.customLoaded ? <Music /> : <Upload />}
+                  active={sound.kind === "custom"}
+                  onClick={() => onPick("custom")}
+                />
+              </div>
+
+              {sound.customLoaded && sound.customName && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Music className="size-3 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate" title={sound.customName}>
+                    {sound.customName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => fileInput.current?.click()}
+                    className="shrink-0 rounded px-1 hover:text-foreground"
+                    title="Replace"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void sound.clearCustom()}
+                    className="shrink-0 rounded p-0.5 hover:text-destructive"
+                    title="Remove"
+                    aria-label="Remove custom sound"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {sound.customError && (
+                <p className="mt-2 text-xs text-destructive">{sound.customError}</p>
+              )}
+
+              <input
+                ref={fileInput}
+                type="file"
+                accept="audio/*"
+                onChange={onFile}
+                className="hidden"
+              />
+
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={sound.muted ? 0 : sound.volume}
+                disabled={sound.muted || sound.kind === "none"}
+                onChange={(e) => sound.setVolume(Number(e.target.value))}
+                className="mt-3 w-full accent-[var(--primary)] disabled:opacity-40"
+                aria-label="Volume"
+              />
+            </div>
           </motion.div>
         ) : (
           <motion.button
@@ -155,13 +308,13 @@ export function PomodoroWidget() {
               tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
-                toggle();
+                handleToggle();
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   e.stopPropagation();
-                  toggle();
+                  handleToggle();
                 }
               }}
               className="flex size-7 items-center justify-center rounded-full text-white"
@@ -178,6 +331,34 @@ export function PomodoroWidget() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function SoundChip({
+  label,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95 [&_svg]:size-3",
+        active
+          ? "border-primary bg-primary-soft text-primary-soft-foreground"
+          : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
