@@ -109,6 +109,43 @@ def test_font_headings_collapse_repeated_titles(tmp_path: Path) -> None:
     ]
 
 
+def test_related_consecutive_slides_merge(tmp_path: Path) -> None:
+    # Slides continuing the same subject fold into one topic; a different subject
+    # starts a new one.
+    body = ("normal body text that carries most of the characters", 10)
+    pdf = _make_pdf(
+        tmp_path / "deck.pdf",
+        pages=[
+            [("Forces and Kinetic energy of rolling", 24), body, body],
+            [("Forces of rolling", 24), body, body],  # same subject → merged
+            [("Angular momentum", 24), body, body],  # new subject → separate
+        ],
+    )
+    structure = extract_pdf_structure(pdf)
+    assert structure is not None
+    assert [t.title for t in structure.chapters[0].topics] == [
+        "Forces and Kinetic energy of rolling",
+        "Angular momentum",
+    ]
+
+
+def test_merge_run_is_capped(tmp_path: Path) -> None:
+    # A word recurring across many slides must not fuse a whole section into one
+    # topic — the run caps so the section stays splittable.
+    body = ("normal body text that carries most of the characters", 10)
+    pdf = _make_pdf(
+        tmp_path / "deck.pdf",
+        pages=[
+            [(f"Rolling motion case {word}", 24), body, body]
+            for word in ("alpha", "beta", "gamma", "delta", "epsilon")
+        ],
+    )
+    structure = extract_pdf_structure(pdf)
+    assert structure is not None
+    # Five same-subject slides, run capped at 3 → 2 topics, not 1.
+    assert len(structure.chapters[0].topics) == 2
+
+
 # --- books / decks with real hierarchy → chapter tree -----------------------
 
 

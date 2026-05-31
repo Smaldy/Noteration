@@ -502,13 +502,20 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   the PDF's metadata title when meaningful — generic "PowerPoint Presentation"-type
   titles rejected → neutral "Slides") with each slide as a topic; multi-level
   outlines (a book, or a deck with named sections) and flat "Chapter N" lists keep
-  the chapter→topic tree. Verified on the two real docs: physics → 1 chapter
-  "Fundamentals Physics, 10e" / 23 slide-topics (`pdf_outline`), blockchain → 1
-  chapter "Slides" / 20 topics (`pdf_headings`). 10 tests (7 extractor over real
-  PyMuPDF fixtures: flat-deck→one-unit, generic-TOC→font fallback, consecutive
-  collapse, named-sections→chapters, flat-"Chapter N"→chapters, flat→None,
-  missing-file→None; 3 service: fallback used, markdown preferred, needs_manual
-  preserved). Tree green: full suite **243 passed**; `npm run build` clean.
+  the chapter→topic tree. **Consecutive-slide merge (user-reported):** within a
+  slide-deck chapter, adjacent slides on the same subject are folded into one topic
+  — `_merge_consecutive_related` compares each slide's significant title words
+  (overlap coefficient ≥ 0.5, stopwords/filler removed) against the *first* slide of
+  the current run, capped at 3 slides so a recurring word can't fuse a whole section
+  into one blob. Verified on the two real docs: physics → 1 chapter "Fundamentals
+  Physics, 10e" / **14** merged topics (23 raw slides; e.g. "Forces and Kinetic
+  energy of rolling" absorbs "Forces of rolling"), blockchain → 1 chapter "Slides" /
+  19 topics (slides genuinely distinct, so few merges) (`pdf_headings`). 12 tests
+  (9 extractor over real PyMuPDF fixtures: flat-deck→one-unit, generic-TOC→font
+  fallback, consecutive collapse, related-merge, run-cap, named-sections→chapters,
+  flat-"Chapter N"→chapters, flat→None, missing-file→None; 3 service: fallback used,
+  markdown preferred, needs_manual preserved). Tree green: full suite **245 passed**;
+  `npm run build` clean.
 
 ## NEXT
 
