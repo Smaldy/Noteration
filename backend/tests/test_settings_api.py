@@ -26,6 +26,7 @@ def test_get_settings_creates_singleton_with_defaults(session: Session) -> None:
     assert s.allow_paid is False
     assert s.pomodoro_work_min == 25
     assert s.theme == "system"
+    assert s.gemini_model == "gemini-2.5-flash-lite"  # cheapest default
     # Idempotent — a second call returns the same row, not a new one.
     assert settings_service.get_settings(session).id == 1
     assert session.query(Settings).count() == 1
@@ -108,3 +109,14 @@ def test_http_patch_validates_pomodoro(client: TestClient) -> None:
 
 def test_http_patch_validates_theme(client: TestClient) -> None:
     assert client.patch("/api/settings", json={"theme": "neon"}).status_code == 422
+
+
+def test_http_patch_sets_gemini_model(client: TestClient) -> None:
+    response = client.patch("/api/settings", json={"gemini_model": "gemini-2.5-flash"})
+    assert response.status_code == 200, response.text
+    assert response.json()["gemini_model"] == "gemini-2.5-flash"
+
+
+def test_http_patch_rejects_unknown_gemini_model(client: TestClient) -> None:
+    response = client.patch("/api/settings", json={"gemini_model": "gemini-2.0-flash"})
+    assert response.status_code == 422  # only the offered 2.5 models are allowed

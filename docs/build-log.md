@@ -537,8 +537,8 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   chars only after burning 1294 thinking tokens — risks truncating the assessment
   JSON — while flash-lite returned full content cleanly). Verified live end-to-end
   through `GeminiProvider` with the user's key; 33 provider tests still green.
-  Deferred (logged): make the Gemini model configurable in Settings so a future
-  free-tier change doesn't need a code edit (Fix F below built the visibility half).
+  Deferred (logged): make the Gemini model configurable in Settings (built in
+  Fix G below; Fix F built the visibility half).
 
 - **Fix F — Deferred provider stalls are no longer invisible (DONE).** Companion
   to Fix E: when every provider is exhausted, the queue used to defer jobs with a
@@ -552,6 +552,26 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   said: …"). +3 tests (waterfall propagates reason; exhaustion-defer records it;
   queue view surfaces `paused_reason`). Tree green: backend **247 passed**,
   `tsc -b` + `npm run build` clean.
+
+- **Fix G — Gemini model is now a Settings choice (DONE, user-requested).** Added
+  `Settings.gemini_model` (default `gemini-2.5-flash-lite`) with a one-column
+  Alembic migration (`b1c2d3e4f5a6`, `server_default` backfills the existing
+  singleton; `alembic check` clean, applied to the live DB). Schema validates it
+  to the two offered free-tier models (`GeminiModel` Literal: `gemini-2.5-flash-lite`
+  | `gemini-2.5-flash`); `SettingsOut`/`SettingsUpdate` carry it. `build_waterfall`
+  threads `gemini_model` into `GeminiProvider(model=…)` (falls back to the provider
+  default if unset); `build_waterfall_from_settings` passes `settings.gemini_model`;
+  the worker's `_settings_fingerprint` includes it so picking a model rebuilds the
+  cached waterfall within one poll (no restart). **Disabled Gemini "thinking"**
+  (`thinking_config.thinking_budget=0` in `GeminiProvider._config`, used by both
+  generate + transcribe): 2.5-flash otherwise spends much of `max_output_tokens` on
+  hidden reasoning, truncating notes / the assessment JSON — verified live both
+  models now return full content at the 2048-token budget. Frontend: a "Gemini
+  model" segmented control (Flash Lite / Flash, with a hint) in the Settings
+  Provider section; `GeminiModel` type, form state + save wired. +5 tests
+  (settings default/valid/invalid-422, worker fingerprint rebuild). Verified live:
+  the persisted setting drives the built provider's `.model`. Tree green: backend
+  **249 passed**, `tsc -b` + `npm run build` clean.
 
 ## NEXT
 

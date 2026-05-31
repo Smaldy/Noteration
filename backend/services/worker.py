@@ -60,6 +60,7 @@ def _settings_fingerprint(settings: Settings) -> tuple:
     return (
         settings.api_key_gemini,
         settings.api_key_claude,
+        settings.gemini_model,
         bool(settings.allow_paid),
         bool(settings.ollama_enabled),
         tuple(order) if order else (),

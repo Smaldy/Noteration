@@ -20,6 +20,10 @@ class Settings(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=SINGLETON_ID)
     api_key_gemini: Mapped[str | None] = mapped_column(default=None)
     api_key_claude: Mapped[str | None] = mapped_column(default=None)
+    # Which Gemini model the free-tier provider calls. flash-lite is the cheapest
+    # 2.5 tier (no "thinking" overhead); flash is more capable. (gemini-2.0-flash
+    # was dropped — its free tier is now limit:0.)
+    gemini_model: Mapped[str] = mapped_column(default="gemini-2.5-flash-lite")
     # Hard "never spend" switch; false = free-only waterfall.
     allow_paid: Mapped[bool] = mapped_column(default=False)
     # Overrides the default cheapest-first order; null = default order.

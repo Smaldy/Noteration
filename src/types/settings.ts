@@ -1,11 +1,13 @@
 /** Mirrors `backend/schemas/settings.py`. */
 
 export type Theme = "system" | "light" | "dark";
+export type GeminiModel = "gemini-2.5-flash-lite" | "gemini-2.5-flash";
 
 export interface Settings {
   allow_paid: boolean;
   provider_order: string[] | null;
   ollama_enabled: boolean;
+  gemini_model: string;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   theme: string;
@@ -23,6 +25,7 @@ export interface SettingsUpdate {
   allow_paid?: boolean;
   provider_order?: string[] | null;
   ollama_enabled?: boolean;
+  gemini_model?: GeminiModel;
   pomodoro_work_min?: number;
   pomodoro_break_min?: number;
   theme?: Theme;

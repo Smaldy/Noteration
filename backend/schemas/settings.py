@@ -13,6 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.models.settings import Settings
 
 Theme = Literal["system", "light", "dark"]
+# The free-tier Gemini models the user may pick between (gemini-2.0-flash is gone:
+# its free tier is now limit:0). flash-lite is cheapest; flash is more capable.
+GeminiModel = Literal["gemini-2.5-flash-lite", "gemini-2.5-flash"]
 
 
 class SettingsOut(BaseModel):
@@ -21,6 +24,7 @@ class SettingsOut(BaseModel):
     allow_paid: bool
     provider_order: list[str] | None
     ollama_enabled: bool
+    gemini_model: str
     pomodoro_work_min: int
     pomodoro_break_min: int
     theme: str
@@ -37,6 +41,7 @@ class SettingsOut(BaseModel):
             allow_paid=settings.allow_paid,
             provider_order=settings.provider_order,
             ollama_enabled=settings.ollama_enabled,
+            gemini_model=settings.gemini_model,
             pomodoro_work_min=settings.pomodoro_work_min,
             pomodoro_break_min=settings.pomodoro_break_min,
             theme=settings.theme,
@@ -60,6 +65,7 @@ class SettingsUpdate(BaseModel):
     allow_paid: bool | None = None
     provider_order: list[str] | None = None
     ollama_enabled: bool | None = None
+    gemini_model: GeminiModel | None = None
     pomodoro_work_min: int | None = Field(default=None, ge=1, le=180)
     pomodoro_break_min: int | None = Field(default=None, ge=1, le=120)
     theme: Theme | None = None

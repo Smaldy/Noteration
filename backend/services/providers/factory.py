@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from backend.services.providers.base import Provider
 from backend.services.providers.claude import ClaudeProvider
+from backend.services.providers.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
 from backend.services.providers.gemini import GeminiProvider
 from backend.services.providers.ollama import DEFAULT_HOST, OllamaProvider
 from backend.services.providers.waterfall import Waterfall
@@ -27,6 +28,7 @@ DEFAULT_ORDER = ("gemini_free", "ollama", "claude_paid")
 def build_waterfall(
     *,
     gemini_key: str | None = None,
+    gemini_model: str | None = None,
     claude_key: str | None = None,
     allow_paid: bool = False,
     ollama_model: str | None = None,
@@ -41,7 +43,9 @@ def build_waterfall(
     # boolean columns (SQLAlchemy defaults apply only on flush), and None must
     # not leak into provider `enabled` flags.
     by_name: dict[str, Provider] = {
-        "gemini_free": GeminiProvider(gemini_key, **clock_kwargs),
+        "gemini_free": GeminiProvider(
+            gemini_key, model=gemini_model or GEMINI_DEFAULT_MODEL, **clock_kwargs
+        ),
         "ollama": OllamaProvider(
             model=ollama_model,
             host=ollama_host,
@@ -69,6 +73,7 @@ def build_waterfall_from_settings(
     """Build the waterfall from the persisted ``Settings`` singleton."""
     return build_waterfall(
         gemini_key=settings.api_key_gemini,
+        gemini_model=settings.gemini_model,
         claude_key=settings.api_key_claude,
         allow_paid=settings.allow_paid,
         ollama_model=ollama_model,  # model TBD by benchmark; gated by ollama_enabled

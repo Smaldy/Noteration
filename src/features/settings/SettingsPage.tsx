@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { applyAppearance, useSettingsStore } from "@/stores/settings";
-import type { Settings, Theme } from "@/types/settings";
+import type { GeminiModel, Settings, Theme } from "@/types/settings";
 
 interface FormState {
   allow_paid: boolean;
   ollama_enabled: boolean;
+  gemini_model: GeminiModel;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   theme: Theme;
@@ -20,6 +21,19 @@ interface FormState {
   font_family: string;
   font_size: number;
 }
+
+const GEMINI_MODELS: { value: GeminiModel; label: string; hint: string }[] = [
+  {
+    value: "gemini-2.5-flash-lite",
+    label: "Flash Lite",
+    hint: "Cheapest, fastest — recommended for bulk generation.",
+  },
+  {
+    value: "gemini-2.5-flash",
+    label: "Flash",
+    hint: "More capable, uses more quota per topic.",
+  },
+];
 
 // Curated accent palette (hex drives --primary live).
 const PRESET_ACCENTS: { name: string; hex: string }[] = [
@@ -52,6 +66,7 @@ function toForm(s: Settings): FormState {
   return {
     allow_paid: s.allow_paid,
     ollama_enabled: s.ollama_enabled,
+    gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
     theme: (s.theme as Theme) ?? "system",
@@ -131,6 +146,7 @@ export function SettingsPage() {
       await updateSettings({
         allow_paid: form.allow_paid,
         ollama_enabled: form.ollama_enabled,
+        gemini_model: form.gemini_model,
         pomodoro_work_min: form.pomodoro_work_min,
         pomodoro_break_min: form.pomodoro_break_min,
         theme: form.theme,
@@ -175,6 +191,28 @@ export function SettingsPage() {
         title="Provider waterfall"
         description="Free providers run first. Order is automatic (cheapest-first)."
       >
+        <Field label="Gemini model">
+          <div className="inline-flex rounded-lg border p-1">
+            {GEMINI_MODELS.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => set("gemini_model", m.value)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-sm font-medium transition-colors",
+                  form.gemini_model === m.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hint}
+          </p>
+        </Field>
         <Toggle
           label="Allow paid fallback (Claude)"
           hint="Off = never spend; free tiers only."

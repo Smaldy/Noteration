@@ -266,6 +266,11 @@ def test_waterfall_cache_rebuilds_only_on_settings_change(
     assert third is not first  # rebuilt so the change takes effect
     assert len(builds) == 2
 
+    settings.gemini_model = "gemini-2.5-flash"  # user picked a different model
+    fourth = cache.for_settings(settings)
+    assert fourth is not third  # rebuilt so the new model takes effect
+    assert len(builds) == 3
+
 
 def test_drain_reuses_waterfall_so_rate_limit_persists(
     session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -81,7 +81,7 @@ class GeminiProvider(Provider):
             response = client.models.generate_content(
                 model=self.model,
                 contents=prompt,
-                config={"max_output_tokens": max_tokens},
+                config=self._config(max_tokens),
             )
         except Exception as exc:  # noqa: BLE001 - mapped to typed provider errors
             raise self._map_error(exc) from exc
@@ -99,7 +99,7 @@ class GeminiProvider(Provider):
                     types.Part.from_bytes(data=image, mime_type="image/png"),
                     _VISION_PROMPT,
                 ],
-                config={"max_output_tokens": max_tokens},
+                config=self._config(max_tokens),
             )
         except Exception as exc:  # noqa: BLE001
             raise self._map_error(exc) from exc
@@ -107,6 +107,21 @@ class GeminiProvider(Provider):
         return self._to_result(response)
 
     # -- internals -----------------------------------------------------------
+
+    def _config(self, max_tokens: int) -> dict[str, Any]:
+        """Generation config with "thinking" disabled.
+
+        The 2.5 flash models otherwise spend much of ``max_output_tokens`` on
+        hidden reasoning, which truncates notes and the assessment JSON. We want
+        the whole budget on visible content; flash-lite has no thinking anyway,
+        so disabling it is uniform and safe across the offered models.
+        """
+        from google.genai import types  # lazy
+
+        return {
+            "max_output_tokens": max_tokens,
+            "thinking_config": types.ThinkingConfig(thinking_budget=0),
+        }
 
     def _get_client(self) -> Any:
         if self._client is None:
