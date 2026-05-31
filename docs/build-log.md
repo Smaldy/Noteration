@@ -573,6 +573,30 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   the persisted setting drives the built provider's `.model`. Tree green: backend
   **249 passed**, `tsc -b` + `npm run build` clean.
 
+- **UI/UX redesign pass (DONE, user-requested).** Replaced the generic shadcn
+  base with a designed system: type pairing (Montserrat display / Plus Jakarta
+  Sans body / Newsreader for notes prose, all bundled via `@fontsource-variable`);
+  an accent-derived palette — `buildPalette()` in `stores/settings.ts` generates
+  every token (bg/card/border/muted/accent + new `--primary-soft`) from one hex,
+  tint saturation scaling to the accent, auto-contrast foreground, so a picked
+  color flows through the whole UI (indigo default; tinted canvas + atmosphere
+  wash replace flat white/black). Settings reworked: sticky frosted header + a
+  persistent bottom save bar (no scroll-to-save), dirty-state + Discard, animated
+  "Saved", spring-animated sliding segmented controls. Calendar fully re-skinned
+  (carded, pill toolbar, rounded grid, chip events with hover lift, today accent,
+  color legend). Commits `19f08be` + `09a7c65` (fixed an inline-label layout bug
+  where segmented controls sat beside their label). Frontend build clean.
+- **Library search (DONE, user-requested).** `GET /api/search?q=&subject_id=&limit=`
+  — new `search` service/router/schema. Case-insensitive title substring over
+  topics then chapters (topics rank first), each hit joined up to a full
+  subject·chapter·document breadcrumb for deep-linking; optional `subject_id`
+  scope via the denormalized `Chapter.subject_id`; LIKE wildcards escaped to
+  match literally; `limit` capped 1–100. Frontend `SearchBar` on the Library
+  page: debounced (180ms) with an out-of-order response guard, subject filter,
+  animated results dropdown (icon, topic status dot, kind chip), topic →
+  `/study/{topicId}` / chapter → document study view. +8 tests. Tree green:
+  backend **257 passed**, `npm run build` clean.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)

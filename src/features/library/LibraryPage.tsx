@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { SearchBar } from "@/features/search/SearchBar";
 import { UploadDialog } from "@/features/upload/UploadDialog";
 import { useLibraryStore } from "@/stores/library";
 
@@ -72,6 +73,9 @@ export function LibraryPage() {
         onUploaded={(documentId) => navigate(`/documents/${documentId}/review`)}
       />
 
+      <div className="mb-8 animate-rise">
+        <SearchBar />
+      </div>
 
       {status === "loading" && (
         <p className="text-sm text-muted-foreground">Loading your library…</p>
