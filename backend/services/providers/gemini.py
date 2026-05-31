@@ -24,7 +24,11 @@ from backend.services.providers.budget import FreeTierLimiter
 # Conservative free-tier defaults; tune as Google's quotas change.
 DEFAULT_RPM = 15
 DEFAULT_RPD = 1500
-DEFAULT_MODEL = "gemini-2.0-flash"
+# gemini-2.0-flash's free tier is now limit:0 (every call 429s); 2.5 is the
+# current free-tier model. flash-lite is the cheapest 2.5 tier and, unlike
+# gemini-2.5-flash, spends no output-token budget on "thinking" — so it returns
+# full notes/JSON within max_output_tokens instead of being truncated.
+DEFAULT_MODEL = "gemini-2.5-flash-lite"
 _VISION_PROMPT = (
     "Transcribe the equation in this image to LaTeX. Output only the LaTeX, "
     "with no surrounding text or delimiters."

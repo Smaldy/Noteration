@@ -517,6 +517,31 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   markdown preferred, needs_manual preserved). Tree green: full suite **245 passed**;
   `npm run build` clean.
 
+- **Fix E — "Gemini doesn't do the work" / nothing generated (DONE).** Root cause
+  was **external, surfaced by the queue silently**: a valid free-tier key, but the
+  hardcoded model `gemini-2.0-flash` now has free-tier `limit: 0` — every call
+  returns `429 RESOURCE_EXHAUSTED` ("Quota exceeded … free_tier_requests, limit:
+  0, model: gemini-2.0-flash"). With Gemini the only configured provider, each
+  notes/assessment job hit `ProviderLimitError` → `AllProvidersExhausted` → the
+  queue's exhaustion path rolled back and re-deferred (`resume_after` set,
+  `attempts` untouched, **no `last_error` written**), so jobs looped forever with
+  nothing shown in the Queue UI. Diagnosed from the live DB (0 notes/MCQs/
+  flashcards ever; 12 "done" formula jobs all stamped `assigned_provider="none"`,
+  i.e. no math → no model call) + a direct `GeminiProvider` call exposing the
+  hidden 429, confirmed by the user's AI Studio dashboard (100% of requests →
+  429). Probed the key across models: `gemini-2.0-flash`/`-001`/`2.5-pro` → 429,
+  `1.5-flash` → 404 (retired), **`2.5-flash`/`2.5-flash-lite`/`flash-latest` →
+  200**. Fix: switched `gemini.DEFAULT_MODEL` to **`gemini-2.5-flash-lite`** — the
+  cheapest 2.5 tier, and unlike `gemini-2.5-flash` it spends no output-token budget
+  on "thinking" (verified: at the 2048-token notes budget, flash returned 2839
+  chars only after burning 1294 thinking tokens — risks truncating the assessment
+  JSON — while flash-lite returned full content cleanly). Verified live end-to-end
+  through `GeminiProvider` with the user's key; 33 provider tests still green.
+  Deferred (logged, not built): (1) record `last_error` on the exhaustion-defer
+  path + surface "all providers exhausted / quota=0" as a visible Queue state so a
+  perpetually-429ing provider isn't invisible; (2) make the Gemini model
+  configurable in Settings so a future free-tier change doesn't need a code edit.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
