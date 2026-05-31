@@ -18,6 +18,8 @@ interface LibraryStore {
   deleteSubject: (subjectId: number) => Promise<void>;
   /** Bookmark/unbookmark a subject (optimistic; reverts on failure). */
   toggleSubjectBookmark: (subjectId: number, bookmarked: boolean) => Promise<void>;
+  /** Persist a new manual order of the Library cards (optimistic). */
+  reorderDocuments: (orderedIds: number[]) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
@@ -59,6 +61,19 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       await api.put(`/subjects/${subjectId}/bookmark`, { bookmarked });
     } catch {
       apply(!bookmarked); // revert
+    }
+  },
+  reorderDocuments: async (orderedIds) => {
+    const previous = get().documents;
+    const byId = new Map(previous.map((d) => [d.id, d]));
+    const next = orderedIds
+      .map((id) => byId.get(id))
+      .filter((d): d is DocumentSummary => d !== undefined);
+    set({ documents: next }); // optimistic
+    try {
+      await api.put("/documents/reorder", { ids: orderedIds });
+    } catch {
+      set({ documents: previous }); // revert
     }
   },
 }));

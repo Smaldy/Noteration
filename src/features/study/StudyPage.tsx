@@ -24,6 +24,7 @@ export function StudyPage() {
     fetchTopic,
     deleteTopic,
     toggleTopicBookmark,
+    reorderTopics,
     clearContent,
   } = useStudyStore();
 
@@ -82,6 +83,7 @@ export function StudyPage() {
             onSelectTopic={selectTopic}
             onDeleteTopic={handleDeleteTopic}
             onToggleBookmark={(tId, b) => void toggleTopicBookmark(tId, b)}
+            onReorderTopics={(chapterId, ids) => void reorderTopics(chapterId, ids)}
           />
         )}
       </aside>

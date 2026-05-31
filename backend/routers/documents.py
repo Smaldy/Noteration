@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.schemas.library import DocumentSummaryOut
+from backend.schemas.reorder import ReorderRequest
 from backend.schemas.structure import (
     ConfirmStructureIn,
     ConfirmStructureResult,
@@ -26,6 +27,16 @@ def list_documents(
 ) -> list[docsvc.DocumentSummary]:
     """The Library list: all documents with subject info and topic-ready progress."""
     return docsvc.list_documents(session)
+
+
+@router.put("/reorder", status_code=204)
+def reorder_documents(
+    payload: ReorderRequest,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Persist the manual Library order (drag-and-drop)."""
+    docsvc.reorder_documents(session, payload.ids)
+    return Response(status_code=204)
 
 
 @router.post("", response_model=UploadResult, status_code=201)

@@ -8,10 +8,21 @@ from sqlalchemy.orm import Session
 from backend.db.database import get_session
 from backend.models import Topic
 from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
+from backend.schemas.reorder import ReorderRequest
 from backend.schemas.topic import TopicContentOut
 from backend.services import topics as topicsvc
 
 router = APIRouter(prefix="/topics", tags=["topics"])
+
+
+@router.put("/reorder", status_code=204)
+def reorder_topics(
+    payload: ReorderRequest,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Persist a chapter's manual topic order (drag-and-drop in the sidebar)."""
+    topicsvc.reorder_topics(session, payload.ids)
+    return Response(status_code=204)
 
 
 @router.get("/{topic_id}", response_model=TopicContentOut)

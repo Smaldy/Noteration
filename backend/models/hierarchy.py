@@ -61,6 +61,7 @@ class Document(Base):
     status: Mapped[DocumentStatus] = mapped_column(
         SAEnum(DocumentStatus, native_enum=False), default=DocumentStatus.uploaded
     )
+    order_index: Mapped[int] = mapped_column(default=0)  # manual Library order
     uploaded_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     subject: Mapped[Subject] = relationship(back_populates="documents")

@@ -8,6 +8,24 @@ from sqlalchemy.orm import Session, selectinload
 from backend.models import Note, Topic
 
 
+def reorder_topics(session: Session, ids: list[int]) -> None:
+    """Set each listed topic's ``order_index`` to its position in ``ids``.
+
+    Used to drag-reorder topics within a chapter; unknown ids are ignored.
+    """
+    found = {
+        topic.id: topic
+        for topic in session.execute(
+            select(Topic).where(Topic.id.in_(ids))
+        ).scalars()
+    }
+    for position, topic_id in enumerate(ids):
+        topic = found.get(topic_id)
+        if topic is not None:
+            topic.order_index = position
+    session.commit()
+
+
 class TopicNotFoundError(LookupError):
     """Referenced topic does not exist."""
 

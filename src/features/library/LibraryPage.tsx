@@ -1,4 +1,19 @@
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import {
   Bookmark,
   BookOpen,
   CalendarDays,
@@ -19,14 +34,29 @@ import type { DocumentSummary } from "@/types/library";
 import { DocumentCard } from "./DocumentCard";
 
 export function LibraryPage() {
-  const { documents, status, error, fetchDocuments, deleteSubject } =
+  const { documents, status, error, fetchDocuments, deleteSubject, reorderDocuments } =
     useLibraryStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   useEffect(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = documents.findIndex((d) => d.id === active.id);
+    const newIndex = documents.findIndex((d) => d.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(documents, oldIndex, newIndex);
+    void reorderDocuments(next.map((d) => d.id));
+  }
 
   async function handleDelete(doc: DocumentSummary) {
     const ok = window.confirm(
@@ -122,16 +152,22 @@ export function LibraryPage() {
       )}
 
       {status === "loaded" && documents.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[...documents]
-            .sort(
-              (a, b) =>
-                Number(b.subject_bookmarked) - Number(a.subject_bookmarked),
-            )
-            .map((doc, i) => (
-              <DocumentCard key={doc.id} doc={doc} index={i} onDelete={handleDelete} />
-            ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={documents.map((d) => d.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {documents.map((doc) => (
+                <DocumentCard key={doc.id} doc={doc} onDelete={handleDelete} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );

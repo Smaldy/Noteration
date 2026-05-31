@@ -96,7 +96,12 @@ def list_documents(session: Session) -> list[DocumentSummary]:
     rows = session.execute(
         select(Document, Subject.name, Subject.exam_date, Subject.bookmarked)
         .join(Subject, Document.subject_id == Subject.id)
-        .order_by(Document.uploaded_at.desc(), Document.id.desc())
+        # Manual order first; newest-first as the tie-break for un-reordered rows.
+        .order_by(
+            Document.order_index.asc(),
+            Document.uploaded_at.desc(),
+            Document.id.desc(),
+        )
     ).all()
 
     summaries: list[DocumentSummary] = []
@@ -119,6 +124,24 @@ def list_documents(session: Session) -> list[DocumentSummary]:
     return summaries
 
 
+def reorder_documents(session: Session, ids: list[int]) -> None:
+    """Set each listed document's ``order_index`` to its position in ``ids``.
+
+    Unknown ids are ignored; documents not in the list keep their current index.
+    """
+    found = {
+        doc.id: doc
+        for doc in session.execute(
+            select(Document).where(Document.id.in_(ids))
+        ).scalars()
+    }
+    for position, doc_id in enumerate(ids):
+        doc = found.get(doc_id)
+        if doc is not None:
+            doc.order_index = position
+    session.commit()
+
+
 def create_document(
     session: Session,
     *,
@@ -137,12 +160,16 @@ def create_document(
     pdf_path = _persist_upload(data, Path(uploads_dir))
     result = ingest_fn(pdf_path)
 
+    # New uploads sort to the front by default (smallest order_index), while
+    # still respecting any manual order the user has set on existing cards.
+    min_order = session.execute(select(func.min(Document.order_index))).scalar()
     document = Document(
         subject_id=subject_id,
         filename=filename,
         file_hash=result.file_hash,
         markdown_path=str(result.markdown_path),
         status=DocumentStatus.uploaded,
+        order_index=(min_order if min_order is not None else 0) - 1,
     )
     session.add(document)
     session.commit()

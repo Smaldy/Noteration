@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { CalendarDays, FileText, Trash2 } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { CalendarDays, FileText, GripVertical, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
+import { cn } from "@/lib/utils";
 import { useLibraryStore } from "@/stores/library";
 import type { DocumentSummary } from "@/types/library";
 
@@ -29,15 +31,16 @@ function formatExamDate(iso: string | null): string {
 
 export function DocumentCard({
   doc,
-  index = 0,
   onDelete,
 }: {
   doc: DocumentSummary;
-  index?: number;
   onDelete?: (doc: DocumentSummary) => void;
 }) {
   const navigate = useNavigate();
   const toggleSubjectBookmark = useLibraryStore((s) => s.toggleSubjectBookmark);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: doc.id });
+
   const progress =
     doc.topics_total === 0
       ? "No topics yet"
@@ -49,13 +52,19 @@ export function DocumentCard({
       ? `/documents/${doc.id}/review`
       : `/documents/${doc.id}/study`;
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.3), ease: "easeOut" }}
-      whileHover={{ y: -4 }}
-      className="h-full"
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "h-full",
+        isDragging && "z-10 opacity-80 [&_*]:cursor-grabbing",
+      )}
     >
       <Card
         role="button"
@@ -67,50 +76,64 @@ export function DocumentCard({
             navigate(destination);
           }
         }}
-        className="h-full cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          "h-full cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          isDragging && "shadow-xl ring-2 ring-primary/40",
+        )}
       >
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <FileText className="text-muted-foreground" />
-            <CardTitle className="truncate">{doc.subject_name}</CardTitle>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <BookmarkButton
-              bookmarked={doc.subject_bookmarked}
-              label={doc.subject_name}
-              onToggle={(next) => void toggleSubjectBookmark(doc.subject_id, next)}
-            />
-            <StatusBadge status={doc.status} />
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                title="Delete subject"
-                aria-label={`Delete ${doc.subject_name}`}
-                className="size-7 text-muted-foreground hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(doc);
-                }}
+        <CardHeader>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <button
+                type="button"
+                aria-label="Drag to reorder"
+                title="Drag to reorder"
+                onClick={(e) => e.stopPropagation()}
+                className="-ml-1 shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground/50 transition-colors hover:text-foreground active:cursor-grabbing"
+                {...attributes}
+                {...listeners}
               >
-                <Trash2 className="size-4" />
-              </Button>
-            )}
+                <GripVertical className="size-4" />
+              </button>
+              <FileText className="shrink-0 text-muted-foreground" />
+              <CardTitle className="truncate">{doc.subject_name}</CardTitle>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <BookmarkButton
+                bookmarked={doc.subject_bookmarked}
+                label={doc.subject_name}
+                onToggle={(next) => void toggleSubjectBookmark(doc.subject_id, next)}
+              />
+              <StatusBadge status={doc.status} />
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Delete subject"
+                  aria-label={`Delete ${doc.subject_name}`}
+                  className="size-7 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(doc);
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm text-muted-foreground">
-        <p className="truncate" title={doc.filename}>
-          {doc.filename}
-        </p>
-        <p>{progress}</p>
-        <p className="flex items-center gap-1.5">
-          <CalendarDays className="size-3.5" />
-          {formatExamDate(doc.exam_date)}
-        </p>
-      </CardContent>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p className="truncate" title={doc.filename}>
+            {doc.filename}
+          </p>
+          <p>{progress}</p>
+          <p className="flex items-center gap-1.5">
+            <CalendarDays className="size-3.5" />
+            {formatExamDate(doc.exam_date)}
+          </p>
+        </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }

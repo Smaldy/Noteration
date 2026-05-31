@@ -22,6 +22,8 @@ interface StudyStore {
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
   toggleTopicBookmark: (topicId: number, bookmarked: boolean) => Promise<void>;
+  /** Persist a chapter's new topic order (optimistic). */
+  reorderTopics: (chapterId: number, orderedIds: number[]) => Promise<void>;
   /** Clear the selected topic's content (e.g. when none is selected). */
   clearContent: () => void;
 }
@@ -91,6 +93,28 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
       await api.put(`/topics/${topicId}/bookmark`, { bookmarked });
     } catch {
       apply(!bookmarked); // revert
+    }
+  },
+
+  reorderTopics: async (chapterId, orderedIds) => {
+    const previous = get().tree;
+    if (!previous) return;
+    const next = {
+      ...previous,
+      chapters: previous.chapters.map((ch) => {
+        if (ch.id !== chapterId) return ch;
+        const byId = new Map(ch.topics.map((t) => [t.id, t]));
+        const topics = orderedIds
+          .map((id) => byId.get(id))
+          .filter((t): t is (typeof ch.topics)[number] => t !== undefined);
+        return { ...ch, topics };
+      }),
+    };
+    set({ tree: next }); // optimistic
+    try {
+      await api.put("/topics/reorder", { ids: orderedIds });
+    } catch {
+      set({ tree: previous }); // revert
     }
   },
 

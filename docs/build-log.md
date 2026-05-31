@@ -640,6 +640,22 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   context is unlocked on the play gesture (autoplay policy). No URL/stream support
   by request. Frontend-only; `npm run build` clean. **The bookmarks + pomodoro
   request is now complete across all three waves.**
+- **Drag-and-drop reordering (DONE, user-requested).** Manual order for Library
+  cards (per user choice: reorder the document cards directly, not subject groups)
+  and for topics within a chapter. Backend: `Document.order_index` (migration
+  `d3e4f5a6b7c8`, `server_default 0`; list query orders by `order_index asc` then
+  `uploaded_at desc, id desc` so existing/un-reordered libraries keep newest-first;
+  new uploads get `min(order_index)-1` so they still appear at the front).
+  `PUT /api/documents/reorder` and `PUT /api/topics/reorder` take `{ids:[...]}`
+  and write each id's `order_index` to its position (shared `ReorderRequest`).
+  `reorder_documents`/`reorder_topics` services. +5 tests (**268 passed**).
+  Frontend: added **@dnd-kit** (core/sortable/utilities). Library grid is a
+  `DndContext` + `SortableContext` (rect strategy); each `DocumentCard` has a grip
+  handle (so card-click still navigates). Study sidebar reorders topics per chapter
+  (one `DndContext` per chapter, vertical strategy) with a hover grip handle.
+  Stores reorder optimistically and revert on failure; `arrayMove` computes the new
+  order. Bookmarked-first Library sort was dropped in favor of manual order, as
+  agreed. `npm run build` clean.
 
 ## NEXT
 
