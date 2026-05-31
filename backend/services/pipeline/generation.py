@@ -33,6 +33,17 @@ from backend.services.providers.waterfall import Waterfall
 NOTES_MAX_TOKENS = 2048
 ASSESSMENT_MAX_TOKENS = 2048
 
+# Input cap on the per-topic source text sent to the model. The dominant cost
+# driver is INPUT tokens (a 22-page PDF is ~14k tokens), and a single topic never
+# needs the whole document as context. This bounds the per-call input cost
+# regardless of slicing path (cost-strategy.md "token budgets per call") and is
+# the safety net for documents whose markdown has no headings to slice by —
+# scanned/slide PDFs, or topics renamed during review. ~8k chars ≈ 2k tokens.
+SOURCE_MAX_CHARS = 8000
+# A little context carried across proportional-slice boundaries so a topic isn't
+# cut off mid-paragraph when there are no headings to slice on.
+SOURCE_OVERLAP_CHARS = 400
+
 SourceLoader = Callable[[Session, Topic], str]
 
 
@@ -106,12 +117,62 @@ def load_topic_source(session: Session, topic: Topic) -> str:
 
     section = slice_section(markdown, topic.title)
     if section:
-        return section
+        return _cap_source(section)
     if chapter is not None:
         section = slice_section(markdown, chapter.title)
         if section:
-            return section
-    return markdown.strip()
+            return _cap_source(section)
+    # No heading matched the topic or its chapter — e.g. a headingless PDF
+    # (scanned/slide decks, or markitdown output with no ATX structure) or a
+    # topic renamed during review. Returning the WHOLE document here made every
+    # topic re-send the entire file, which exhausts the token budget (a 13-topic
+    # 14k-token doc cost ~180k input tokens). Give the topic its proportional
+    # contiguous slice instead — see DECISIONS in docs/build-log.md.
+    return _proportional_slice(session, document, topic, markdown)
+
+
+def _cap_source(text: str, *, max_chars: int = SOURCE_MAX_CHARS) -> str:
+    """Strip and hard-cap source text so no single call can blow the budget."""
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip()
+
+
+def _ordered_topic_ids(session: Session, document: Document) -> list[int]:
+    """Topic ids for a document in reading order (chapter then topic order)."""
+    rows = session.execute(
+        select(Topic.id)
+        .join(Chapter, Topic.chapter_id == Chapter.id)
+        .where(Chapter.document_id == document.id)
+        .order_by(Chapter.order_index, Chapter.id, Topic.order_index, Topic.id)
+    ).all()
+    return [row[0] for row in rows]
+
+
+def _proportional_slice(
+    session: Session, document: Document, topic: Topic, markdown: str
+) -> str:
+    """Give ``topic`` its share of ``markdown`` by position among the doc's topics.
+
+    Without headings we can't locate a topic's exact text, so we assume topics
+    were defined in reading order and hand each one a contiguous window of the
+    document (with a little overlap). A single-topic document still gets the whole
+    (capped) text — that's one call, not N.
+    """
+    ordered = _ordered_topic_ids(session, document)
+    count = len(ordered)
+    if count <= 1:
+        return _cap_source(markdown)
+    try:
+        index = ordered.index(topic.id)
+    except ValueError:
+        index = 0
+    total = len(markdown)
+    window = total / count
+    start = max(0, int(index * window) - SOURCE_OVERLAP_CHARS)
+    end = min(total, int((index + 1) * window) + SOURCE_OVERLAP_CHARS)
+    return _cap_source(markdown[start:end])
 
 
 def slice_section(markdown: str, title: str) -> str | None:

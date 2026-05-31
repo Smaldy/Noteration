@@ -99,6 +99,54 @@ def test_load_topic_source_falls_back_to_chapter(session: Session, tmp_path: Pat
     assert "## Kinematics" in source and "## Dynamics" in source
 
 
+_HEADINGLESS_MD = "\n\n".join(f"Paragraph {i} content about physics." * 40 for i in range(12))
+
+
+def _seed_headingless(session: Session, tmp_path: Path, titles: list[str]) -> list[Topic]:
+    """A document whose markdown has no headings + topics named off-content."""
+    md = tmp_path / "headingless.md"
+    md.write_text(_HEADINGLESS_MD, encoding="utf-8")
+    subject = Subject(name="Physics")
+    document = Document(
+        subject=subject, filename="f.pdf", file_hash="h2", markdown_path=str(md)
+    )
+    chapter = Chapter(document=document, subject=subject, title="Fundamentals Physics")
+    topics = [
+        Topic(chapter=chapter, title=title, order_index=i)
+        for i, title in enumerate(titles)
+    ]
+    session.add_all([subject, document, chapter, *topics])
+    session.commit()
+    return topics
+
+
+def test_headingless_doc_does_not_send_whole_document_per_topic(
+    session: Session, tmp_path: Path
+) -> None:
+    # The bug: with no headings and content-named topics, every topic fell back
+    # to the WHOLE document, re-sending the full file N times and burning quota.
+    titles = ["Torque", "Angular momentum", "Rolling", "Gyroscopes"]
+    topics = _seed_headingless(session, tmp_path, titles)
+    full = (tmp_path / "headingless.md").read_text(encoding="utf-8")
+
+    sources = [load_topic_source(session, t) for t in topics]
+
+    # Each topic gets a bounded slice, not the entire document.
+    for src in sources:
+        assert len(src) < len(full)
+        assert len(src) <= 8000  # SOURCE_MAX_CHARS
+    # Topics get *different* slices (proportional by reading order), so the doc
+    # is covered once across topics instead of re-sent in full per topic.
+    assert len(set(sources)) == len(sources)
+
+
+def test_load_topic_source_is_capped(session: Session, tmp_path: Path) -> None:
+    # Even a single-topic headingless doc is hard-capped (safety net).
+    [topic] = _seed_headingless(session, tmp_path, ["Only topic"])
+    source = load_topic_source(session, topic)
+    assert len(source) <= 8000
+
+
 def test_load_topic_source_missing_markdown_raises(session: Session, tmp_path: Path) -> None:
     topic = _seed(session, tmp_path, topic_title="Kinematics")
     chapter = session.get(Chapter, topic.chapter_id)

@@ -656,6 +656,27 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   Stores reorder optimistically and revert on failure; `arrayMove` computes the new
   order. Bookmarked-first Library sort was dropped in favor of manual order, as
   agreed. `npm run build` clean.
+- **Fix C — Excessive token usage on headingless PDFs (DONE, user-reported).**
+  User reported ~300k tokens / 22 requests on a 22-page PDF (`gemini_free` recorded
+  **218k tokens** for one doc). Root cause (confirmed against the live DB): the doc's
+  markitdown output had **zero ATX headings** and its 13 topics were named by content
+  ("Torque", "Angular momentum", …) — none matching a heading. `load_topic_source`
+  slices per-topic source by matching the topic/chapter title to a heading; with no
+  match it silently fell through to `return markdown.strip()` — **the whole document**
+  — for *every* topic. So 13 topics each re-sent the full ~14.4k-token markdown
+  (~187k input tokens), exhausting the free-tier daily budget; jobs then rolled back
+  and requeued (why notes/assessment sat `pending`). The formula stage was innocent
+  (0 math regions detected → 0 calls). Fix: when neither topic nor chapter title
+  matches a heading (headingless/scanned/slide PDFs, or topics renamed in review),
+  hand each topic a **bounded, proportional contiguous slice** of the markdown by
+  reading order (`order_index`, with small overlap), plus a hard `SOURCE_MAX_CHARS`
+  (~8k chars / 2k tokens) cap on **all** paths as a safety net. Heading-matched docs
+  are unchanged. Measured on the reported doc: per-topic source 14.4k→~1.3k tokens,
+  notes-stage total input **187k→17k (11.1x reduction)**. Decision (per
+  `docs/review.md` "pick the cheapest reasonable option"): proportional slicing
+  assumes topics were defined in document order — without headings the exact per-topic
+  text can't be located short of an extra segmentation model pass, which is deferred.
+  +2 tests (headingless no-whole-doc + cap). Tree green: full suite **270 passed**.
 
 ## NEXT
 
