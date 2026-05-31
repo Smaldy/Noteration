@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
@@ -23,3 +23,16 @@ def topic_content(
         return topicsvc.get_topic_content(session, topic_id)
     except topicsvc.TopicNotFoundError:
         raise HTTPException(status_code=404, detail="Topic not found")
+
+
+@router.delete("/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_topic(
+    topic_id: int,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Delete a topic and all its generated content (cascades)."""
+    try:
+        topicsvc.delete_topic(session, topic_id)
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

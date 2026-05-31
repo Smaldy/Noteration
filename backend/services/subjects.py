@@ -41,3 +41,20 @@ def create_subject(
     session.commit()
     session.refresh(subject)
     return subject
+
+
+class SubjectNotFoundError(LookupError):
+    """Referenced subject does not exist."""
+
+
+def delete_subject(session: Session, subject_id: int) -> None:
+    """Delete a subject and its whole hierarchy.
+
+    Cascades down documents → chapters → topics and everything generated from
+    those topics. Raises ``SubjectNotFoundError`` if it does not exist.
+    """
+    subject = session.get(Subject, subject_id)
+    if subject is None:
+        raise SubjectNotFoundError(subject_id)
+    session.delete(subject)
+    session.commit()

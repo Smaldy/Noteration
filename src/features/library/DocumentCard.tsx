@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { CalendarDays, FileText } from "lucide-react";
+import { CalendarDays, FileText, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -24,7 +25,15 @@ function formatExamDate(iso: string | null): string {
   });
 }
 
-export function DocumentCard({ doc, index = 0 }: { doc: DocumentSummary; index?: number }) {
+export function DocumentCard({
+  doc,
+  index = 0,
+  onDelete,
+}: {
+  doc: DocumentSummary;
+  index?: number;
+  onDelete?: (doc: DocumentSummary) => void;
+}) {
   const navigate = useNavigate();
   const progress =
     doc.topics_total === 0
@@ -63,7 +72,24 @@ export function DocumentCard({ doc, index = 0 }: { doc: DocumentSummary; index?:
             <FileText className="text-muted-foreground" />
             <CardTitle className="truncate">{doc.subject_name}</CardTitle>
           </div>
-          <StatusBadge status={doc.status} />
+          <div className="flex shrink-0 items-center gap-1">
+            <StatusBadge status={doc.status} />
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Delete subject"
+                aria-label={`Delete ${doc.subject_name}`}
+                className="size-7 text-muted-foreground hover:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(doc);
+                }}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 text-sm text-muted-foreground">

@@ -183,3 +183,39 @@ def test_http_topic_content(client: TestClient, db_factory: sessionmaker) -> Non
 
 def test_http_topic_content_404(client: TestClient) -> None:
     assert client.get("/api/topics/999").status_code == 404
+
+
+# --- delete ------------------------------------------------------------------
+
+
+def test_delete_topic_cascades_content(session: Session) -> None:
+    _, topic_id = _seed_document(session)
+    # Sanity: the topic has generated content before deletion.
+    assert session.query(Note).filter_by(topic_id=topic_id).count() == 1
+    assert session.query(MCQ).filter_by(topic_id=topic_id).count() == 1
+    assert session.query(Flashcard).filter_by(topic_id=topic_id).count() == 1
+
+    topicsvc.delete_topic(session, topic_id)
+
+    assert session.get(Topic, topic_id) is None
+    assert session.query(Note).filter_by(topic_id=topic_id).count() == 0
+    assert session.query(Formula).count() == 0  # note's formula cascaded too
+    assert session.query(MCQ).filter_by(topic_id=topic_id).count() == 0
+    assert session.query(Flashcard).filter_by(topic_id=topic_id).count() == 0
+
+
+def test_delete_topic_unknown_raises(session: Session) -> None:
+    with pytest.raises(topicsvc.TopicNotFoundError):
+        topicsvc.delete_topic(session, 999)
+
+
+def test_http_delete_topic(client: TestClient, db_factory: sessionmaker) -> None:
+    with db_factory() as db:
+        _, topic_id = _seed_document(db)
+
+    assert client.delete(f"/api/topics/{topic_id}").status_code == 204
+    assert client.get(f"/api/topics/{topic_id}").status_code == 404
+
+
+def test_http_delete_topic_404(client: TestClient) -> None:
+    assert client.delete("/api/topics/999").status_code == 404

@@ -22,6 +22,7 @@ export function StudyPage() {
     contentError,
     fetchTree,
     fetchTopic,
+    deleteTopic,
     clearContent,
   } = useStudyStore();
 
@@ -36,6 +37,23 @@ export function StudyPage() {
 
   function selectTopic(nextTopicId: number) {
     navigate(`/documents/${documentId}/study/${nextTopicId}`);
+  }
+
+  async function handleDeleteTopic(deleteId: number, title: string) {
+    const ok = window.confirm(
+      `Delete the topic "${title}" and its notes, quiz, and flashcards? ` +
+        `This can't be undone.`,
+    );
+    if (!ok) return;
+    try {
+      await deleteTopic(deleteId, documentId);
+      // If the open topic was the one removed, drop back to the empty state.
+      if (deleteId === selectedTopicId) {
+        navigate(`/documents/${documentId}/study`);
+      }
+    } catch {
+      window.alert("Couldn't delete that topic. Please try again.");
+    }
   }
 
   return (
@@ -61,6 +79,7 @@ export function StudyPage() {
             tree={tree}
             selectedTopicId={selectedTopicId}
             onSelectTopic={selectTopic}
+            onDeleteTopic={handleDeleteTopic}
           />
         )}
       </aside>

@@ -14,6 +14,8 @@ interface LibraryStore {
   fetchDocuments: () => Promise<void>;
   /** Upload a PDF to a subject, then refresh the list; returns the upload result. */
   uploadDocument: (subjectId: number, file: File) => Promise<UploadResult>;
+  /** Delete a subject (and all its documents/topics), then refresh the list. */
+  deleteSubject: (subjectId: number) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
@@ -38,5 +40,9 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const result = await api.upload<UploadResult>("/documents", form);
     await get().fetchDocuments();
     return result;
+  },
+  deleteSubject: async (subjectId) => {
+    await api.del(`/subjects/${subjectId}`);
+    await get().fetchDocuments();
   },
 }));

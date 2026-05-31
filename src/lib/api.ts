@@ -67,4 +67,5 @@ export const api = {
   // Multipart: do NOT set Content-Type — the browser adds the boundary itself.
   upload: <T>(path: string, form: FormData) =>
     request<T>(path, { method: "POST", body: form }),
+  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

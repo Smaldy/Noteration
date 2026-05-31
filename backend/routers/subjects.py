@@ -6,7 +6,7 @@ existing subject or create one before attaching a PDF.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
@@ -35,3 +35,16 @@ def create_subject(
         accent_color=payload.accent_color,
         exam_date=payload.exam_date,
     )
+
+
+@router.delete("/{subject_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_subject(
+    subject_id: int,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Delete a subject and its entire document/chapter/topic hierarchy."""
+    try:
+        subjectsvc.delete_subject(session, subject_id)
+    except subjectsvc.SubjectNotFoundError:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

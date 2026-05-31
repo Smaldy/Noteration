@@ -30,3 +30,17 @@ def get_topic_content(session: Session, topic_id: int) -> Topic:
     if topic is None:
         raise TopicNotFoundError(topic_id)
     return topic
+
+
+def delete_topic(session: Session, topic_id: int) -> None:
+    """Delete a topic and everything generated from it.
+
+    ORM + DB cascade remove the topic's notes (and their formulas), MCQs,
+    flashcards, queue jobs, schedule entries, and source pages. Raises
+    ``TopicNotFoundError`` if it does not exist.
+    """
+    topic = session.get(Topic, topic_id)
+    if topic is None:
+        raise TopicNotFoundError(topic_id)
+    session.delete(topic)
+    session.commit()

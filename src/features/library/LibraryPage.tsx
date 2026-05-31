@@ -6,16 +6,32 @@ import { Button } from "@/components/ui/button";
 import { UploadDialog } from "@/features/upload/UploadDialog";
 import { useLibraryStore } from "@/stores/library";
 
+import type { DocumentSummary } from "@/types/library";
+
 import { DocumentCard } from "./DocumentCard";
 
 export function LibraryPage() {
-  const { documents, status, error, fetchDocuments } = useLibraryStore();
+  const { documents, status, error, fetchDocuments, deleteSubject } =
+    useLibraryStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
+
+  async function handleDelete(doc: DocumentSummary) {
+    const ok = window.confirm(
+      `Delete the subject "${doc.subject_name}" and all of its documents, ` +
+        `topics, notes, and schedule? This can't be undone.`,
+    );
+    if (!ok) return;
+    try {
+      await deleteSubject(doc.subject_id);
+    } catch {
+      window.alert("Couldn't delete that subject. Please try again.");
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
@@ -93,7 +109,7 @@ export function LibraryPage() {
       {status === "loaded" && documents.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {documents.map((doc, i) => (
-            <DocumentCard key={doc.id} doc={doc} index={i} />
+            <DocumentCard key={doc.id} doc={doc} index={i} onDelete={handleDelete} />
           ))}
         </div>
       )}

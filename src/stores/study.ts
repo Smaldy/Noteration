@@ -18,11 +18,13 @@ interface StudyStore {
   fetchTree: (documentId: number) => Promise<void>;
   /** Load a topic's notes/MCQs/flashcards for the tabs. */
   fetchTopic: (topicId: number) => Promise<void>;
+  /** Delete a topic (and its content), then refresh the document's tree. */
+  deleteTopic: (topicId: number, documentId: number) => Promise<void>;
   /** Clear the selected topic's content (e.g. when none is selected). */
   clearContent: () => void;
 }
 
-export const useStudyStore = create<StudyStore>((set) => ({
+export const useStudyStore = create<StudyStore>((set, get) => ({
   tree: null,
   treeStatus: "idle",
   treeError: null,
@@ -56,6 +58,11 @@ export const useStudyStore = create<StudyStore>((set) => ({
           err instanceof ApiError ? err.message : "Failed to load the topic.",
       });
     }
+  },
+
+  deleteTopic: async (topicId, documentId) => {
+    await api.del(`/topics/${topicId}`);
+    await get().fetchTree(documentId);
   },
 
   clearContent: () => set({ content: null, contentStatus: "idle", contentError: null }),

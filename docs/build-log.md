@@ -447,6 +447,24 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   integration that drives a confirmed document to `ready` + a `Note`). Tree green:
   full suite **223 passed**.
 
+- **Fix B — Delete subjects and topics (DONE).** Root cause: there were no delete
+  endpoints (subjects router was GET/POST only; topics router GET only) and no UI —
+  the only "remove" was the pre-confirm structure-review reducer. Backend: relied on
+  the existing `ondelete=CASCADE` + ORM `delete-orphan` down the whole
+  Subject→Document→Chapter→Topic spine (and Topic→notes/formulas/MCQs/flashcards/
+  jobs/schedule/source-pages), so a single `session.delete()` cleans up everything.
+  Added `subjectsvc.delete_subject` + `SubjectNotFoundError` →
+  `DELETE /api/subjects/{id}` (204/404) and `topicsvc.delete_topic` →
+  `DELETE /api/topics/{id}` (204/404). Frontend: `api.del`; library store
+  `deleteSubject` + a trash button on each `DocumentCard` (stops card-nav
+  propagation) wired through `LibraryPage` with a `window.confirm` that spells out
+  it removes the subject *and all its documents/topics*; study store `deleteTopic` +
+  a hover/focus trash button per topic in `StudySidebar`, wired through `StudyPage`
+  (confirm, then route back to the empty study state if the open topic was deleted).
+  8 tests (subject + topic cascade service tests proving children are gone, unknown→
+  raises, HTTP 204 + 404 for both). Tree green: full suite **231 passed**;
+  `tsc -b` + `npm run build` clean.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
