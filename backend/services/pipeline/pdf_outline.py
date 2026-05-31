@@ -23,7 +23,10 @@ from collections import Counter
 from pathlib import Path
 
 from backend.services.pipeline.structure import (
+    _CHAPTER_RE,
+    ProposedChapter,
     ProposedStructure,
+    ProposedTopic,
     _build_tree,
     _clean_title,
 )
@@ -50,6 +53,21 @@ _MAX_HEADING_CHARS = 140
 _MAX_HEADINGS = 300  # guard against pathological documents
 _WORDLIKE = re.compile(r"[^\W\d_]", re.UNICODE)  # at least one letter
 
+# Tool-default document titles that say nothing about the content — never use one
+# to name the slide-deck chapter (substring match, lowercased).
+_GENERIC_DOC_TITLE_MARKERS = (
+    "powerpoint presentation",
+    "presentazione standard",
+    "microsoft powerpoint",
+    "présentation",
+    "presentación",
+    "untitled",
+    "presentation1",
+    "document1",
+    "slide1",
+)
+_DEFAULT_DECK_CHAPTER = "Slides"
+
 
 def extract_pdf_structure(pdf_path: str | Path) -> ProposedStructure | None:
     """Propose a tree from the PDF's outline, else its font sizes; else ``None``.
@@ -70,15 +88,67 @@ def extract_pdf_structure(pdf_path: str | Path) -> ProposedStructure | None:
             if headings is None:
                 headings = _font_headings(doc)
                 method = "pdf_headings"
+            if not headings:
+                return None
+            chapters = _assemble(headings, _deck_title(doc))
     except Exception:  # noqa: BLE001 - any reader error → no fallback, not a crash
         return None
 
-    if not headings:
-        return None
-    chapters = _build_tree(headings)
     if not chapters:
         return None
     return ProposedStructure(chapters=chapters, needs_manual=False, method=method)
+
+
+def _assemble(
+    headings: list[tuple[int, str]], deck_title: str | None
+) -> list[ProposedChapter]:
+    """Map recovered headings to a tree, grouping slide decks into one unit.
+
+    A book (or a deck with named sections) carries hierarchy — more than one
+    heading level — so the topmost level becomes chapters and deeper levels become
+    topics (the same rule as the markdown path). A presentation is instead a flat
+    list of slide titles; turning each slide into its own chapter buries the
+    document in 20–40 one-topic chapters, so a flat run collapses into a **single**
+    chapter (named from the file when it carries a real title) with every slide as
+    a topic. A flat list that still looks like real chapter headings ("Chapter N",
+    "Part N") is kept as chapters — that's a book with a flat outline, not slides.
+    """
+    levels = {level for level, _ in headings}
+    titles = [title for _, title in headings]
+    if len(levels) > 1 or _looks_chaptered(titles):
+        return _build_tree(headings)
+    return [
+        ProposedChapter(
+            title=deck_title or _DEFAULT_DECK_CHAPTER,
+            order_index=0,
+            topics=[ProposedTopic(title=t, order_index=i) for i, t in enumerate(titles)],
+        )
+    ]
+
+
+def _looks_chaptered(titles: list[str]) -> bool:
+    """True when a clear majority of a flat list are "Chapter/Part/Unit N" lines."""
+    if len(titles) < 2:
+        return False
+    hits = sum(1 for title in titles if _CHAPTER_RE.match(title))
+    return hits >= max(2, 0.6 * len(titles))
+
+
+def _deck_title(doc) -> str | None:  # noqa: ANN001 - fitz.Document
+    """A meaningful document title from PDF metadata, else ``None``.
+
+    Authoring tools stamp generic titles ("PowerPoint Presentation",
+    "Presentazione standard di PowerPoint") that name nothing — those are rejected
+    so the deck chapter falls back to a neutral label the user renames in review.
+    """
+    metadata = doc.metadata or {}
+    title = _clean_title(metadata.get("title") or "")
+    if not title or not _WORDLIKE.search(title):
+        return None
+    lowered = title.lower()
+    if any(marker in lowered for marker in _GENERIC_DOC_TITLE_MARKERS):
+        return None
+    return title
 
 
 # --- embedded outline / bookmarks -------------------------------------------

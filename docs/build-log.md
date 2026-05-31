@@ -496,12 +496,19 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   distinct sizes → levels). Reuses the markdown path's `_build_tree`/`_clean_title`.
   `documents.detect_for_document` now runs markdown detection first and, only on
   `needs_manual`, mines the original PDF at `cache/uploads/<hash>.pdf` — so it fixes
-  **already-uploaded** documents with no re-ingestion. Verified on the two real docs:
-  physics → 23 chapters via `pdf_outline`, blockchain → 20 via `pdf_headings`. 8
-  tests (5 extractor over real PyMuPDF fixtures: TOC, generic-TOC→font fallback,
-  consecutive-collapse, flat→None, missing-file→None; 3 service: fallback used,
-  markdown preferred, needs_manual preserved when PDF yields nothing). Tree green:
-  full suite **241 passed**; `npm run build` clean.
+  **already-uploaded** documents with no re-ingestion. **Slide grouping (user
+  choice):** a flat list of slide titles would otherwise become 20–40 one-topic
+  chapters, so `_assemble` collapses a flat run into a **single chapter** (named from
+  the PDF's metadata title when meaningful — generic "PowerPoint Presentation"-type
+  titles rejected → neutral "Slides") with each slide as a topic; multi-level
+  outlines (a book, or a deck with named sections) and flat "Chapter N" lists keep
+  the chapter→topic tree. Verified on the two real docs: physics → 1 chapter
+  "Fundamentals Physics, 10e" / 23 slide-topics (`pdf_outline`), blockchain → 1
+  chapter "Slides" / 20 topics (`pdf_headings`). 10 tests (7 extractor over real
+  PyMuPDF fixtures: flat-deck→one-unit, generic-TOC→font fallback, consecutive
+  collapse, named-sections→chapters, flat-"Chapter N"→chapters, flat→None,
+  missing-file→None; 3 service: fallback used, markdown preferred, needs_manual
+  preserved). Tree green: full suite **243 passed**; `npm run build` clean.
 
 ## NEXT
 
