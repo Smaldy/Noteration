@@ -677,6 +677,16 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   assumes topics were defined in document order — without headings the exact per-topic
   text can't be located short of an extra segmentation model pass, which is deferred.
   +2 tests (headingless no-whole-doc + cap). Tree green: full suite **270 passed**.
+- **Fix C follow-up 1 — Headingless-PDF warning in structure review (DONE).**
+  Defense-in-depth for Fix C: surface when a document has no headings so the user
+  knows topic *order* matters (notes fall back to proportional-by-order slicing).
+  `detect_structure` now reports `has_headings` (True only when ATX headings were
+  found); `detect_for_document` forces it False on the PDF-outline fallback path
+  (the tree didn't come from markdown headings, so the markdown can't be sliced per
+  topic). Exposed on `ProposedStructureOut`; the React structure-review page shows
+  an amber banner ("notes are scoped to each topic by its position; keep topics in
+  reading order") when `has_headings` is false and it isn't the manual path. +4
+  assertions across structure/detect tests. Tree green: **270 passed**, build clean.
 
 ## NEXT
 

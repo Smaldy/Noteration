@@ -208,6 +208,10 @@ def detect_for_document(
     if document.file_hash and pdf_path.is_file():
         from_pdf = pdf_outline_fn(pdf_path)
         if from_pdf is not None and from_pdf.chapters:
+            # The tree came from the PDF outline, not markdown headings, so the
+            # notes stage can't slice the markdown per topic — flag it so review
+            # warns that topic order matters (proportional slicing).
+            from_pdf.has_headings = False
             return from_pdf
     return proposed
 

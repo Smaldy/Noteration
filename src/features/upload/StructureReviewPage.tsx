@@ -30,6 +30,7 @@ export function StructureReviewPage() {
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [needsManual, setNeedsManual] = useState(false);
+  const [hasHeadings, setHasHeadings] = useState(true);
   const [state, dispatch] = useReducer(structureReducer, emptyEditState);
   const [examDate, setExamDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +49,7 @@ export function StructureReviewPage() {
       .then((structure) => {
         if (cancelled) return;
         setNeedsManual(structure.needs_manual);
+        setHasHeadings(structure.has_headings);
         dispatch({ type: "init", structure });
         setStatus("ready");
       })
@@ -113,6 +115,14 @@ export function StructureReviewPage() {
         <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
           We couldn&apos;t detect a structure automatically. Add chapters and
           topics below to build one.
+        </div>
+      )}
+
+      {!hasHeadings && !needsManual && (
+        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+          This PDF has no detected headings, so notes are scoped to each topic by
+          its position in the document. Keep topics in the order they appear, and
+          split long sections into separate topics for the most relevant notes.
         </div>
       )}
 

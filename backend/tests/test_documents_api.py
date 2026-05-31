@@ -165,6 +165,9 @@ def test_detect_falls_back_to_pdf_when_markdown_needs_manual(
     )
     assert structure.method == "pdf_outline"
     assert [c.title for c in structure.chapters] == ["Recovered"]
+    # Tree came from the PDF outline, not markdown headings → notes can't slice
+    # the markdown per topic, so review must warn (topic order matters).
+    assert structure.has_headings is False
 
 
 def test_detect_prefers_markdown_over_pdf_fallback(
@@ -270,6 +273,7 @@ def test_upload_and_detect_end_to_end(
     structure = client.get(f"/api/documents/{document_id}/structure")
     assert structure.status_code == 200
     assert structure.json()["needs_manual"] is False
+    assert structure.json()["has_headings"] is True
 
 
 def test_upload_non_pdf_returns_400(client: TestClient, db_factory: sessionmaker) -> None:

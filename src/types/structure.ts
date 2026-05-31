@@ -20,6 +20,12 @@ export interface ProposedStructure {
   /** No headings detected → the user builds the tree manually. */
   needs_manual: boolean;
   method: string;
+  /**
+   * False → the PDF's markdown has no headings to scope notes by, so each topic
+   * is given its slice by reading order. Topic order then matters; the review
+   * UI warns about this.
+   */
+  has_headings: boolean;
 }
 
 // --- confirmed structure (POST …/structure, write) --------------------------

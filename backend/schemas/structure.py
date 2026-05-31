@@ -53,6 +53,9 @@ class ProposedStructureOut(BaseModel):
     chapters: list[ProposedChapterOut]
     needs_manual: bool
     method: str
+    # False → markdown has no headings to slice by; notes are scoped per topic by
+    # reading order, so the review UI warns the user that topic order matters.
+    has_headings: bool = True
 
 
 # --- confirmed structure (review submission, write) -------------------------

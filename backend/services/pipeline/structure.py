@@ -54,22 +54,34 @@ class ProposedStructure:
     chapters: list[ProposedChapter]
     needs_manual: bool  # no usable headings → user defines the tree manually
     method: str  # 'markdown' | 'text' | 'manual'
+    # Whether the markdown carries ATX headings the notes stage can slice per
+    # topic. False (headingless/scanned/slide PDFs, or a PDF-outline-derived tree)
+    # means generation falls back to proportional-by-order slicing, so topic
+    # *order* matters — the review UI warns about this. See generation.py.
+    has_headings: bool = True
 
 
 def detect_structure(markdown: str) -> ProposedStructure:
     """Propose a chapter/topic tree from ingested markdown (pure, no model)."""
     headings = _extract_atx_headings(markdown)
+    has_headings = bool(headings)
     method = "markdown"
     if not headings:
         headings = _extract_text_chapters(markdown)
         method = "text"
     if not headings:
-        return ProposedStructure(chapters=[], needs_manual=True, method="manual")
+        return ProposedStructure(
+            chapters=[], needs_manual=True, method="manual", has_headings=False
+        )
 
     chapters = _build_tree(headings)
     if not chapters:
-        return ProposedStructure(chapters=[], needs_manual=True, method="manual")
-    return ProposedStructure(chapters=chapters, needs_manual=False, method=method)
+        return ProposedStructure(
+            chapters=[], needs_manual=True, method="manual", has_headings=has_headings
+        )
+    return ProposedStructure(
+        chapters=chapters, needs_manual=False, method=method, has_headings=has_headings
+    )
 
 
 # --- heading extraction -----------------------------------------------------

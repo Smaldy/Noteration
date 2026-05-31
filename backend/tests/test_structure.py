@@ -24,6 +24,7 @@ body
 
     assert s.needs_manual is False
     assert s.method == "markdown"
+    assert s.has_headings is True
     assert [c.title for c in s.chapters] == ["Chapter A", "Chapter B"]
     assert _titles(s.chapters[0]) == ["Topic A1", "Topic A2"]
     assert _titles(s.chapters[1]) == ["Topic B1"]
@@ -89,6 +90,8 @@ def test_text_fallback_detects_chapter_lines() -> None:
 
     assert s.method == "text"
     assert s.needs_manual is False
+    # Text-fallback chapters are not ATX headings, so notes can't slice by them.
+    assert s.has_headings is False
     assert [c.title for c in s.chapters] == ["Chapter 1: Introduction", "Chapter 2 - Methods"]
     assert all(len(c.topics) == 1 for c in s.chapters)
 
@@ -107,6 +110,7 @@ def test_no_headings_flags_manual_fallback() -> None:
 
     assert s.needs_manual is True
     assert s.method == "manual"
+    assert s.has_headings is False
     assert s.chapters == []
 
 
