@@ -423,6 +423,30 @@
     (topics_enqueued 1 of 2), exam_date persisted, doc flips to `processing`. Tree
     green: `tsc -b` + `npm run build` clean (backend unchanged, **190 passed**).
 
+## POST-9 BUG FIXES (user-reported)
+
+Two defects surfaced from real use: (1) generation never ran ("added my Gemini
+key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
+"solution 1" (background worker · DELETE endpoints + UI).
+
+- **Fix A — Generation queue is now actually driven (DONE).** Root cause: the
+  queue's `run_batch`/`process_job` were only ever called in tests — nothing in
+  the live app drained it. Confirming a document enqueued jobs and flipped the doc
+  to `processing`, then they sat `pending` forever. Added
+  `backend/services/worker.py`: a single daemon `QueueWorker` thread that recovers
+  orphaned jobs on start, then every `poll_interval` (5s) runs one `drain_once` —
+  which rebuilds the waterfall from the **current** `Settings` each cycle (so a
+  newly-saved key takes effect within 5s, no restart), and skips the drain
+  entirely when no provider is configured so jobs stay `pending` (no 5-min
+  exhaustion defer) and become claimable the instant a key lands. Wired into
+  `main.py` via a `lifespan` (gated by `NOTERATION_DISABLE_WORKER=1`, which
+  `conftest.py` sets so the `with TestClient(app)` API tests don't spawn a thread
+  against the real DB). Per-job failure/exhaustion is still owned atomically by the
+  queue; a bad tick is logged and the thread survives. 4 tests (gating truth table,
+  no-op on empty/unconfigured leaving jobs untouched, and a real background-thread
+  integration that drives a confirmed document to `ready` + a `Note`). Tree green:
+  full suite **223 passed**.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
