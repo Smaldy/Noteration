@@ -561,8 +561,8 @@ function Swatch({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <div className="space-y-2.5">
+      <Label className="block">{label}</Label>
       {children}
     </div>
   );
