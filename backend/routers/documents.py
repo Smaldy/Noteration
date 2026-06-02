@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
+from backend.models.enums import DocumentMode
 from backend.schemas.library import DocumentSummaryOut
 from backend.schemas.reorder import ReorderRequest
 from backend.schemas.structure import (
@@ -23,10 +24,15 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 @router.get("", response_model=list[DocumentSummaryOut])
 def list_documents(
+    mode: DocumentMode | None = None,
     session: Session = Depends(get_session),
 ) -> list[docsvc.DocumentSummary]:
-    """The Library list: all documents with subject info and topic-ready progress."""
-    return docsvc.list_documents(session)
+    """Document list with subject info and topic-ready progress.
+
+    ``?mode=study`` scopes to the Library, ``?mode=exam`` to the Exam Prep
+    section; omitting it returns every document.
+    """
+    return docsvc.list_documents(session, mode=mode)
 
 
 @router.put("/reorder", status_code=204)
@@ -43,9 +49,14 @@ def reorder_documents(
 async def upload_document(
     subject_id: int = Form(...),
     file: UploadFile = File(...),
+    mode: DocumentMode = Form(DocumentMode.study),
     session: Session = Depends(get_session),
 ) -> UploadResult:
-    """Ingest an uploaded PDF and create its Document (structure not yet built)."""
+    """Ingest an uploaded PDF and create its Document (structure not yet built).
+
+    ``mode`` (form field) selects the section: ``study`` (Library, default) or
+    ``exam`` (Exam Prep — assessment-only).
+    """
     data = await file.read()
     try:
         document, result = docsvc.create_document(
@@ -53,6 +64,7 @@ async def upload_document(
             subject_id=subject_id,
             filename=file.filename or "upload.pdf",
             data=data,
+            mode=mode,
         )
     except docsvc.InvalidPDFError:
         raise HTTPException(status_code=400, detail="Uploaded file is not a PDF")

@@ -14,7 +14,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from backend.models import Document, Flashcard, MCQ, Note, Subject
-from backend.models.enums import QueueState, TopicPriority
+from backend.models.enums import DocumentMode, QueueStage, QueueState, TopicPriority
 from backend.models.processing import QueueJob
 from backend.schemas.structure import ChapterIn, TopicIn
 from backend.services import documents as docsvc
@@ -94,6 +94,48 @@ def test_full_topic_pipeline_produces_studiable_material(
 
     note = session.query(Note).filter_by(topic_id=topic_id).one()
     assert "Velocity is dx/dt" in note.content_md
+    assert session.query(MCQ).filter_by(topic_id=topic_id).count() == 1
+    assert session.query(Flashcard).filter_by(topic_id=topic_id).count() == 1
+
+
+def test_exam_doc_pipeline_produces_assessment_only(
+    session: Session, tmp_path: Path
+) -> None:
+    md = tmp_path / "doc.md"
+    md.write_text("# Kinematics\n\nVelocity is dx/dt.\n", encoding="utf-8")
+    subject = Subject(name="Physics")
+    document = Document(
+        subject=subject,
+        filename="f.pdf",
+        file_hash="h",
+        markdown_path=str(md),
+        mode=DocumentMode.exam,
+    )
+    session.add_all([subject, document])
+    session.commit()
+    docsvc.confirm_structure(
+        session,
+        document.id,
+        chapters=[
+            ChapterIn(
+                title="Mechanics",
+                topics=[TopicIn(title="Kinematics", priority=TopicPriority.exam_critical)],
+            )
+        ],
+    )
+    topic_id = session.query(QueueJob).first().topic_id
+
+    queue = QueueService(session)
+    processor = make_pipeline_processor(Waterfall([_SmartProvider()]))
+    processed = queue.run_batch(processor, max_jobs=20)
+
+    # Exam mode enqueues only the generation stage — no formula stage.
+    assert processed == 1
+    assert session.query(QueueJob).filter_by(stage=QueueStage.formula).count() == 0
+    assert all(j.state is QueueState.done for j in session.query(QueueJob).all())
+
+    # Assessment material, but no notes.
+    assert session.query(Note).filter_by(topic_id=topic_id).count() == 0
     assert session.query(MCQ).filter_by(topic_id=topic_id).count() == 1
     assert session.query(Flashcard).filter_by(topic_id=topic_id).count() == 1
 

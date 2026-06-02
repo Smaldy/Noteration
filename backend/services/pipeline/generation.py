@@ -32,6 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Flashcard, MCQ, Note, Topic
+from backend.models.enums import DocumentMode
 from backend.models.processing import QueueJob
 from backend.services.pipeline.structure import _clean_title, iter_atx_headings
 from backend.services.providers.base import ProviderResult
@@ -41,6 +42,9 @@ from backend.services.providers.waterfall import Waterfall
 # "token budgets per call"). One call now carries both notes and the assessment,
 # so the cap is the sum of the old two (~2k notes + ~2k assessment). Tunable later.
 GENERATION_MAX_TOKENS = 4096
+# Exam mode drops notes but asks for ~10-15 MCQs + ~10-15 flashcards (denser
+# practice), so it needs more output headroom than the notes+5-10-each study call.
+EXAM_GENERATION_MAX_TOKENS = 6144
 
 # Input cap on the per-topic source text sent to the model. The dominant cost
 # driver is INPUT tokens (a 22-page PDF is ~14k tokens), and a single topic never
@@ -100,15 +104,50 @@ GENERATION_SCHEMA: dict = {
     "required": ["notes_md", "mcqs", "flashcards"],
 }
 
+# Exam-mode schema: assessment only, no notes. The MCQ/flashcard item shapes are
+# identical to the study schema so parsing/validation is shared.
+EXAM_GENERATION_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "mcqs": GENERATION_SCHEMA["properties"]["mcqs"],
+        "flashcards": GENERATION_SCHEMA["properties"]["flashcards"],
+    },
+    "required": ["mcqs", "flashcards"],
+}
 
-def build_generation_prompt(topic_title: str, source_text: str) -> str:
-    """Prompt for notes + assessment as ONE JSON object, grounded in the source.
 
-    Asks for dense Markdown notes and an aligned assessment in a single turn so
-    the notes never have to be re-sent as context for a second call. The shape is
-    spelled out inline so providers without native JSON-schema support still
-    return the right structure.
+def build_generation_prompt(
+    topic_title: str,
+    source_text: str,
+    *,
+    mode: DocumentMode = DocumentMode.study,
+) -> str:
+    """Prompt for the single generation call, grounded in the topic's source.
+
+    In ``study`` mode this asks for notes + an aligned assessment in one JSON
+    object so the notes never have to be re-sent as context for a second call. In
+    ``exam`` mode (the Exam Prep section) it drops notes entirely and asks for a
+    denser assessment. The shape is spelled out inline so providers without native
+    JSON-schema support still return the right structure.
     """
+    if mode is DocumentMode.exam:
+        return (
+            "You are an expert engineering tutor preparing a student for an exam. "
+            "From the source material for ONE topic, produce a thorough assessment "
+            "of the material as a single JSON object.\n\n"
+            "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+            "fences):\n"
+            '{"mcqs": [{"question": str, "options": [str, ...], '
+            '"correct_index": int, "explanation": str}], '
+            '"flashcards": [{"front": str, "back": str}]}\n'
+            "- mcqs: 10-15 exam-style multiple-choice questions grounded in the "
+            "source; each with at least 2 options, a correct_index pointing to the "
+            "right option, and a clear explanation of why it is correct.\n"
+            "- flashcards: 10-15 flashcards grounded in the source.\n"
+            "- Do not invent material the source does not support.\n\n"
+            f"# Topic\n{topic_title}\n\n"
+            f"# Source material\n{source_text}\n"
+        )
     return (
         "You are an expert engineering tutor. From the source material for ONE "
         "topic, produce BOTH dense, exam-useful study notes AND an assessment of "
@@ -266,8 +305,13 @@ class GenerationData:
     flashcards: list[ParsedFlashcard] = field(default_factory=list)
 
 
-def parse_generation(text: str) -> GenerationData:
-    """Parse + validate the combined generation JSON. Raises on malformed output."""
+def parse_generation(text: str, *, require_notes: bool = True) -> GenerationData:
+    """Parse + validate the combined generation JSON. Raises on malformed output.
+
+    ``require_notes=False`` (exam mode) makes ``notes_md`` optional — exam-mode
+    output is assessment-only, so a missing/empty notes field is fine and any
+    value present is ignored (``notes_md`` comes back as "").
+    """
     raw = _extract_json_object(text)
     try:
         data = json.loads(raw)
@@ -276,7 +320,10 @@ def parse_generation(text: str) -> GenerationData:
     if not isinstance(data, dict):
         raise GenerationParseError("top-level JSON is not an object")
 
-    notes_md = _require_str(data.get("notes_md"), "notes_md")
+    if require_notes:
+        notes_md = _require_str(data.get("notes_md"), "notes_md")
+    else:
+        notes_md = ""
     mcqs = [_parse_mcq(item) for item in _as_list(data.get("mcqs"), "mcqs")]
     flashcards = [
         _parse_flashcard(item) for item in _as_list(data.get("flashcards"), "flashcards")
@@ -286,30 +333,145 @@ def parse_generation(text: str) -> GenerationData:
     return GenerationData(notes_md=notes_md, mcqs=mcqs, flashcards=flashcards)
 
 
+def topic_document_mode(session: Session, topic: Topic) -> DocumentMode:
+    """Resolve a topic's document mode (study | exam), defaulting to study."""
+    chapter = session.get(Chapter, topic.chapter_id)
+    document = session.get(Document, chapter.document_id) if chapter else None
+    return document.mode if document is not None else DocumentMode.study
+
+
+# --- on-demand "generate more" (user-triggered, single kind) ----------------
+
+# Smaller cap than the full generation call — one kind, ~8-12 items.
+GENERATE_MORE_MAX_TOKENS = 2048
+# Bound how many existing items we list back to the model (anti-duplication) so
+# the prompt can't itself blow the input budget on a topic with a huge bank.
+_MAX_EXISTING_LISTED = 40
+
+# Single-kind schemas (reuse the item shapes from the full generation schema).
+MORE_MCQS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"mcqs": GENERATION_SCHEMA["properties"]["mcqs"]},
+    "required": ["mcqs"],
+}
+MORE_FLASHCARDS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"flashcards": GENERATION_SCHEMA["properties"]["flashcards"]},
+    "required": ["flashcards"],
+}
+
+
+def _existing_block(label: str, items: list[str]) -> str:
+    """A 'do not repeat these' block listing existing items (capped)."""
+    listed = [item.strip() for item in items if item and item.strip()][
+        :_MAX_EXISTING_LISTED
+    ]
+    if not listed:
+        return ""
+    body = "\n".join(f"- {item}" for item in listed)
+    return f"\n# Already covered {label} (do NOT repeat or rephrase these)\n{body}\n"
+
+
+def build_more_mcqs_prompt(
+    topic_title: str, source_text: str, existing_questions: list[str]
+) -> str:
+    """Prompt for ADDITIONAL MCQs only, distinct from the existing ones."""
+    return (
+        "You are an expert engineering tutor. Write ADDITIONAL exam-style "
+        "multiple-choice questions for ONE topic, grounded in the source material "
+        "and DISTINCT from the questions already written.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        'fences):\n{"mcqs": [{"question": str, "options": [str, ...], '
+        '"correct_index": int, "explanation": str}]}\n'
+        "- 8-12 NEW questions; each with at least 2 options, a correct_index "
+        "pointing to the right option, and a clear explanation.\n"
+        "- Do not invent material the source does not support.\n"
+        f"{_existing_block('questions', existing_questions)}"
+        f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
+    )
+
+
+def build_more_flashcards_prompt(
+    topic_title: str, source_text: str, existing_fronts: list[str]
+) -> str:
+    """Prompt for ADDITIONAL flashcards only, distinct from the existing ones."""
+    return (
+        "You are an expert engineering tutor. Write ADDITIONAL flashcards for ONE "
+        "topic, grounded in the source material and DISTINCT from the flashcards "
+        "already written.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        'fences):\n{"flashcards": [{"front": str, "back": str}]}\n'
+        "- 8-12 NEW flashcards.\n"
+        "- Do not invent material the source does not support.\n"
+        f"{_existing_block('flashcard fronts', existing_fronts)}"
+        f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
+    )
+
+
+def _load_object(text: str) -> dict:
+    """Parse a model response into a JSON object or raise GenerationParseError."""
+    raw = _extract_json_object(text)
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise GenerationParseError(f"not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise GenerationParseError("top-level JSON is not an object")
+    return data
+
+
+def parse_more_mcqs(text: str) -> list[ParsedMCQ]:
+    """Parse a single-kind MCQ response. Raises if no usable MCQ is present."""
+    data = _load_object(text)
+    mcqs = [_parse_mcq(item) for item in _as_list(data.get("mcqs"), "mcqs")]
+    if not mcqs:
+        raise GenerationParseError("expected at least one MCQ")
+    return mcqs
+
+
+def parse_more_flashcards(text: str) -> list[ParsedFlashcard]:
+    """Parse a single-kind flashcard response. Raises if none are present."""
+    data = _load_object(text)
+    cards = [
+        _parse_flashcard(item) for item in _as_list(data.get("flashcards"), "flashcards")
+    ]
+    if not cards:
+        raise GenerationParseError("expected at least one flashcard")
+    return cards
+
+
 def make_generation_processor(
     waterfall: Waterfall,
     *,
     source_loader: SourceLoader = load_topic_source,
     max_tokens: int = GENERATION_MAX_TOKENS,
+    exam_max_tokens: int = EXAM_GENERATION_MAX_TOKENS,
 ) -> Callable[[QueueJob, Session], ProviderResult]:
     """Build the queue ``StageProcessor`` for the consolidated generation stage.
 
-    One call returns notes + assessment as a single JSON object (no second round
-    trip re-sending the notes). The Note (shared with the formula stage) is filled
-    and the MCQ/flashcard rows are added — all uncommitted; the queue commits the
+    In study mode one call returns notes + assessment as a single JSON object (no
+    second round trip re-sending the notes); the Note (shared with the formula
+    stage) is filled and the MCQ/flashcard rows are added. In exam mode (the Exam
+    Prep section) the call is assessment-only: no Note is written, just MCQs +
+    flashcards. Either way the rows are added uncommitted; the queue commits the
     whole stage atomically.
     """
 
     def process(job: QueueJob, session: Session) -> ProviderResult:
         topic = session.get(Topic, job.topic_id)
+        mode = topic_document_mode(session, topic)
+        is_exam = mode is DocumentMode.exam
         source = source_loader(session, topic)
-        prompt = build_generation_prompt(topic.title, source)
+        prompt = build_generation_prompt(topic.title, source, mode=mode)
         result = waterfall.generate(
-            prompt, max_tokens=max_tokens, response_schema=GENERATION_SCHEMA
+            prompt,
+            max_tokens=exam_max_tokens if is_exam else max_tokens,
+            response_schema=EXAM_GENERATION_SCHEMA if is_exam else GENERATION_SCHEMA,
         )
-        parsed = parse_generation(result.text)
-        note = get_or_create_ai_note(session, topic)
-        note.content_md = parsed.notes_md
+        parsed = parse_generation(result.text, require_notes=not is_exam)
+        if not is_exam:
+            note = get_or_create_ai_note(session, topic)
+            note.content_md = parsed.notes_md
         for mcq in parsed.mcqs:
             session.add(
                 MCQ(

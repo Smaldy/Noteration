@@ -20,6 +20,8 @@ interface StudyStore {
   fetchTopic: (topicId: number) => Promise<void>;
   /** Lazily transcribe the topic's pending formulas, then refresh its content. */
   transcribeFormulas: (topicId: number) => Promise<void>;
+  /** Generate more MCQs or flashcards for a topic, then refresh its content. */
+  generateMore: (topicId: number, kind: "mcqs" | "flashcards") => Promise<void>;
   /** Delete a topic (and its content), then refresh the document's tree. */
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
@@ -73,6 +75,20 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
       `/topics/${topicId}/formulas/transcribe`,
       {},
     );
+    set((state) =>
+      state.content && state.content.id === topicId
+        ? { content, contentStatus: "loaded" }
+        : state,
+    );
+  },
+
+  generateMore: async (topicId, kind) => {
+    // Returns the refreshed topic content with the newly appended items. Only
+    // apply if this topic is still the open one. Errors propagate to the caller
+    // (the tab shows them) — e.g. 503 when no provider has headroom.
+    const content = await api.post<TopicContent>(`/topics/${topicId}/generate`, {
+      kind,
+    });
     set((state) =>
       state.content && state.content.id === topicId
         ? { content, contentStatus: "loaded" }

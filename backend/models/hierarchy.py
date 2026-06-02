@@ -16,7 +16,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.database import Base
 from backend.db.types import UTCDateTime
-from backend.models.enums import DocumentStatus, TopicPriority, TopicStatus
+from backend.models.enums import (
+    DocumentMode,
+    DocumentStatus,
+    TopicPriority,
+    TopicStatus,
+)
 
 if TYPE_CHECKING:
     from backend.models.content import MCQ, Flashcard, Note, SourcePage
@@ -60,6 +65,11 @@ class Document(Base):
     markdown_path: Mapped[str | None] = mapped_column(default=None)
     status: Mapped[DocumentStatus] = mapped_column(
         SAEnum(DocumentStatus, native_enum=False), default=DocumentStatus.uploaded
+    )
+    # study = full pipeline (notes + assessment); exam = assessment-only (the
+    # dedicated Exam Prep section). Drives stage enqueue + generation prompt.
+    mode: Mapped[DocumentMode] = mapped_column(
+        SAEnum(DocumentMode, native_enum=False), default=DocumentMode.study
     )
     order_index: Mapped[int] = mapped_column(default=0)  # manual Library order
     uploaded_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

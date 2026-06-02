@@ -14,6 +14,19 @@ class DocumentStatus(enum.StrEnum):
     error = "error"
 
 
+class DocumentMode(enum.StrEnum):
+    """How a document is processed and presented.
+
+    ``study`` (default) is the full pipeline: notes + MCQs + flashcards, with the
+    formula vision stage. ``exam`` is assessment-only — the generation call drops
+    notes and the formula stage is skipped, so the document yields just MCQs (with
+    explanations) and flashcards. Drives the dedicated Exam Prep section.
+    """
+
+    study = "study"
+    exam = "exam"
+
+
 class TopicPriority(enum.StrEnum):
     exam_critical = "exam_critical"
     medium = "medium"

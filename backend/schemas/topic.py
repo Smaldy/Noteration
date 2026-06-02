@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
 from backend.models.enums import (
+    DocumentMode,
     DocumentStatus,
     FormulaState,
     TopicPriority,
@@ -42,6 +43,7 @@ class DocumentTreeOut(BaseModel):
 
     document_id: int
     status: DocumentStatus
+    mode: DocumentMode
     chapters: list[ChapterNodeOut]
 
 
@@ -100,3 +102,9 @@ class TopicContentOut(BaseModel):
     notes: list[NoteOut]
     mcqs: list[MCQOut]
     flashcards: list[FlashcardOut]
+
+
+class GenerateMoreRequest(BaseModel):
+    """Ask for more of one assessment kind for a topic (on-demand)."""
+
+    kind: Literal["mcqs", "flashcards"]

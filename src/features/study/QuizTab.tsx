@@ -1,15 +1,18 @@
-import { Check, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useStudyStore } from "@/stores/study";
 import type { MCQ } from "@/types/study";
 
 interface QuizTabProps {
+  topicId: number;
   mcqs: MCQ[];
 }
 
-export function QuizTab({ mcqs }: QuizTabProps) {
+export function QuizTab({ topicId, mcqs }: QuizTabProps) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -18,9 +21,14 @@ export function QuizTab({ mcqs }: QuizTabProps) {
 
   if (mcqs.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">
-        No quiz questions yet for this topic.
-      </p>
+      <div className="py-12 text-center">
+        <p className="text-sm text-muted-foreground">
+          No quiz questions yet for this topic.
+        </p>
+        <div className="mt-4 flex justify-center">
+          <GenerateMoreQuestions topicId={topicId} />
+        </div>
+      </div>
     );
   }
 
@@ -41,9 +49,12 @@ export function QuizTab({ mcqs }: QuizTabProps) {
         <p className="mt-1 text-sm text-muted-foreground">
           {correct === mcqs.length ? "Perfect!" : "Review the ones you missed."}
         </p>
-        <Button className="mt-6" variant="outline" onClick={restart}>
-          Try again
-        </Button>
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <Button variant="outline" onClick={restart}>
+            Try again
+          </Button>
+          <GenerateMoreQuestions topicId={topicId} />
+        </div>
       </div>
     );
   }
@@ -122,11 +133,42 @@ export function QuizTab({ mcqs }: QuizTabProps) {
         </div>
       )}
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex items-center justify-between gap-2">
+        <GenerateMoreQuestions topicId={topicId} />
         <Button onClick={next} disabled={!revealed}>
           {index === mcqs.length - 1 ? "Finish" : "Next"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function GenerateMoreQuestions({ topicId }: { topicId: number }) {
+  const generateMore = useStudyStore((s) => s.generateMore);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      await generateMore(topicId, "mcqs");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't generate more questions.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Button variant="ghost" size="sm" onClick={() => void run()} disabled={busy}>
+        <Sparkles />
+        {busy ? "Generating…" : "Generate more questions"}
+      </Button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

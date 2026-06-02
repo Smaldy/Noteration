@@ -13,28 +13,21 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import {
-  Bookmark,
-  BookOpen,
-  CalendarDays,
-  GraduationCap,
-  ListChecks,
-  Plus,
-  Settings,
-} from "lucide-react";
+import { ArrowLeft, GraduationCap, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { SearchBar } from "@/features/search/SearchBar";
+import { DocumentCard } from "@/features/library/DocumentCard";
 import { UploadDialog } from "@/features/upload/UploadDialog";
-import { useLibraryStore } from "@/stores/library";
+import { useExamStore } from "@/stores/library";
 
 import type { DocumentSummary } from "@/types/library";
 
-import { DocumentCard } from "./DocumentCard";
-
-export function LibraryPage() {
+// The Exam Prep section: documents here are assessment-only (MCQs + flashcards,
+// no notes). It reuses the Library's DocumentCard/UploadDialog, driven by the
+// separate exam store so its state never mixes with the Library.
+export function ExamPrepPage() {
   const {
     documents,
     status,
@@ -43,7 +36,7 @@ export function LibraryPage() {
     deleteSubject,
     reorderDocuments,
     toggleSubjectBookmark,
-  } = useLibraryStore();
+  } = useExamStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -69,7 +62,7 @@ export function LibraryPage() {
   async function handleDelete(doc: DocumentSummary) {
     const ok = window.confirm(
       `Delete the subject "${doc.subject_name}" and all of its documents, ` +
-        `topics, notes, and schedule? This can't be undone.`,
+        `topics, and flashcards? This can't be undone.`,
     );
     if (!ok) return;
     try {
@@ -83,55 +76,41 @@ export function LibraryPage() {
     <div className="mx-auto max-w-5xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Library</h1>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Library
+          </button>
+          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+            <GraduationCap className="size-7 text-primary" />
+            Exam Prep
+          </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Your uploaded documents and their study progress.
+            Drilled practice — every PDF here becomes MCQs (with explanations) and
+            flashcards. No notes.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/exam")}>
-            <GraduationCap />
-            Exam Prep
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/bookmarks")}>
-            <Bookmark />
-            Bookmarks
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/calendar")}>
-            <CalendarDays />
-            Calendar
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/queue")}>
-            <ListChecks />
-            Queue
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            title="Settings"
-            onClick={() => navigate("/settings")}
-          >
-            <Settings />
-          </Button>
-          <Button onClick={() => setUploadOpen(true)}>
-            <Plus />
-            Upload PDF
-          </Button>
-        </div>
+        <Button onClick={() => setUploadOpen(true)}>
+          <Plus />
+          Add exam PDF
+        </Button>
       </header>
 
       <UploadDialog
         open={uploadOpen}
         onOpenChange={setUploadOpen}
-        onUploaded={(documentId) => navigate(`/documents/${documentId}/review`)}
+        store={useExamStore}
+        exam
+        onUploaded={(documentId) =>
+          navigate(`/documents/${documentId}/review?from=exam`)
+        }
       />
 
-      <div className="mb-8 animate-rise">
-        <SearchBar />
-      </div>
-
       {status === "loading" && (
-        <p className="text-sm text-muted-foreground">Loading your library…</p>
+        <p className="text-sm text-muted-foreground">Loading your exam prep…</p>
       )}
 
       {status === "error" && (
@@ -150,15 +129,15 @@ export function LibraryPage() {
 
       {status === "loaded" && documents.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
-          <BookOpen className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">No documents yet</h2>
+          <GraduationCap className="mb-4 size-10 text-muted-foreground" />
+          <h2 className="text-lg font-medium">No exam decks yet</h2>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Upload an engineering PDF to generate notes, MCQs, flashcards, and a
-            study schedule.
+            Add a PDF to generate exam-style MCQs and flashcards, scheduled with
+            spaced repetition.
           </p>
           <Button className="mt-5" onClick={() => setUploadOpen(true)}>
             <Plus />
-            Upload PDF
+            Add exam PDF
           </Button>
         </div>
       )}

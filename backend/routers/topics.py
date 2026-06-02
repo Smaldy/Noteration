@@ -9,8 +9,12 @@ from backend.db.database import get_session
 from backend.models import Topic
 from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
 from backend.schemas.reorder import ReorderRequest
-from backend.schemas.topic import TopicContentOut
+from backend.schemas.topic import GenerateMoreRequest, TopicContentOut
 from backend.services import topics as topicsvc
+from backend.services.pipeline.generation import (
+    GenerationParseError,
+    TopicSourceUnavailableError,
+)
 from backend.services.providers.base import AllProvidersExhausted
 
 router = APIRouter(prefix="/topics", tags=["topics"])
@@ -58,6 +62,39 @@ def transcribe_topic_formulas(
         raise HTTPException(
             status_code=503,
             detail=exc.reason or "No vision provider available right now",
+        )
+    return topicsvc.get_topic_content(session, topic_id)
+
+
+@router.post("/{topic_id}/generate", response_model=TopicContentOut)
+def generate_more(
+    topic_id: int,
+    payload: GenerateMoreRequest,
+    session: Session = Depends(get_session),
+) -> Topic:
+    """Generate more MCQs or flashcards for a topic on demand, then return it.
+
+    Synchronous (like formula transcription) — one model call appends new items.
+    404 unknown topic; 409 if the source markdown is missing; 502 if the model's
+    output is unusable; 503 when no provider has headroom right now.
+    """
+    try:
+        topicsvc.generate_more(session, topic_id, payload.kind)
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    except TopicSourceUnavailableError:
+        raise HTTPException(
+            status_code=409, detail="Document source unavailable; re-ingest needed"
+        )
+    except AllProvidersExhausted as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=exc.reason or "No provider available right now",
+        )
+    except GenerationParseError:
+        raise HTTPException(
+            status_code=502,
+            detail="The model returned unusable output. Please try again.",
         )
     return topicsvc.get_topic_content(session, topic_id)
 

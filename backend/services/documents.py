@@ -18,12 +18,23 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Subject, Topic
-from backend.models.enums import DocumentStatus, TopicPriority, TopicStatus
+from backend.models.enums import (
+    DocumentMode,
+    DocumentStatus,
+    QueueStage,
+    TopicPriority,
+    TopicStatus,
+)
 from backend.schemas.structure import ChapterIn
 from backend.services.pipeline.ingestion import CACHE_ROOT, IngestionResult, ingest
 from backend.services.pipeline.pdf_outline import extract_pdf_structure
 from backend.services.pipeline.structure import ProposedStructure, detect_structure
 from backend.services.queue import QueueService
+
+# Stages enqueued per topic in exam mode: the consolidated generation stage only.
+# The formula stage attaches LaTeX to a Note, and exam docs have no notes, so it
+# is skipped entirely (no wasted vision/registration work). See build-log E3.
+EXAM_STAGES: tuple[QueueStage, ...] = (QueueStage.notes,)
 
 # Original PDFs are kept (gitignored) so a forced re-ingest has the source again.
 UPLOADS_DIR = CACHE_ROOT / "uploads"
@@ -70,17 +81,21 @@ class DocumentSummary:
     subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
+    mode: DocumentMode
     uploaded_at: datetime
     topics_total: int
     topics_ready: int
 
 
-def list_documents(session: Session) -> list[DocumentSummary]:
-    """All documents (newest first) with subject info and topic-ready counts.
+def list_documents(
+    session: Session, *, mode: DocumentMode | None = None
+) -> list[DocumentSummary]:
+    """Documents (newest first) with subject info and topic-ready counts.
 
-    A freshly uploaded document (structure not yet confirmed) has no topics and
-    reports 0/0. Counts are computed in one grouped query, not per-document, to
-    avoid an N+1 over the library.
+    ``mode`` scopes the list to one section: ``study`` for the Library, ``exam``
+    for the Exam Prep section (``None`` returns all). A freshly uploaded document
+    (structure not yet confirmed) has no topics and reports 0/0. Counts are
+    computed in one grouped query, not per-document, to avoid an N+1.
     """
     count_rows = session.execute(
         select(
@@ -93,7 +108,7 @@ def list_documents(session: Session) -> list[DocumentSummary]:
     ).all()
     counts = {doc_id: (total, ready or 0) for doc_id, total, ready in count_rows}
 
-    rows = session.execute(
+    query = (
         select(Document, Subject.name, Subject.exam_date, Subject.bookmarked)
         .join(Subject, Document.subject_id == Subject.id)
         # Manual order first; newest-first as the tie-break for un-reordered rows.
@@ -102,7 +117,10 @@ def list_documents(session: Session) -> list[DocumentSummary]:
             Document.uploaded_at.desc(),
             Document.id.desc(),
         )
-    ).all()
+    )
+    if mode is not None:
+        query = query.where(Document.mode == mode)
+    rows = session.execute(query).all()
 
     summaries: list[DocumentSummary] = []
     for document, subject_name, exam_date, bookmarked in rows:
@@ -116,6 +134,7 @@ def list_documents(session: Session) -> list[DocumentSummary]:
                 subject_bookmarked=bookmarked,
                 exam_date=exam_date,
                 status=document.status,
+                mode=document.mode,
                 uploaded_at=document.uploaded_at,
                 topics_total=total,
                 topics_ready=ready,
@@ -148,10 +167,15 @@ def create_document(
     subject_id: int,
     filename: str,
     data: bytes,
+    mode: DocumentMode = DocumentMode.study,
     ingest_fn: IngestFn = ingest,
     uploads_dir: str | Path = UPLOADS_DIR,
 ) -> tuple[Document, IngestionResult]:
-    """Persist an uploaded PDF, ingest it (cached), and create a Document row."""
+    """Persist an uploaded PDF, ingest it (cached), and create a Document row.
+
+    ``mode`` records which section the upload belongs to: ``study`` (Library) runs
+    the full notes+assessment pipeline; ``exam`` (Exam Prep) is assessment-only.
+    """
     if not data.startswith(PDF_MAGIC):
         raise InvalidPDFError("uploaded file is not a PDF")
     if session.get(Subject, subject_id) is None:
@@ -169,6 +193,7 @@ def create_document(
         file_hash=result.file_hash,
         markdown_path=str(result.markdown_path),
         status=DocumentStatus.uploaded,
+        mode=mode,
         order_index=(min_order if min_order is not None else 0) - 1,
     )
     session.add(document)
@@ -271,11 +296,17 @@ def confirm_structure(
     # can't leave a confirmed-but-partially-queued document (re-confirm is
     # refused). 'skip' topics create no jobs.
     queue = QueueService(session)
+    # Exam docs run the generation stage only (no formula stage — there's no Note
+    # to attach equations to). Study docs use the default formula→generation order.
+    stages = EXAM_STAGES if document.mode is DocumentMode.exam else None
     enqueued = 0
     for topic in created_topics:
         if topic.priority is TopicPriority.skip:
             continue
-        queue.enqueue_topic(topic, commit=False)
+        if stages is None:
+            queue.enqueue_topic(topic, commit=False)
+        else:
+            queue.enqueue_topic(topic, stages, commit=False)
         enqueued += 1
 
     document.status = DocumentStatus.processing
@@ -307,6 +338,7 @@ class ChapterNode:
 class DocumentTree:
     document_id: int
     status: DocumentStatus
+    mode: DocumentMode
     chapters: list[ChapterNode]
 
 
@@ -364,7 +396,10 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
         for chapter in chapters
     ]
     return DocumentTree(
-        document_id=document.id, status=document.status, chapters=chapter_nodes
+        document_id=document.id,
+        status=document.status,
+        mode=document.mode,
+        chapters=chapter_nodes,
     )
 
 

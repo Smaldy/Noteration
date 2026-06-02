@@ -12,22 +12,35 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
-import { useLibraryStore } from "@/stores/library";
+import { type LibraryStore, useLibraryStore } from "@/stores/library";
 import { useSubjectsStore } from "@/stores/subjects";
 
 const NEW_SUBJECT = "__new__";
+
+// A zustand hook compatible with the documents store (study or exam section).
+type DocumentsStoreHook = <T>(selector: (state: LibraryStore) => T) => T;
 
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Called with the new document id after a successful upload (for routing). */
   onUploaded?: (documentId: number) => void;
+  /** Which section's store to upload through (defaults to the Library/study store). */
+  store?: DocumentsStoreHook;
+  /** Whether this is the Exam Prep section (tweaks the dialog copy). */
+  exam?: boolean;
 }
 
-export function UploadDialog({ open, onOpenChange, onUploaded }: UploadDialogProps) {
+export function UploadDialog({
+  open,
+  onOpenChange,
+  onUploaded,
+  store = useLibraryStore,
+  exam = false,
+}: UploadDialogProps) {
   const { subjects, fetchSubjects } = useSubjectsStore();
   const createSubject = useSubjectsStore((s) => s.createSubject);
-  const uploadDocument = useLibraryStore((s) => s.uploadDocument);
+  const uploadDocument = store((s) => s.uploadDocument);
 
   const [subjectChoice, setSubjectChoice] = useState<string>(NEW_SUBJECT);
   const [newSubjectName, setNewSubjectName] = useState("");
@@ -76,10 +89,14 @@ export function UploadDialog({ open, onOpenChange, onUploaded }: UploadDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Upload a PDF</DialogTitle>
+          <DialogTitle>{exam ? "Add an exam PDF" : "Upload a PDF"}</DialogTitle>
           <DialogDescription>
-            We&apos;ll read the PDF and propose a chapter/topic structure for you
-            to review before anything is generated.
+            {exam
+              ? "We'll read the PDF and propose a structure to review. Exam-prep " +
+                "documents generate only MCQs (with explanations) and flashcards — " +
+                "no notes."
+              : "We'll read the PDF and propose a chapter/topic structure for you " +
+                "to review before anything is generated."}
           </DialogDescription>
         </DialogHeader>
 

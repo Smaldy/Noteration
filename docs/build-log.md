@@ -757,6 +757,76 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     throttled off-free-tier).
   - Tree green: full suite **282 passed**, `tsc -b` + `npm run build` clean.
 
+- **Exam Prep section (user-requested, in progress).** A dedicated section where a
+  PDF yields ONLY assessment (MCQs with explanations + flashcards), no notes. The
+  backbone is one new field — `Document.mode` (`study` | `exam`) — threaded through
+  enqueue, generation, and display; no parallel pipeline, no scheduler change.
+  Decisions (user-confirmed): dedicated `/exam` section (not a per-doc toggle),
+  formulas skipped in exam mode, denser practice (10-15 MCQs + 10-15 flashcards).
+  Committed sub-waves:
+  - **E1 (done)** — Data model. `DocumentMode(study|exam)` enum; `Document.mode`
+    column (default `study`); migration `f5a6b7c8d9e0` (`server_default 'study'`
+    backfills existing docs; `alembic check` clean, applied to live DB). +2 model
+    tests (default study, exam round-trip).
+  - **E2 (done, critical-code review point)** — Generation adapts to mode.
+    `generation.py`: `EXAM_GENERATION_SCHEMA` (assessment-only, reuses the study
+    MCQ/flashcard item shapes), an exam branch in `build_generation_prompt` (drops
+    notes; asks 10-15 each), `parse_generation(require_notes=False)` (notes
+    optional/ignored → `notes_md=""`), and `make_generation_processor` resolving the
+    doc mode per job (`topic_document_mode`) to pick prompt/schema/output-cap
+    (`EXAM_GENERATION_MAX_TOKENS=6144`) and skip the Note write in exam mode. The
+    queue's atomic-commit/failover path is untouched. +3 tests (exam prompt drops
+    notes, parse allows missing notes, exam processor writes MCQs+flashcards but no
+    Note). Tree green: full suite **287 passed**.
+  - **E3 (done)** — Enqueue skips formula in exam mode. `confirm_structure`
+    (`services/documents.py`) reads `document.mode`; exam docs enqueue only the
+    generation stage (`EXAM_STAGES = (QueueStage.notes,)`) — no formula stage (no
+    Note to attach equations to). Study docs unchanged (formula→generation). +2
+    confirm tests (study enqueues both stages; exam enqueues generation only, no
+    formula jobs) + an end-to-end test (confirm exam doc → `run_batch` → topic
+    `ready` with MCQs + flashcards, 0 notes, 0 formula jobs).
+  - **E4 (done)** — Mode on the API surface. `POST /api/documents` gains a `mode`
+    Form field (default `study`); `create_document` persists it. `mode` exposed on
+    `DocumentSummaryOut` and `DocumentTreeOut` (so the frontend can filter sections
+    and hide the Notes tab). `GET /api/documents?mode=exam|study` filters the list
+    (`list_documents(mode=…)`), so Library and Exam Prep query disjoint slices.
+    `DocumentSummary`/`DocumentTree` dataclasses carry `mode`. +4 tests (service +
+    HTTP mode filter, tree carries mode). Tree green: full suite **292 passed**.
+  - **E5 (done)** — Exam Prep section (frontend). New `/exam` route +
+    `features/exam/ExamPrepPage.tsx`, an "Exam Prep" link in the Library header.
+    The Library store became a **mode-parametrized factory** (`createDocumentsStore`)
+    exporting `useLibraryStore` (study) and `useExamStore` (exam) — disjoint state,
+    each fetching `GET /api/documents?mode=…` and uploading with its `mode`.
+    `DocumentCard` and `UploadDialog` are now store-agnostic (bookmark callback +
+    `store`/`exam` props) so both sections reuse them; the exam upload dialog shows
+    assessment-only copy. Structure review reads `?from=exam` to return to the right
+    section after confirm. `DocumentMode` added to `types/library.ts`.
+  - **E6 (done)** — Study view adapts. `DocumentTree.mode` (mirrors the backend);
+    `TopicContentPanel` takes `mode` and, for exam docs, drops the Notes tab and
+    leads with Quiz (Quiz + Flashcards only). Calendar, SM-2 flashcard review,
+    queue, bookmarks, and search are unchanged — exam docs use the same MCQ/
+    Flashcard/Topic rows. Tree green: backend **292 passed**, `tsc -b` +
+    `npm run build` clean. **Exam Prep feature complete across E1-E6.**
+  - **E7 (done, user-requested) — "Generate more" MCQs/flashcards on demand.** A
+    user-triggered, synchronous single model call (modelled on the formula-
+    transcribe path — it does NOT go through the background queue), available on
+    both study and exam topics. `generation.py`: single-kind schemas
+    (`MORE_MCQS_SCHEMA`/`MORE_FLASHCARDS_SCHEMA`), `build_more_mcqs_prompt`/
+    `build_more_flashcards_prompt` (which list existing questions/fronts so the
+    model produces *new*, non-duplicate items — capped at 40 listed),
+    `parse_more_mcqs`/`parse_more_flashcards`, and `GENERATE_MORE_MAX_TOKENS=2048`.
+    `topics.generate_more(session, topic_id, kind, *, waterfall=…)` builds the
+    waterfall from Settings, grounds the call in `load_topic_source`, appends rows
+    (MCQs / SM-2-default flashcards), commits, returns the count.
+    `POST /api/topics/{id}/generate {kind}` → refreshed `TopicContentOut`
+    (404 unknown · 409 source missing · 502 unusable output · 503 no provider ·
+    422 bad kind). Frontend: a "Generate more questions/flashcards" ghost button
+    (Sparkles) in the Quiz and Flashcards tabs (empty state, mid-deck, and
+    completion screens) → `study.generateMore` → appends to the open topic.
+    +10 tests (parse valid/empty, prompt lists existing, service appends MCQs/
+    flashcards, unknown→raises, malformed→raises + nothing written, HTTP 404/422).
+    Tree green: backend **302 passed**, `tsc -b` + `npm run build` clean.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)

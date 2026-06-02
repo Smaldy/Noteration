@@ -1,5 +1,6 @@
 /** Mirrors `backend/schemas/topic.py` (Study View reads). */
 
+import type { DocumentMode } from "./library";
 import type { TopicPriority } from "./structure";
 
 export type TopicStatus = "queued" | "processing" | "ready" | "error";
@@ -29,6 +30,8 @@ export interface ChapterNode {
 export interface DocumentTree {
   document_id: number;
   status: "uploaded" | "processing" | "ready" | "error";
+  /** study = full (Notes/Quiz/Flashcards); exam = assessment-only (no Notes tab). */
+  mode: DocumentMode;
   chapters: ChapterNode[];
 }
 

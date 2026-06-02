@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { BookmarksPage } from "@/features/bookmarks/BookmarksPage";
 import { CalendarPage } from "@/features/calendar/CalendarPage";
+import { ExamPrepPage } from "@/features/exam/ExamPrepPage";
 import { LibraryPage } from "@/features/library/LibraryPage";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
 import { QueuePage } from "@/features/queue/QueuePage";
@@ -36,6 +37,7 @@ export default function App() {
         >
           <Routes location={location}>
             <Route path="/" element={<LibraryPage />} />
+            <Route path="/exam" element={<ExamPrepPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/queue" element={<QueuePage />} />
