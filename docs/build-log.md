@@ -792,7 +792,21 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     (`list_documents(mode=…)`), so Library and Exam Prep query disjoint slices.
     `DocumentSummary`/`DocumentTree` dataclasses carry `mode`. +4 tests (service +
     HTTP mode filter, tree carries mode). Tree green: full suite **292 passed**.
-  - **Next:** E5 (`/exam` section UI), E6 (study view hides Notes tab for exam docs).
+  - **E5 (done)** — Exam Prep section (frontend). New `/exam` route +
+    `features/exam/ExamPrepPage.tsx`, an "Exam Prep" link in the Library header.
+    The Library store became a **mode-parametrized factory** (`createDocumentsStore`)
+    exporting `useLibraryStore` (study) and `useExamStore` (exam) — disjoint state,
+    each fetching `GET /api/documents?mode=…` and uploading with its `mode`.
+    `DocumentCard` and `UploadDialog` are now store-agnostic (bookmark callback +
+    `store`/`exam` props) so both sections reuse them; the exam upload dialog shows
+    assessment-only copy. Structure review reads `?from=exam` to return to the right
+    section after confirm. `DocumentMode` added to `types/library.ts`.
+  - **E6 (done)** — Study view adapts. `DocumentTree.mode` (mirrors the backend);
+    `TopicContentPanel` takes `mode` and, for exam docs, drops the Notes tab and
+    leads with Quiz (Quiz + Flashcards only). Calendar, SM-2 flashcard review,
+    queue, bookmarks, and search are unchanged — exam docs use the same MCQ/
+    Flashcard/Topic rows. Tree green: backend **292 passed**, `tsc -b` +
+    `npm run build` clean. **Exam Prep feature complete across E1-E6.**
 
 ## NEXT
 

@@ -108,7 +108,7 @@ export function StudyPage() {
           contentStatus === "loaded" &&
           content &&
           content.id === selectedTopicId && (
-            <TopicContentPanel content={content} />
+            <TopicContentPanel content={content} mode={tree?.mode} />
           )}
       </main>
     </div>

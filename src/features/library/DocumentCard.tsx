@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import { cn } from "@/lib/utils";
-import { useLibraryStore } from "@/stores/library";
 import type { DocumentSummary } from "@/types/library";
 
 import { StatusBadge } from "./StatusBadge";
@@ -32,12 +31,13 @@ function formatExamDate(iso: string | null): string {
 export function DocumentCard({
   doc,
   onDelete,
+  onToggleBookmark,
 }: {
   doc: DocumentSummary;
   onDelete?: (doc: DocumentSummary) => void;
+  onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const toggleSubjectBookmark = useLibraryStore((s) => s.toggleSubjectBookmark);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: doc.id });
 
@@ -102,7 +102,7 @@ export function DocumentCard({
               <BookmarkButton
                 bookmarked={doc.subject_bookmarked}
                 label={doc.subject_name}
-                onToggle={(next) => void toggleSubjectBookmark(doc.subject_id, next)}
+                onToggle={(next) => onToggleBookmark(doc.subject_id, next)}
               />
               <StatusBadge status={doc.status} />
               {onDelete && (

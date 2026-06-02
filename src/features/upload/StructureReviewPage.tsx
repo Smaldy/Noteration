@@ -1,6 +1,6 @@
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useReducer, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,11 @@ function estTokensLabel(topics: number): string {
 export function StructureReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const documentId = Number(id);
+  // Exam-prep uploads pass ?from=exam so we return to the right section.
+  const fromExam = searchParams.get("from") === "exam";
+  const homePath = fromExam ? "/exam" : "/";
 
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function StructureReviewPage() {
         `/documents/${documentId}/structure`,
         toConfirmPayload(state, examDate.trim() === "" ? null : examDate),
       );
-      navigate("/");
+      navigate(homePath);
     } catch (err) {
       setSubmitError(
         err instanceof ApiError ? err.message : "Could not confirm. Try again.",
@@ -100,7 +104,7 @@ export function StructureReviewPage() {
   if (status === "error") {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <BackLink onClick={() => navigate("/")} />
+        <BackLink onClick={() => navigate(homePath)} exam={fromExam} />
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           {loadError}
         </div>
@@ -113,7 +117,7 @@ export function StructureReviewPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink onClick={() => navigate("/")} />
+      <BackLink onClick={() => navigate(homePath)} exam={fromExam} />
       <h1 className="text-2xl font-semibold tracking-tight">Review structure</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Rename, add, or remove chapters and topics, and set each topic&apos;s
@@ -261,7 +265,7 @@ function CenteredNote({ children }: { children: ReactNode }) {
   );
 }
 
-function BackLink({ onClick }: { onClick: () => void }) {
+function BackLink({ onClick, exam = false }: { onClick: () => void; exam?: boolean }) {
   return (
     <button
       type="button"
@@ -269,7 +273,7 @@ function BackLink({ onClick }: { onClick: () => void }) {
       className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft className="size-4" />
-      Back to library
+      {exam ? "Back to exam prep" : "Back to library"}
     </button>
   );
 }

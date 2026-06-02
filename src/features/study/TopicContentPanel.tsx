@@ -1,19 +1,30 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { DocumentMode } from "@/types/library";
 import type { TopicContent } from "@/types/study";
 
 import { FlashcardsTab } from "./FlashcardsTab";
 import { NotesTab } from "./NotesTab";
 import { QuizTab } from "./QuizTab";
 
-export function TopicContentPanel({ content }: { content: TopicContent }) {
+export function TopicContentPanel({
+  content,
+  mode = "study",
+}: {
+  content: TopicContent;
+  mode?: DocumentMode;
+}) {
+  // Exam-prep documents are assessment-only — no notes were generated, so the
+  // Notes tab is dropped and the quiz leads.
+  const isExam = mode === "exam";
+
   return (
     <div>
       <h2 className="mb-4 text-xl font-semibold tracking-tight">
         {content.title}
       </h2>
-      <Tabs defaultValue="notes">
+      <Tabs defaultValue={isExam ? "quiz" : "notes"}>
         <TabsList>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
+          {!isExam && <TabsTrigger value="notes">Notes</TabsTrigger>}
           <TabsTrigger value="quiz">
             Quiz{content.mcqs.length > 0 && ` (${content.mcqs.length})`}
           </TabsTrigger>
@@ -21,9 +32,11 @@ export function TopicContentPanel({ content }: { content: TopicContent }) {
             Flashcards{content.flashcards.length > 0 && ` (${content.flashcards.length})`}
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="notes">
-          <NotesTab topicId={content.id} notes={content.notes} />
-        </TabsContent>
+        {!isExam && (
+          <TabsContent value="notes">
+            <NotesTab topicId={content.id} notes={content.notes} />
+          </TabsContent>
+        )}
         <TabsContent value="quiz">
           <QuizTab mcqs={content.mcqs} />
         </TabsContent>
