@@ -337,6 +337,7 @@ class ChapterNode:
 @dataclass
 class DocumentTree:
     document_id: int
+    subject_id: int
     status: DocumentStatus
     mode: DocumentMode
     chapters: list[ChapterNode]
@@ -397,6 +398,7 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
     ]
     return DocumentTree(
         document_id=document.id,
+        subject_id=document.subject_id,
         status=document.status,
         mode=document.mode,
         chapters=chapter_nodes,

@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.routers import (
+    assessment,
     bookmarks,
     documents,
     queue,
@@ -66,6 +67,7 @@ api.include_router(study.router)
 api.include_router(settings.router)
 api.include_router(search.router)
 api.include_router(bookmarks.router)
+api.include_router(assessment.router)
 
 # API routes are registered before the SPA catch-all so they always win.
 app.include_router(api)

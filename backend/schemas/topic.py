@@ -42,6 +42,7 @@ class DocumentTreeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     document_id: int
+    subject_id: int
     status: DocumentStatus
     mode: DocumentMode
     chapters: list[ChapterNodeOut]
