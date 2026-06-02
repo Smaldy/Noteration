@@ -47,9 +47,18 @@ class Waterfall:
     backoff_cap: timedelta = timedelta(hours=1)
     _runtime: dict[str, _ProviderRuntime] = field(default_factory=dict)
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int,
+        response_schema: dict | None = None,
+    ) -> ProviderResult:
         return self._dispatch(
-            lambda p: p.generate(prompt, max_tokens=max_tokens), need_vision=False
+            lambda p: p.generate(
+                prompt, max_tokens=max_tokens, response_schema=response_schema
+            ),
+            need_vision=False,
         )
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:

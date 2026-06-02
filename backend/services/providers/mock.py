@@ -6,6 +6,7 @@ Lives in the package (not tests/) so Phase 4's queue tests can reuse it.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from backend.services.providers.base import (
     BudgetProbe,
@@ -53,6 +54,7 @@ class MockProvider(Provider):
         self.output_tokens = output_tokens
         self.generate_calls = 0
         self.transcribe_calls = 0
+        self.last_response_schema: dict[str, Any] | None = None
 
     def budget_probe(self) -> BudgetProbe:
         return BudgetProbe(
@@ -63,8 +65,15 @@ class MockProvider(Provider):
             supports_vision=self.supports_vision,
         )
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int,
+        response_schema: dict[str, Any] | None = None,
+    ) -> ProviderResult:
         self.generate_calls += 1
+        self.last_response_schema = response_schema
         if self.raises is not None:
             raise self.raises
         return self._result()

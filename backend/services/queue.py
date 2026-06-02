@@ -49,14 +49,18 @@ RETRY_DELAY = timedelta(minutes=1)
 # Fallback defer when exhaustion reports no concrete reset time (avoid spinning).
 DEFAULT_DEFER = timedelta(minutes=5)
 
-# Stage execution order within a topic: formulas first (notes embed them), then
-# notes, then assessment (which uses notes as context).
+# Stage execution order within a topic: formula registration first (it now only
+# detects + registers equation regions — vision is deferred/lazy), then the
+# consolidated generation stage (`notes`) which produces notes + assessment in a
+# single call. The old separate `assessment` stage is retired (no longer enqueued).
 STAGE_ORDER: tuple[QueueStage, ...] = (
     QueueStage.formula,
     QueueStage.notes,
-    QueueStage.assessment,
 )
-STAGE_RANK = {stage: i for i, stage in enumerate(STAGE_ORDER)}
+# Rank EVERY known stage (including the retired `assessment`) by enum order so any
+# pre-existing `assessment` job in a live DB still sorts/eligibility-checks without
+# a KeyError.
+STAGE_RANK = {stage: i for i, stage in enumerate(QueueStage)}
 
 # exam_critical dispatched first so partial completion yields what matters most.
 PRIORITY_RANK = {TopicPriority.exam_critical: 0, TopicPriority.medium: 1}
@@ -299,7 +303,13 @@ class QueueService:
             .order_by(QueueJob.resume_after.asc())
         ).first()
 
-    def run_batch(self, processor: StageProcessor, *, max_jobs: int) -> int:
+    def run_batch(
+        self,
+        processor: StageProcessor,
+        *,
+        max_jobs: int,
+        throttle: Callable[[QueueJob, "JobOutcome"], None] | None = None,
+    ) -> int:
         """Claim and process due jobs until exhaustion, max_jobs, or none left.
 
         Returns the number of jobs processed (done/failed/deferred-retry). Stops
@@ -307,6 +317,10 @@ class QueueService:
         and the caller then sleeps until ``earliest_resume_after``. Transiently
         failed jobs are deferred (not re-claimed this batch), so the loop moves on
         to other topics and never spins.
+
+        ``throttle`` is an optional ``(job, outcome) -> None`` hook invoked after
+        each processed job (used by the background worker to space out free-tier
+        model calls and stay under the rolling per-minute request ceiling).
         """
         processed = 0
         while processed < max_jobs:
@@ -317,6 +331,8 @@ class QueueService:
             if outcome is JobOutcome.exhausted:
                 break
             processed += 1
+            if throttle is not None:
+                throttle(job, outcome)
         return processed
 
     @staticmethod

@@ -22,7 +22,7 @@ export function TopicContentPanel({ content }: { content: TopicContent }) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="notes">
-          <NotesTab notes={content.notes} />
+          <NotesTab topicId={content.id} notes={content.notes} />
         </TabsContent>
         <TabsContent value="quiz">
           <QuizTab mcqs={content.mcqs} />

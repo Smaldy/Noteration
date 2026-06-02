@@ -28,11 +28,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from backend.db.database import SessionLocal
 from backend.models.hierarchy import utcnow
+from backend.models.processing import QueueJob
 from backend.models.settings import Settings
+from backend.services.pipeline.formula import NO_OP_PROVIDER
 from backend.services.pipeline.processors import make_pipeline_processor
 from backend.services.providers.factory import build_waterfall_from_settings
+from backend.services.providers.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
 from backend.services.providers.waterfall import Waterfall
-from backend.services.queue import QueueService
+from backend.services.queue import JobOutcome, QueueService
 from backend.services.settings import get_settings
 
 logger = logging.getLogger("backend.worker")
@@ -44,6 +47,55 @@ POLL_INTERVAL_SECONDS = 5.0
 # Jobs per drain before the loop re-reads settings and yields. Bounds one tick's
 # work so a long queue can't pin a single waterfall/config snapshot.
 MAX_JOBS_PER_TICK = 50
+
+# Gemini free-tier models we offer (Settings.gemini_model). When one of these is
+# the serving tier, the background worker spaces out generation calls so a long
+# queue can't burst past the rolling per-minute request quota.
+FREE_TIER_GEMINI_MODELS = frozenset({"gemini-2.5-flash-lite", "gemini-2.5-flash"})
+# Mandatory gap between consecutive free-tier model calls. 60s / 12s = 5 req/min,
+# comfortably under Gemini's 15 RPM ceiling even with vision/retry jitter.
+FREE_TIER_THROTTLE_SECONDS = 12.0
+
+
+def _no_sleep(_seconds: float) -> None:
+    """Default sleep for one-shot drains: do not block (only the worker throttles)."""
+
+
+def _free_tier_throttle_seconds(settings: Settings) -> float:
+    """Seconds to wait between model calls when Gemini's free tier is serving.
+
+    Throttle when a Gemini key is configured and the chosen model is a free-tier
+    model — that's the tier whose 60-second request window we must not breach in
+    automated drains. (If a paid/local tier is ordered ahead, the extra spacing is
+    harmless.) Returns 0 when no free-tier throttle applies.
+    """
+    if not settings.api_key_gemini:
+        return 0.0
+    model = settings.gemini_model or GEMINI_DEFAULT_MODEL
+    return FREE_TIER_THROTTLE_SECONDS if model in FREE_TIER_GEMINI_MODELS else 0.0
+
+
+def _make_throttle(
+    settings: Settings, sleep: Callable[[float], None]
+) -> Callable[[QueueJob, JobOutcome], None] | None:
+    """Build the inter-job throttle for a drain, or None when none is needed.
+
+    Sleeps ``sleep(seconds)`` only after a job that actually consumed a model
+    request (a successful generation call). Formula *registration* and other
+    no-op/failed jobs spend no request quota, so they are never throttled.
+    """
+    seconds = _free_tier_throttle_seconds(settings)
+    if seconds <= 0:
+        return None
+
+    def throttle(job: QueueJob, outcome: JobOutcome) -> None:
+        if outcome is not JobOutcome.done:
+            return
+        provider = job.assigned_provider or ""
+        if provider and provider != NO_OP_PROVIDER:
+            sleep(seconds)
+
+    return throttle
 
 
 def _settings_fingerprint(settings: Settings) -> tuple:
@@ -116,14 +168,20 @@ def drain_once(
     max_jobs: int = MAX_JOBS_PER_TICK,
     clock: Callable[[], datetime] = utcnow,
     cache: WaterfallCache | None = None,
+    sleep: Callable[[float], None] = _no_sleep,
 ) -> int:
     """Run one drain cycle on an open session; return jobs processed.
 
     No pending work, or no provider configured → no-op (0). Otherwise reuse (via
     ``cache``) the waterfall built from current ``Settings`` and hand a
     stage-dispatching processor to ``run_batch`` (which claims due jobs, respects
-    defers, and stops on exhaustion). Pure of thread/sleep concerns so it's
-    directly unit-testable.
+    defers, and stops on exhaustion). Pure of thread concerns so it's directly
+    unit-testable.
+
+    ``sleep`` is invoked between free-tier model calls to enforce the per-minute
+    throttle; it defaults to a no-op so one-shot callers/tests don't block. The
+    running worker passes an interruptible sleep (its stop event's ``wait``) so a
+    long throttle doesn't delay shutdown.
 
     Passing a ``WaterfallCache`` keeps the provider rate-limit state alive between
     calls (the running worker does this); without one the waterfall is rebuilt
@@ -144,7 +202,8 @@ def drain_once(
     else:
         waterfall = build_waterfall_from_settings(settings, clock=clock)
     processor = make_pipeline_processor(waterfall)
-    return queue.run_batch(processor, max_jobs=max_jobs)
+    throttle = _make_throttle(settings, sleep)
+    return queue.run_batch(processor, max_jobs=max_jobs, throttle=throttle)
 
 
 class QueueWorker:
@@ -211,7 +270,11 @@ class QueueWorker:
         session = self._session_factory()
         try:
             processed = drain_once(
-                session, max_jobs=self._max_jobs, cache=self._waterfall_cache
+                session,
+                max_jobs=self._max_jobs,
+                cache=self._waterfall_cache,
+                # Interruptible sleep so a free-tier throttle never delays stop().
+                sleep=self._stop.wait,
             )
             if processed:
                 logger.info("Queue worker processed %d job(s)", processed)

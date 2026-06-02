@@ -1,4 +1,9 @@
-"""Formula stage tests (Phase 7c): detection, cropping, processor, integration."""
+"""Formula stage tests: detection, cropping, registration, lazy transcription.
+
+The background queue only *registers* equation regions (``pending`` formulas, no
+vision call); transcription is deferred to the on-demand
+``transcribe_pending_formulas`` path. These cover both halves.
+"""
 
 from __future__ import annotations
 
@@ -15,10 +20,9 @@ from backend.services.pipeline.formula import (
     crop_pdf_region,
     detect_math_regions,
     make_formula_processor,
+    transcribe_pending_formulas,
 )
-from backend.services.pipeline.generation import make_notes_processor
 from backend.services.queue import JobOutcome, QueueService
-from backend.services.providers.base import BudgetProbe, Provider, ProviderResult
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
 
@@ -88,20 +92,21 @@ def _job(session: Session, topic: Topic) -> QueueJob:
     return job
 
 
-def _fake_cropper(_session, _topic, region: MathRegion) -> bytes:
-    region.bbox = {"page": 0}
-    return b"\x89PNGfake"
+def _fake_locator(_session, _topic, region: MathRegion) -> dict:
+    region.bbox = {"page": 0, "x0": 0, "y0": 0, "x1": 10, "y1": 10}
+    return region.bbox
 
 
-def test_formula_processor_stores_reconstructed_formula(session: Session) -> None:
+# --- registration stage (no vision call) ------------------------------------
+
+
+def test_formula_processor_registers_pending_formula(session: Session) -> None:
     topic = _seed_topic(session)
     job = _job(session, topic)
     queue = QueueService(session)
-    vision = MockProvider("gemini_vision", supports_vision=True, text="F = ma")
     processor = make_formula_processor(
-        Waterfall([vision]),
         source_loader=lambda _s, _t: "$$F=ma$$",
-        cropper=_fake_cropper,
+        locator=_fake_locator,
     )
 
     outcome = queue.process_job(job, processor)
@@ -109,27 +114,26 @@ def test_formula_processor_stores_reconstructed_formula(session: Session) -> Non
     assert outcome is JobOutcome.done
     note = session.query(Note).filter_by(topic_id=topic.id).one()
     formula = session.query(Formula).filter_by(note_id=note.id).one()
-    assert formula.latex == "F = ma"
-    assert formula.state is FormulaState.reconstructed
-    assert formula.bbox == {"page": 0}
-    assert session.get(QueueJob, job.id).assigned_provider == "gemini_vision"
+    # Registered, NOT transcribed — vision is deferred to the on-demand endpoint.
+    assert formula.state is FormulaState.pending
+    assert formula.latex == ""
+    assert formula.bbox["page"] == 0
+    # The registration stage makes no model call.
+    assert session.get(QueueJob, job.id).assigned_provider == NO_OP_PROVIDER
 
 
 def test_formula_processor_no_math_is_noop(session: Session) -> None:
     topic = _seed_topic(session)
     job = _job(session, topic)
     queue = QueueService(session)
-    vision = MockProvider("gemini_vision", supports_vision=True, text="x")
     processor = make_formula_processor(
-        Waterfall([vision]),
         source_loader=lambda _s, _t: "no math here",
-        cropper=_fake_cropper,
+        locator=_fake_locator,
     )
 
     outcome = queue.process_job(job, processor)
 
     assert outcome is JobOutcome.done
-    assert vision.transcribe_calls == 0
     assert session.query(Note).count() == 0
     assert session.query(Formula).count() == 0
     assert session.get(QueueJob, job.id).assigned_provider == NO_OP_PROVIDER
@@ -139,74 +143,65 @@ def test_formula_processor_skips_unlocatable_regions(session: Session) -> None:
     topic = _seed_topic(session)
     job = _job(session, topic)
     queue = QueueService(session)
-    vision = MockProvider("gemini_vision", supports_vision=True, text="F = ma")
     processor = make_formula_processor(
-        Waterfall([vision]),
         source_loader=lambda _s, _t: "$$F=ma$$",
-        cropper=lambda _s, _t, _r: None,  # cannot locate
+        locator=lambda _s, _t, _r: None,  # cannot locate
     )
 
     outcome = queue.process_job(job, processor)
 
     assert outcome is JobOutcome.done
-    assert vision.transcribe_calls == 0
     assert session.query(Formula).count() == 0
     assert session.get(QueueJob, job.id).assigned_provider == NO_OP_PROVIDER
 
 
-# --- formula -> notes integration (shared Note, embedded LaTeX) -------------
+# --- on-demand (lazy) transcription -----------------------------------------
 
 
-class _CapturingProvider(Provider):
-    """Records the prompt it was asked to generate, returns fixed text."""
-
-    name = "capture"
-    supports_vision = False
-
-    def __init__(self, text: str) -> None:
-        self.text = text
-        self.last_prompt = ""
-
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
-        self.last_prompt = prompt
-        return ProviderResult(text=self.text, provider=self.name)
-
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
-        raise NotImplementedError
-
-    def budget_probe(self) -> BudgetProbe:
-        return BudgetProbe(True, 100, "none", None, False)
-
-
-def test_formula_then_notes_share_note_and_embed_latex(session: Session) -> None:
+def test_transcribe_pending_formulas_fills_latex(session: Session) -> None:
+    # Register a pending formula via the stage, then transcribe it on demand.
     topic = _seed_topic(session)
+    job = _job(session, topic)
     queue = QueueService(session)
-    source = "$$F=ma$$"
-
-    # Formula stage: creates the Note + a Formula.
-    formula_job = QueueJob(topic_id=topic.id, stage=QueueStage.formula)
-    session.add(formula_job)
-    session.commit()
-    vision = MockProvider("gemini_vision", supports_vision=True, text="F = ma")
     queue.process_job(
-        formula_job,
+        job,
         make_formula_processor(
-            Waterfall([vision]), source_loader=lambda _s, _t: source, cropper=_fake_cropper
+            source_loader=lambda _s, _t: "$$F=ma$$", locator=_fake_locator
+        ),
+    )
+    pending = session.query(Formula).filter_by(state=FormulaState.pending).one()
+
+    vision = MockProvider("gemini_vision", supports_vision=True, text="F = ma")
+    transcribed = transcribe_pending_formulas(
+        session,
+        topic.id,
+        Waterfall([vision]),
+        cropper=lambda _s, _f: b"\x89PNGfake",
+    )
+
+    assert vision.transcribe_calls == 1
+    assert [f.id for f in transcribed] == [pending.id]
+    session.refresh(pending)
+    assert pending.state is FormulaState.reconstructed
+    assert pending.latex == "F = ma"
+
+
+def test_transcribe_pending_formulas_leaves_uncroppable_pending(session: Session) -> None:
+    topic = _seed_topic(session)
+    job = _job(session, topic)
+    queue = QueueService(session)
+    queue.process_job(
+        job,
+        make_formula_processor(
+            source_loader=lambda _s, _t: "$$F=ma$$", locator=_fake_locator
         ),
     )
 
-    # Notes stage: same Note gets filled, with the LaTeX embedded in the prompt.
-    notes_job = QueueJob(topic_id=topic.id, stage=QueueStage.notes)
-    session.add(notes_job)
-    session.commit()
-    capture = _CapturingProvider(text="# Mechanics notes")
-    queue.process_job(
-        notes_job,
-        make_notes_processor(Waterfall([capture]), source_loader=lambda _s, _t: source),
+    vision = MockProvider("gemini_vision", supports_vision=True, text="F = ma")
+    transcribed = transcribe_pending_formulas(
+        session, topic.id, Waterfall([vision]), cropper=lambda _s, _f: None
     )
 
-    notes = session.query(Note).filter_by(topic_id=topic.id).all()
-    assert len(notes) == 1  # both stages used the same Note
-    assert notes[0].content_md == "# Mechanics notes"
-    assert "F = ma" in capture.last_prompt  # transcribed LaTeX handed to notes
-    assert session.query(Formula).count() == 1
+    assert transcribed == []
+    assert vision.transcribe_calls == 0
+    assert session.query(Formula).filter_by(state=FormulaState.pending).count() == 1

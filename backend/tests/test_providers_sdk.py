@@ -126,6 +126,27 @@ def test_gemini_transcribe_builds_image_request() -> None:
     assert isinstance(captured["contents"], list) and len(captured["contents"]) == 2
 
 
+def test_gemini_generate_engages_structured_output() -> None:
+    resp = SimpleNamespace(text="{}", usage_metadata=None)
+    captured: dict = {}
+
+    def generate_content(**kwargs):
+        captured.update(kwargs)
+        return resp
+
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    provider = GeminiProvider(client=client, clock=lambda: T0)
+    schema = {"type": "object", "properties": {"notes_md": {"type": "string"}}}
+    provider.generate("p", max_tokens=64, response_schema=schema)
+
+    config = captured["config"]
+    assert config["response_mime_type"] == "application/json"
+    assert config["response_schema"] is schema
+    # A plain call must NOT request JSON mode.
+    provider.generate("p", max_tokens=64)
+    assert "response_schema" not in captured["config"]
+
+
 # --- Claude -----------------------------------------------------------------
 
 

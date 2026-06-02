@@ -1,9 +1,9 @@
-"""End-to-end pipeline test (Phase 7e): confirm → queue → notes + assessment.
+"""End-to-end pipeline test: confirm → queue → consolidated generation.
 
 Drives a confirmed document's topics through the real queue with the stage
-dispatcher, using one provider that answers notes vs. assessment prompts
-appropriately. Proves the formula→notes→assessment ordering and atomic commits
-produce studiable material per topic.
+dispatcher. The provider returns one combined JSON object (notes + assessment)
+per generation call. Proves the formula→generation ordering and atomic commits
+produce studiable material per topic in a single generation call.
 """
 
 from __future__ import annotations
@@ -23,7 +23,8 @@ from backend.services.queue import QueueService
 from backend.services.providers.base import BudgetProbe, Provider, ProviderResult
 from backend.services.providers.waterfall import Waterfall
 
-_ASSESSMENT = {
+_GENERATION = {
+    "notes_md": "# Kinematics\n\nVelocity is dx/dt.",
     "mcqs": [
         {
             "question": "What is velocity?",
@@ -37,15 +38,15 @@ _ASSESSMENT = {
 
 
 class _SmartProvider(Provider):
-    """Returns assessment JSON for the assessment prompt, notes prose otherwise."""
+    """Returns the combined notes+assessment JSON object for every generate call."""
 
     name = "smart_free"
     supports_vision = True
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
-        if "Respond with ONLY a JSON" in prompt:
-            return ProviderResult(text=json.dumps(_ASSESSMENT), provider=self.name)
-        return ProviderResult(text="# Kinematics\n\nVelocity is dx/dt.", provider=self.name)
+    def generate(
+        self, prompt: str, *, max_tokens: int, response_schema=None
+    ) -> ProviderResult:
+        return ProviderResult(text=json.dumps(_GENERATION), provider=self.name)
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
         return ProviderResult(text="v = dx/dt", provider=self.name)
@@ -86,9 +87,9 @@ def test_full_topic_pipeline_produces_studiable_material(
     processor = make_pipeline_processor(Waterfall([_SmartProvider()]))
     processed = queue.run_batch(processor, max_jobs=20)
 
-    # 3 stage jobs for the one non-skip topic: formula (no math → no-op), notes,
-    # assessment.
-    assert processed == 3
+    # 2 stage jobs for the one non-skip topic: formula (no math → no-op) and the
+    # consolidated generation stage (notes + assessment in one call).
+    assert processed == 2
     assert all(j.state is QueueState.done for j in session.query(QueueJob).all())
 
     note = session.query(Note).filter_by(topic_id=topic_id).one()
@@ -110,6 +111,6 @@ def test_pipeline_resumes_after_restart(session: Session, tmp_path: Path) -> Non
     queue2 = QueueService(session)
     queue2.recover_orphaned_jobs()
     remaining = queue2.run_batch(processor, max_jobs=20)
-    assert remaining == 2
+    assert remaining == 1  # only the generation stage remained (2 stages total)
     assert session.query(Note).count() == 1
     assert session.query(MCQ).count() == 1

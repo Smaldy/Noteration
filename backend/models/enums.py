@@ -41,6 +41,7 @@ class QueueState(enum.StrEnum):
 
 
 class FormulaState(enum.StrEnum):
+    pending = "pending"  # region detected/registered; vision transcription deferred
     reconstructed = "reconstructed"
     verified = "verified"
 

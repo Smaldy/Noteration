@@ -15,6 +15,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -103,8 +104,22 @@ class Provider(ABC):
     enabled: bool = True
 
     @abstractmethod
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
-        """Produce text for a prompt, capped at ``max_tokens`` output."""
+    def generate(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int,
+        response_schema: dict[str, Any] | None = None,
+    ) -> ProviderResult:
+        """Produce text for a prompt, capped at ``max_tokens`` output.
+
+        When ``response_schema`` (a JSON Schema dict) is given, the provider is
+        asked to return a single JSON object matching it — used by the
+        consolidated generation stage to get notes + assessment in one turn.
+        Providers without native structured-output support fall back to relying
+        on the prompt's JSON instruction; ``ProviderResult.text`` is still the
+        raw (JSON) string in every case.
+        """
 
     @abstractmethod
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:

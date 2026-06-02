@@ -75,13 +75,19 @@ class GeminiProvider(Provider):
             self.supports_vision,
         )
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int,
+        response_schema: dict[str, Any] | None = None,
+    ) -> ProviderResult:
         try:
             client = self._get_client()
             response = client.models.generate_content(
                 model=self.model,
                 contents=prompt,
-                config=self._config(max_tokens),
+                config=self._config(max_tokens, response_schema=response_schema),
             )
         except Exception as exc:  # noqa: BLE001 - mapped to typed provider errors
             raise self._map_error(exc) from exc
@@ -108,20 +114,31 @@ class GeminiProvider(Provider):
 
     # -- internals -----------------------------------------------------------
 
-    def _config(self, max_tokens: int) -> dict[str, Any]:
+    def _config(
+        self, max_tokens: int, *, response_schema: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Generation config with "thinking" disabled.
 
         The 2.5 flash models otherwise spend much of ``max_output_tokens`` on
         hidden reasoning, which truncates notes and the assessment JSON. We want
         the whole budget on visible content; flash-lite has no thinking anyway,
         so disabling it is uniform and safe across the offered models.
+
+        When ``response_schema`` is given, Gemini's native **structured output**
+        is engaged (``response_mime_type="application/json"`` + the schema), so
+        the consolidated generation stage gets one validated JSON object back —
+        no second call to keep notes and assessment aligned.
         """
         from google.genai import types  # lazy
 
-        return {
+        config: dict[str, Any] = {
             "max_output_tokens": max_tokens,
             "thinking_config": types.ThinkingConfig(thinking_budget=0),
         }
+        if response_schema is not None:
+            config["response_mime_type"] = "application/json"
+            config["response_schema"] = response_schema
+        return config
 
     def _get_client(self) -> Any:
         if self._client is None:

@@ -54,7 +54,9 @@ def test_enqueue_creates_jobs_for_all_stages(session: Session) -> None:
     topic = _topic(session)
     jobs = QueueService(session).enqueue_topic(topic)
     stages = {job.stage for job in jobs}
-    assert stages == {QueueStage.formula, QueueStage.notes, QueueStage.assessment}
+    # Default stages: formula (region registration) + the consolidated generation
+    # stage (`notes`). The separate `assessment` stage is retired.
+    assert stages == {QueueStage.formula, QueueStage.notes}
     assert all(job.state is QueueState.pending for job in jobs)
 
 

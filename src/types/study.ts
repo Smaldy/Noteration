@@ -3,7 +3,9 @@
 import type { TopicPriority } from "./structure";
 
 export type TopicStatus = "queued" | "processing" | "ready" | "error";
-export type FormulaState = "reconstructed" | "verified";
+// "pending": region detected by the queue, vision transcription not yet run
+// (triggered lazily when the topic is opened).
+export type FormulaState = "pending" | "reconstructed" | "verified";
 
 // --- document tree (sidebar) ------------------------------------------------
 

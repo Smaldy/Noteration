@@ -5,7 +5,10 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.models import Note, Topic
+from backend.models import Formula, Note, Topic
+from backend.services.pipeline.formula import transcribe_pending_formulas
+from backend.services.providers.factory import build_waterfall_from_settings
+from backend.services.settings import get_settings
 
 
 def reorder_topics(session: Session, ids: list[int]) -> None:
@@ -48,6 +51,23 @@ def get_topic_content(session: Session, topic_id: int) -> Topic:
     if topic is None:
         raise TopicNotFoundError(topic_id)
     return topic
+
+
+def transcribe_formulas(session: Session, topic_id: int) -> list[Formula]:
+    """Lazily transcribe a topic's pending formulas via the vision waterfall.
+
+    Triggered when a user opens a topic (the background queue only *registers*
+    pending formula regions — it never spends vision budget). Builds the waterfall
+    from the current ``Settings`` (so a freshly-saved key works), transcribes each
+    pending region (re-cropped grayscale/150 DPI), and flips it to
+    ``reconstructed``. Raises ``TopicNotFoundError`` for an unknown topic;
+    provider-exhaustion errors propagate for the router to surface.
+    """
+    topic = session.get(Topic, topic_id)
+    if topic is None:
+        raise TopicNotFoundError(topic_id)
+    waterfall = build_waterfall_from_settings(get_settings(session))
+    return transcribe_pending_formulas(session, topic_id, waterfall)
 
 
 def set_bookmark(session: Session, topic_id: int, *, bookmarked: bool) -> Topic:

@@ -18,6 +18,8 @@ interface StudyStore {
   fetchTree: (documentId: number) => Promise<void>;
   /** Load a topic's notes/MCQs/flashcards for the tabs. */
   fetchTopic: (topicId: number) => Promise<void>;
+  /** Lazily transcribe the topic's pending formulas, then refresh its content. */
+  transcribeFormulas: (topicId: number) => Promise<void>;
   /** Delete a topic (and its content), then refresh the document's tree. */
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
@@ -62,6 +64,20 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
           err instanceof ApiError ? err.message : "Failed to load the topic.",
       });
     }
+  },
+
+  transcribeFormulas: async (topicId) => {
+    // The endpoint returns the refreshed topic content (formulas flipped to
+    // reconstructed). Only update if this topic is still the open one.
+    const content = await api.post<TopicContent>(
+      `/topics/${topicId}/formulas/transcribe`,
+      {},
+    );
+    set((state) =>
+      state.content && state.content.id === topicId
+        ? { content, contentStatus: "loaded" }
+        : state,
+    );
   },
 
   deleteTopic: async (topicId, documentId) => {

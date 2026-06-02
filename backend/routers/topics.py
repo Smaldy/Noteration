@@ -11,6 +11,7 @@ from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
 from backend.schemas.reorder import ReorderRequest
 from backend.schemas.topic import TopicContentOut
 from backend.services import topics as topicsvc
+from backend.services.providers.base import AllProvidersExhausted
 
 router = APIRouter(prefix="/topics", tags=["topics"])
 
@@ -35,6 +36,30 @@ def topic_content(
         return topicsvc.get_topic_content(session, topic_id)
     except topicsvc.TopicNotFoundError:
         raise HTTPException(status_code=404, detail="Topic not found")
+
+
+@router.post("/{topic_id}/formulas/transcribe", response_model=TopicContentOut)
+def transcribe_topic_formulas(
+    topic_id: int,
+    session: Session = Depends(get_session),
+) -> Topic:
+    """Lazily transcribe a topic's pending formulas, then return its content.
+
+    Called by the Study View when a topic is opened: flips ``pending`` formulas to
+    ``reconstructed`` via the vision waterfall and returns the refreshed topic
+    content (notes + formulas + assessment). 404 unknown topic; 503 when no
+    provider has vision headroom right now.
+    """
+    try:
+        topicsvc.transcribe_formulas(session, topic_id)
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    except AllProvidersExhausted as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=exc.reason or "No vision provider available right now",
+        )
+    return topicsvc.get_topic_content(session, topic_id)
 
 
 @router.put("/{topic_id}/bookmark", response_model=TopicBookmarkOut)

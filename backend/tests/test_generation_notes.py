@@ -1,25 +1,42 @@
-"""Notes generation tests (Phase 7a): source slicing + the notes StageProcessor."""
+"""Generation tests: source slicing + the consolidated generation StageProcessor."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from sqlalchemy.orm import Session
 
-from backend.models import Chapter, Document, Note, Subject, Topic
+from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Topic
 from backend.models.enums import QueueStage, QueueState
 from backend.models.processing import QueueJob
 from backend.services.pipeline.generation import (
+    GENERATION_SCHEMA,
     TopicSourceUnavailableError,
-    build_notes_prompt,
+    build_generation_prompt,
     load_topic_source,
-    make_notes_processor,
+    make_generation_processor,
     slice_section,
 )
 from backend.services.queue import JobOutcome, QueueService
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
+
+_GEN_JSON = json.dumps(
+    {
+        "notes_md": "# Notes\n\nDense notes here.",
+        "mcqs": [
+            {
+                "question": "What is velocity?",
+                "options": ["dx/dt", "ma"],
+                "correct_index": 0,
+                "explanation": "rate of position change",
+            }
+        ],
+        "flashcards": [{"front": "acceleration?", "back": "dv/dt"}],
+    }
+)
 
 _MD = """# Chapter A
 
@@ -160,17 +177,18 @@ def test_load_topic_source_missing_markdown_raises(session: Session, tmp_path: P
 # --- prompt -----------------------------------------------------------------
 
 
-def test_build_notes_prompt_includes_title_and_source() -> None:
-    prompt = build_notes_prompt("Kinematics", "Velocity is rate of change.")
+def test_build_generation_prompt_includes_title_and_source() -> None:
+    prompt = build_generation_prompt("Kinematics", "Velocity is rate of change.")
     assert "Kinematics" in prompt
     assert "Velocity is rate of change." in prompt
-    assert "Markdown" in prompt
+    assert "JSON" in prompt  # asks for one combined JSON object
+    assert "flashcards" in prompt
 
 
-# --- the StageProcessor via the real queue ----------------------------------
+# --- the consolidated StageProcessor via the real queue ---------------------
 
 
-def _notes_job(session: Session, tmp_path: Path) -> tuple[QueueService, QueueJob]:
+def _gen_job(session: Session, tmp_path: Path) -> tuple[QueueService, QueueJob]:
     topic = _seed(session, tmp_path, topic_title="Kinematics")
     job = QueueJob(topic_id=topic.id, stage=QueueStage.notes)
     session.add(job)
@@ -178,32 +196,41 @@ def _notes_job(session: Session, tmp_path: Path) -> tuple[QueueService, QueueJob
     return QueueService(session), job
 
 
-def test_notes_processor_writes_note_and_commits(session: Session, tmp_path: Path) -> None:
-    queue, job = _notes_job(session, tmp_path)
-    provider = MockProvider("gemini_free", text="# Notes\n\nDense notes here.")
-    processor = make_notes_processor(Waterfall([provider]))
+def test_generation_processor_writes_note_and_assessment_in_one_call(
+    session: Session, tmp_path: Path
+) -> None:
+    queue, job = _gen_job(session, tmp_path)
+    provider = MockProvider("gemini_free", text=_GEN_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
 
     outcome = queue.process_job(job, processor)
 
     assert outcome is JobOutcome.done
+    # ONE call produced both notes and the assessment — no second round trip.
     assert provider.generate_calls == 1
+    assert provider.last_response_schema is GENERATION_SCHEMA  # structured output
     note = session.query(Note).filter_by(topic_id=job.topic_id).one()
     assert note.content_md == "# Notes\n\nDense notes here."
     assert note.is_manual is False
+    assert session.query(MCQ).filter_by(topic_id=job.topic_id).count() == 1
+    assert session.query(Flashcard).filter_by(topic_id=job.topic_id).count() == 1
     refreshed = session.get(QueueJob, job.id)
     assert refreshed.state is QueueState.done
     assert refreshed.assigned_provider == "gemini_free"
 
 
-def test_notes_processor_exhaustion_writes_nothing(session: Session, tmp_path: Path) -> None:
-    queue, job = _notes_job(session, tmp_path)
+def test_generation_processor_exhaustion_writes_nothing(
+    session: Session, tmp_path: Path
+) -> None:
+    queue, job = _gen_job(session, tmp_path)
     # No headroom anywhere → waterfall raises AllProvidersExhausted.
     provider = MockProvider("gemini_free", available=False, headroom=0)
-    processor = make_notes_processor(Waterfall([provider]))
+    processor = make_generation_processor(Waterfall([provider]))
 
     outcome = queue.process_job(job, processor)
 
     assert outcome is JobOutcome.exhausted
     assert session.query(Note).filter_by(topic_id=job.topic_id).count() == 0
+    assert session.query(MCQ).count() == 0
     refreshed = session.get(QueueJob, job.id)
     assert refreshed.state is QueueState.pending  # deferred, not failed

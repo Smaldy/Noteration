@@ -33,8 +33,10 @@ from backend.services.providers.base import BudgetProbe, Provider, ProviderResul
 from backend.services.providers.budget import FreeTierLimiter
 from backend.services.providers.waterfall import Waterfall
 from backend.services.worker import (
+    FREE_TIER_THROTTLE_SECONDS,
     QueueWorker,
     WaterfallCache,
+    _free_tier_throttle_seconds,
     _has_configured_provider,
     drain_once,
 )
@@ -47,21 +49,22 @@ class _SmartProvider(Provider):
     name = "mock_free"
     supports_vision = True
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
-        if "Respond with ONLY a JSON" in prompt:
-            payload = {
-                "mcqs": [
-                    {
-                        "question": "v?",
-                        "options": ["dx/dt", "ma"],
-                        "correct_index": 0,
-                        "explanation": "rate",
-                    }
-                ],
-                "flashcards": [{"front": "a?", "back": "dv/dt"}],
-            }
-            return ProviderResult(text=json.dumps(payload), provider=self.name)
-        return ProviderResult(text="# Kinematics\n\nVelocity is dx/dt.", provider=self.name)
+    def generate(
+        self, prompt: str, *, max_tokens: int, response_schema=None
+    ) -> ProviderResult:
+        payload = {
+            "notes_md": "# Kinematics\n\nVelocity is dx/dt.",
+            "mcqs": [
+                {
+                    "question": "v?",
+                    "options": ["dx/dt", "ma"],
+                    "correct_index": 0,
+                    "explanation": "rate",
+                }
+            ],
+            "flashcards": [{"front": "a?", "back": "dv/dt"}],
+        }
+        return ProviderResult(text=json.dumps(payload), provider=self.name)
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
         return ProviderResult(text="v = dx/dt", provider=self.name)
@@ -81,6 +84,21 @@ def test_has_configured_provider_truth_table() -> None:
     # Claude key without allow_paid is the hard never-spend case → not usable.
     assert _has_configured_provider(Settings(api_key_claude="k")) is False
     assert _has_configured_provider(Settings()) is False
+
+
+def test_free_tier_throttle_seconds() -> None:
+    # A Gemini key + a free-tier model (default flash-lite) → throttle.
+    assert _free_tier_throttle_seconds(
+        Settings(api_key_gemini="k")
+    ) == FREE_TIER_THROTTLE_SECONDS
+    assert _free_tier_throttle_seconds(
+        Settings(api_key_gemini="k", gemini_model="gemini-2.5-flash")
+    ) == FREE_TIER_THROTTLE_SECONDS
+    # No key → nothing to throttle; a non-free model → no free-tier throttle.
+    assert _free_tier_throttle_seconds(Settings()) == 0.0
+    assert _free_tier_throttle_seconds(
+        Settings(api_key_gemini="k", gemini_model="some-paid-model")
+    ) == 0.0
 
 
 def test_drain_once_noop_when_no_pending_jobs(session: Session) -> None:
@@ -203,10 +221,14 @@ class _LimitedSmartProvider(_SmartProvider):
         self.clock = clock
         self.calls = 0
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
+    def generate(
+        self, prompt: str, *, max_tokens: int, response_schema=None
+    ) -> ProviderResult:
         self.calls += 1
         self.limiter.record(self.clock())
-        return super().generate(prompt, max_tokens=max_tokens)
+        return super().generate(
+            prompt, max_tokens=max_tokens, response_schema=response_schema
+        )
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
         self.calls += 1
@@ -284,7 +306,7 @@ def test_drain_reuses_waterfall_so_rate_limit_persists(
     built: list[_LimitedSmartProvider] = []
 
     def fake_build(settings, **kw):
-        provider = _LimitedSmartProvider(rpm=2, clock=clock)
+        provider = _LimitedSmartProvider(rpm=1, clock=clock)
         built.append(provider)
         return Waterfall([provider], clock=clock)
 
@@ -295,11 +317,55 @@ def test_drain_reuses_waterfall_so_rate_limit_persists(
     drain_once(session, cache=cache, clock=clock)
 
     # The waterfall is built once and reused, so its limiter keeps the first
-    # tick's history: total calls stay capped at rpm even though more jobs are
-    # pending. (The pre-fix code rebuilt each tick → fresh limiter → 429 burst.)
+    # tick's history: total model calls stay capped at rpm even though more jobs
+    # are pending. (The pre-fix code rebuilt each tick → fresh limiter → 429
+    # burst.) Each topic now has 2 stages — formula (no model call, just region
+    # registration) and the consolidated generation call — so rpm=1 lets exactly
+    # one generation call through and holds the second topic's generation back.
     assert len(built) == 1
-    assert built[0].calls == 2
+    assert built[0].calls == 1
     # Proof there was leftover work the persisted limiter actually held back.
     assert session.query(QueueJob).filter_by(state=QueueState.done).count() < (
         session.query(QueueJob).count()
     )
+
+
+def test_drain_throttles_only_free_tier_model_calls(
+    session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Two topics, a free-tier Gemini key, an unlimited smart provider. Each topic
+    # is formula (no model call) + the consolidated generation call.
+    _seed_two_topic_document(session, tmp_path)
+    session.add(Settings(id=1, api_key_gemini="x"))  # default model = flash-lite
+    session.commit()
+    monkeypatch.setattr(
+        worker_mod,
+        "build_waterfall_from_settings",
+        lambda settings, **kw: Waterfall([_SmartProvider()]),
+    )
+
+    waits: list[float] = []
+    processed = drain_once(session, sleep=waits.append)
+
+    assert processed == 4  # 2 formula no-ops + 2 generation calls
+    # Throttle fires once per *generation* call (12s spacing) and never for the
+    # formula registration no-ops — so exactly two waits.
+    assert waits == [FREE_TIER_THROTTLE_SECONDS, FREE_TIER_THROTTLE_SECONDS]
+
+
+def test_drain_does_not_throttle_when_not_free_tier(
+    session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Paid Claude only (no Gemini key) → no free-tier per-minute throttle.
+    _seed_two_topic_document(session, tmp_path)
+    session.add(Settings(id=1, allow_paid=True, api_key_claude="c"))
+    session.commit()
+    monkeypatch.setattr(
+        worker_mod,
+        "build_waterfall_from_settings",
+        lambda settings, **kw: Waterfall([_SmartProvider()]),
+    )
+
+    waits: list[float] = []
+    drain_once(session, sleep=waits.append)
+    assert waits == []

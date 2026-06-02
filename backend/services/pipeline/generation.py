@@ -1,15 +1,24 @@
-"""Stage 4 — Generation. Per-topic notes (7a) and assessment (7b).
+"""Stage 4 — Generation. Per-topic notes + assessment in ONE model call.
 
-Two model calls per topic (docs/ai-pipeline.md): call 1 = dense notes, call 2 =
-MCQs + flashcards together (with the notes as context, so questions stay
-consistent with the material). Calls go through the provider ``Waterfall`` so any
-tier can serve them; the queue owns transactions, failover, and retry — these
-processors only build the prompt, call the model, and write their domain rows
-*uncommitted* (the queue commits atomically).
+The pipeline originally made two calls per topic (notes, then MCQs+flashcards with
+the notes re-sent as context). On the Gemini free tier that second call's input —
+the full generated notes — doubled token spend and burned a second request against
+the per-minute quota for no quality gain. We now collapse both into a **single
+structured-output call**: one prompt returns one JSON object carrying ``notes_md``
+plus the MCQ/flashcard arrays, validated against ``GENERATION_SCHEMA`` (Gemini
+native JSON Schema). The notes never leave for a second round trip.
+
+(This supersedes ai-pipeline.md's "two calls is the floor" — a deliberate,
+user-directed cost change; see docs/build-log.md DECISIONS.)
+
+Calls go through the provider ``Waterfall`` so any tier can serve them; the queue
+owns transactions, failover, and retry — this processor only builds the prompt,
+calls the model, parses, and writes its domain rows *uncommitted* (the queue
+commits atomically).
 
 Per-topic source text is sliced from the document's cached markdown by matching
-the topic title to a heading, falling back to the chapter section and then the
-whole document (never zero context). See DECISIONS in docs/build-log.md.
+the topic title to a heading, falling back to the chapter section and then a
+bounded proportional slice (never zero context, never the whole doc per topic).
 """
 
 from __future__ import annotations
@@ -28,10 +37,10 @@ from backend.services.pipeline.structure import _clean_title, iter_atx_headings
 from backend.services.providers.base import ProviderResult
 from backend.services.providers.waterfall import Waterfall
 
-# Output caps — sized so a runaway generation can't burn quota (cost-strategy.md
-# "token budgets per call"). Tunable per the benchmark later.
-NOTES_MAX_TOKENS = 2048
-ASSESSMENT_MAX_TOKENS = 2048
+# Output cap — sized so one runaway generation can't burn quota (cost-strategy.md
+# "token budgets per call"). One call now carries both notes and the assessment,
+# so the cap is the sum of the old two (~2k notes + ~2k assessment). Tunable later.
+GENERATION_MAX_TOKENS = 4096
 
 # Input cap on the per-topic source text sent to the model. The dominant cost
 # driver is INPUT tokens (a 22-page PDF is ~14k tokens), and a single topic never
@@ -51,38 +60,73 @@ class TopicSourceUnavailableError(Exception):
     """The topic's document markdown could not be read (needs re-ingest)."""
 
 
-class NotesContextMissingError(Exception):
-    """Assessment was asked to run for a topic that has no notes yet."""
+class GenerationParseError(Exception):
+    """The model's generation output was not valid/usable JSON."""
 
 
-class AssessmentParseError(Exception):
-    """The model's assessment output was not valid/usable JSON."""
+# JSON Schema handed to Gemini's native structured output so the single call
+# returns one object with the notes and the assessment together. Providers
+# without native schema support (Claude) lean on the prompt's JSON instruction;
+# ``parse_generation`` validates the result either way.
+GENERATION_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "notes_md": {"type": "string"},
+        "mcqs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "options": {"type": "array", "items": {"type": "string"}},
+                    "correct_index": {"type": "integer"},
+                    "explanation": {"type": "string"},
+                },
+                "required": ["question", "options", "correct_index", "explanation"],
+            },
+        },
+        "flashcards": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "front": {"type": "string"},
+                    "back": {"type": "string"},
+                },
+                "required": ["front", "back"],
+            },
+        },
+    },
+    "required": ["notes_md", "mcqs", "flashcards"],
+}
 
 
-def build_notes_prompt(
-    topic_title: str, source_text: str, *, formulas: list[str] | None = None
-) -> str:
-    """Prompt for dense, engineer-level notes on one topic.
+def build_generation_prompt(topic_title: str, source_text: str) -> str:
+    """Prompt for notes + assessment as ONE JSON object, grounded in the source.
 
-    ``formulas`` are LaTeX transcriptions produced by the (earlier) formula stage;
-    when present they are handed to the model to embed, so notes use the cleaned
-    equations rather than the garbled source text.
+    Asks for dense Markdown notes and an aligned assessment in a single turn so
+    the notes never have to be re-sent as context for a second call. The shape is
+    spelled out inline so providers without native JSON-schema support still
+    return the right structure.
     """
-    formula_block = ""
-    if formulas:
-        joined = "\n".join(f"- {latex}" for latex in formulas)
-        formula_block = (
-            "\n# Transcribed formulas (LaTeX) — use these where relevant\n"
-            f"{joined}\n"
-        )
     return (
-        "You are an expert engineering tutor. Write dense, accurate, "
-        "exam-useful study notes in Markdown for the topic below. Cover the key "
-        "concepts, definitions, and formulas; be concise but complete; do not "
-        "invent material that is not supported by the source.\n\n"
+        "You are an expert engineering tutor. From the source material for ONE "
+        "topic, produce BOTH dense, exam-useful study notes AND an assessment of "
+        "the material, in a single JSON object.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        "fences):\n"
+        '{"notes_md": str, '
+        '"mcqs": [{"question": str, "options": [str, ...], '
+        '"correct_index": int, "explanation": str}], '
+        '"flashcards": [{"front": str, "back": str}]}\n'
+        "- notes_md: Markdown notes covering the key concepts, definitions, and "
+        "formulas; concise but complete; do not invent material the source does "
+        "not support.\n"
+        "- mcqs: 5-10 multiple-choice questions grounded in the notes; each with "
+        "at least 2 options and a correct_index pointing to the right option.\n"
+        "- flashcards: 5-10 flashcards grounded in the notes.\n\n"
         f"# Topic\n{topic_title}\n\n"
         f"# Source material\n{source_text}\n"
-        f"{formula_block}"
     )
 
 
@@ -196,28 +240,7 @@ def slice_section(markdown: str, title: str) -> str | None:
     return None
 
 
-def make_notes_processor(
-    waterfall: Waterfall,
-    *,
-    source_loader: SourceLoader = load_topic_source,
-    max_tokens: int = NOTES_MAX_TOKENS,
-) -> Callable[[QueueJob, Session], ProviderResult]:
-    """Build the queue ``StageProcessor`` for the notes stage."""
-
-    def process(job: QueueJob, session: Session) -> ProviderResult:
-        topic = session.get(Topic, job.topic_id)
-        source = source_loader(session, topic)
-        note = get_or_create_ai_note(session, topic)
-        formulas = [formula.latex for formula in note.formulas]
-        prompt = build_notes_prompt(topic.title, source, formulas=formulas or None)
-        result = waterfall.generate(prompt, max_tokens=max_tokens)
-        note.content_md = result.text
-        return result
-
-    return process
-
-
-# --- assessment (MCQs + flashcards) -----------------------------------------
+# --- consolidated generation (notes + MCQs + flashcards in one call) --------
 
 
 @dataclass
@@ -235,69 +258,58 @@ class ParsedFlashcard:
 
 
 @dataclass
-class AssessmentData:
+class GenerationData:
+    """One topic's full generated output from the single model call."""
+
+    notes_md: str
     mcqs: list[ParsedMCQ] = field(default_factory=list)
     flashcards: list[ParsedFlashcard] = field(default_factory=list)
 
 
-def build_assessment_prompt(topic_title: str, notes_md: str) -> str:
-    """Prompt for MCQs + flashcards as one JSON object, grounded in the notes."""
-    return (
-        "You are an expert engineering tutor. From the study notes below, create "
-        "5-10 multiple-choice questions and 5-10 flashcards that test "
-        "understanding of the material. Base everything strictly on the notes.\n\n"
-        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
-        "fences):\n"
-        '{"mcqs": [{"question": str, "options": [str, ...], '
-        '"correct_index": int, "explanation": str}], '
-        '"flashcards": [{"front": str, "back": str}]}\n'
-        "Each MCQ must have at least 2 options and a correct_index that points to "
-        "the right option.\n\n"
-        f"# Topic\n{topic_title}\n\n"
-        f"# Notes\n{notes_md}\n"
-    )
-
-
-def parse_assessment(text: str) -> AssessmentData:
-    """Parse + validate the model's assessment JSON. Raises on malformed output."""
+def parse_generation(text: str) -> GenerationData:
+    """Parse + validate the combined generation JSON. Raises on malformed output."""
     raw = _extract_json_object(text)
     try:
         data = json.loads(raw)
     except (json.JSONDecodeError, ValueError) as exc:
-        raise AssessmentParseError(f"not valid JSON: {exc}") from exc
+        raise GenerationParseError(f"not valid JSON: {exc}") from exc
     if not isinstance(data, dict):
-        raise AssessmentParseError("top-level JSON is not an object")
+        raise GenerationParseError("top-level JSON is not an object")
 
+    notes_md = _require_str(data.get("notes_md"), "notes_md")
     mcqs = [_parse_mcq(item) for item in _as_list(data.get("mcqs"), "mcqs")]
     flashcards = [
         _parse_flashcard(item) for item in _as_list(data.get("flashcards"), "flashcards")
     ]
     if not mcqs or not flashcards:
-        raise AssessmentParseError("expected at least one MCQ and one flashcard")
-    return AssessmentData(mcqs=mcqs, flashcards=flashcards)
+        raise GenerationParseError("expected at least one MCQ and one flashcard")
+    return GenerationData(notes_md=notes_md, mcqs=mcqs, flashcards=flashcards)
 
 
-def _as_list(value: object, label: str) -> list:
-    if value is None:
-        return []
-    if not isinstance(value, list):
-        raise AssessmentParseError(f"{label} must be a list")
-    return value
-
-
-def make_assessment_processor(
+def make_generation_processor(
     waterfall: Waterfall,
     *,
-    max_tokens: int = ASSESSMENT_MAX_TOKENS,
+    source_loader: SourceLoader = load_topic_source,
+    max_tokens: int = GENERATION_MAX_TOKENS,
 ) -> Callable[[QueueJob, Session], ProviderResult]:
-    """Build the queue ``StageProcessor`` for the assessment stage."""
+    """Build the queue ``StageProcessor`` for the consolidated generation stage.
+
+    One call returns notes + assessment as a single JSON object (no second round
+    trip re-sending the notes). The Note (shared with the formula stage) is filled
+    and the MCQ/flashcard rows are added — all uncommitted; the queue commits the
+    whole stage atomically.
+    """
 
     def process(job: QueueJob, session: Session) -> ProviderResult:
         topic = session.get(Topic, job.topic_id)
-        notes_md = _latest_ai_notes(session, topic)
-        prompt = build_assessment_prompt(topic.title, notes_md)
-        result = waterfall.generate(prompt, max_tokens=max_tokens)
-        parsed = parse_assessment(result.text)
+        source = source_loader(session, topic)
+        prompt = build_generation_prompt(topic.title, source)
+        result = waterfall.generate(
+            prompt, max_tokens=max_tokens, response_schema=GENERATION_SCHEMA
+        )
+        parsed = parse_generation(result.text)
+        note = get_or_create_ai_note(session, topic)
+        note.content_md = parsed.notes_md
         for mcq in parsed.mcqs:
             session.add(
                 MCQ(
@@ -321,15 +333,12 @@ def make_assessment_processor(
     return process
 
 
-def _latest_ai_notes(session: Session, topic: Topic) -> str:
-    note = session.scalars(
-        select(Note)
-        .where(Note.topic_id == topic.id, Note.is_manual.is_(False))
-        .order_by(Note.id.desc())
-    ).first()
-    if note is None:
-        raise NotesContextMissingError(topic.id)
-    return note.content_md
+def _as_list(value: object, label: str) -> list:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise GenerationParseError(f"{label} must be a list")
+    return value
 
 
 def _extract_json_object(text: str) -> str:
@@ -337,32 +346,32 @@ def _extract_json_object(text: str) -> str:
     start = text.find("{")
     end = text.rfind("}")
     if start == -1 or end == -1 or end < start:
-        raise AssessmentParseError("no JSON object found in response")
+        raise GenerationParseError("no JSON object found in response")
     return text[start : end + 1]
 
 
 def _parse_mcq(item: object) -> ParsedMCQ:
     if not isinstance(item, dict):
-        raise AssessmentParseError("MCQ is not an object")
+        raise GenerationParseError("MCQ is not an object")
     question = _require_str(item.get("question"), "MCQ.question")
     options = item.get("options")
     if not isinstance(options, list) or len(options) < 2:
-        raise AssessmentParseError("MCQ.options must be a list of >= 2 choices")
+        raise GenerationParseError("MCQ.options must be a list of >= 2 choices")
     options = [_require_str(opt, "MCQ.option") for opt in options]
     correct = item.get("correct_index")
     if not isinstance(correct, int) or isinstance(correct, bool):
-        raise AssessmentParseError("MCQ.correct_index must be an integer")
+        raise GenerationParseError("MCQ.correct_index must be an integer")
     if not 0 <= correct < len(options):
-        raise AssessmentParseError("MCQ.correct_index out of range")
+        raise GenerationParseError("MCQ.correct_index out of range")
     explanation = item.get("explanation", "")
     if not isinstance(explanation, str):
-        raise AssessmentParseError("MCQ.explanation must be a string")
+        raise GenerationParseError("MCQ.explanation must be a string")
     return ParsedMCQ(question, options, correct, explanation)
 
 
 def _parse_flashcard(item: object) -> ParsedFlashcard:
     if not isinstance(item, dict):
-        raise AssessmentParseError("flashcard is not an object")
+        raise GenerationParseError("flashcard is not an object")
     return ParsedFlashcard(
         front=_require_str(item.get("front"), "flashcard.front"),
         back=_require_str(item.get("back"), "flashcard.back"),
@@ -371,5 +380,5 @@ def _parse_flashcard(item: object) -> ParsedFlashcard:
 
 def _require_str(value: object, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise AssessmentParseError(f"{label} must be a non-empty string")
+        raise GenerationParseError(f"{label} must be a non-empty string")
     return value

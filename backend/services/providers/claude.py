@@ -75,7 +75,17 @@ class ClaudeProvider(Provider):
             snap.available, snap.headroom, "tokens", snap.reset_at, self.supports_vision
         )
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int,
+        response_schema: dict[str, Any] | None = None,
+    ) -> ProviderResult:
+        # Claude has no drop-in JSON-schema config like Gemini's; the consolidated
+        # generation prompt already instructs "respond with ONLY a JSON object",
+        # and ``parse_generation`` tolerates fences/prose, so the schema is
+        # accepted for interface parity and the prompt drives the shape.
         content = [{"type": "text", "text": prompt}]
         return self._call(content, max_tokens)
 

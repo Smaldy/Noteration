@@ -1,9 +1,13 @@
-"""Assessment generation tests (Phase 7b): parsing + the assessment processor."""
+"""Generation parsing tests: parse_generation + the consolidated processor.
+
+The notes and assessment are produced by a single model call returning one JSON
+object ({notes_md, mcqs, flashcards}); these cover parsing/validation of that
+object and the StageProcessor's all-or-nothing write through the real queue.
+"""
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 from sqlalchemy.orm import Session
@@ -12,17 +16,17 @@ from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Top
 from backend.models.enums import QueueStage, QueueState
 from backend.models.processing import QueueJob
 from backend.services.pipeline.generation import (
-    AssessmentParseError,
-    NotesContextMissingError,
-    build_assessment_prompt,
-    make_assessment_processor,
-    parse_assessment,
+    GenerationParseError,
+    build_generation_prompt,
+    make_generation_processor,
+    parse_generation,
 )
 from backend.services.queue import JobOutcome, QueueService
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
 
 _VALID = {
+    "notes_md": "# Kinematics\n\nVelocity is dx/dt.",
     "mcqs": [
         {
             "question": "What is velocity?",
@@ -45,7 +49,8 @@ def _valid_json() -> str:
 
 
 def test_parse_valid_json() -> None:
-    data = parse_assessment(_valid_json())
+    data = parse_generation(_valid_json())
+    assert data.notes_md.startswith("# Kinematics")
     assert len(data.mcqs) == 1
     assert data.mcqs[0].correct_index == 0
     assert data.mcqs[0].options[0] == "rate of position change"
@@ -54,51 +59,60 @@ def test_parse_valid_json() -> None:
 
 def test_parse_tolerates_fences_and_prose() -> None:
     wrapped = f"Here you go:\n```json\n{_valid_json()}\n```\nThanks!"
-    data = parse_assessment(wrapped)
+    data = parse_generation(wrapped)
     assert len(data.mcqs) == 1 and len(data.flashcards) == 1
 
 
 def test_parse_rejects_non_json() -> None:
-    with pytest.raises(AssessmentParseError):
-        parse_assessment("I could not generate questions.")
+    with pytest.raises(GenerationParseError):
+        parse_generation("I could not generate questions.")
+
+
+def test_parse_rejects_missing_notes() -> None:
+    bad = json.loads(_valid_json())
+    del bad["notes_md"]
+    with pytest.raises(GenerationParseError):
+        parse_generation(json.dumps(bad))
 
 
 def test_parse_rejects_correct_index_out_of_range() -> None:
     bad = json.loads(_valid_json())
     bad["mcqs"][0]["correct_index"] = 9
-    with pytest.raises(AssessmentParseError):
-        parse_assessment(json.dumps(bad))
+    with pytest.raises(GenerationParseError):
+        parse_generation(json.dumps(bad))
 
 
 def test_parse_rejects_too_few_options() -> None:
     bad = json.loads(_valid_json())
     bad["mcqs"][0]["options"] = ["only one"]
-    with pytest.raises(AssessmentParseError):
-        parse_assessment(json.dumps(bad))
+    with pytest.raises(GenerationParseError):
+        parse_generation(json.dumps(bad))
 
 
 def test_parse_rejects_empty_lists() -> None:
-    with pytest.raises(AssessmentParseError):
-        parse_assessment(json.dumps({"mcqs": [], "flashcards": []}))
+    with pytest.raises(GenerationParseError):
+        parse_generation(json.dumps({"notes_md": "x", "mcqs": [], "flashcards": []}))
 
 
 def test_parse_rejects_non_list_fields() -> None:
-    # Present-but-not-a-list must raise AssessmentParseError, not a bare TypeError.
-    with pytest.raises(AssessmentParseError):
-        parse_assessment(json.dumps({"mcqs": None, "flashcards": None}))
-    with pytest.raises(AssessmentParseError):
-        parse_assessment(json.dumps({"mcqs": {"q": "x"}, "flashcards": []}))
+    # Present-but-not-a-list must raise GenerationParseError, not a bare TypeError.
+    with pytest.raises(GenerationParseError):
+        parse_generation(json.dumps({"notes_md": "x", "mcqs": None, "flashcards": None}))
+    with pytest.raises(GenerationParseError):
+        parse_generation(
+            json.dumps({"notes_md": "x", "mcqs": {"q": "x"}, "flashcards": []})
+        )
 
 
 def test_parse_rejects_bool_correct_index() -> None:
     bad = json.loads(_valid_json())
     bad["mcqs"][0]["correct_index"] = True  # bool is not a valid index
-    with pytest.raises(AssessmentParseError):
-        parse_assessment(json.dumps(bad))
+    with pytest.raises(GenerationParseError):
+        parse_generation(json.dumps(bad))
 
 
-def test_build_assessment_prompt_includes_notes() -> None:
-    prompt = build_assessment_prompt("Kinematics", "Velocity = dx/dt")
+def test_build_generation_prompt_includes_source() -> None:
+    prompt = build_generation_prompt("Kinematics", "Velocity = dx/dt")
     assert "Kinematics" in prompt
     assert "Velocity = dx/dt" in prompt
     assert "JSON" in prompt
@@ -107,36 +121,40 @@ def test_build_assessment_prompt_includes_notes() -> None:
 # --- the StageProcessor via the real queue ----------------------------------
 
 
-def _seed_topic_with_notes(session: Session, *, with_notes: bool = True) -> Topic:
+def _seed_topic(session: Session, tmp_path) -> Topic:
+    md = tmp_path / "doc.md"
+    md.write_text("# Kinematics\n\nVelocity is dx/dt.\n", encoding="utf-8")
     subject = Subject(name="Physics")
-    document = Document(subject=subject, filename="f.pdf", file_hash="h")
+    document = Document(
+        subject=subject, filename="f.pdf", file_hash="h", markdown_path=str(md)
+    )
     chapter = Chapter(document=document, subject=subject, title="Ch")
     topic = Topic(chapter=chapter, title="Kinematics")
     session.add_all([subject, document, chapter, topic])
     session.commit()
-    if with_notes:
-        session.add(Note(topic_id=topic.id, content_md="Velocity = dx/dt", is_manual=False))
-        session.commit()
     return topic
 
 
-def _assessment_job(session: Session, topic: Topic) -> QueueJob:
-    job = QueueJob(topic_id=topic.id, stage=QueueStage.assessment)
+def _gen_job(session: Session, topic: Topic) -> QueueJob:
+    job = QueueJob(topic_id=topic.id, stage=QueueStage.notes)
     session.add(job)
     session.commit()
     return job
 
 
-def test_assessment_processor_writes_mcqs_and_flashcards(session: Session) -> None:
-    topic = _seed_topic_with_notes(session)
-    job = _assessment_job(session, topic)
+def test_processor_writes_notes_mcqs_and_flashcards(session: Session, tmp_path) -> None:
+    topic = _seed_topic(session, tmp_path)
+    job = _gen_job(session, topic)
     queue = QueueService(session)
     provider = MockProvider("gemini_free", text=_valid_json())
-    processor = make_assessment_processor(Waterfall([provider]))
+    processor = make_generation_processor(Waterfall([provider]))
 
     outcome = queue.process_job(job, processor)
 
     assert outcome is JobOutcome.done
+    assert provider.generate_calls == 1  # single consolidated call
+    note = session.query(Note).filter_by(topic_id=topic.id).one()
+    assert note.content_md.startswith("# Kinematics")
     mcqs = session.query(MCQ).filter_by(topic_id=topic.id).all()
     cards = session.query(Flashcard).filter_by(topic_id=topic.id).all()
     assert len(mcqs) == 1 and len(cards) == 1
@@ -148,30 +166,17 @@ def test_assessment_processor_writes_mcqs_and_flashcards(session: Session) -> No
     assert cards[0].due_date is None
 
 
-def test_assessment_without_notes_fails_and_writes_nothing(session: Session) -> None:
-    topic = _seed_topic_with_notes(session, with_notes=False)
-    job = _assessment_job(session, topic)
+def test_processor_malformed_output_rolls_back(session: Session, tmp_path) -> None:
+    topic = _seed_topic(session, tmp_path)
+    job = _gen_job(session, topic)
     queue = QueueService(session)
-    provider = MockProvider("gemini_free", text=_valid_json())
-    processor = make_assessment_processor(Waterfall([provider]))
+    provider = MockProvider("gemini_free", text="sorry, no JSON here")
+    processor = make_generation_processor(Waterfall([provider]))
 
     outcome = queue.process_job(job, processor)
 
     assert outcome is JobOutcome.deferred_retry  # transient failure, attempts=1
-    assert session.query(MCQ).count() == 0
-    assert session.query(Flashcard).count() == 0
-
-
-def test_assessment_malformed_output_rolls_back(session: Session) -> None:
-    topic = _seed_topic_with_notes(session)
-    job = _assessment_job(session, topic)
-    queue = QueueService(session)
-    provider = MockProvider("gemini_free", text="sorry, no JSON here")
-    processor = make_assessment_processor(Waterfall([provider]))
-
-    outcome = queue.process_job(job, processor)
-
-    assert outcome is JobOutcome.deferred_retry
+    assert session.query(Note).count() == 0
     assert session.query(MCQ).count() == 0
     assert session.query(Flashcard).count() == 0
     refreshed = session.get(QueueJob, job.id)

@@ -51,8 +51,17 @@ class OllamaProvider(Provider):
         # Local model: always available (no quota), bounded only by hardware.
         return BudgetProbe(True, _HARDWARE_HEADROOM, "hardware", None, self.supports_vision)
 
-    def generate(self, prompt: str, *, max_tokens: int) -> ProviderResult:
-        return self._call(prompt, max_tokens, images=None)
+    def generate(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int,
+        response_schema: dict[str, Any] | None = None,
+    ) -> ProviderResult:
+        # Ollama supports structured output via ``format`` (a JSON Schema). Pass
+        # the schema through when present so a local model also returns one JSON
+        # object for the consolidated generation stage.
+        return self._call(prompt, max_tokens, images=None, fmt=response_schema)
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
         if not self.supports_vision:
@@ -66,7 +75,12 @@ class OllamaProvider(Provider):
     # -- internals -----------------------------------------------------------
 
     def _call(
-        self, prompt: str, max_tokens: int, *, images: list[bytes] | None
+        self,
+        prompt: str,
+        max_tokens: int,
+        *,
+        images: list[bytes] | None,
+        fmt: dict[str, Any] | None = None,
     ) -> ProviderResult:
         try:
             client = self._get_client()
@@ -77,6 +91,8 @@ class OllamaProvider(Provider):
             }
             if images is not None:
                 kwargs["images"] = images
+            if fmt is not None:
+                kwargs["format"] = fmt
             response = client.generate(**kwargs)
         except Exception as exc:  # noqa: BLE001 - mapped to a typed provider error
             raise ProviderUnavailableError(str(exc)) from exc

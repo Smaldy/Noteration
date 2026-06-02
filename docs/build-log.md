@@ -712,6 +712,51 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   flat pause, resume on raise, settings round-trip/validation, queue-view flag).
   Tree green: full suite **277 passed**, `npm run build` clean.
 
+- **Free-tier cost-control refactor (DONE, user-directed).** Four committed waves
+  attacking excessive token spend + free-tier rate limits while keeping the
+  one-topic-at-a-time atomic queue:
+  - **Wave A — provider JSON-schema.** `Provider.generate` gained an optional
+    `response_schema` (threaded through the waterfall). Gemini engages **native
+    structured output** (`response_mime_type="application/json"` + the schema, with
+    thinking still disabled); Ollama passes it as `format`; Claude/Mock accept it
+    for parity (Claude leans on the prompt). +1 test (structured-output config).
+  - **Wave B — Stage 4 consolidated to ONE call.** `generation.py` now has a single
+    `make_generation_processor` + `build_generation_prompt` + `GENERATION_SCHEMA` +
+    `parse_generation` returning one JSON object `{notes_md, mcqs, flashcards}`. The
+    old two-call path (notes, then assessment **re-sending the notes as context**)
+    is gone — that second call's input was the whole generated notes, doubling
+    spend and burning a second RPM slot per topic for no quality gain. The queue's
+    `notes` stage is now that combined stage; the separate `assessment` stage is
+    retired (kept in `STAGE_RANK` by enum order so any legacy `assessment` job still
+    sorts/dispatches as a no-op). Output cap 2048→**4096** (covers both halves in
+    one turn). **Supersedes ai-pipeline.md "two calls is the floor"** — see
+    DECISIONS. Reworked notes/assessment/e2e tests (2 stages/topic now).
+  - **Wave C — formula vision decoupled + crop optimized.** The queue's formula
+    stage now only **detects + registers** equation regions: a `FormulaState.pending`
+    `Formula` (bbox located via `locate_pdf_region`, empty LaTeX) on the topic's
+    Note — **no `transcribe_image` in the background queue at all**. Crops are now
+    **grayscale at 150 DPI** (was colour/200), slashing the visual input-token
+    footprint. New on-demand path: `transcribe_pending_formulas` +
+    `POST /api/topics/{id}/formulas/transcribe` (404/503) crops each pending region
+    by bbox and flips it to `reconstructed` lazily when a user opens the topic.
+    Frontend: `FormulaState` gains `pending`; NotesTab shows a "Reconstruct N
+    formulas" trigger; study store `transcribeFormulas`. Reworked formula tests
+    (registration is no-op of vision; lazy transcription fills LaTeX).
+    **Supersedes the formula-before-notes "notes embed transcribed LaTeX"
+    reconciliation** (Phase 7c) — notes are now generated from raw source; formulas
+    are filled in afterward on demand. See DECISIONS.
+  - **Wave D — free-tier RPM throttle in the queue/worker.** `run_batch` gained a
+    `(job, outcome)` `throttle` hook; the worker enforces a mandatory
+    **12s gap between successful free-tier model calls** (`_make_throttle` /
+    `_free_tier_throttle_seconds`: active iff a Gemini key + a free-tier model),
+    skipping formula no-ops. 60s/12s = 5 req/min, well under the 15 RPM ceiling — a
+    hard guarantee the automated drain can't breach the rolling-minute quota even
+    within one 50-job tick. The sleep is the worker's interruptible `stop.wait`, so
+    a long throttle never delays shutdown; one-shot/test drains default to no sleep.
+    +4 worker tests (throttle-seconds truth, throttles only generation calls, not
+    throttled off-free-tier).
+  - Tree green: full suite **282 passed**, `tsc -b` + `npm run build` clean.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
@@ -883,6 +928,29 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   "rename, merge, split topics"; v1 ships rename + add + remove for chapters and
   topics, which functionally cover merge (remove one, rename the other) and split
   (add a topic). Dedicated merge/split affordances are deferred, not needed for v1.
+- **Stage 4 is now ONE call, not two (free-tier refactor; user-directed — OVERRIDES
+  ai-pipeline.md §"Stage 4 / two calls is the floor").** `ai-pipeline.md` locked
+  two calls per topic (notes, then assessment with the notes as context). On the
+  Gemini free tier the second call's input *was* the full generated notes — it
+  doubled token spend and consumed a second request against the per-minute quota
+  for no quality gain. The user directed consolidating to a single structured-output
+  call returning `{notes_md, mcqs, flashcards}` in one turn. Notes and assessment
+  stay mutually consistent (same call), and the notes never make a second round
+  trip. Output cap raised 2048→4096 to fit both. This is an intentional deviation
+  from a locked decision, made on explicit instruction; ai-pipeline.md's lock is
+  considered superseded for this app.
+- **Formula vision is lazy/on-demand, not inline-before-notes (free-tier refactor;
+  user-directed — OVERRIDES the Phase-7c "notes embed transcribed LaTeX"
+  reconciliation).** Phase 7c ran the formula stage first so notes could embed the
+  cleaned LaTeX. Full synchronous vision for every equation in the background queue
+  was a major TPM/latency cost. The user directed decoupling: the queue only
+  **registers** detected regions as `pending` formulas (located, no model call),
+  and the actual `transcribe_image` runs **on demand** when a user opens a topic
+  (`POST /api/topics/{id}/formulas/transcribe`), flipping each to `reconstructed`.
+  Consequence (logged): notes are generated from the raw source markdown and no
+  longer embed transcribed LaTeX at generation time — formulas are surfaced beside
+  the notes and reconstructed lazily. Crops are grayscale/150 DPI to bound vision
+  input tokens. Intentional deviation on explicit instruction.
 
 ## BLOCKED
 
