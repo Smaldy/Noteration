@@ -29,6 +29,7 @@ export interface ChapterNode {
 
 export interface DocumentTree {
   document_id: number;
+  subject_id: number;
   status: "uploaded" | "processing" | "ready" | "error";
   /** study = full (Notes/Quiz/Flashcards); exam = assessment-only (no Notes tab). */
   mode: DocumentMode;

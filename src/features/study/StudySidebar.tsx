@@ -15,13 +15,17 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Layers, Trash2 } from "lucide-react";
 
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import { cn } from "@/lib/utils";
 import type { ChapterNode, DocumentTree, TopicNode } from "@/types/study";
 
 import { TopicStatusIcon } from "./TopicStatusIcon";
+
+type PracticeScope = "chapters" | "documents" | "subjects";
+type PracticeTab = "quiz" | "flashcards";
+type OnPractice = (scope: PracticeScope, id: number, tab: PracticeTab) => void;
 
 interface StudySidebarProps {
   tree: DocumentTree;
@@ -30,15 +34,69 @@ interface StudySidebarProps {
   onDeleteTopic: (topicId: number, title: string) => void;
   onToggleBookmark: (topicId: number, bookmarked: boolean) => void;
   onReorderTopics: (chapterId: number, orderedIds: number[]) => void;
+  /** Exam-prep only: open a pooled quiz/flashcards deck for a scope. */
+  onPractice?: OnPractice;
 }
 
 export function StudySidebar(props: StudySidebarProps) {
+  const { tree, onPractice } = props;
   return (
     <nav className="space-y-4">
-      {props.tree.chapters.map((chapter) => (
+      {onPractice && (
+        <div className="space-y-2 rounded-lg border bg-card/50 p-2.5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+            <Layers className="size-3.5" />
+            Combined practice
+          </p>
+          <PracticeRow
+            label="Whole subject"
+            onQuiz={() => onPractice("subjects", tree.subject_id, "quiz")}
+            onCards={() => onPractice("subjects", tree.subject_id, "flashcards")}
+          />
+          <PracticeRow
+            label="Whole deck"
+            onQuiz={() => onPractice("documents", tree.document_id, "quiz")}
+            onCards={() => onPractice("documents", tree.document_id, "flashcards")}
+          />
+        </div>
+      )}
+      {tree.chapters.map((chapter) => (
         <ChapterGroup key={chapter.id} chapter={chapter} {...props} />
       ))}
     </nav>
+  );
+}
+
+function PracticeRow({
+  label,
+  onQuiz,
+  onCards,
+}: {
+  label: string;
+  onQuiz: () => void;
+  onCards: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="truncate text-sm">{label}</span>
+      <span className="flex shrink-0 items-center gap-1 text-xs">
+        <button
+          type="button"
+          onClick={onQuiz}
+          className="rounded px-1.5 py-0.5 font-medium text-primary hover:bg-primary/10"
+        >
+          Quiz
+        </button>
+        <span className="text-muted-foreground/50">·</span>
+        <button
+          type="button"
+          onClick={onCards}
+          className="rounded px-1.5 py-0.5 font-medium text-primary hover:bg-primary/10"
+        >
+          Cards
+        </button>
+      </span>
+    </div>
   );
 }
 
@@ -49,6 +107,7 @@ function ChapterGroup({
   onDeleteTopic,
   onToggleBookmark,
   onReorderTopics,
+  onPractice,
 }: { chapter: ChapterNode } & Omit<StudySidebarProps, "tree">) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -67,9 +126,32 @@ function ChapterGroup({
 
   return (
     <div>
-      <h3 className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {chapter.title}
-      </h3>
+      <div className="flex items-center justify-between gap-2 px-2">
+        <h3 className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {chapter.title}
+        </h3>
+        {onPractice && (
+          <span className="flex shrink-0 items-center gap-1 text-[11px]">
+            <button
+              type="button"
+              title="Quiz this argument"
+              onClick={() => onPractice("chapters", chapter.id, "quiz")}
+              className="rounded px-1 py-0.5 font-medium text-primary hover:bg-primary/10"
+            >
+              Quiz
+            </button>
+            <span className="text-muted-foreground/50">·</span>
+            <button
+              type="button"
+              title="Flashcards for this argument"
+              onClick={() => onPractice("chapters", chapter.id, "flashcards")}
+              className="rounded px-1 py-0.5 font-medium text-primary hover:bg-primary/10"
+            >
+              Cards
+            </button>
+          </span>
+        )}
+      </div>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

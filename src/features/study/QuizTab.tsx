@@ -8,7 +8,8 @@ import { useStudyStore } from "@/stores/study";
 import type { MCQ } from "@/types/study";
 
 interface QuizTabProps {
-  topicId: number;
+  /** Present for a single topic (enables "Generate more"); omitted for pooled decks. */
+  topicId?: number;
   mcqs: MCQ[];
 }
 
@@ -23,11 +24,15 @@ export function QuizTab({ topicId, mcqs }: QuizTabProps) {
     return (
       <div className="py-12 text-center">
         <p className="text-sm text-muted-foreground">
-          No quiz questions yet for this topic.
+          {topicId != null
+            ? "No quiz questions yet for this topic."
+            : "No quiz questions here yet."}
         </p>
-        <div className="mt-4 flex justify-center">
-          <GenerateMoreQuestions topicId={topicId} />
-        </div>
+        {topicId != null && (
+          <div className="mt-4 flex justify-center">
+            <GenerateMoreQuestions topicId={topicId} />
+          </div>
+        )}
       </div>
     );
   }
@@ -53,7 +58,7 @@ export function QuizTab({ topicId, mcqs }: QuizTabProps) {
           <Button variant="outline" onClick={restart}>
             Try again
           </Button>
-          <GenerateMoreQuestions topicId={topicId} />
+          {topicId != null && <GenerateMoreQuestions topicId={topicId} />}
         </div>
       </div>
     );
@@ -134,7 +139,7 @@ export function QuizTab({ topicId, mcqs }: QuizTabProps) {
       )}
 
       <div className="mt-6 flex items-center justify-between gap-2">
-        <GenerateMoreQuestions topicId={topicId} />
+        {topicId != null ? <GenerateMoreQuestions topicId={topicId} /> : <span />}
         <Button onClick={next} disabled={!revealed}>
           {index === mcqs.length - 1 ? "Finish" : "Next"}
         </Button>

@@ -84,6 +84,12 @@ export function StudyPage() {
             onDeleteTopic={handleDeleteTopic}
             onToggleBookmark={(tId, b) => void toggleTopicBookmark(tId, b)}
             onReorderTopics={(chapterId, ids) => void reorderTopics(chapterId, ids)}
+            onPractice={
+              tree.mode === "exam"
+                ? (scope, practiceId, tab) =>
+                    navigate(`/exam/practice/${scope}/${practiceId}?tab=${tab}`)
+                : undefined
+            }
           />
         )}
       </aside>

@@ -11,7 +11,8 @@ import type { FlashcardContent } from "@/types/study";
 type Grade = "correct" | "incorrect" | "skip";
 
 interface FlashcardsTabProps {
-  topicId: number;
+  /** Present for a single topic (enables "Generate more"); omitted for pooled decks. */
+  topicId?: number;
   flashcards: FlashcardContent[];
 }
 
@@ -32,11 +33,15 @@ export function FlashcardsTab({ topicId, flashcards }: FlashcardsTabProps) {
     return (
       <div className="py-12 text-center">
         <p className="text-sm text-muted-foreground">
-          No flashcards yet for this topic.
+          {topicId != null
+            ? "No flashcards yet for this topic."
+            : "No flashcards here yet."}
         </p>
-        <div className="mt-4 flex justify-center">
-          <GenerateMoreFlashcards topicId={topicId} />
-        </div>
+        {topicId != null && (
+          <div className="mt-4 flex justify-center">
+            <GenerateMoreFlashcards topicId={topicId} />
+          </div>
+        )}
       </div>
     );
   }
@@ -55,7 +60,7 @@ export function FlashcardsTab({ topicId, flashcards }: FlashcardsTabProps) {
           >
             Review again
           </Button>
-          <GenerateMoreFlashcards topicId={topicId} />
+          {topicId != null && <GenerateMoreFlashcards topicId={topicId} />}
         </div>
       </div>
     );
@@ -132,9 +137,11 @@ export function FlashcardsTab({ topicId, flashcards }: FlashcardsTabProps) {
 
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
-      <div className="mt-6">
-        <GenerateMoreFlashcards topicId={topicId} />
-      </div>
+      {topicId != null && (
+        <div className="mt-6">
+          <GenerateMoreFlashcards topicId={topicId} />
+        </div>
+      )}
     </div>
   );
 }

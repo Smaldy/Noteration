@@ -13,7 +13,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { ArrowLeft, GraduationCap, Plus } from "lucide-react";
+import { ArrowLeft, GraduationCap, Layers, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -24,9 +24,34 @@ import { useExamStore } from "@/stores/library";
 
 import type { DocumentSummary } from "@/types/library";
 
-// The Exam Prep section: documents here are assessment-only (MCQs + flashcards,
-// no notes). It reuses the Library's DocumentCard/UploadDialog, driven by the
-// separate exam store so its state never mixes with the Library.
+interface SubjectGroup {
+  subjectId: number;
+  subjectName: string;
+  docs: DocumentSummary[];
+}
+
+function groupBySubject(docs: DocumentSummary[]): SubjectGroup[] {
+  const groups: SubjectGroup[] = [];
+  const byId = new Map<number, SubjectGroup>();
+  for (const doc of docs) {
+    let group = byId.get(doc.subject_id);
+    if (!group) {
+      group = {
+        subjectId: doc.subject_id,
+        subjectName: doc.subject_name,
+        docs: [],
+      };
+      byId.set(doc.subject_id, group);
+      groups.push(group);
+    }
+    group.docs.push(doc);
+  }
+  return groups;
+}
+
+// The Exam Prep section: documents are assessment-only (MCQs + flashcards, no
+// notes), grouped by subject. Each subject and each deck exposes a combined
+// quiz/flashcards practice (pooled across topics).
 export function ExamPrepPage() {
   const {
     documents,
@@ -40,24 +65,9 @@ export function ExamPrepPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
   useEffect(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = documents.findIndex((d) => d.id === active.id);
-    const newIndex = documents.findIndex((d) => d.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(documents, oldIndex, newIndex);
-    void reorderDocuments(next.map((d) => d.id));
-  }
 
   async function handleDelete(doc: DocumentSummary) {
     const ok = window.confirm(
@@ -71,6 +81,8 @@ export function ExamPrepPage() {
       window.alert("Couldn't delete that subject. Please try again.");
     }
   }
+
+  const groups = groupBySubject(documents);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
@@ -142,31 +154,124 @@ export function ExamPrepPage() {
         </div>
       )}
 
-      {status === "loaded" && documents.length > 0 && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={documents.map((d) => d.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {documents.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  onDelete={handleDelete}
-                  onToggleBookmark={(subjectId, bookmarked) =>
-                    void toggleSubjectBookmark(subjectId, bookmarked)
-                  }
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+      {status === "loaded" && groups.length > 0 && (
+        <div className="space-y-8">
+          {groups.map((group) => (
+            <SubjectSection
+              key={group.subjectId}
+              group={group}
+              onDelete={handleDelete}
+              onToggleBookmark={(subjectId, bookmarked) =>
+                void toggleSubjectBookmark(subjectId, bookmarked)
+              }
+              onReorder={(ids) => void reorderDocuments(ids)}
+            />
+          ))}
+        </div>
       )}
+    </div>
+  );
+}
+
+function SubjectSection({
+  group,
+  onDelete,
+  onToggleBookmark,
+  onReorder,
+}: {
+  group: SubjectGroup;
+  onDelete: (doc: DocumentSummary) => void;
+  onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
+  onReorder: (ids: number[]) => void;
+}) {
+  const navigate = useNavigate();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = group.docs.findIndex((d) => d.id === active.id);
+    const newIndex = group.docs.findIndex((d) => d.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(group.docs, oldIndex, newIndex);
+    onReorder(next.map((d) => d.id));
+  }
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between gap-3 border-b pb-2">
+        <h2 className="truncate text-lg font-semibold tracking-tight">
+          {group.subjectName}
+        </h2>
+        <PracticeButtons
+          label="Whole subject"
+          onQuiz={() => navigate(`/exam/practice/subjects/${group.subjectId}?tab=quiz`)}
+          onCards={() =>
+            navigate(`/exam/practice/subjects/${group.subjectId}?tab=flashcards`)
+          }
+        />
+      </div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={group.docs.map((d) => d.id)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {group.docs.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                doc={doc}
+                onDelete={onDelete}
+                onToggleBookmark={onToggleBookmark}
+                actions={
+                  doc.status === "ready" || doc.topics_ready > 0 ? (
+                    <PracticeButtons
+                      label="This deck"
+                      onQuiz={() =>
+                        navigate(`/exam/practice/documents/${doc.id}?tab=quiz`)
+                      }
+                      onCards={() =>
+                        navigate(`/exam/practice/documents/${doc.id}?tab=flashcards`)
+                      }
+                    />
+                  ) : undefined
+                }
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </section>
+  );
+}
+
+function PracticeButtons({
+  label,
+  onQuiz,
+  onCards,
+}: {
+  label: string;
+  onQuiz: () => void;
+  onCards: () => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 text-xs">
+      <Layers className="size-3.5 text-muted-foreground" />
+      <span className="mr-1 hidden text-muted-foreground sm:inline">{label}:</span>
+      <Button variant="outline" size="sm" className="h-7 px-2" onClick={onQuiz}>
+        Quiz
+      </Button>
+      <Button variant="outline" size="sm" className="h-7 px-2" onClick={onCards}>
+        Flashcards
+      </Button>
     </div>
   );
 }

@@ -826,6 +826,30 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     +10 tests (parse valid/empty, prompt lists existing, service appends MCQs/
     flashcards, unknown→raises, malformed→raises + nothing written, HTTP 404/422).
     Tree green: backend **302 passed**, `tsc -b` + `npm run build` clean.
+  - **E8 (done, user-requested) — combined "argument"/subject practice decks.**
+    Pool a topic's MCQs + flashcards up the hierarchy so a student can drill a
+    whole **argument** (chapter), **deck** (document), or **subject** at once.
+    Decisions (user-confirmed): argument = chapter; subject = all its chapters
+    across the subject's exam docs; surfaced in **both** the Exam Prep cards and
+    the exam study-view sidebar.
+    - **F1 (backend)** — `services/assessment.py` pools quiz+flashcards by
+      `chapter` / `document` / `subject` (the last with `?mode=exam` so study docs
+      aren't mixed in); one shared N+1-free query joining Topic→Chapter(→Document).
+      Flashcards keep their ids so SM-2 review still posts per-card.
+      `GET /api/assessment/{chapters|documents|subjects}/{id}` →
+      `AggregateAssessmentOut` (reuses MCQOut/FlashcardOut). `DocumentTree(+Out)`
+      gained `subject_id` for the sidebar's subject link. +8 tests.
+    - **F2 (frontend)** — `QuizTab`/`FlashcardsTab` `topicId` made optional (pooled
+      decks hide the per-topic "Generate more"). `ExamPracticePage`
+      (`/exam/practice/:scope/:id?tab=`) fetches the aggregate and runs the pooled
+      quiz/flashcards in the same tabs; `types/assessment.ts`.
+    - **F3 (placement)** — Exam Prep page now **groups documents by subject**; each
+      subject header has Quiz/Flashcards (whole subject) and each ready deck card
+      has Quiz/Flashcards (whole document) via a new `DocumentCard` `actions` slot
+      (dnd reorder kept per-subject group). The exam study-view sidebar gained a
+      "Combined practice" block (Whole subject · Whole deck) and a per-chapter
+      Quiz/Cards link (argument), wired via an `onPractice` callback (exam only).
+      Tree green: backend **310 passed**, `tsc -b` + `npm run build` clean.
 
 ## NEXT
 

@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CalendarDays, FileText, GripVertical, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,13 @@ export function DocumentCard({
   doc,
   onDelete,
   onToggleBookmark,
+  actions,
 }: {
   doc: DocumentSummary;
   onDelete?: (doc: DocumentSummary) => void;
   onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
+  /** Optional footer actions (e.g. Exam Prep deck Quiz/Flashcards buttons). */
+  actions?: ReactNode;
 }) {
   const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -132,6 +136,16 @@ export function DocumentCard({
             <CalendarDays className="size-3.5" />
             {formatExamDate(doc.exam_date)}
           </p>
+          {actions && (
+            <div
+              className="pt-1"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              role="presentation"
+            >
+              {actions}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
