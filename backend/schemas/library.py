@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from backend.models.enums import DocumentStatus
+from backend.models.enums import DocumentMode, DocumentStatus
 
 
 class DocumentSummaryOut(BaseModel):
@@ -21,6 +21,7 @@ class DocumentSummaryOut(BaseModel):
     subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
+    mode: DocumentMode
     uploaded_at: datetime
     topics_total: int
     topics_ready: int

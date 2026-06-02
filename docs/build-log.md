@@ -778,9 +778,21 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     queue's atomic-commit/failover path is untouched. +3 tests (exam prompt drops
     notes, parse allows missing notes, exam processor writes MCQs+flashcards but no
     Note). Tree green: full suite **287 passed**.
-  - **Next:** E3 (enqueue skips formula stage in exam mode), E4 (mode in the API +
-    `?mode=` filter), E5 (`/exam` section UI), E6 (study view hides Notes tab for
-    exam docs).
+  - **E3 (done)** — Enqueue skips formula in exam mode. `confirm_structure`
+    (`services/documents.py`) reads `document.mode`; exam docs enqueue only the
+    generation stage (`EXAM_STAGES = (QueueStage.notes,)`) — no formula stage (no
+    Note to attach equations to). Study docs unchanged (formula→generation). +2
+    confirm tests (study enqueues both stages; exam enqueues generation only, no
+    formula jobs) + an end-to-end test (confirm exam doc → `run_batch` → topic
+    `ready` with MCQs + flashcards, 0 notes, 0 formula jobs).
+  - **E4 (done)** — Mode on the API surface. `POST /api/documents` gains a `mode`
+    Form field (default `study`); `create_document` persists it. `mode` exposed on
+    `DocumentSummaryOut` and `DocumentTreeOut` (so the frontend can filter sections
+    and hide the Notes tab). `GET /api/documents?mode=exam|study` filters the list
+    (`list_documents(mode=…)`), so Library and Exam Prep query disjoint slices.
+    `DocumentSummary`/`DocumentTree` dataclasses carry `mode`. +4 tests (service +
+    HTTP mode filter, tree carries mode). Tree green: full suite **292 passed**.
+  - **Next:** E5 (`/exam` section UI), E6 (study view hides Notes tab for exam docs).
 
 ## NEXT
 

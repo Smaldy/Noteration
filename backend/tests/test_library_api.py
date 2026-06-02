@@ -16,7 +16,7 @@ import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.db.database import Base, get_session
 from backend.main import app
 from backend.models import Chapter, Document, Subject, Topic
-from backend.models.enums import DocumentStatus, TopicStatus
+from backend.models.enums import DocumentMode, DocumentStatus, TopicStatus
 from backend.models.hierarchy import utcnow
 from backend.services import documents as docsvc
 
@@ -29,12 +29,13 @@ def _subject(session, *, name="Math", exam_date=None) -> Subject:
 
 
 def _document(session, subject, *, filename="f.pdf", status=DocumentStatus.uploaded,
-              uploaded_at=None) -> Document:
+              mode=DocumentMode.study, uploaded_at=None) -> Document:
     doc = Document(
         subject_id=subject.id,
         filename=filename,
         file_hash=uuid.uuid4().hex,
         status=status,
+        mode=mode,
     )
     if uploaded_at is not None:
         doc.uploaded_at = uploaded_at
@@ -108,6 +109,21 @@ def test_list_counts_are_per_document(session: Session):
     assert (by_name["b.pdf"].topics_total, by_name["b.pdf"].topics_ready) == (1, 0)
 
 
+def test_list_filters_by_mode(session: Session):
+    subj = _subject(session)
+    _document(session, subj, filename="study.pdf", mode=DocumentMode.study)
+    _document(session, subj, filename="exam.pdf", mode=DocumentMode.exam)
+
+    study = docsvc.list_documents(session, mode=DocumentMode.study)
+    exam = docsvc.list_documents(session, mode=DocumentMode.exam)
+    both = docsvc.list_documents(session)
+
+    assert [s.filename for s in study] == ["study.pdf"]
+    assert [s.filename for s in exam] == ["exam.pdf"]
+    assert {s.filename for s in both} == {"study.pdf", "exam.pdf"}
+    assert exam[0].mode is DocumentMode.exam
+
+
 # --- HTTP test (shared in-memory DB via StaticPool) -------------------------
 
 
@@ -161,9 +177,24 @@ def test_get_documents_endpoint(client: TestClient, db_factory: sessionmaker):
     assert body["subject_name"] == "Physics"
     assert body["exam_date"] == "2026-07-01"
     assert body["status"] == "processing"
+    assert body["mode"] == "study"
     assert body["topics_total"] == 2
     assert body["topics_ready"] == 1
 
 
 def test_get_documents_empty(client: TestClient):
     assert client.get("/api/documents").json() == []
+
+
+def test_get_documents_mode_filter(client: TestClient, db_factory: sessionmaker):
+    with db_factory() as db:
+        subj = _subject(db, name="Physics")
+        _document(db, subj, filename="study.pdf", mode=DocumentMode.study)
+        _document(db, subj, filename="exam.pdf", mode=DocumentMode.exam)
+        db.commit()
+
+    exam = client.get("/api/documents", params={"mode": "exam"}).json()
+    assert [d["filename"] for d in exam] == ["exam.pdf"]
+    assert exam[0]["mode"] == "exam"
+    study = client.get("/api/documents", params={"mode": "study"}).json()
+    assert [d["filename"] for d in study] == ["study.pdf"]

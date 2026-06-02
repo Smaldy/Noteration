@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from backend.models.enums import (
+    DocumentMode,
     DocumentStatus,
     FormulaState,
     TopicPriority,
@@ -42,6 +43,7 @@ class DocumentTreeOut(BaseModel):
 
     document_id: int
     status: DocumentStatus
+    mode: DocumentMode
     chapters: list[ChapterNodeOut]
 
 

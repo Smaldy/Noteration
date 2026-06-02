@@ -23,7 +23,7 @@ from backend.models import (
     Subject,
     Topic,
 )
-from backend.models.enums import TopicPriority, TopicStatus
+from backend.models.enums import DocumentMode, TopicPriority, TopicStatus
 from backend.services import documents as docsvc
 from backend.services import topics as topicsvc
 
@@ -91,6 +91,8 @@ def test_get_document_tree_orders_and_groups(session: Session) -> None:
     assert [t.title for t in kinematics.topics] == ["Velocity", "Acceleration"]
     assert kinematics.topics[0].status == TopicStatus.ready
     assert tree.chapters[1].topics == []
+    # Mode is carried on the tree so the study view can hide the Notes tab.
+    assert tree.mode == DocumentMode.study
 
 
 def test_get_document_tree_unknown_raises(session: Session) -> None:

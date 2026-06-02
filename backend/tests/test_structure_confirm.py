@@ -9,15 +9,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Subject, Topic
-from backend.models.enums import DocumentStatus, QueueState, TopicPriority
+from backend.models.enums import (
+    DocumentMode,
+    DocumentStatus,
+    QueueStage,
+    QueueState,
+    TopicPriority,
+)
 from backend.models.processing import QueueJob
 from backend.schemas.structure import ChapterIn, TopicIn
 from backend.services import documents as docsvc
 
 
-def _seed_document(session: Session) -> Document:
+def _seed_document(
+    session: Session, *, mode: DocumentMode = DocumentMode.study
+) -> Document:
     subject = Subject(name="Physics")
-    document = Document(subject=subject, filename="f.pdf", file_hash="h")
+    document = Document(subject=subject, filename="f.pdf", file_hash="h", mode=mode)
     session.add_all([subject, document])
     session.commit()
     return document
@@ -100,6 +108,33 @@ def test_reconfirm_is_refused(session: Session) -> None:
 def test_confirm_unknown_document(session: Session) -> None:
     with pytest.raises(docsvc.DocumentNotFoundError):
         docsvc.confirm_structure(session, 999, chapters=_tree())
+
+
+def test_study_doc_enqueues_formula_and_generation(session: Session) -> None:
+    document = _seed_document(session)  # default study mode
+    docsvc.confirm_structure(session, document.id, chapters=_tree())
+    # Each non-skip topic gets both the formula and the generation (`notes`) stage.
+    kinematics = session.scalars(select(Topic).where(Topic.title == "Kinematics")).one()
+    stages = session.scalars(
+        select(QueueJob.stage).where(QueueJob.topic_id == kinematics.id)
+    ).all()
+    assert set(stages) == {QueueStage.formula, QueueStage.notes}
+
+
+def test_exam_doc_enqueues_generation_only(session: Session) -> None:
+    document = _seed_document(session, mode=DocumentMode.exam)
+    docsvc.confirm_structure(session, document.id, chapters=_tree())
+    # Exam mode skips the formula stage — only the generation (`notes`) stage runs.
+    kinematics = session.scalars(select(Topic).where(Topic.title == "Kinematics")).one()
+    stages = session.scalars(
+        select(QueueJob.stage).where(QueueJob.topic_id == kinematics.id)
+    ).all()
+    assert stages == [QueueStage.notes]
+    # No formula jobs anywhere for this exam document.
+    formula_jobs = session.scalars(
+        select(QueueJob).where(QueueJob.stage == QueueStage.formula)
+    ).all()
+    assert formula_jobs == []
 
 
 def test_all_skip_enqueues_nothing(session: Session) -> None:
