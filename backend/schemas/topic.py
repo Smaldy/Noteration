@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -102,3 +102,9 @@ class TopicContentOut(BaseModel):
     notes: list[NoteOut]
     mcqs: list[MCQOut]
     flashcards: list[FlashcardOut]
+
+
+class GenerateMoreRequest(BaseModel):
+    """Ask for more of one assessment kind for a topic (on-demand)."""
+
+    kind: Literal["mcqs", "flashcards"]

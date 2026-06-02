@@ -1,18 +1,21 @@
 import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApiError, api } from "@/lib/api";
+import { useStudyStore } from "@/stores/study";
 import type { FlashcardContent } from "@/types/study";
 
 type Grade = "correct" | "incorrect" | "skip";
 
 interface FlashcardsTabProps {
+  topicId: number;
   flashcards: FlashcardContent[];
 }
 
-export function FlashcardsTab({ flashcards }: FlashcardsTabProps) {
+export function FlashcardsTab({ topicId, flashcards }: FlashcardsTabProps) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -27,9 +30,14 @@ export function FlashcardsTab({ flashcards }: FlashcardsTabProps) {
 
   if (flashcards.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">
-        No flashcards yet for this topic.
-      </p>
+      <div className="py-12 text-center">
+        <p className="text-sm text-muted-foreground">
+          No flashcards yet for this topic.
+        </p>
+        <div className="mt-4 flex justify-center">
+          <GenerateMoreFlashcards topicId={topicId} />
+        </div>
+      </div>
     );
   }
 
@@ -37,16 +45,18 @@ export function FlashcardsTab({ flashcards }: FlashcardsTabProps) {
     return (
       <div className="py-12 text-center">
         <p className="text-lg font-medium">Deck complete</p>
-        <Button
-          className="mt-6"
-          variant="outline"
-          onClick={() => {
-            setIndex(0);
-            setFlipped(false);
-          }}
-        >
-          Review again
-        </Button>
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIndex(0);
+              setFlipped(false);
+            }}
+          >
+            Review again
+          </Button>
+          <GenerateMoreFlashcards topicId={topicId} />
+        </div>
       </div>
     );
   }
@@ -121,6 +131,40 @@ export function FlashcardsTab({ flashcards }: FlashcardsTabProps) {
       )}
 
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+
+      <div className="mt-6">
+        <GenerateMoreFlashcards topicId={topicId} />
+      </div>
+    </div>
+  );
+}
+
+function GenerateMoreFlashcards({ topicId }: { topicId: number }) {
+  const generateMore = useStudyStore((s) => s.generateMore);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      await generateMore(topicId, "flashcards");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't generate more flashcards.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <Button variant="ghost" size="sm" onClick={() => void run()} disabled={busy}>
+        <Sparkles />
+        {busy ? "Generating…" : "Generate more flashcards"}
+      </Button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

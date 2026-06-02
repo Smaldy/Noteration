@@ -340,6 +340,106 @@ def topic_document_mode(session: Session, topic: Topic) -> DocumentMode:
     return document.mode if document is not None else DocumentMode.study
 
 
+# --- on-demand "generate more" (user-triggered, single kind) ----------------
+
+# Smaller cap than the full generation call — one kind, ~8-12 items.
+GENERATE_MORE_MAX_TOKENS = 2048
+# Bound how many existing items we list back to the model (anti-duplication) so
+# the prompt can't itself blow the input budget on a topic with a huge bank.
+_MAX_EXISTING_LISTED = 40
+
+# Single-kind schemas (reuse the item shapes from the full generation schema).
+MORE_MCQS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"mcqs": GENERATION_SCHEMA["properties"]["mcqs"]},
+    "required": ["mcqs"],
+}
+MORE_FLASHCARDS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"flashcards": GENERATION_SCHEMA["properties"]["flashcards"]},
+    "required": ["flashcards"],
+}
+
+
+def _existing_block(label: str, items: list[str]) -> str:
+    """A 'do not repeat these' block listing existing items (capped)."""
+    listed = [item.strip() for item in items if item and item.strip()][
+        :_MAX_EXISTING_LISTED
+    ]
+    if not listed:
+        return ""
+    body = "\n".join(f"- {item}" for item in listed)
+    return f"\n# Already covered {label} (do NOT repeat or rephrase these)\n{body}\n"
+
+
+def build_more_mcqs_prompt(
+    topic_title: str, source_text: str, existing_questions: list[str]
+) -> str:
+    """Prompt for ADDITIONAL MCQs only, distinct from the existing ones."""
+    return (
+        "You are an expert engineering tutor. Write ADDITIONAL exam-style "
+        "multiple-choice questions for ONE topic, grounded in the source material "
+        "and DISTINCT from the questions already written.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        'fences):\n{"mcqs": [{"question": str, "options": [str, ...], '
+        '"correct_index": int, "explanation": str}]}\n'
+        "- 8-12 NEW questions; each with at least 2 options, a correct_index "
+        "pointing to the right option, and a clear explanation.\n"
+        "- Do not invent material the source does not support.\n"
+        f"{_existing_block('questions', existing_questions)}"
+        f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
+    )
+
+
+def build_more_flashcards_prompt(
+    topic_title: str, source_text: str, existing_fronts: list[str]
+) -> str:
+    """Prompt for ADDITIONAL flashcards only, distinct from the existing ones."""
+    return (
+        "You are an expert engineering tutor. Write ADDITIONAL flashcards for ONE "
+        "topic, grounded in the source material and DISTINCT from the flashcards "
+        "already written.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        'fences):\n{"flashcards": [{"front": str, "back": str}]}\n'
+        "- 8-12 NEW flashcards.\n"
+        "- Do not invent material the source does not support.\n"
+        f"{_existing_block('flashcard fronts', existing_fronts)}"
+        f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
+    )
+
+
+def _load_object(text: str) -> dict:
+    """Parse a model response into a JSON object or raise GenerationParseError."""
+    raw = _extract_json_object(text)
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise GenerationParseError(f"not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise GenerationParseError("top-level JSON is not an object")
+    return data
+
+
+def parse_more_mcqs(text: str) -> list[ParsedMCQ]:
+    """Parse a single-kind MCQ response. Raises if no usable MCQ is present."""
+    data = _load_object(text)
+    mcqs = [_parse_mcq(item) for item in _as_list(data.get("mcqs"), "mcqs")]
+    if not mcqs:
+        raise GenerationParseError("expected at least one MCQ")
+    return mcqs
+
+
+def parse_more_flashcards(text: str) -> list[ParsedFlashcard]:
+    """Parse a single-kind flashcard response. Raises if none are present."""
+    data = _load_object(text)
+    cards = [
+        _parse_flashcard(item) for item in _as_list(data.get("flashcards"), "flashcards")
+    ]
+    if not cards:
+        raise GenerationParseError("expected at least one flashcard")
+    return cards
+
+
 def make_generation_processor(
     waterfall: Waterfall,
     *,

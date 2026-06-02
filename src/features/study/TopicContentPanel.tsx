@@ -38,10 +38,10 @@ export function TopicContentPanel({
           </TabsContent>
         )}
         <TabsContent value="quiz">
-          <QuizTab mcqs={content.mcqs} />
+          <QuizTab topicId={content.id} mcqs={content.mcqs} />
         </TabsContent>
         <TabsContent value="flashcards">
-          <FlashcardsTab flashcards={content.flashcards} />
+          <FlashcardsTab topicId={content.id} flashcards={content.flashcards} />
         </TabsContent>
       </Tabs>
     </div>

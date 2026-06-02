@@ -807,6 +807,25 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     queue, bookmarks, and search are unchanged — exam docs use the same MCQ/
     Flashcard/Topic rows. Tree green: backend **292 passed**, `tsc -b` +
     `npm run build` clean. **Exam Prep feature complete across E1-E6.**
+  - **E7 (done, user-requested) — "Generate more" MCQs/flashcards on demand.** A
+    user-triggered, synchronous single model call (modelled on the formula-
+    transcribe path — it does NOT go through the background queue), available on
+    both study and exam topics. `generation.py`: single-kind schemas
+    (`MORE_MCQS_SCHEMA`/`MORE_FLASHCARDS_SCHEMA`), `build_more_mcqs_prompt`/
+    `build_more_flashcards_prompt` (which list existing questions/fronts so the
+    model produces *new*, non-duplicate items — capped at 40 listed),
+    `parse_more_mcqs`/`parse_more_flashcards`, and `GENERATE_MORE_MAX_TOKENS=2048`.
+    `topics.generate_more(session, topic_id, kind, *, waterfall=…)` builds the
+    waterfall from Settings, grounds the call in `load_topic_source`, appends rows
+    (MCQs / SM-2-default flashcards), commits, returns the count.
+    `POST /api/topics/{id}/generate {kind}` → refreshed `TopicContentOut`
+    (404 unknown · 409 source missing · 502 unusable output · 503 no provider ·
+    422 bad kind). Frontend: a "Generate more questions/flashcards" ghost button
+    (Sparkles) in the Quiz and Flashcards tabs (empty state, mid-deck, and
+    completion screens) → `study.generateMore` → appends to the open topic.
+    +10 tests (parse valid/empty, prompt lists existing, service appends MCQs/
+    flashcards, unknown→raises, malformed→raises + nothing written, HTTP 404/422).
+    Tree green: backend **302 passed**, `tsc -b` + `npm run build` clean.
 
 ## NEXT
 
