@@ -6,6 +6,7 @@ autogenerate and ``create_all`` see the full schema.
 
 from backend.models.content import MCQ, Flashcard, Formula, Note, SourcePage
 from backend.models.enums import (
+    DocumentMode,
     DocumentStatus,
     FormulaState,
     QueueStage,
@@ -34,6 +35,7 @@ __all__ = [
     "ProviderState",
     "Settings",
     "DocumentStatus",
+    "DocumentMode",
     "TopicPriority",
     "TopicStatus",
     "QueueStage",

@@ -757,6 +757,31 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     throttled off-free-tier).
   - Tree green: full suite **282 passed**, `tsc -b` + `npm run build` clean.
 
+- **Exam Prep section (user-requested, in progress).** A dedicated section where a
+  PDF yields ONLY assessment (MCQs with explanations + flashcards), no notes. The
+  backbone is one new field — `Document.mode` (`study` | `exam`) — threaded through
+  enqueue, generation, and display; no parallel pipeline, no scheduler change.
+  Decisions (user-confirmed): dedicated `/exam` section (not a per-doc toggle),
+  formulas skipped in exam mode, denser practice (10-15 MCQs + 10-15 flashcards).
+  Committed sub-waves:
+  - **E1 (done)** — Data model. `DocumentMode(study|exam)` enum; `Document.mode`
+    column (default `study`); migration `f5a6b7c8d9e0` (`server_default 'study'`
+    backfills existing docs; `alembic check` clean, applied to live DB). +2 model
+    tests (default study, exam round-trip).
+  - **E2 (done, critical-code review point)** — Generation adapts to mode.
+    `generation.py`: `EXAM_GENERATION_SCHEMA` (assessment-only, reuses the study
+    MCQ/flashcard item shapes), an exam branch in `build_generation_prompt` (drops
+    notes; asks 10-15 each), `parse_generation(require_notes=False)` (notes
+    optional/ignored → `notes_md=""`), and `make_generation_processor` resolving the
+    doc mode per job (`topic_document_mode`) to pick prompt/schema/output-cap
+    (`EXAM_GENERATION_MAX_TOKENS=6144`) and skip the Note write in exam mode. The
+    queue's atomic-commit/failover path is untouched. +3 tests (exam prompt drops
+    notes, parse allows missing notes, exam processor writes MCQs+flashcards but no
+    Note). Tree green: full suite **287 passed**.
+  - **Next:** E3 (enqueue skips formula stage in exam mode), E4 (mode in the API +
+    `?mode=` filter), E5 (`/exam` section UI), E6 (study view hides Notes tab for
+    exam docs).
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)

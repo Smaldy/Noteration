@@ -13,7 +13,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Topic
-from backend.models.enums import QueueStage, QueueState
+from backend.models.enums import DocumentMode, QueueStage, QueueState
 from backend.models.processing import QueueJob
 from backend.services.pipeline.generation import (
     GenerationParseError,
@@ -121,12 +121,18 @@ def test_build_generation_prompt_includes_source() -> None:
 # --- the StageProcessor via the real queue ----------------------------------
 
 
-def _seed_topic(session: Session, tmp_path) -> Topic:
+def _seed_topic(
+    session: Session, tmp_path, *, mode: DocumentMode = DocumentMode.study
+) -> Topic:
     md = tmp_path / "doc.md"
     md.write_text("# Kinematics\n\nVelocity is dx/dt.\n", encoding="utf-8")
     subject = Subject(name="Physics")
     document = Document(
-        subject=subject, filename="f.pdf", file_hash="h", markdown_path=str(md)
+        subject=subject,
+        filename="f.pdf",
+        file_hash="h",
+        markdown_path=str(md),
+        mode=mode,
     )
     chapter = Chapter(document=document, subject=subject, title="Ch")
     topic = Topic(chapter=chapter, title="Kinematics")
@@ -182,3 +188,51 @@ def test_processor_malformed_output_rolls_back(session: Session, tmp_path) -> No
     refreshed = session.get(QueueJob, job.id)
     assert refreshed.attempts == 1
     assert refreshed.state is QueueState.pending
+
+
+# --- exam mode (assessment-only) --------------------------------------------
+
+_EXAM_JSON = json.dumps(
+    {
+        "mcqs": [
+            {
+                "question": "What is velocity?",
+                "options": ["rate of position change", "force"],
+                "correct_index": 0,
+                "explanation": "v = dx/dt.",
+            }
+        ],
+        "flashcards": [{"front": "Define acceleration", "back": "dv/dt."}],
+    }
+)
+
+
+def test_build_exam_prompt_drops_notes() -> None:
+    prompt = build_generation_prompt(
+        "Kinematics", "Velocity = dx/dt", mode=DocumentMode.exam
+    )
+    assert "notes_md" not in prompt
+    assert "flashcards" in prompt and "mcqs" in prompt
+
+
+def test_parse_generation_allows_missing_notes_in_exam() -> None:
+    data = parse_generation(_EXAM_JSON, require_notes=False)
+    assert data.notes_md == ""
+    assert len(data.mcqs) == 1 and len(data.flashcards) == 1
+
+
+def test_exam_processor_writes_no_note(session: Session, tmp_path) -> None:
+    topic = _seed_topic(session, tmp_path, mode=DocumentMode.exam)
+    job = _gen_job(session, topic)
+    queue = QueueService(session)
+    provider = MockProvider("gemini_free", text=_EXAM_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    outcome = queue.process_job(job, processor)
+
+    assert outcome is JobOutcome.done
+    assert provider.generate_calls == 1
+    # Exam mode is assessment-only: MCQs + flashcards, but no Note row.
+    assert session.query(Note).filter_by(topic_id=topic.id).count() == 0
+    assert session.query(MCQ).filter_by(topic_id=topic.id).count() == 1
+    assert session.query(Flashcard).filter_by(topic_id=topic.id).count() == 1

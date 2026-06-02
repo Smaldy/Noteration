@@ -27,6 +27,7 @@ from backend.models import (
     Topic,
 )
 from backend.models.enums import (
+    DocumentMode,
     DocumentStatus,
     FormulaState,
     QueueStage,
@@ -67,6 +68,25 @@ def test_document_status_default_is_uploaded(session: Session) -> None:
     session.commit()
     assert doc.status is DocumentStatus.uploaded
     assert isinstance(doc.uploaded_at, datetime)
+
+
+def test_document_mode_default_is_study(session: Session) -> None:
+    subject = Subject(name="EM")
+    doc = Document(subject=subject, filename="a.pdf", file_hash="h")
+    session.add(doc)
+    session.commit()
+    assert doc.mode is DocumentMode.study
+
+
+def test_document_mode_exam_round_trip(session: Session) -> None:
+    subject = Subject(name="EM")
+    doc = Document(
+        subject=subject, filename="a.pdf", file_hash="h", mode=DocumentMode.exam
+    )
+    session.add(doc)
+    session.commit()
+    session.expire(doc)
+    assert doc.mode is DocumentMode.exam
 
 
 def test_chapter_denormalized_subject_id(session: Session) -> None:
