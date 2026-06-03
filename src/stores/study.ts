@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { ApiError, api } from "@/lib/api";
-import type { DocumentTree, TopicContent } from "@/types/study";
+import type { DocumentTree, Note, TopicContent } from "@/types/study";
 
 type Load = "idle" | "loading" | "loaded" | "error";
 
@@ -22,6 +22,12 @@ interface StudyStore {
   transcribeFormulas: (topicId: number) => Promise<void>;
   /** Generate more MCQs or flashcards for a topic, then refresh its content. */
   generateMore: (topicId: number, kind: "mcqs" | "flashcards") => Promise<void>;
+  /** Save an edited note's markdown (and optionally its lock), updating in place. */
+  saveNote: (noteId: number, content_md: string, locked?: boolean) => Promise<void>;
+  /** Add a manual note block under the open topic. */
+  addNote: (topicId: number, content_md?: string) => Promise<void>;
+  /** Delete a note block from the open topic. */
+  removeNote: (noteId: number) => Promise<void>;
   /** Delete a topic (and its content), then refresh the document's tree. */
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
@@ -92,6 +98,48 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
     set((state) =>
       state.content && state.content.id === topicId
         ? { content, contentStatus: "loaded" }
+        : state,
+    );
+  },
+
+  saveNote: async (noteId, content_md, locked) => {
+    const updated = await api.patch<Note>(`/notes/${noteId}`, {
+      content_md,
+      ...(locked === undefined ? {} : { locked }),
+    });
+    set((state) =>
+      state.content
+        ? {
+            content: {
+              ...state.content,
+              notes: state.content.notes.map((n) =>
+                n.id === noteId ? updated : n,
+              ),
+            },
+          }
+        : state,
+    );
+  },
+
+  addNote: async (topicId, content_md = "") => {
+    const created = await api.post<Note>("/notes", { topic_id: topicId, content_md });
+    set((state) =>
+      state.content && state.content.id === topicId
+        ? { content: { ...state.content, notes: [...state.content.notes, created] } }
+        : state,
+    );
+  },
+
+  removeNote: async (noteId) => {
+    await api.del(`/notes/${noteId}`);
+    set((state) =>
+      state.content
+        ? {
+            content: {
+              ...state.content,
+              notes: state.content.notes.filter((n) => n.id !== noteId),
+            },
+          }
         : state,
     );
   },

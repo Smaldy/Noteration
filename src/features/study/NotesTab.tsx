@@ -1,7 +1,8 @@
+import { Lock, LockOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
+import { MarkdownView } from "@/components/MarkdownView";
+import { NoteEditor } from "@/components/editor/NoteEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useStudyStore } from "@/stores/study";
@@ -14,12 +15,10 @@ interface NotesTabProps {
 
 export function NotesTab({ topicId, notes }: NotesTabProps) {
   const transcribeFormulas = useStudyStore((s) => s.transcribeFormulas);
+  const addNote = useStudyStore((s) => s.addNote);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (notes.length === 0) {
-    return <EmptyTab>No notes yet for this topic.</EmptyTab>;
-  }
+  const [adding, setAdding] = useState(false);
 
   const pendingCount = notes.reduce(
     (n, note) => n + note.formulas.filter((f) => f.state === "pending").length,
@@ -38,56 +37,151 @@ export function NotesTab({ topicId, notes }: NotesTabProps) {
     }
   };
 
+  const addManual = async () => {
+    setAdding(true);
+    try {
+      await addNote(topicId, "");
+    } finally {
+      setAdding(false);
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      {notes.map((note) => (
-        <article key={note.id}>
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {note.content_md || "_This note is empty._"}
-            </ReactMarkdown>
-          </div>
+    <div className="space-y-6">
+      {notes.length === 0 ? (
+        <EmptyTab>No notes yet for this topic — add your own below.</EmptyTab>
+      ) : (
+        notes.map((note) => <NoteBlock key={note.id} note={note} />)
+      )}
 
-          {note.formulas.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Formulas
-              </h4>
-              {note.formulas.map((formula) => (
-                <div
-                  key={formula.id}
-                  className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2"
-                >
-                  <code className="truncate text-sm">
-                    {formula.latex || (
-                      <span className="text-muted-foreground">
-                        equation detected — not yet reconstructed
-                      </span>
-                    )}
-                  </code>
-                  <Badge
-                    variant={formula.state === "verified" ? "default" : "outline"}
-                  >
-                    {formula.state}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </article>
-      ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="outline" size="sm" onClick={addManual} disabled={adding}>
+          <Plus className="mr-1.5 size-4" />
+          {adding ? "Adding…" : "Add note"}
+        </Button>
 
-      {pendingCount > 0 && (
-        <div className="flex items-center gap-3">
+        {pendingCount > 0 && (
           <Button size="sm" onClick={reconstruct} disabled={busy}>
             {busy
               ? "Reconstructing…"
               : `Reconstruct ${pendingCount} formula${pendingCount > 1 ? "s" : ""}`}
           </Button>
-          {error && <span className="text-sm text-destructive">{error}</span>}
+        )}
+        {error && <span className="text-sm text-destructive">{error}</span>}
+      </div>
+    </div>
+  );
+}
+
+function NoteBlock({ note }: { note: Note }) {
+  const saveNote = useStudyStore((s) => s.saveNote);
+  const removeNote = useStudyStore((s) => s.removeNote);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (markdown: string) => {
+    setSaving(true);
+    try {
+      await saveNote(note.id, markdown);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm("Delete this note block?")) return;
+    await removeNote(note.id);
+  };
+
+  const toggleLock = () => saveNote(note.id, note.content_md, !note.locked);
+
+  if (editing) {
+    return (
+      <NoteEditor
+        initialMarkdown={note.content_md}
+        onSave={save}
+        onCancel={() => setEditing(false)}
+        saving={saving}
+      />
+    );
+  }
+
+  return (
+    <article className="group relative rounded-lg border border-transparent px-1 py-1 transition hover:border-border hover:bg-card/50">
+      <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+        {note.is_manual && <Badge variant="outline">manual</Badge>}
+        <IconBtn label={note.locked ? "Unlock" : "Lock"} onClick={toggleLock}>
+          {note.locked ? (
+            <Lock className="size-4 text-primary" />
+          ) : (
+            <LockOpen className="size-4" />
+          )}
+        </IconBtn>
+        <IconBtn
+          label="Edit"
+          onClick={() => setEditing(true)}
+          disabled={note.locked}
+        >
+          <Pencil className="size-4" />
+        </IconBtn>
+        <IconBtn label="Delete" onClick={remove}>
+          <Trash2 className="size-4 text-destructive" />
+        </IconBtn>
+      </div>
+
+      <MarkdownView>{note.content_md || "_This note is empty._"}</MarkdownView>
+
+      {note.formulas.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Formulas
+          </h4>
+          {note.formulas.map((formula) => (
+            <div
+              key={formula.id}
+              className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2"
+            >
+              <code className="truncate text-sm">
+                {formula.latex || (
+                  <span className="text-muted-foreground">
+                    equation detected — not yet reconstructed
+                  </span>
+                )}
+              </code>
+              <Badge variant={formula.state === "verified" ? "default" : "outline"}>
+                {formula.state}
+              </Badge>
+            </div>
+          ))}
         </div>
       )}
-    </div>
+    </article>
+  );
+}
+
+function IconBtn({
+  children,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  children: ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex size-7 items-center justify-center rounded-md bg-background/80 text-foreground/70 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+    >
+      {children}
+    </button>
   );
 }
 

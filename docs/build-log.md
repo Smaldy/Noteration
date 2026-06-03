@@ -851,6 +851,38 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
       Quiz/Cards link (argument), wired via an `onPractice` callback (exam only).
       Tree green: backend **310 passed**, `tsc -b` + `npm run build` clean.
 
+- **Notes editing + toolbar + native LaTeX (DONE, user-requested).** Implements
+  the two locked-but-deferred Notes-tab features (TipTap inline editing + KaTeX).
+  Notes stay stored as markdown (`Note.content_md`) — the editor round-trips
+  through it. Three committed sub-waves:
+  - **N1 (backend)** — `services/notes.py` + `routers/notes.py`:
+    `PATCH /api/notes/{id}` (edit `content_md` and/or `locked`, partial — editing an
+    AI note does NOT flip `is_manual`), `POST /api/notes {topic_id, content_md}` (add
+    a manual block, `is_manual=True`), `DELETE /api/notes/{id}` (cascades formulas).
+    `schemas/note.py` (`NoteUpdate`/`NoteCreate`); reuses `NoteOut`. Router wired into
+    `main.py` after `topics`. 9 tests (service edit/partial/create/cascade-delete/
+    unknown-raise + HTTP patch/post/delete/404). Suite **319 passed**.
+  - **N2 (read-side LaTeX)** — shared `components/MarkdownView.tsx`: react-markdown
+    with `remark-math` + `rehype-katex` (renders `$inline$` and `$$block$$`) and
+    `rehype-raw` (so inline HTML for font color / highlight survives). `katex` CSS
+    imported once in `main.tsx`. NotesTab read view now uses it (was raw markdown).
+  - **N3 (TipTap editor + Word/Docs toolbar)** — `components/editor/NoteEditor.tsx`
+    (TipTap v2: StarterKit + Underline + TextStyle + Color + Highlight + Mathematics
+    + `tiptap-markdown` with `html:true`) and `EditorToolbar.tsx` (bold/italic/
+    underline/strike · H1-H3 · bullet/ordered/quote/code · **font-color picker**
+    (swatches + native + reset) · highlight · insert-math · clear · undo/redo).
+    Math renders inline in-editor via the Mathematics extension's regex decoration
+    (raw `$…$` text stays in the doc → clean markdown round-trip; verified the
+    extension keeps text + tiptap-markdown's HTMLMark serializes color/highlight to
+    inline HTML under `html:true`). NotesTab rewritten: per-note hover actions
+    (lock/edit/delete), inline edit→save (PATCH) / cancel, "Add note" (manual block),
+    empty state. Study store gained `saveNote`/`addNote`/`removeNote` (in-place,
+    no reload flicker). Deps: `@tiptap/{react,pm,starter-kit,extension-underline,
+    extension-text-style,extension-color,extension-highlight,extension-mathematics}`,
+    `katex`, `tiptap-markdown`, `remark-math`, `rehype-katex`, `rehype-raw`.
+    Tree green: backend **319 passed**, `tsc -b` + `npm run build` clean (KaTeX
+    fonts emitted; bundle ~1.84 MB — code-splitting still deferred).
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)

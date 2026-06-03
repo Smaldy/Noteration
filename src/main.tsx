@@ -7,6 +7,8 @@ import "@fontsource-variable/montserrat";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/newsreader";
 
+import "katex/dist/katex.min.css";
+
 import App from "./App";
 import "./index.css";
 
