@@ -279,12 +279,18 @@
   --cal-manual: hsl(262 83% 63%); /* manual move */
   --cal-deadline: hsl(347 80% 57%); /* deadline */
   --cal-buffer: hsl(35 92% 48%); /* revision buffer */
+  --cal-ai: hsl(173 70% 40%); /* AI study plan */
+  --cal-custom: hsl(199 85% 48%); /* custom event */
+  --cal-exam: hsl(0 84% 47%); /* deadline / exam — bloody red */
 }
 .dark {
   --cal-sm2: hsl(235 90% 74%);
   --cal-manual: hsl(262 90% 76%);
   --cal-deadline: hsl(347 90% 70%);
   --cal-buffer: hsl(38 95% 60%);
+  --cal-ai: hsl(173 75% 55%);
+  --cal-custom: hsl(199 90% 64%);
+  --cal-exam: hsl(0 90% 64%);
 }
 
 /* Toolbar -------------------------------------------------------------------- */
@@ -490,6 +496,25 @@
 }
 .fc-ev-deadline {
   --ev: var(--cal-deadline);
+}
+.fc-ev-ai {
+  --ev: var(--cal-ai);
+}
+.fc-ev-custom {
+  --ev: var(--cal-custom);
+}
+.fc-ev-exam {
+  --ev: var(--cal-exam);
+}
+/* A deadline reads as a bold red banner, not a soft tint. */
+.fc-ev-exam .cal-chip {
+  background: color-mix(in oklab, var(--cal-exam) 88%, var(--card));
+  color: white;
+  border-color: var(--cal-exam);
+  font-weight: 600;
+}
+.fc-ev-exam .cal-dot {
+  background: white;
 }
 .fc-ev-buffer {
   --ev: var(--cal-buffer);

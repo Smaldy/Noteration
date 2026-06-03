@@ -975,6 +975,88 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     three chunks pinned `justify-self` start/center/end — the switcher is now
     anchored dead-centre regardless of "May 2026" vs "September 2026".
 
+- **Calendar manual events + AI study planning (DONE, user-reported two bugs).**
+  The calendar was read-only (only a projection of flashcard due dates; the only
+  write was drag-drop reschedule) and there was no AI planning anywhere. Both
+  fixed. User-confirmed forks: AI plan distributes ONE subject's topics to dates;
+  the cell "Add" offers BOTH a whole-subject session and a drill-to-topic picker;
+  clicking an event uses an inline studied-checkbox + click-opens-topic (custom/
+  subject events open an editor).
+  - **Data model.** `ScheduleEntry` extended: `topic_id` now nullable (custom/
+    subject events have no topic), added `subject_id` (FK, cascade — whole-subject
+    + AI-plan sessions), `title`, `description`, `completed`, `completed_at`. New
+    `ScheduleSource.ai` (string enum value, no CHECK constraint → no enum
+    migration). One batch migration `a6b7c8d9e0f1` (nullable topic_id + 5 columns +
+    FK; `server_default '0'` for completed); applied to live DB, `alembic check`
+    clean.
+  - **Scheduler.** `rebuild_schedule` now preserves BOTH `manual` and `ai` entries
+    (was `manual` only) and **carries the completion checkmark forward** onto a
+    regenerated (topic, date) SM-2 slot, so checking off a review survives the next
+    rebuild (snapshot completed slots → reapply).
+  - **Study service.** `create_entry` (topic / subject / custom, validated),
+    `update_entry` (partial: move→`manual`, rename, re-note, toggle `completed`
+    stamping `completed_at`), `delete_entry`, and `topic_catalog` (subjects→topics,
+    one join, no N+1) for the picker. `reschedule_entry` delegates to
+    `update_entry`.
+  - **Planner.** `services/planner.py`: a user-triggered SYNCHRONOUS single model
+    call (like `generate_more`/formula-transcribe — NOT the background queue).
+    `build_plan_prompt` lists the subject's non-skip topics + a date window
+    (exam_date − revision buffer, else a 14-day horizon); `PLAN_SCHEMA` (Gemini
+    structured output) → `{sessions:[{topic_id,date,note}]}`; `parse_plan` tolerant
+    of bad items; `generate_study_plan` validates ids against the subject, clamps
+    dates into the window, dedupes, **replaces only this subject's prior `ai`
+    entries** (manual + SM-2 untouched), writes `source=ai` rows. Errors map
+    404/409/502/503 in the router.
+  - **API.** `POST /api/study/schedule`, `PATCH /api/study/schedule/{id}` (extended,
+    partial — drag-drop `{date}` still works), `DELETE /api/study/schedule/{id}`,
+    `GET /api/study/topic-catalog`, `POST /api/study/plan`. `CalendarEntryOut`
+    enriched (kind, display title, description, completed/completed_at/on_time,
+    subject info). Fixed a pydantic gotcha: a field named `date` with a default
+    shadows the `date` type during annotation eval → imported as `Date`.
+  - **Frontend.** Calendar store gained create/update/delete/toggleCompleted/
+    fetchCatalog/generatePlan (+ range tracking for refresh). `CalendarPage`:
+    day-click → `AddToCalendarDialog` (Event / Topic / Subject tabs; topic picker
+    is a searchable list grouped by subject); each event chip has a studied
+    checkbox (green on-time / amber late, strike-through when done); topic click →
+    Study View, custom/subject click → `EditEventDialog` (rename/re-note/move/
+    delete). `AiPlanDialog` (pick subject → plan). Study View `TopicContentPanel`
+    gained an "Add to calendar" button (presets the open topic). New `--cal-ai` /
+    `--cal-custom` colour tokens + legend rows. Verified live end-to-end (create
+    201 → complete on_time True → 422 → plan 404 → delete 204). Tree green: backend
+    **345 passed**, `tsc -b` + `npm run build` clean.
+
+- **Calendar deadlines + plan controls + studied-skip (DONE, user-requested).**
+  Follow-up to the calendar wave: exam/deadline markers, more delete affordances,
+  and study-state-aware planning.
+  - **Deadline/exam markers (bloody red).** `ScheduleEntry.is_deadline` column
+    (migration `b7c8d9e0f1a2`, `server_default '0'`; applied to live DB, `alembic
+    check` clean). A deadline is created with a subject + date (the "Deadline" tab
+    in the Add dialog); creating/moving/deleting one keeps `Subject.exam_date` in
+    sync via `_resync_exam_date` (= max of the subject's deadline markers, else
+    None), so the AI planner + SM-2 deadline mode optimise toward it with no extra
+    user step. New `--cal-exam` token + a bold-red `.fc-ev-exam` chip; `kind`
+    gains `deadline` and wins the colour precedence. The planner prompt now states
+    the hard deadline date explicitly.
+  - **Delete from the calendar.** Every event chip got a hover **× delete** (with
+    confirm) so any entry — including topic sessions, which click-through to the
+    Study View — can be removed; the edit dialog keeps its Delete too. Deadlines
+    have no studied-checkbox (you don't "study" a deadline).
+  - **Delete an AI plan.** `planner.delete_plan` + `DELETE /api/study/plan/{subject_id}`
+    removes only that subject's `source=ai` entries (manual + SM-2 untouched);
+    surfaced as a "Remove plan" button in the AI-plan dialog.
+  - **Skip already-studied topics when planning.** The plan dialog lists the
+    subject's topics with checkboxes seeded from `Topic.studied`; checking one
+    marks it studied and excludes it. `generate_study_plan(studied_topic_ids=…)`
+    persists exactly that set to `Topic.studied`, and `_subject_topics` excludes
+    studied (and `skip`) topics; all-studied → 409. `topic-catalog` + `CatalogTopic`
+    now carry `studied`.
+  - +10 backend tests (deadline sets/moves/clears exam_date, deadline needs a
+    subject → 422, delete-plan removes only `ai`, planner skips studied,
+    studied_topic_ids persists, all-studied raises, prompt mentions the deadline).
+    Verified live (deadline → exam_date 2026-07-01 → delete clears → delete-plan
+    {deleted:0}). Tree green: backend **355 passed**, `tsc -b` + `npm run build`
+    clean.
+
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
    → Calendar → Queue → Settings, one feature end-to-end at a time.
 2. Phases 10–11 (Cost UX, Benchmark harness) per `RUFLO-BUILD.md`.

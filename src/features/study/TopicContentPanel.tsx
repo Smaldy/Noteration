@@ -1,6 +1,7 @@
-import { Maximize2, Minimize2 } from "lucide-react";
+import { CalendarPlus, Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { AddToCalendarDialog } from "@/features/calendar/AddToCalendarDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ export function TopicContentPanel({
   // The active tab is controlled so it survives the inline ↔ full-screen swap.
   const [tab, setTab] = useState<string>(isExam ? "quiz" : "notes");
   const [fullscreen, setFullscreen] = useState(false);
+  const [addToCalendar, setAddToCalendar] = useState(false);
 
   // While full screen: Esc exits, and the page behind it is scroll-locked.
   useEffect(() => {
@@ -68,19 +70,31 @@ export function TopicContentPanel({
               Flashcards{content.flashcards.length > 0 && ` (${content.flashcards.length})`}
             </TabsTrigger>
           </TabsList>
-          {/* In normal view the toggle lives at the end of the tab row (the
-              controls it affects); in full screen it becomes a floating pill. */}
+          {/* In normal view the controls live at the end of the tab row; in
+              full screen the fullscreen toggle becomes a floating pill. */}
           {!fullscreen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-muted-foreground"
-              onClick={() => setFullscreen(true)}
-              title="Full screen"
-              aria-label="Enter full screen"
-            >
-              <Maximize2 />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground"
+                onClick={() => setAddToCalendar(true)}
+                title="Add this topic to the calendar"
+                aria-label="Add this topic to the calendar"
+              >
+                <CalendarPlus />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground"
+                onClick={() => setFullscreen(true)}
+                title="Full screen"
+                aria-label="Enter full screen"
+              >
+                <Maximize2 />
+              </Button>
+            </div>
           )}
         </div>
 
@@ -133,6 +147,12 @@ export function TopicContentPanel({
       >
         {body}
       </div>
+
+      <AddToCalendarDialog
+        open={addToCalendar}
+        onOpenChange={setAddToCalendar}
+        presetTopic={{ id: content.id, title: content.title }}
+      />
     </div>
   );
 }

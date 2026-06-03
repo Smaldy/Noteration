@@ -1,14 +1,61 @@
-/** Mirrors `backend/schemas/study.py::CalendarEntryOut`. */
+/** Mirrors `backend/schemas/study.py::CalendarEntryOut` (+ catalog schemas). */
 
-export type ScheduleSource = "sm2" | "manual" | "deadline";
+export type ScheduleSource = "sm2" | "manual" | "deadline" | "ai";
+export type CalendarKind = "topic" | "subject" | "custom" | "deadline";
 
 export interface CalendarEntry {
   id: number;
-  topic_id: number;
-  topic_title: string;
-  document_id: number;
   /** ISO date (YYYY-MM-DD). */
   date: string;
-  is_revision_buffer: boolean;
   source: ScheduleSource;
+  is_revision_buffer: boolean;
+  is_deadline: boolean;
+  kind: CalendarKind;
+  /** Effective display title (event name, else topic/subject name). */
+  title: string;
+  description: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  /** True if completed on/before its date; null when not completed. */
+  on_time: boolean | null;
+
+  topic_id: number | null;
+  topic_title: string | null;
+  document_id: number | null;
+  subject_id: number | null;
+  subject_name: string | null;
+}
+
+// --- topic picker catalog (study/topic-catalog) ---------------------------- //
+
+export interface CatalogTopic {
+  id: number;
+  title: string;
+  chapter_title: string;
+  document_id: number;
+  studied: boolean;
+}
+
+export interface CatalogSubject {
+  id: number;
+  name: string;
+  topics: CatalogTopic[];
+}
+
+// --- request bodies -------------------------------------------------------- //
+
+export interface ScheduleEntryCreate {
+  date: string;
+  topic_id?: number;
+  subject_id?: number;
+  title?: string;
+  description?: string;
+  is_deadline?: boolean;
+}
+
+export interface ScheduleEntryUpdate {
+  date?: string;
+  title?: string;
+  description?: string;
+  completed?: boolean;
 }
