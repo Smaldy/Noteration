@@ -221,6 +221,120 @@ function FontControl({ editor }: { editor: Editor }) {
   );
 }
 
+// ── Shared popover building blocks ─────────────────────────────────────────
+// Both the font-colour and highlight controls share one visual language: a
+// frosted, softly-shadowed panel; a titled section; round swatches with a clear
+// selected ring; and a custom-colour + reset footer. Keeping them identical is
+// what makes the toolbar read as "designed" rather than two ad-hoc menus.
+
+/** Dismiss-on-outside-click popover panel anchored under its trigger. */
+function Popover({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-20" onClick={onClose} aria-hidden />
+      <div
+        className={cn(
+          "absolute left-0 top-full z-30 mt-2 w-60 origin-top-left rounded-xl border border-border/70 bg-popover/95 p-3 backdrop-blur",
+          "shadow-[0_18px_44px_-18px_color-mix(in_oklab,var(--primary)_28%,transparent),0_6px_16px_-10px_rgb(0_0_0/0.18)]",
+          "animate-in fade-in-0 zoom-in-95 duration-150",
+        )}
+      >
+        {children}
+      </div>
+    </>
+  );
+}
+
+/** Small uppercase section label in the display face. */
+function PanelLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-2 font-display text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+/** A round colour chip with a subtle definition border and a clear selected ring. */
+function Swatch({
+  color,
+  selected,
+  title,
+  onClick,
+}: {
+  color: string;
+  selected: boolean;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={selected}
+      onClick={onClick}
+      style={{ backgroundColor: color }}
+      className={cn(
+        "aspect-square w-full rounded-full border border-black/10 transition dark:border-white/20",
+        "hover:scale-110 hover:border-black/25 dark:hover:border-white/30",
+        selected &&
+          "ring-2 ring-ring ring-offset-2 ring-offset-popover hover:scale-105",
+      )}
+    />
+  );
+}
+
+/** Footer: a circular native-colour trigger ("Custom") + a quiet reset action. */
+function PanelFooter({
+  color,
+  onPick,
+  resetLabel,
+  onReset,
+}: {
+  color: string;
+  onPick: (hex: string) => void;
+  resetLabel: string;
+  onReset: () => void;
+}) {
+  return (
+    <>
+      <div className="my-2.5 h-px bg-border/70" />
+      <div className="flex items-center justify-between">
+        <label className="group flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground transition hover:text-foreground">
+          <span
+            className="relative inline-block size-5 overflow-hidden rounded-full border border-black/10 transition group-hover:scale-110 dark:border-white/20"
+            style={{ backgroundColor: color }}
+          >
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => onPick(e.target.value)}
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+            />
+          </span>
+          Custom
+        </label>
+        <button
+          type="button"
+          className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+          onClick={onReset}
+        >
+          {resetLabel}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ── Font colour ────────────────────────────────────────────────────────────
 const SWATCHES = [
   "#ef4444",
   "#f97316",
@@ -232,80 +346,58 @@ const SWATCHES = [
   "#ec4899",
 ];
 
-/** Font-color control: quick swatches + a native picker, with a reset. */
+/** Font-color control: a row of swatches, a native picker, and a reset. */
 function ColorControl({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
-  const current = (editor.getAttributes("textStyle").color as string) || "#1e1e2e";
+  const active = (editor.getAttributes("textStyle").color as string) || "";
+  const indicator = active || "currentColor";
+
+  const apply = (c: string) => {
+    editor.chain().focus().setColor(c).run();
+    setOpen(false);
+  };
 
   return (
     <div className="relative">
-      <Btn
-        label="Font color"
-        active={!!editor.getAttributes("textStyle").color}
-        onClick={() => setOpen((o) => !o)}
-      >
+      <Btn label="Font color" active={!!active} onClick={() => setOpen((o) => !o)}>
         <span className="flex flex-col items-center leading-none">
           <span className="text-[13px] font-semibold">A</span>
           <span
-            className="mt-0.5 h-1 w-4 rounded-sm"
-            style={{ backgroundColor: current }}
+            className="mt-0.5 h-1 w-4 rounded-full"
+            style={{ backgroundColor: indicator }}
           />
         </span>
       </Btn>
-      {open && (
-        <>
-          <div
-            className="fixed inset-0 z-20"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
-          <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-lg border bg-popover p-2 shadow-md">
-            <div className="grid grid-cols-4 gap-1.5">
-              {SWATCHES.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  className="size-7 rounded-md border transition hover:scale-110"
-                  style={{ backgroundColor: c }}
-                  onClick={() => {
-                    editor.chain().focus().setColor(c).run();
-                    setOpen(false);
-                  }}
-                />
-              ))}
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input
-                  type="color"
-                  className="size-6 cursor-pointer rounded border bg-transparent p-0"
-                  onChange={(e) =>
-                    editor.chain().focus().setColor(e.target.value).run()
-                  }
-                />
-                Custom
-              </label>
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                onClick={() => {
-                  editor.chain().focus().unsetColor().run();
-                  setOpen(false);
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <Popover open={open} onClose={() => setOpen(false)}>
+        <PanelLabel>Text color</PanelLabel>
+        <div className="grid grid-cols-8 gap-1.5">
+          {SWATCHES.map((c) => (
+            <Swatch
+              key={c}
+              color={c}
+              title={c}
+              selected={active.toLowerCase() === c.toLowerCase()}
+              onClick={() => apply(c)}
+            />
+          ))}
+        </div>
+        <PanelFooter
+          color={active || "#6366f1"}
+          onPick={(hex) => editor.chain().focus().setColor(hex).run()}
+          resetLabel="Reset"
+          onReset={() => {
+            editor.chain().focus().unsetColor().run();
+            setOpen(false);
+          }}
+        />
+      </Popover>
     </div>
   );
 }
 
-// Highlight swatches are the base hues; the chosen opacity is mixed in when the
-// mark is applied so the same color can range from faint wash to bold marker.
+// ── Highlight ──────────────────────────────────────────────────────────────
+// The swatches are base hues; the chosen opacity is mixed in when the mark is
+// applied, so one colour spans a faint wash to a bold marker.
 const HIGHLIGHT_SWATCHES = [
   "#facc15",
   "#fb923c",
@@ -326,17 +418,26 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-/** Highlight control: pick a color and an opacity (default 80%) instead of the
- *  single saturated default. Applies the blended color as the mark's color. */
+/** Highlight control: pick a color and an opacity (default 80%), with a live
+ *  preview of the resulting marker. Applies the blended color as the mark's color. */
 function HighlightControl({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
   // Default 80% per spec; remembered across openings within the editing session.
   const [opacity, setOpacity] = useState(0.8);
   const [color, setColor] = useState(HIGHLIGHT_SWATCHES[0]);
+  const blended = hexToRgba(color, opacity);
 
   const apply = (hex: string) => {
     setColor(hex);
     editor.chain().focus().setHighlight({ color: hexToRgba(hex, opacity) }).run();
+  };
+
+  const setOpacityLive = (next: number) => {
+    setOpacity(next);
+    // Re-apply to a live selection so dragging previews directly on the text.
+    if (editor.isActive("highlight")) {
+      editor.chain().focus().setHighlight({ color: hexToRgba(color, next) }).run();
+    }
   };
 
   return (
@@ -346,78 +447,67 @@ function HighlightControl({ editor }: { editor: Editor }) {
         active={editor.isActive("highlight")}
         onClick={() => setOpen((o) => !o)}
       >
-        <Highlighter className="size-4" />
-      </Btn>
-      {open && (
-        <>
-          <div
-            className="fixed inset-0 z-20"
-            onClick={() => setOpen(false)}
-            aria-hidden
+        <span className="flex flex-col items-center leading-none">
+          <Highlighter className="size-[15px]" />
+          <span
+            className="mt-0.5 h-1 w-4 rounded-full"
+            style={{ backgroundColor: blended }}
           />
-          <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border bg-popover p-2 shadow-md">
-            <div className="grid grid-cols-4 gap-1.5">
-              {HIGHLIGHT_SWATCHES.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  className="size-7 rounded-md border transition hover:scale-110"
-                  style={{ backgroundColor: hexToRgba(c, opacity) }}
-                  onClick={() => apply(c)}
-                />
-              ))}
-            </div>
-            <label className="mt-2 block text-xs text-muted-foreground">
-              <span className="flex items-center justify-between">
-                Opacity
-                <span>{Math.round(opacity * 100)}%</span>
-              </span>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                step={5}
-                value={Math.round(opacity * 100)}
-                onChange={(e) => {
-                  const next = Number(e.target.value) / 100;
-                  setOpacity(next);
-                  // Live-update the active highlight so the slider previews on selection.
-                  if (editor.isActive("highlight")) {
-                    editor
-                      .chain()
-                      .focus()
-                      .setHighlight({ color: hexToRgba(color, next) })
-                      .run();
-                  }
-                }}
-                className="mt-1 w-full cursor-pointer"
-              />
-            </label>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input
-                  type="color"
-                  value={color}
-                  className="size-6 cursor-pointer rounded border bg-transparent p-0"
-                  onChange={(e) => apply(e.target.value)}
-                />
-                Custom
-              </label>
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                onClick={() => {
-                  editor.chain().focus().unsetHighlight().run();
-                  setOpen(false);
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+        </span>
+      </Btn>
+      <Popover open={open} onClose={() => setOpen(false)}>
+        <PanelLabel>Highlight color</PanelLabel>
+        <div className="grid grid-cols-8 gap-1.5">
+          {HIGHLIGHT_SWATCHES.map((c) => (
+            <Swatch
+              key={c}
+              color={hexToRgba(c, opacity)}
+              title={c}
+              selected={color.toLowerCase() === c.toLowerCase()}
+              onClick={() => apply(c)}
+            />
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+          <span className="font-display uppercase tracking-[0.14em]">Opacity</span>
+          <span className="tabular-nums text-foreground/80">
+            {Math.round(opacity * 100)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={10}
+          max={100}
+          step={5}
+          value={Math.round(opacity * 100)}
+          onChange={(e) => setOpacityLive(Number(e.target.value) / 100)}
+          className="app-range mt-1.5"
+          aria-label="Highlight opacity"
+        />
+
+        <div
+          className="mt-3 rounded-lg border border-border/60 px-2.5 py-2 text-center text-sm"
+          style={{ backgroundColor: "color-mix(in oklab, var(--muted) 40%, transparent)" }}
+        >
+          <span
+            className="rounded px-1.5 py-0.5"
+            style={{ backgroundColor: blended }}
+          >
+            Highlighted text
+          </span>
+        </div>
+
+        <PanelFooter
+          color={color}
+          onPick={apply}
+          resetLabel="Remove"
+          onReset={() => {
+            editor.chain().focus().unsetHighlight().run();
+            setOpen(false);
+          }}
+        />
+      </Popover>
     </div>
   );
 }

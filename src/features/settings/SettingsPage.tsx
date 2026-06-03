@@ -1,6 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, RotateCcw } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  Check,
+  KeyRound,
+  Palette,
+  RotateCcw,
+  Sparkles,
+  Timer,
+} from "lucide-react";
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -67,6 +81,19 @@ const FONT_PREVIEW: Record<string, string> = {
   mono: '"JetBrains Mono", ui-monospace, monospace',
 };
 
+// Section registry powers both the scroll-spy sidebar and the rendered cards,
+// so the nav can never drift out of sync with the content.
+const SECTIONS: {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}[] = [
+  { id: "api-keys", label: "API keys", icon: KeyRound },
+  { id: "providers", label: "Providers", icon: Sparkles },
+  { id: "pomodoro", label: "Pomodoro", icon: Timer },
+  { id: "appearance", label: "Appearance", icon: Palette },
+];
+
 function toForm(s: Settings): FormState {
   return {
     allow_paid: s.allow_paid,
@@ -91,6 +118,7 @@ export function SettingsPage() {
   const [geminiKey, setGeminiKey] = useState("");
   const [claudeKey, setClaudeKey] = useState("");
   const [saved, setSaved] = useState(false);
+  const [active, setActive] = useState(SECTIONS[0].id);
 
   useEffect(() => {
     void fetchSettings();
@@ -126,6 +154,26 @@ export function SettingsPage() {
     };
   }, []);
 
+  // Scroll-spy: highlight the nav item whose section sits in the upper band of
+  // the viewport. Runs once the form (and therefore the sections) is mounted.
+  useEffect(() => {
+    if (!form) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const top = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setActive(top.target.id);
+      },
+      { rootMargin: "-18% 0px -72% 0px", threshold: 0 },
+    );
+    for (const s of SECTIONS) {
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [form]);
+
   const baseline = useMemo(() => (settings ? toForm(settings) : null), [settings]);
   const dirty =
     !!form &&
@@ -159,6 +207,11 @@ export function SettingsPage() {
     setGeminiKey("");
     setClaudeKey("");
     setSaved(false);
+  }
+
+  function jumpTo(id: string) {
+    setActive(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleSave() {
@@ -200,179 +253,216 @@ export function SettingsPage() {
         />
       }
     >
-      <div className="animate-rise space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Tune the providers, study rhythm, and how Noteration looks.
-        </p>
-      </div>
+      <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[180px_minmax(0,1fr)]">
+        <SectionNav active={active} onJump={jumpTo} />
 
-      <Section title="API keys" description="Stored locally; used by the provider waterfall.">
-        <Field label={`Gemini key${settings.gemini_key_set ? " (set)" : ""}`}>
-          <Input
-            type="password"
-            placeholder={settings.gemini_key_set ? "•••••••• (replace)" : "Add a key"}
-            value={geminiKey}
-            onChange={(e) => setGeminiKey(e.target.value)}
-          />
-        </Field>
-        <Field label={`Claude key${settings.claude_key_set ? " (set)" : ""}`}>
-          <Input
-            type="password"
-            placeholder={settings.claude_key_set ? "•••••••• (replace)" : "Add a key"}
-            value={claudeKey}
-            onChange={(e) => setClaudeKey(e.target.value)}
-          />
-        </Field>
-      </Section>
+        <div className="min-w-0 space-y-7">
+          <header className="animate-rise space-y-1.5">
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <p className="text-sm text-muted-foreground">
+              Tune the providers, study rhythm, and how Noteration looks.
+            </p>
+          </header>
 
-      <Section
-        title="Provider waterfall"
-        description="Free providers run first. Order is automatic (cheapest-first)."
-      >
-        <Field label="Gemini model">
-          <Segmented
-            group="gemini"
-            value={form.gemini_model}
-            onChange={(v) => set("gemini_model", v)}
-            options={GEMINI_MODELS.map((m) => ({ value: m.value, label: m.label }))}
-          />
-          <p className="text-xs text-muted-foreground">
-            {GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hint}
-          </p>
-        </Field>
-        <Toggle
-          label="Allow paid fallback (Claude)"
-          hint="Off = never spend; free tiers only."
-          checked={form.allow_paid}
-          onChange={(v) => set("allow_paid", v)}
-        />
-        <Toggle
-          label="Use local Ollama"
-          hint="Include a local $0 model in the waterfall (must be installed)."
-          checked={form.ollama_enabled}
-          onChange={(v) => set("ollama_enabled", v)}
-        />
-        <Field label="Per-document token budget">
-          <Input
-            type="number"
-            min={0}
-            step={1000}
-            value={form.per_document_token_budget}
-            onChange={(e) =>
-              set("per_document_token_budget", Math.max(0, Number(e.target.value)))
-            }
-            className="w-40"
-          />
-          <p className="text-xs text-muted-foreground">
-            Safety cap: a document is paused if it spends more than this many
-            tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate).
-          </p>
-        </Field>
-      </Section>
-
-      <Section title="Pomodoro">
-        <div className="flex flex-wrap gap-6">
-          <Field label="Work minutes">
-            <Input
-              type="number"
-              min={1}
-              max={180}
-              value={form.pomodoro_work_min}
-              onChange={(e) => set("pomodoro_work_min", Number(e.target.value))}
-              className="w-28"
-            />
-          </Field>
-          <Field label="Break minutes">
-            <Input
-              type="number"
-              min={1}
-              max={120}
-              value={form.pomodoro_break_min}
-              onChange={(e) => set("pomodoro_break_min", Number(e.target.value))}
-              className="w-28"
-            />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="Appearance" description="Changes preview instantly; Save to keep them.">
-        <Field label="Theme">
-          <Segmented
-            group="theme"
-            value={form.theme}
-            onChange={(v) => set("theme", v as Theme)}
-            options={(["system", "light", "dark"] as Theme[]).map((t) => ({
-              value: t,
-              label: t[0].toUpperCase() + t.slice(1),
-            }))}
-          />
-        </Field>
-
-        <Field label="Accent color">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Swatch
-              selected={form.accent_color === ""}
-              onClick={() => set("accent_color", "")}
-              title="Theme default"
-              dashed
-            />
-            {PRESET_ACCENTS.map((c) => (
-              <Swatch
-                key={c.hex}
-                color={c.hex}
-                title={c.name}
-                selected={form.accent_color.toLowerCase() === c.hex.toLowerCase()}
-                onClick={() => set("accent_color", c.hex)}
-              />
-            ))}
-            <label
-              className="relative ml-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border text-base text-muted-foreground transition-transform hover:scale-110"
-              title="Custom color"
+          <Section
+            id="api-keys"
+            icon={KeyRound}
+            title="API keys"
+            description="Stored locally; used by the provider waterfall."
+            delay={40}
+          >
+            <Field
+              label="Gemini key"
+              badge={settings.gemini_key_set ? <SetBadge /> : undefined}
             >
-              +
-              <input
-                type="color"
-                value={form.accent_color || "#6366f1"}
-                onChange={(e) => set("accent_color", e.target.value)}
-                className="absolute inset-0 cursor-pointer opacity-0"
+              <Input
+                type="password"
+                placeholder={
+                  settings.gemini_key_set ? "•••••••• (replace)" : "Add a key"
+                }
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
               />
-            </label>
-          </div>
-        </Field>
+            </Field>
+            <Field
+              label="Claude key"
+              badge={settings.claude_key_set ? <SetBadge /> : undefined}
+            >
+              <Input
+                type="password"
+                placeholder={
+                  settings.claude_key_set ? "•••••••• (replace)" : "Add a key"
+                }
+                value={claudeKey}
+                onChange={(e) => setClaudeKey(e.target.value)}
+              />
+            </Field>
+          </Section>
 
-        <Field label="Font">
-          <div className="inline-flex flex-wrap gap-2">
-            {FONT_OPTIONS.map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => set("font_family", f.value)}
-                style={{ fontFamily: FONT_PREVIEW[f.value] }}
-                className={cn(
-                  "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 active:scale-95",
-                  form.font_family === f.value
-                    ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
-                    : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </Field>
+          <Section
+            id="providers"
+            icon={Sparkles}
+            title="Provider waterfall"
+            description="Free providers run first. Order is automatic (cheapest-first)."
+            delay={100}
+          >
+            <Field label="Gemini model">
+              <Segmented
+                group="gemini"
+                value={form.gemini_model}
+                onChange={(v) => set("gemini_model", v)}
+                options={GEMINI_MODELS.map((m) => ({ value: m.value, label: m.label }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hint}
+              </p>
+            </Field>
+            <Toggle
+              label="Allow paid fallback (Claude)"
+              hint="Off = never spend; free tiers only."
+              checked={form.allow_paid}
+              onChange={(v) => set("allow_paid", v)}
+            />
+            <Toggle
+              label="Use local Ollama"
+              hint="Include a local $0 model in the waterfall (must be installed)."
+              checked={form.ollama_enabled}
+              onChange={(v) => set("ollama_enabled", v)}
+            />
+            <Field label="Per-document token budget">
+              <Input
+                type="number"
+                min={0}
+                step={1000}
+                value={form.per_document_token_budget}
+                onChange={(e) =>
+                  set("per_document_token_budget", Math.max(0, Number(e.target.value)))
+                }
+                className="w-40"
+              />
+              <p className="text-xs text-muted-foreground">
+                Safety cap: a document is paused if it spends more than this many
+                tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate).
+              </p>
+            </Field>
+          </Section>
 
-        <Field label={`Base font size — ${form.font_size}px`}>
-          <input
-            type="range"
-            min={12}
-            max={22}
-            value={form.font_size}
-            onChange={(e) => set("font_size", Number(e.target.value))}
-            className="w-64 accent-[var(--primary)]"
-          />
-        </Field>
-      </Section>
+          <Section id="pomodoro" icon={Timer} title="Pomodoro" delay={160}>
+            <div className="flex flex-wrap gap-6">
+              <Field label="Work minutes">
+                <Input
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={form.pomodoro_work_min}
+                  onChange={(e) => set("pomodoro_work_min", Number(e.target.value))}
+                  className="w-28"
+                />
+              </Field>
+              <Field label="Break minutes">
+                <Input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={form.pomodoro_break_min}
+                  onChange={(e) => set("pomodoro_break_min", Number(e.target.value))}
+                  className="w-28"
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            id="appearance"
+            icon={Palette}
+            title="Appearance"
+            description="Changes preview instantly; Save to keep them."
+            delay={220}
+          >
+            <Field label="Theme">
+              <Segmented
+                group="theme"
+                value={form.theme}
+                onChange={(v) => set("theme", v as Theme)}
+                options={(["system", "light", "dark"] as Theme[]).map((t) => ({
+                  value: t,
+                  label: t[0].toUpperCase() + t.slice(1),
+                }))}
+              />
+            </Field>
+
+            <Field label="Accent color">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Swatch
+                  selected={form.accent_color === ""}
+                  onClick={() => set("accent_color", "")}
+                  title="Theme default"
+                  dashed
+                />
+                {PRESET_ACCENTS.map((c) => (
+                  <Swatch
+                    key={c.hex}
+                    color={c.hex}
+                    title={c.name}
+                    selected={form.accent_color.toLowerCase() === c.hex.toLowerCase()}
+                    onClick={() => set("accent_color", c.hex)}
+                  />
+                ))}
+                <label
+                  className="relative ml-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-dashed border-muted-foreground/50 text-base text-muted-foreground transition-transform hover:scale-110"
+                  title="Custom color"
+                >
+                  +
+                  <input
+                    type="color"
+                    value={form.accent_color || "#6366f1"}
+                    onChange={(e) => set("accent_color", e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+              </div>
+            </Field>
+
+            <Field label="Font">
+              <div className="inline-flex flex-wrap gap-2">
+                {FONT_OPTIONS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => set("font_family", f.value)}
+                    style={{ fontFamily: FONT_PREVIEW[f.value] }}
+                    className={cn(
+                      "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 active:scale-95",
+                      form.font_family === f.value
+                        ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
+                        : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label={`Base font size — ${form.font_size}px`}>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">A</span>
+                <div className="w-60 max-w-full">
+                  <input
+                    type="range"
+                    min={12}
+                    max={22}
+                    value={form.font_size}
+                    onChange={(e) => set("font_size", Number(e.target.value))}
+                    className="app-range"
+                  />
+                </div>
+                <span className="text-lg text-muted-foreground">A</span>
+              </div>
+            </Field>
+          </Section>
+        </div>
+      </div>
     </Shell>
   );
 }
@@ -389,7 +479,7 @@ function Shell({
   return (
     <div className="flex min-h-screen flex-col">
       <header className="glass sticky top-0 z-20 border-b">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3.5">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
           <button
             type="button"
             onClick={onBack}
@@ -404,10 +494,60 @@ function Shell({
         </div>
       </header>
       <main className="flex-1">
-        <div className="mx-auto max-w-2xl space-y-8 px-6 py-10">{children}</div>
+        <div className="mx-auto max-w-4xl px-6 py-10">{children}</div>
       </main>
       {footer}
     </div>
+  );
+}
+
+/** Sticky scroll-spy navigation. A single sliding pill (layoutId) tracks the
+ *  active section as you scroll, which reads far more refined than per-item
+ *  background toggles. */
+function SectionNav({
+  active,
+  onJump,
+}: {
+  active: string;
+  onJump: (id: string) => void;
+}) {
+  return (
+    <nav className="hidden lg:block">
+      <div className="sticky top-24 space-y-0.5">
+        {SECTIONS.map((s) => {
+          const Icon = s.icon;
+          const on = active === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => onJump(s.id)}
+              className={cn(
+                "group relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                on
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {on && (
+                <motion.span
+                  layoutId="settings-nav-active"
+                  className="absolute inset-0 rounded-lg bg-secondary"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              )}
+              <Icon
+                className={cn(
+                  "relative z-10 size-4 transition-colors",
+                  on ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+                )}
+              />
+              <span className="relative z-10">{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -428,7 +568,7 @@ function ActionBar({
 }) {
   return (
     <footer className="glass sticky bottom-0 z-20 border-t">
-      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-6 py-4">
+      <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-6 py-4">
         <div className="min-h-5 text-sm">
           <AnimatePresence mode="wait" initial={false}>
             {saveError ? (
@@ -458,8 +598,9 @@ function ActionBar({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="text-muted-foreground"
+                className="inline-flex items-center gap-1.5 text-muted-foreground"
               >
+                <span className="size-1.5 rounded-full bg-amber-500" />
                 Unsaved changes
               </motion.span>
             ) : (
@@ -487,23 +628,40 @@ function ActionBar({
 }
 
 function Section({
+  id,
+  icon: Icon,
   title,
   description,
+  delay = 0,
   children,
 }: {
+  id: string;
+  icon: ComponentType<{ className?: string }>;
   title: string;
   description?: string;
+  delay?: number;
   children: ReactNode;
 }) {
   return (
-    <section className="animate-rise rounded-2xl border bg-card/60 p-6 shadow-sm">
-      <h2 className="font-display text-xs font-bold uppercase tracking-[0.12em] text-primary">
-        {title}
-      </h2>
-      {description && (
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      )}
-      <div className="mt-4 space-y-5">{children}</div>
+    <section
+      id={id}
+      style={{ animationDelay: `${delay}ms` }}
+      className="animate-rise scroll-mt-24 rounded-2xl border border-border/70 bg-card/70 p-6 shadow-sm backdrop-blur-sm"
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
+          <Icon className="size-[18px]" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
+          {description && (
+            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+          )}
+        </div>
+      </div>
+      <div className="mt-5 space-y-5">{children}</div>
     </section>
   );
 }
@@ -568,22 +726,55 @@ function Swatch({
       onClick={onClick}
       style={color ? { backgroundColor: color } : undefined}
       className={cn(
-        "size-8 rounded-full transition-transform duration-150 hover:scale-110 active:scale-95",
+        "flex size-8 items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 active:scale-95",
         dashed && "border-2 border-dashed border-muted-foreground/50",
         selected
-          ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
-          : "ring-1 ring-black/10",
+          ? "ring-2 ring-foreground ring-offset-2 ring-offset-card"
+          : "ring-1 ring-black/10 dark:ring-white/15",
       )}
-    />
+    >
+      {selected && (
+        <Check
+          strokeWidth={3}
+          className={cn(
+            "size-4",
+            dashed
+              ? "text-foreground"
+              : "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]",
+          )}
+        />
+      )}
+    </button>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  badge,
+  children,
+}: {
+  label: string;
+  badge?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-2.5">
-      <Label className="block">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Label className="block">{label}</Label>
+        {badge}
+      </div>
       {children}
     </div>
+  );
+}
+
+/** Small "key is configured" status pill. */
+function SetBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+      <Check className="size-3" strokeWidth={3} />
+      Set
+    </span>
   );
 }
 

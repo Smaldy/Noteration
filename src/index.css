@@ -261,6 +261,46 @@
   }
 }
 
+/* A clean, theme-aware range slider (native range is ugly and inconsistent
+   across browsers). Track reads as a quiet inset rail; the thumb is a
+   primary-tinted knob that lifts on hover. Used by the editor toolbar and the
+   Settings appearance controls. */
+input[type="range"].app-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--secondary);
+  cursor: pointer;
+  outline: none;
+}
+input[type="range"].app-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  background: var(--primary);
+  border: 2px solid var(--popover);
+  box-shadow: 0 1px 4px -1px color-mix(in oklab, var(--primary) 60%, transparent);
+  transition: transform 0.12s ease;
+}
+input[type="range"].app-range::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+input[type="range"].app-range::-moz-range-thumb {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  background: var(--primary);
+  border: 2px solid var(--popover);
+  box-shadow: 0 1px 4px -1px color-mix(in oklab, var(--primary) 60%, transparent);
+}
+input[type="range"].app-range:focus-visible {
+  box-shadow: 0 0 0 2px var(--popover), 0 0 0 4px var(--ring);
+}
+
 /* --- FullCalendar: re-skinned to match the design system ------------------- */
 .fc {
   --fc-border-color: color-mix(in oklab, var(--border) 70%, transparent);
