@@ -115,13 +115,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
 
       <FontControl editor={editor} />
       <ColorControl editor={editor} />
-      <Btn
-        label="Highlight"
-        active={editor.isActive("highlight")}
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-      >
-        <Highlighter className="size-4" />
-      </Btn>
+      <HighlightControl editor={editor} />
 
       <Divider />
 
@@ -301,6 +295,124 @@ function ColorControl({ editor }: { editor: Editor }) {
                 }}
               >
                 Reset
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Highlight swatches are the base hues; the chosen opacity is mixed in when the
+// mark is applied so the same color can range from faint wash to bold marker.
+const HIGHLIGHT_SWATCHES = [
+  "#facc15",
+  "#fb923c",
+  "#f87171",
+  "#4ade80",
+  "#38bdf8",
+  "#818cf8",
+  "#c084fc",
+  "#f472b6",
+];
+
+/** Convert a `#rrggbb` hex + 0–1 alpha to an `rgba()` string TipTap stores on the mark. */
+function hexToRgba(hex: string, alpha: number): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Highlight control: pick a color and an opacity (default 80%) instead of the
+ *  single saturated default. Applies the blended color as the mark's color. */
+function HighlightControl({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  // Default 80% per spec; remembered across openings within the editing session.
+  const [opacity, setOpacity] = useState(0.8);
+  const [color, setColor] = useState(HIGHLIGHT_SWATCHES[0]);
+
+  const apply = (hex: string) => {
+    setColor(hex);
+    editor.chain().focus().setHighlight({ color: hexToRgba(hex, opacity) }).run();
+  };
+
+  return (
+    <div className="relative">
+      <Btn
+        label="Highlight"
+        active={editor.isActive("highlight")}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Highlighter className="size-4" />
+      </Btn>
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border bg-popover p-2 shadow-md">
+            <div className="grid grid-cols-4 gap-1.5">
+              {HIGHLIGHT_SWATCHES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  title={c}
+                  className="size-7 rounded-md border transition hover:scale-110"
+                  style={{ backgroundColor: hexToRgba(c, opacity) }}
+                  onClick={() => apply(c)}
+                />
+              ))}
+            </div>
+            <label className="mt-2 block text-xs text-muted-foreground">
+              <span className="flex items-center justify-between">
+                Opacity
+                <span>{Math.round(opacity * 100)}%</span>
+              </span>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                step={5}
+                value={Math.round(opacity * 100)}
+                onChange={(e) => {
+                  const next = Number(e.target.value) / 100;
+                  setOpacity(next);
+                  // Live-update the active highlight so the slider previews on selection.
+                  if (editor.isActive("highlight")) {
+                    editor
+                      .chain()
+                      .focus()
+                      .setHighlight({ color: hexToRgba(color, next) })
+                      .run();
+                  }
+                }}
+                className="mt-1 w-full cursor-pointer"
+              />
+            </label>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="color"
+                  value={color}
+                  className="size-6 cursor-pointer rounded border bg-transparent p-0"
+                  onChange={(e) => apply(e.target.value)}
+                />
+                Custom
+              </label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                onClick={() => {
+                  editor.chain().focus().unsetHighlight().run();
+                  setOpen(false);
+                }}
+              >
+                Remove
               </button>
             </div>
           </div>
