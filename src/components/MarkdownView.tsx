@@ -15,7 +15,7 @@ import remarkMath from "remark-math";
  */
 export function MarkdownView({ children }: { children: string }) {
   return (
-    <div className="prose prose-sm max-w-none font-[var(--font-reading)] dark:prose-invert">
+    <div className="prose prose-sm max-w-none dark:prose-invert">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}

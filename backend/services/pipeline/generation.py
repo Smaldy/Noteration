@@ -158,9 +158,18 @@ def build_generation_prompt(
         '"mcqs": [{"question": str, "options": [str, ...], '
         '"correct_index": int, "explanation": str}], '
         '"flashcards": [{"front": str, "back": str}]}\n'
-        "- notes_md: Markdown notes covering the key concepts, definitions, and "
-        "formulas; concise but complete; do not invent material the source does "
-        "not support.\n"
+        "- notes_md: Well-structured Markdown notes covering the key concepts, "
+        "definitions, and formulas; concise but complete; do not invent material "
+        "the source does not support. Formatting rules (follow exactly):\n"
+        "  * Organise with `##` and `###` headings and short paragraphs; separate "
+        "every heading, paragraph, and list with a blank line.\n"
+        "  * Use `-` bullet lists for enumerations and key points; use numbered "
+        "lists only for ordered steps.\n"
+        "  * Write normal prose. Use `**bold**` ONLY to emphasise a key term or "
+        "definition (a few words) — never bold whole sentences, lines, or the "
+        "entire note. Use `*italics*` sparingly.\n"
+        "  * Put math in LaTeX: `$inline$` and `$$display$$`.\n"
+        "  * Do NOT wrap the notes in a code fence.\n"
         "- mcqs: 5-10 multiple-choice questions grounded in the notes; each with "
         "at least 2 options and a correct_index pointing to the right option.\n"
         "- flashcards: 5-10 flashcards grounded in the notes.\n\n"

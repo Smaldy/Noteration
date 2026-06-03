@@ -145,14 +145,16 @@
     letter-spacing: -0.02em;
   }
 
-  /* Long-form notes read in a warm serif at a comfortable measure. */
+  /* Notes default to the font the user picked in Settings (--app-font),
+     falling back to the body face. An inline `font-family` from the editor
+     (manual override on a selection) still wins over this base. */
   .prose {
-    font-family: var(--font-reading);
+    font-family: var(--app-font, var(--font-body));
     font-size: 1.02rem;
     line-height: 1.75;
   }
   .prose :where(h1, h2, h3, h4) {
-    font-family: var(--font-display);
+    font-family: var(--app-font, var(--font-display));
   }
   .prose :where(code, pre) {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;

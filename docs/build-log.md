@@ -883,6 +883,31 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     Tree green: backend **319 passed**, `tsc -b` + `npm run build` clean (KaTeX
     fonts emitted; bundle ~1.84 MB — code-splitting still deferred).
 
+- **Notes formatting + font fixes (DONE, user-reported).** Two defects from real
+  use: (1) generated notes came back as a bold, unstructured wall of text; (2)
+  notes rendered in a fixed hard-to-read serif (`--font-reading` = Newsreader),
+  ignoring the font the user picked in Settings.
+  - **Issue 1 — generation prompt.** `build_generation_prompt`'s `notes_md`
+    instruction was vague ("Markdown notes covering…"), so models often bolded
+    whole lines and skipped structure. Tightened it with explicit formatting
+    rules: `##`/`###` headings + short paragraphs, blank lines between blocks,
+    `-` bullet lists, `**bold**` reserved for key terms only (never whole
+    sentences/lines), LaTeX for math, no code-fence wrapper. Exam mode (no notes)
+    is unaffected; the prompt still carries topic + source + the JSON shape, so
+    all generation/parse tests stay green.
+  - **Issue 2 — notes use the Settings font by default, overridable per-edit.**
+    `.prose` font-family went from the hardcoded `var(--font-reading)` serif to
+    `var(--app-font, var(--font-body))` (the user's Settings font, body fallback);
+    `MarkdownView` dropped its `font-[var(--font-reading)]` override so it inherits.
+    An inline `font-family` from the editor still wins, so a manual override on a
+    selection survives. Added `@tiptap/extension-font-family` to `NoteEditor` and a
+    **Font picker** to the editor toolbar (Default/Sans/Serif/Mono/Inter/System,
+    reusing the bundled `FONT_STACKS`) — "Default" clears the mark back to the
+    Settings font. The font mark serializes to `<span style="font-family">` via
+    `tiptap-markdown` html:true (same path as the existing color/highlight) and
+    re-renders through `MarkdownView`'s `rehype-raw`.
+  - Tree green: backend **319 passed**, `tsc -b` + `npm run build` clean.
+
 ## NEXT
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)

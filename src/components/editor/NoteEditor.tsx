@@ -1,4 +1,5 @@
 import { Color } from "@tiptap/extension-color";
+import { FontFamily } from "@tiptap/extension-font-family";
 import { Highlight } from "@tiptap/extension-highlight";
 import { Mathematics } from "@tiptap/extension-mathematics";
 import { TextStyle } from "@tiptap/extension-text-style";
@@ -19,6 +20,9 @@ const extensions = [
   Underline,
   TextStyle,
   Color,
+  // Per-selection font override (emits `<span style="font-family">`, kept on
+  // save via Markdown html:true and rendered back by MarkdownView's rehype-raw).
+  FontFamily,
   Highlight.configure({ multicolor: true }),
   Mathematics.configure({
     regex: MATH_REGEX,

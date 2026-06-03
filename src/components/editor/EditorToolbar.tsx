@@ -14,12 +14,14 @@ import {
   RemoveFormatting,
   Sigma,
   Strikethrough,
+  Type,
   Underline as UnderlineIcon,
   Undo2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { FONT_STACKS } from "@/stores/settings";
 
 /** Word/Docs-style formatting bar driving the TipTap editor commands. */
 export function EditorToolbar({ editor }: { editor: Editor }) {
@@ -111,6 +113,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
 
       <Divider />
 
+      <FontControl editor={editor} />
       <ColorControl editor={editor} />
       <Btn
         label="Highlight"
@@ -155,6 +158,71 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
       >
         <Redo2 className="size-4" />
       </Btn>
+    </div>
+  );
+}
+
+// Font options for the per-selection override. "Default" clears the mark so the
+// text falls back to the user's Settings font; the rest reuse the app's bundled
+// font stacks so a picked face renders without any network fetch.
+const FONT_OPTIONS: { label: string; value: string | null }[] = [
+  { label: "Default (settings font)", value: null },
+  { label: "Sans", value: FONT_STACKS.sans },
+  { label: "Serif", value: FONT_STACKS.serif },
+  { label: "Mono", value: FONT_STACKS.mono },
+  { label: "Inter", value: FONT_STACKS.inter },
+  { label: "System", value: FONT_STACKS.system },
+];
+
+/** Font-family control: apply one of the bundled faces to the selection, or
+ *  reset to the user's default Settings font. */
+function FontControl({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const current = (editor.getAttributes("textStyle").fontFamily as string) || "";
+
+  const apply = (value: string | null) => {
+    if (value) editor.chain().focus().setFontFamily(value).run();
+    else editor.chain().focus().unsetFontFamily().run();
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <Btn
+        label="Font"
+        active={!!current}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Type className="size-4" />
+      </Btn>
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute left-0 top-full z-30 mt-1 w-52 rounded-lg border bg-popover p-1 shadow-md">
+            {FONT_OPTIONS.map((opt) => {
+              const active = (opt.value || "") === current;
+              return (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => apply(opt.value)}
+                  style={opt.value ? { fontFamily: opt.value } : undefined}
+                  className={cn(
+                    "block w-full rounded-md px-2.5 py-1.5 text-left text-sm transition hover:bg-muted",
+                    active && "bg-muted text-primary",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
