@@ -908,7 +908,72 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     re-renders through `MarkdownView`'s `rehype-raw`.
   - Tree green: backend **319 passed**, `tsc -b` + `npm run build` clean.
 
-## NEXT
+- **Full-screen study mode (DONE, user-requested).** A distraction-free focus mode
+  for a topic's content. `TopicContentPanel` flips an internal `fullscreen` state;
+  when on, the panel renders as a `fixed inset-0 z-50` overlay which naturally hides
+  the study sidebar and centers + zooms the content (`max-w-3xl mx-auto`,
+  `.fullscreen-zoom` bumps `.prose`). **Esc** exits (keydown listener) and the
+  control toggles back; background scroll is locked while open. The Notes/Quiz/
+  Flashcards tabs stay — the active tab is **controlled** (`useState`) so it (and
+  quiz/flashcard progress) survives the inline↔overlay swap, since the same subtree
+  is only re-wrapped, not remounted.
+  - **Refined after first review (user feedback: "gradient was inside the box, not
+    professional; button misplaced").** The gradient is now an **ambient backdrop**
+    (`.fullscreen-stage`: a top spotlight wash + two quiet corner washes, accent-
+    derived via `color-mix`, plus a faint SVG-noise grain to kill banding) that the
+    content *floats on* — not a filled panel inside the cards. Quiz sits in a clean
+    **frosted `.focus-card`** (backdrop-blur, no gradient fill) and both quiz +
+    flashcard carry `.focus-float` (a long accent-tinted shadow) so elevation, not
+    colour-fill, reads as premium. Controls repositioned: in normal view a small
+    `Maximize2` ghost button at the **end of the tab row**; in full screen a
+    deliberate **floating frosted "⤡ Esc" pill** pinned top-right (title + tabs
+    centered). Light entrance animations kept (quiz: per-question slide-in keyed on
+    index; flashcard: scale/fade-in; 3D flip unchanged) with zoomed text / larger
+    card. Frontend-only; backend untouched (**319 passed**), `tsc -b` +
+    `npm run build` clean.
+
+- **Calendar look touch-up (DONE, user-requested: "not refined at all, every button
+  and part should be thought through").** Reworked the FullCalendar skin
+  (`index.css`) and `CalendarPage.tsx` end to end:
+  - **Events** are no longer saturated solid blocks. Each is a soft **tinted chip
+    with a leading dot** (`renderChip` via `eventContent`; colour from a per-kind
+    class `fc-ev-{sm2,manual,deadline,buffer}`): background `color-mix(kind 13%,
+    card)`, kind-coloured text + border, hover lift with a kind-tinted shadow.
+  - **Semantic colour tokens** (`--cal-sm2/manual/deadline/buffer`) moved to
+    `:root` + `.dark` (lifted hues in dark mode); the React legend now references
+    the *same* `var(--cal-*)` tokens, so legend and chips can't drift and both adapt
+    to the theme.
+  - **Toolbar**: prev/next is one connected **segmented control** (inset track,
+    pill thumbs); `today` is a separate quiet pill; title moved left, nav right;
+    refined hover/active/focus/disabled states.
+  - **Grid**: roomier day cells (min-height), quiet hover, a faint weekend wash,
+    softened borders + carded uppercase column headers. **Today** now reads as a
+    single **filled primary badge** on the date number (with a soft glow) instead of
+    a tinted whole cell.
+  - **Overflow**: `dayMaxEvents={3}` + `fixedWeekCount={false}`; styled the
+    "+N more" link and its **popover** (carded, display-font header).
+  - Page header gains a `primary-soft` icon chip; legend moved into a bordered
+    footer row inside the calendar card. Frontend-only; `tsc -b` + `npm run build`
+    clean.
+  - **Month / Week / Day views + full-bleed layout (DONE, user-requested; was
+    month-only, and wasting space).** Added a **Month/Week/Day segmented switcher**
+    (active view = raised "thumb" on an inset track). The page now **fills the
+    viewport**: a `h-[100dvh]` flex column with a wide `max-w-[1500px]` container and
+    the calendar card as `flex-1 min-h-0`, so FullCalendar runs at `height="100%"`
+    with `expandRows` — month/week cells are tall and `dayMaxEvents={true}` packs in
+    as many sessions as fit before "+N more" (no more cramped, half-empty grid).
+    **Day is an agenda `listDay`** (added `@fullcalendar/list`), not a tall skinny
+    column: wide full-width rows with a coloured dot + title, the all-day time column
+    dropped, styled day header / hover / empty state. `eventContent` branches —
+    tinted chip in daygrid, plain title in the list (the row supplies its own dot,
+    coloured per-kind via the shared `--ev` token now set on the event root). `tsc -b`
+    + `npm run build` clean.
+  - **Toolbar centring fix (user-reported).** The Month/Week/Day switcher drifted
+    horizontally as the month title's width changed (FullCalendar's header is flex
+    `space-between`, so the centre chunk isn't truly centred). Reworked
+    `.fc-header-toolbar` to a `grid-template-columns: 1fr auto 1fr` layout with the
+    three chunks pinned `justify-self` start/center/end — the switcher is now
+    anchored dead-centre regardless of "May 2026" vs "September 2026".
 
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
    → Calendar → Queue → Settings, one feature end-to-end at a time.

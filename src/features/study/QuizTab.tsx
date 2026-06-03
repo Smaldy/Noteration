@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { Check, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 
@@ -11,9 +12,11 @@ interface QuizTabProps {
   /** Present for a single topic (enables "Generate more"); omitted for pooled decks. */
   topicId?: number;
   mcqs: MCQ[];
+  /** Full-screen study mode: gradient stage, zoomed text, slide-in per question. */
+  fullscreen?: boolean;
 }
 
-export function QuizTab({ topicId, mcqs }: QuizTabProps) {
+export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -84,7 +87,11 @@ export function QuizTab({ topicId, mcqs }: QuizTabProps) {
   }
 
   return (
-    <div>
+    <div
+      className={cn(
+        fullscreen && "focus-card focus-float rounded-2xl p-6 sm:p-8",
+      )}
+    >
       <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full bg-primary transition-all"
@@ -94,39 +101,50 @@ export function QuizTab({ topicId, mcqs }: QuizTabProps) {
       <p className="mb-1 text-xs text-muted-foreground">
         Question {index + 1} of {mcqs.length}
       </p>
-      <h3 className="text-lg font-medium">{mcq.question}</h3>
 
-      <div className="mt-4 space-y-2">
-        {mcq.options.map((option, i) => {
-          const isCorrect = i === mcq.correct_index;
-          const isChosen = i === selected;
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => choose(i)}
-              disabled={revealed}
-              className={cn(
-                "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors",
-                !revealed && "hover:bg-accent/50",
-                revealed && isCorrect && "border-emerald-500/60 bg-emerald-500/10",
-                revealed &&
-                  isChosen &&
-                  !isCorrect &&
-                  "border-destructive/60 bg-destructive/10",
-              )}
-            >
-              <span>{option}</span>
-              {revealed && isCorrect && (
-                <Check className="size-4 text-emerald-600" />
-              )}
-              {revealed && isChosen && !isCorrect && (
-                <X className="size-4 text-destructive" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <motion.div
+        key={index}
+        initial={fullscreen ? { opacity: 0, x: 28 } : false}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <h3 className={cn("font-medium", fullscreen ? "text-2xl" : "text-lg")}>
+          {mcq.question}
+        </h3>
+
+        <div className="mt-4 space-y-2">
+          {mcq.options.map((option, i) => {
+            const isCorrect = i === mcq.correct_index;
+            const isChosen = i === selected;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => choose(i)}
+                disabled={revealed}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
+                  fullscreen ? "text-base" : "text-sm",
+                  !revealed && "hover:bg-accent/50",
+                  revealed && isCorrect && "border-emerald-500/60 bg-emerald-500/10",
+                  revealed &&
+                    isChosen &&
+                    !isCorrect &&
+                    "border-destructive/60 bg-destructive/10",
+                )}
+              >
+                <span>{option}</span>
+                {revealed && isCorrect && (
+                  <Check className="size-4 text-emerald-600" />
+                )}
+                {revealed && isChosen && !isCorrect && (
+                  <X className="size-4 text-destructive" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
 
       {revealed && (
         <div className="mt-4 rounded-md bg-muted/50 p-3 text-sm">

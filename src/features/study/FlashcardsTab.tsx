@@ -14,9 +14,15 @@ interface FlashcardsTabProps {
   /** Present for a single topic (enables "Generate more"); omitted for pooled decks. */
   topicId?: number;
   flashcards: FlashcardContent[];
+  /** Full-screen study mode: gradient stage behind a larger, zoomed card. */
+  fullscreen?: boolean;
 }
 
-export function FlashcardsTab({ topicId, flashcards }: FlashcardsTabProps) {
+export function FlashcardsTab({
+  topicId,
+  flashcards,
+  fullscreen = false,
+}: FlashcardsTabProps) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -90,19 +96,29 @@ export function FlashcardsTab({ topicId, flashcards }: FlashcardsTabProps) {
         Card {index + 1} of {flashcards.length}
       </p>
 
-      <div
-        className="w-full max-w-xl cursor-pointer [perspective:1600px]"
+      <motion.div
+        key={fullscreen ? "fs" : "inline"}
+        initial={fullscreen ? { opacity: 0, scale: 0.96, y: 12 } : false}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+        className={cn(
+          "w-full cursor-pointer [perspective:1600px]",
+          fullscreen ? "max-w-2xl" : "max-w-xl",
+        )}
         onClick={() => setFlipped((f) => !f)}
       >
         <motion.div
-          className="relative min-h-48 w-full [transform-style:preserve-3d]"
+          className={cn(
+            "relative w-full [transform-style:preserve-3d]",
+            fullscreen ? "min-h-72" : "min-h-48",
+          )}
           animate={{ rotateY: flipped ? 180 : 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          <CardFace label="Front" text={card.front} />
-          <CardFace label="Back" text={card.back} flipped />
+          <CardFace label="Front" text={card.front} big={fullscreen} />
+          <CardFace label="Back" text={card.back} flipped big={fullscreen} />
         </motion.div>
-      </div>
+      </motion.div>
 
       {!flipped ? (
         <p className="mt-4 text-sm text-muted-foreground">
@@ -180,15 +196,18 @@ function CardFace({
   label,
   text,
   flipped = false,
+  big = false,
 }: {
   label: string;
   text: string;
   flipped?: boolean;
+  big?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "absolute inset-0 flex items-center justify-center rounded-xl border bg-card p-8 text-center text-lg shadow-sm [backface-visibility:hidden]",
+        "absolute inset-0 flex items-center justify-center rounded-2xl border bg-card text-center [backface-visibility:hidden]",
+        big ? "focus-float p-10 text-2xl" : "p-8 text-lg shadow-sm",
         flipped && "[transform:rotateY(180deg)]",
       )}
     >
