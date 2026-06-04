@@ -30,6 +30,7 @@ from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
     FormulaState,
+    QueueLaneState,
     QueueStage,
     QueueState,
     ScheduleSource,
@@ -87,6 +88,36 @@ def test_document_mode_exam_round_trip(session: Session) -> None:
     session.commit()
     session.expire(doc)
     assert doc.mode is DocumentMode.exam
+
+
+def test_subject_queue_state_default_is_running(session: Session) -> None:
+    subject = Subject(name="Thermo")
+    session.add(subject)
+    session.commit()
+    assert subject.queue_state is QueueLaneState.running
+
+
+def test_subject_queue_state_round_trip(session: Session) -> None:
+    subject = Subject(name="Thermo", queue_state=QueueLaneState.overnight)
+    session.add(subject)
+    session.commit()
+    session.expire(subject)
+    assert subject.queue_state is QueueLaneState.overnight
+
+
+def test_queue_job_subject_id_round_trip_and_cascade(session: Session) -> None:
+    topic = _make_topic(session)
+    subject_id = topic.chapter.subject_id
+    job = QueueJob(
+        topic_id=topic.id, subject_id=subject_id, stage=QueueStage.notes
+    )
+    session.add(job)
+    session.commit()
+    assert job.subject_id == subject_id
+    # Deleting the subject cascades to its denormalized-keyed jobs.
+    session.delete(session.get(Subject, subject_id))
+    session.commit()
+    assert session.scalars(select(QueueJob)).all() == []
 
 
 def test_chapter_denormalized_subject_id(session: Session) -> None:
@@ -164,7 +195,9 @@ def test_schedule_entry_default_source(session: Session) -> None:
 
 def test_queue_job_defaults_and_updated_at(session: Session) -> None:
     topic = _make_topic(session)
-    job = QueueJob(topic=topic, stage=QueueStage.notes)
+    job = QueueJob(
+        topic=topic, subject_id=topic.chapter.subject_id, stage=QueueStage.notes
+    )
     session.add(job)
     session.commit()
     assert job.state is QueueState.pending

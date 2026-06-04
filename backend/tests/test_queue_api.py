@@ -65,6 +65,7 @@ def _seed(db: Session) -> int:
     db.add(
         QueueJob(
             topic_id=errored.id,
+            subject_id=subject.id,
             stage=QueueStage.notes,
             state=QueueState.failed,
             last_error="provider exploded",
@@ -108,6 +109,7 @@ def test_status_surfaces_paused_reason_for_deferred_work(session: Session) -> No
     session.add(
         QueueJob(
             topic_id=queued.id,
+            subject_id=queued.chapter.subject_id,
             stage=QueueStage.notes,
             state=QueueState.pending,
             resume_after=resume_at,
@@ -129,6 +131,7 @@ def test_status_flags_budget_paused_document(session: Session) -> None:
     session.add(
         QueueJob(
             topic_id=queued.id,
+            subject_id=queued.chapter.subject_id,
             stage=QueueStage.notes,
             state=QueueState.done,
             tokens_used=5000,

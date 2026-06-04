@@ -67,7 +67,7 @@ def test_delete_subject_cascades_whole_hierarchy(session: Session) -> None:
     session.add_all(
         [
             Note(topic_id=topic.id, content_md="x"),
-            QueueJob(topic_id=topic.id, stage=QueueStage.notes),
+            QueueJob(topic_id=topic.id, subject_id=subject.id, stage=QueueStage.notes),
         ]
     )
     session.commit()

@@ -86,7 +86,9 @@ def _seed_topic(session: Session) -> Topic:
 
 
 def _job(session: Session, topic: Topic) -> QueueJob:
-    job = QueueJob(topic_id=topic.id, stage=QueueStage.formula)
+    job = QueueJob(
+        topic_id=topic.id, subject_id=topic.chapter.subject_id, stage=QueueStage.formula
+    )
     session.add(job)
     session.commit()
     return job

@@ -160,11 +160,14 @@ class QueueService:
                 select(QueueJob.stage).where(QueueJob.topic_id == topic.id)
             ).all()
         )
+        # Denormalized lane key — the topic's subject via its chapter. Set on
+        # every created job so lane queries never re-join the hierarchy.
+        subject_id = topic.chapter.subject_id
         created: list[QueueJob] = []
         for stage in stages:
             if stage in existing:
                 continue
-            job = QueueJob(topic_id=topic.id, stage=stage)
+            job = QueueJob(topic_id=topic.id, subject_id=subject_id, stage=stage)
             self.session.add(job)
             created.append(job)
         if commit:

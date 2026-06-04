@@ -19,6 +19,7 @@ from backend.db.types import UTCDateTime
 from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
+    QueueLaneState,
     TopicPriority,
     TopicStatus,
 )
@@ -42,6 +43,11 @@ class Subject(Base):
     accent_color: Mapped[str | None] = mapped_column(default=None)
     exam_date: Mapped[date | None] = mapped_column(default=None)
     bookmarked: Mapped[bool] = mapped_column(default=False)
+    # Per-subject queue lane state (Wave B): running / paused / overnight. The
+    # lane is the unit the user pauses/resumes and puts in overnight mode.
+    queue_state: Mapped[QueueLaneState] = mapped_column(
+        SAEnum(QueueLaneState, native_enum=False), default=QueueLaneState.running
+    )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     documents: Mapped[list[Document]] = relationship(

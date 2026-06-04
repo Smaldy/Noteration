@@ -29,6 +29,12 @@ class QueueJob(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"))
+    # Denormalized lane key (Wave B): the job's subject, via Topic→Chapter→Subject.
+    # Set on enqueue and kept consistent on write so per-subject lane queries
+    # (claim/arbitrate/pause) don't join the whole hierarchy each time.
+    subject_id: Mapped[int] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE")
+    )
     stage: Mapped[QueueStage] = mapped_column(SAEnum(QueueStage, native_enum=False))
     state: Mapped[QueueState] = mapped_column(
         SAEnum(QueueState, native_enum=False), default=QueueState.pending

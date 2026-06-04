@@ -53,6 +53,20 @@ class QueueState(enum.StrEnum):
     failed = "failed"
 
 
+class QueueLaneState(enum.StrEnum):
+    """Per-subject queue lane state (Wave B).
+
+    A subject's lane processes its topics independently of other subjects'. It is
+    ``running`` normally, ``paused`` when the user hard-stops new dispatch for that
+    lane only (Steam-download model), or ``overnight`` to grind everything on free
+    tiers across reset windows (per-subject, not global).
+    """
+
+    running = "running"
+    paused = "paused"
+    overnight = "overnight"
+
+
 class FormulaState(enum.StrEnum):
     pending = "pending"  # region detected/registered; vision transcription deferred
     reconstructed = "reconstructed"

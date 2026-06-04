@@ -190,7 +190,9 @@ def test_build_generation_prompt_includes_title_and_source() -> None:
 
 def _gen_job(session: Session, tmp_path: Path) -> tuple[QueueService, QueueJob]:
     topic = _seed(session, tmp_path, topic_title="Kinematics")
-    job = QueueJob(topic_id=topic.id, stage=QueueStage.notes)
+    job = QueueJob(
+        topic_id=topic.id, subject_id=topic.chapter.subject_id, stage=QueueStage.notes
+    )
     session.add(job)
     session.commit()
     return QueueService(session), job
