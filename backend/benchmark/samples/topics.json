@@ -1,0 +1,27 @@
+[
+  {
+    "id": "statics-equilibrium",
+    "title": "Static Equilibrium of Rigid Bodies",
+    "source": "A rigid body is in static equilibrium when the net force and net torque on it are both zero. The two scalar conditions in 2D are $\\sum F_x = 0$ and $\\sum F_y = 0$, with the moment condition $\\sum M_O = 0$ about any point O. Free-body diagrams isolate the body and show every external force: applied loads, reactions at supports, and weight acting at the center of gravity. A pin support supplies two reaction components; a roller supplies one normal reaction. Solving a determinate problem means writing the three equilibrium equations and solving for at most three unknown reactions."
+  },
+  {
+    "id": "ohms-law-power",
+    "title": "Ohm's Law and Electrical Power",
+    "source": "Ohm's law relates voltage, current, and resistance in a linear resistor as $V = IR$. The power dissipated is $P = VI$, which by substitution can be written $P = I^2 R$ or $P = V^2 / R$. In a series circuit the same current flows through every element and resistances add: $R_{eq} = R_1 + R_2 + \\cdots$. In a parallel circuit the voltage across each branch is equal and conductances add, so $1/R_{eq} = 1/R_1 + 1/R_2 + \\cdots$. Kirchhoff's current law states the sum of currents into a node is zero; Kirchhoff's voltage law states the sum of voltage drops around a loop is zero."
+  },
+  {
+    "id": "first-law-thermo",
+    "title": "First Law of Thermodynamics",
+    "source": "The first law of thermodynamics expresses conservation of energy for a closed system as $\\Delta U = Q - W$, where Q is heat added to the system and W is work done by the system. For a quasi-static process the boundary work is $W = \\int P \\, dV$. An isothermal process holds temperature constant; for an ideal gas this means $\\Delta U = 0$ so $Q = W$. An adiabatic process exchanges no heat, $Q = 0$, so $\\Delta U = -W$. Specific heats at constant volume and constant pressure relate by $c_p - c_v = R$ for an ideal gas."
+  },
+  {
+    "id": "shear-bending",
+    "title": "Shear Force and Bending Moment",
+    "source": "For a loaded beam, the internal shear force V and bending moment M vary along the length. They are linked to the distributed load w by $\\frac{dV}{dx} = -w$ and $\\frac{dM}{dx} = V$. Shear and moment diagrams are built by integrating these relations from a free end. A point load produces a jump in the shear diagram; a point moment produces a jump in the moment diagram. The maximum bending moment, which sizes the beam, occurs where the shear crosses zero. The flexure formula $\\sigma = M y / I$ gives the bending stress at distance y from the neutral axis."
+  },
+  {
+    "id": "rc-transient",
+    "title": "RC Circuit Transient Response",
+    "source": "When a DC source charges a capacitor through a resistor, the capacitor voltage rises as $v_C(t) = V_s\\left(1 - e^{-t/\\tau}\\right)$ with time constant $\\tau = RC$. Discharging follows $v_C(t) = V_0 e^{-t/\\tau}$. After one time constant the capacitor reaches about 63% of its final change; after five time constants it is treated as fully settled. The current during charging is $i(t) = \\frac{V_s}{R} e^{-t/\\tau}$. The time constant has units of seconds and sets how quickly the circuit responds to a step input."
+  }
+]

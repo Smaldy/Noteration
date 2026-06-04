@@ -102,6 +102,13 @@ class Provider(ABC):
     name: str = "provider"
     supports_vision: bool = False
     enabled: bool = True
+    # Per-provider HTTP request timeout (seconds). Local providers need a generous
+    # value: on a long prompt a local model's time-to-first-token can be 5-10s, and
+    # default HTTP client timeouts (often a few seconds) would drop a valid
+    # in-flight request as if it had failed. ``None`` means "use the client/SDK
+    # default". Ollama overrides this to 120s; remote SDK providers (Gemini/Claude)
+    # rely on their SDK's own timeout handling.
+    request_timeout: float | None = None
 
     @abstractmethod
     def generate(

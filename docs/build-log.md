@@ -1113,6 +1113,45 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
    → Calendar → Queue → Settings, one feature end-to-end at a time.
 2. Phases 10–11 (Cost UX, Benchmark harness) per `RUFLO-BUILD.md`.
 
+- **Wave A — Ollama provider hardening + benchmark (DONE, user-directed; reliability
+  core, TDD + code-review).** Hardened the local provider for sustained overnight
+  runs on the 3060-laptop baseline, and built the offline benchmark harness
+  (Phase-11 scaffold).
+  - **`base.py`** — added a `request_timeout: float | None` field to the `Provider`
+    interface (documented: local TTFT can be 5-10s on long prompts; default HTTP
+    timeouts would drop valid in-flight requests). `None` = use the SDK default
+    (Gemini/Claude); Ollama overrides to 120s.
+  - **`ollama.py`** — (1) **inter-request cooldown**: after each *successful*
+    `generate`/`transcribe_image`, sleep `cooldown_seconds` (default 3s, env
+    `OLLAMA_COOLDOWN_SECONDS`, injectable `sleep` for tests); never on error (fail
+    fast → queue retries). (2) **request timeout** 120s passed to `ollama.Client`.
+    (3) **temperature lock** `temperature=0.2`/`top_p=0.9` in every generation's
+    `options` (constructor-overridable) — required so benchmark + overnight runs use
+    identical sampling params. (4) **VRAM pinning** `keep_alive=-1` in every request
+    body (env `OLLAMA_KEEP_ALIVE`) so the model isn't evicted + cold-reloaded between
+    topics.
+  - **`backend/benchmark/`** (new package, not part of the served app) — `run.py`:
+    `run_benchmark(provider, topics)` runs topics **sequentially** with the
+    provider's production cooldown active; refuses to report on < `MIN_TOPICS` (40)
+    by cycling the samples (so sustained-throughput degradation + thermal throttling
+    show up, not burst speed); records wall-clock (cooldown-inclusive), cost,
+    tokens, note/formula rubric scores, and **throughput-before-limit** (stops at the
+    first `ProviderLimitError`). `BenchmarkReport.notes` carries the "SUSTAINED, not
+    burst" caveat inline. `rubric.py`: deterministic offline note-quality + formula-
+    accuracy proxies. `samples/topics.json`: 5 representative engineering topics
+    (statics, Ohm's law, thermo, beams, RC) cycled to 40. `main()` reads
+    `GEMINI_API_KEY`/`OLLAMA_MODEL` from env so it never touches the app DB.
+  - Tests (TDD): cooldown fires once with the configured value after success + env
+    override + default 3s, **not** on error; Ollama HTTP client initializes with
+    120s timeout; `keep_alive:-1` present in **every** call type (generate +
+    transcribe) + env override; temperature/top_p locked; benchmark runs ≥40 topics
+    sequentially, throughput is cooldown-inclusive + labelled sustained, stops at
+    first limit recording throughput-before-limit, scores real output; rubric
+    penalizes the bold-wall/empty note + formula recall. **code-review** (high) over
+    the diff found one issue — an existing Ollama parse test would incur a real 3s
+    sleep under the new default cooldown — fixed (`cooldown_seconds=0`). Tree green:
+    full suite **377 passed** (+14), `npm run build` untouched.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the
@@ -1301,6 +1340,23 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   longer embed transcribed LaTeX at generation time — formulas are surfaced beside
   the notes and reconstructed lazily. Crops are grayscale/150 DPI to bound vision
   input tokens. Intentional deviation on explicit instruction.
+- **Ollama hardening params live in the provider (Wave A).** Cooldown, request
+  timeout, temperature/top_p lock, and `keep_alive` are provider-internal
+  (constructor + env), not queue/worker concerns — the queue stays
+  provider-agnostic and the *same* hardened provider is what the benchmark
+  measures. Cooldown blocks via a plain `time.sleep` (injectable for tests); it is
+  not wired to the worker's stop event, so shutdown can wait up to one cooldown
+  (≤3s default) — acceptable vs. the worker's 5s join timeout.
+- **Ollama never raises a limit error (Wave A).** A local model has no quota, so
+  Ollama maps every failure to `ProviderUnavailableError`; the benchmark's
+  "throughput before limit" path is therefore driven only by quota providers
+  (Gemini/Claude), which map 429 → `ProviderLimitError`.
+- **Benchmark cycles samples to ≥40 topics (Wave A).** A short burst hides
+  sustained-throughput degradation + thermal throttling — the exact failure modes
+  that matter for overnight 3060-laptop runs — so the runner repeats the
+  representative samples (distinct id suffixes) until it has run at least 40, and
+  every wall-clock/throughput figure is cooldown-inclusive and labelled "sustained,
+  not burst."
 
 ## BLOCKED
 

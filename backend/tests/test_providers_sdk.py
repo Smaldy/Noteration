@@ -212,7 +212,8 @@ def _ollama_client(response=None, *, raises=None):
 
 def test_ollama_generate_parses_dict_response() -> None:
     response = {"response": "local notes", "prompt_eval_count": 5, "eval_count": 9}
-    provider = OllamaProvider(model="llama3", client=_ollama_client(response))
+    # cooldown_seconds=0 so this parsing unit test doesn't incur the real 3s sleep.
+    provider = OllamaProvider(model="llama3", client=_ollama_client(response), cooldown_seconds=0)
     result = provider.generate("prompt", max_tokens=100)
 
     assert result.text == "local notes"
@@ -239,6 +240,116 @@ def test_ollama_maps_errors_to_unavailable() -> None:
     provider = OllamaProvider(model="llama3", client=_ollama_client(raises=Exception("down")))
     with pytest.raises(ProviderUnavailableError):
         provider.generate("p", max_tokens=10)
+
+
+# --- Ollama hardening (Wave A) ---------------------------------------------
+
+
+def test_ollama_cooldown_fires_after_success() -> None:
+    slept: list[float] = []
+    provider = OllamaProvider(
+        model="llama3",
+        client=_ollama_client({"response": "ok"}),
+        cooldown_seconds=2.5,
+        sleep=slept.append,
+    )
+    provider.generate("p", max_tokens=10)
+    assert slept == [2.5]  # cooldown fired once with the configured value
+
+
+def test_ollama_no_cooldown_on_error() -> None:
+    slept: list[float] = []
+    provider = OllamaProvider(
+        model="llama3",
+        client=_ollama_client(raises=Exception("down")),
+        cooldown_seconds=3.0,
+        sleep=slept.append,
+    )
+    with pytest.raises(ProviderUnavailableError):
+        provider.generate("p", max_tokens=10)
+    assert slept == []  # fail fast — never sleep on error
+
+
+def test_ollama_cooldown_default_three_seconds() -> None:
+    slept: list[float] = []
+    provider = OllamaProvider(
+        model="llama3", client=_ollama_client({"response": "ok"}), sleep=slept.append
+    )
+    provider.generate("p", max_tokens=10)
+    assert slept == [3.0]  # default cooldown
+
+
+def test_ollama_cooldown_env_override(monkeypatch) -> None:
+    monkeypatch.setenv("OLLAMA_COOLDOWN_SECONDS", "7")
+    slept: list[float] = []
+    provider = OllamaProvider(
+        model="llama3", client=_ollama_client({"response": "ok"}), sleep=slept.append
+    )
+    provider.generate("p", max_tokens=10)
+    assert slept == [7.0]
+
+
+def test_ollama_client_initializes_with_120s_timeout(monkeypatch) -> None:
+    import ollama
+
+    captured: dict = {}
+
+    def fake_client(**kwargs):
+        captured.update(kwargs)
+        return _ollama_client({"response": "ok"})
+
+    monkeypatch.setattr(ollama, "Client", fake_client)
+    # No injected client → _get_client builds one with the request timeout.
+    provider = OllamaProvider(model="llama3", cooldown_seconds=0)
+    provider.generate("p", max_tokens=10)
+    assert captured["timeout"] == 120.0
+
+
+def test_ollama_keep_alive_in_every_call_type() -> None:
+    captured: list[dict] = []
+
+    def generate(**kwargs):
+        captured.append(kwargs)
+        return {"response": "ok"}
+
+    client = SimpleNamespace(generate=generate)
+    provider = OllamaProvider(model="llava", client=client, cooldown_seconds=0)
+    provider.supports_vision = True  # vision-capable local model
+    provider.generate("p", max_tokens=10)
+    provider.transcribe_image(b"img", max_tokens=10)
+
+    assert len(captured) == 2
+    assert all(call["keep_alive"] == -1 for call in captured)
+
+
+def test_ollama_keep_alive_env_override(monkeypatch) -> None:
+    monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "600")
+    captured: dict = {}
+
+    def generate(**kwargs):
+        captured.update(kwargs)
+        return {"response": "ok"}
+
+    provider = OllamaProvider(
+        model="llama3", client=SimpleNamespace(generate=generate), cooldown_seconds=0
+    )
+    provider.generate("p", max_tokens=10)
+    assert captured["keep_alive"] == 600
+
+
+def test_ollama_temperature_locked() -> None:
+    captured: dict = {}
+
+    def generate(**kwargs):
+        captured.update(kwargs)
+        return {"response": "ok"}
+
+    provider = OllamaProvider(
+        model="llama3", client=SimpleNamespace(generate=generate), cooldown_seconds=0
+    )
+    provider.generate("p", max_tokens=10)
+    assert captured["options"]["temperature"] == 0.2
+    assert captured["options"]["top_p"] == 0.9
 
 
 # --- factory ----------------------------------------------------------------
