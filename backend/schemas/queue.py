@@ -90,3 +90,8 @@ class HistoryEventOut(BaseModel):
 
 class LaneStateUpdate(BaseModel):
     enabled: bool  # for the overnight toggle
+
+
+class ClearHistoryResult(BaseModel):
+    scope: str  # hour / day / all
+    deleted: int  # how many history rows were removed

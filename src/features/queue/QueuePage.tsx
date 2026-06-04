@@ -9,6 +9,7 @@ import { useChaptersStore } from "@/stores/chapters";
 import { useLanesStore } from "@/stores/lanes";
 import { useQueueStore } from "@/stores/queue";
 import { ChapterStatusList } from "./ChapterStatusList";
+import { ClearHistoryMenu } from "./ClearHistoryMenu";
 import { HistoryView } from "./HistoryView";
 import { LaneCard } from "./LaneCard";
 import { ProviderStrip } from "./ProviderStrip";
@@ -174,6 +175,14 @@ export function QueuePage() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-5">
+          {history.length > 0 && (
+            <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+              <p className="text-xs text-muted-foreground">
+                {history.length} {history.length === 1 ? "event" : "events"}
+              </p>
+              <ClearHistoryMenu />
+            </div>
+          )}
           <HistoryView events={history} />
         </TabsContent>
       </Tabs>

@@ -13,11 +13,22 @@ interface LanesStore {
   /** subject_id currently being mutated (pause/resume/overnight), for disabling. */
   busy: number | null;
 
+  /** Set while a clear-history request is in flight, for disabling the menu. */
+  clearing: boolean;
+
   fetchLanes: () => Promise<void>;
   fetchHistory: () => Promise<void>;
+  clearHistory: (scope: HistoryClearScope) => Promise<number>;
   pauseLane: (subjectId: number) => Promise<void>;
   resumeLane: (subjectId: number) => Promise<void>;
   setOvernight: (subjectId: number, enabled: boolean) => Promise<void>;
+}
+
+export type HistoryClearScope = "hour" | "day" | "all";
+
+interface ClearHistoryResult {
+  scope: string;
+  deleted: number;
 }
 
 export const useLanesStore = create<LanesStore>((set, get) => ({
@@ -26,6 +37,7 @@ export const useLanesStore = create<LanesStore>((set, get) => ({
   loadState: "idle",
   error: null,
   busy: null,
+  clearing: false,
 
   fetchLanes: async () => {
     if (get().status === null) set({ loadState: "loading" });
@@ -46,6 +58,19 @@ export const useLanesStore = create<LanesStore>((set, get) => ({
       set({ history });
     } catch {
       // History is non-critical; leave the last known list in place.
+    }
+  },
+
+  clearHistory: async (scope) => {
+    set({ clearing: true });
+    try {
+      const result = await api.del<ClearHistoryResult>(`/queue/history?scope=${scope}`);
+      // Reflect the clear immediately, then re-sync from the server.
+      set({ history: [] });
+      await get().fetchHistory();
+      return result.deleted;
+    } finally {
+      set({ clearing: false });
     }
   },
 

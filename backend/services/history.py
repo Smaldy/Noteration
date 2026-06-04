@@ -12,16 +12,25 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Literal
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from backend.models.enums import HistoryEventType
-from backend.models.hierarchy import Subject, Topic
+from backend.models.hierarchy import Subject, Topic, utcnow
 from backend.models.processing import HistoryEvent
 
 logger = logging.getLogger("backend.history")
+
+HistoryClearScope = Literal["hour", "day", "all"]
+
+# How far back each scope reaches; "all" clears everything (no cutoff).
+_CLEAR_WINDOWS: dict[str, timedelta] = {
+    "hour": timedelta(hours=1),
+    "day": timedelta(days=1),
+}
 
 
 @dataclass
@@ -109,6 +118,30 @@ def record_generation_safe(
     except Exception:  # noqa: BLE001 - the audit log is non-critical
         logger.exception("Failed to record generation history event")
         session.rollback()
+
+
+def clear_history(
+    session: Session,
+    *,
+    scope: HistoryClearScope = "all",
+    now: datetime | None = None,
+    commit: bool = True,
+) -> int:
+    """Delete history rows for the given scope; returns how many were removed.
+
+    ``hour``/``day`` keep older events and only drop the recent window (cutoff is
+    ``now - window``, ``now`` injectable for testing); ``all`` wipes the whole log.
+    Idempotent — clearing an already-empty window deletes nothing.
+    """
+    stmt = delete(HistoryEvent)
+    window = _CLEAR_WINDOWS.get(scope)
+    if window is not None:
+        cutoff = (now or utcnow()) - window
+        stmt = stmt.where(HistoryEvent.created_at >= cutoff)
+    result = session.execute(stmt)
+    if commit:
+        session.commit()
+    return result.rowcount or 0
 
 
 def recent_events(

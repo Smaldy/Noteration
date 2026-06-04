@@ -6,6 +6,8 @@ quota) and delegates to the queue view / service. See Waves 9e + B + C.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,7 @@ from backend.db.database import get_session
 from backend.models import Subject, Topic
 from backend.schemas.chapter import DocumentChaptersOut
 from backend.schemas.queue import (
+    ClearHistoryResult,
     HistoryEventOut,
     LaneQueueStatusOut,
     LaneStateUpdate,
@@ -68,6 +71,16 @@ def queue_history(
     """Chronological generation history (topic generations + provider switches)."""
     limit = max(1, min(limit, 500))
     return history.recent_events_view(session, subject_id=subject_id, limit=limit)
+
+
+@router.delete("/history", response_model=ClearHistoryResult)
+def clear_history(
+    scope: Literal["hour", "day", "all"] = "all",
+    session: Session = Depends(get_session),
+) -> ClearHistoryResult:
+    """Clear the generation history — the last hour, the last day, or all of it."""
+    deleted = history.clear_history(session, scope=scope)
+    return ClearHistoryResult(scope=scope, deleted=deleted)
 
 
 @router.post("/topics/{topic_id}/retry", response_model=RetryResult)

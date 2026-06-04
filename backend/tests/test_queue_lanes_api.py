@@ -98,6 +98,34 @@ def test_recent_events_view_enriches_names(session: Session) -> None:
     assert view[0].topic_title == topic.title
 
 
+def test_clear_history_scopes_drop_only_their_window(session: Session) -> None:
+    from backend.models.processing import HistoryEvent
+
+    # Three events at known ages: 10 min, 5 hours, and 3 days old.
+    for delta in (timedelta(minutes=10), timedelta(hours=5), timedelta(days=3)):
+        session.add(
+            HistoryEvent(
+                event_type=HistoryEventType.topic_generated,
+                provider_to="gemini_free",
+                created_at=T0 - delta,
+            )
+        )
+    session.commit()
+
+    # Last hour: only the 10-minute event goes.
+    assert history.clear_history(session, scope="hour", now=T0) == 1
+    assert len(history.recent_events(session)) == 2
+
+    # Last day: the 5-hour event goes; the 3-day-old one survives.
+    assert history.clear_history(session, scope="day", now=T0) == 1
+    remaining = history.recent_events(session)
+    assert len(remaining) == 1
+
+    # All: clears the rest.
+    assert history.clear_history(session, scope="all") == 1
+    assert history.recent_events(session) == []
+
+
 # --- lane status read model --------------------------------------------------
 
 
@@ -238,6 +266,23 @@ def test_http_history_endpoint(client: TestClient, db_factory: sessionmaker) -> 
     assert len(events) == 1
     assert events[0]["event_type"] == "topic_generated"
     assert events[0]["subject_name"] == "Physics"
+
+
+def test_http_clear_history(client: TestClient, db_factory: sessionmaker) -> None:
+    with db_factory() as db:
+        subject = _seed_lane(db, "Physics", n_topics=2)
+        topics = subject.documents[0].chapters[0].topics
+        for topic in topics:
+            history.record_generation(
+                db, topic_id=topic.id, subject_id=subject.id, provider="gemini_free", seconds=1.0
+            )
+
+    assert len(client.get("/api/queue/history").json()) == 2
+
+    cleared = client.delete("/api/queue/history?scope=all")
+    assert cleared.status_code == 200
+    assert cleared.json() == {"scope": "all", "deleted": 2}
+    assert client.get("/api/queue/history").json() == []
 
 
 def _lane(status: queue_view.LaneQueueStatus) -> queue_view.LaneStatus:
