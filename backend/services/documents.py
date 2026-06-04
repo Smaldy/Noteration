@@ -96,6 +96,8 @@ class DocumentSummary:
     uploaded_at: datetime
     topics_total: int
     topics_ready: int
+    chapters_total: int
+    chapters_running: int
 
 
 def list_documents(
@@ -119,6 +121,23 @@ def list_documents(
     ).all()
     counts = {doc_id: (total, ready or 0) for doc_id, total, ready in count_rows}
 
+    # Per-document chapter counts: total + how many lanes are set to process.
+    chapter_rows = session.execute(
+        select(
+            Chapter.document_id,
+            func.count(Chapter.id),
+            func.coalesce(
+                func.sum(
+                    case((Chapter.queue_state == QueueLaneState.running, 1), else_=0)
+                ),
+                0,
+            ),
+        ).group_by(Chapter.document_id)
+    ).all()
+    chapter_counts = {
+        doc_id: (total, running) for doc_id, total, running in chapter_rows
+    }
+
     query = (
         select(Document, Subject.name, Subject.exam_date, Subject.bookmarked)
         .join(Subject, Document.subject_id == Subject.id)
@@ -136,6 +155,7 @@ def list_documents(
     summaries: list[DocumentSummary] = []
     for document, subject_name, exam_date, bookmarked in rows:
         total, ready = counts.get(document.id, (0, 0))
+        ch_total, ch_running = chapter_counts.get(document.id, (0, 0))
         summaries.append(
             DocumentSummary(
                 id=document.id,
@@ -149,6 +169,8 @@ def list_documents(
                 uploaded_at=document.uploaded_at,
                 topics_total=total,
                 topics_ready=ready,
+                chapters_total=ch_total,
+                chapters_running=ch_running,
             )
         )
     return summaries
@@ -490,6 +512,76 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
         mode=document.mode,
         chapters=chapter_nodes,
     )
+
+
+@dataclass
+class ChapterStatus:
+    """One chapter's lane state + per-status topic counts for the Queue page."""
+
+    id: int
+    title: str
+    page_start: int | None
+    page_end: int | None
+    queue_state: QueueLaneState
+    order_index: int
+    topics_total: int
+    topics_ready: int
+    topics_processing: int
+    topics_queued: int
+    topics_error: int
+
+
+def get_chapter_statuses(session: Session, document_id: int) -> list[ChapterStatus]:
+    """Per-chapter lane state + topic-status counts for a document (one query).
+
+    Counts are computed in a single grouped query joining Chapter→Topic (no N+1).
+    Chapters with no topics still appear (outer join). Ordered by reading order.
+    """
+    if session.get(Document, document_id) is None:
+        raise DocumentNotFoundError(document_id)
+
+    def _count(status: TopicStatus):
+        return func.coalesce(
+            func.sum(case((Topic.status == status, 1), else_=0)), 0
+        )
+
+    rows = session.execute(
+        select(
+            Chapter.id,
+            Chapter.title,
+            Chapter.page_start,
+            Chapter.page_end,
+            Chapter.queue_state,
+            Chapter.order_index,
+            func.count(Topic.id),
+            _count(TopicStatus.ready),
+            _count(TopicStatus.processing),
+            _count(TopicStatus.queued),
+            _count(TopicStatus.error),
+        )
+        .select_from(Chapter)
+        .outerjoin(Topic, Topic.chapter_id == Chapter.id)
+        .where(Chapter.document_id == document_id)
+        .group_by(Chapter.id)
+        .order_by(Chapter.order_index, Chapter.id)
+    ).all()
+
+    return [
+        ChapterStatus(
+            id=row[0],
+            title=row[1],
+            page_start=row[2],
+            page_end=row[3],
+            queue_state=row[4],
+            order_index=row[5],
+            topics_total=row[6],
+            topics_ready=row[7],
+            topics_processing=row[8],
+            topics_queued=row[9],
+            topics_error=row[10],
+        )
+        for row in rows
+    ]
 
 
 def _persist_upload(data: bytes, uploads_dir: Path) -> Path:

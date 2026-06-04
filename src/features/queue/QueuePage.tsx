@@ -1,12 +1,14 @@
 import { AlertCircle, ArrowLeft, Clock, RotateCw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useChaptersStore } from "@/stores/chapters";
 import { useLanesStore } from "@/stores/lanes";
 import { useQueueStore } from "@/stores/queue";
+import { ChapterStatusList } from "./ChapterStatusList";
 import { HistoryView } from "./HistoryView";
 import { LaneCard } from "./LaneCard";
 import { ProviderStrip } from "./ProviderStrip";
@@ -15,7 +17,10 @@ const POLL_MS = 5000;
 
 export function QueuePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState("lanes");
+  const documentIdParam = searchParams.get("document_id");
+  const documentId = documentIdParam ? Number(documentIdParam) : null;
 
   const { status, error, retrying, fetchStatus, retryTopic } = useQueueStore();
   const lanes = useLanesStore((s) => s.status);
@@ -27,16 +32,24 @@ export function QueuePage() {
   const resumeLane = useLanesStore((s) => s.resumeLane);
   const setOvernight = useLanesStore((s) => s.setOvernight);
 
+  const chapterStatuses = useChaptersStore((s) => s.statuses);
+  const chapterBusy = useChaptersStore((s) => s.busy);
+  const fetchChapters = useChaptersStore((s) => s.fetch);
+  const setChapterState = useChaptersStore((s) => s.setQueueState);
+
   useEffect(() => {
     const tick = () => {
       void fetchStatus();
       void fetchLanes();
       void fetchHistory();
+      if (documentId != null && Number.isFinite(documentId)) {
+        void fetchChapters(documentId);
+      }
     };
     tick();
     const timer = setInterval(tick, POLL_MS);
     return () => clearInterval(timer);
-  }, [fetchStatus, fetchLanes, fetchHistory]);
+  }, [fetchStatus, fetchLanes, fetchHistory, fetchChapters, documentId]);
 
   const totalReady = status?.ready ?? 0;
   const totalQueued = status?.queued ?? 0;
@@ -99,6 +112,16 @@ export function QueuePage() {
                 Raise the per-document token budget in Settings to continue.
               </p>
             </Banner>
+          )}
+
+          {documentId != null && (
+            <ChapterStatusList
+              statuses={chapterStatuses}
+              busy={chapterBusy}
+              onSetState={(chapterId, state) =>
+                void setChapterState(chapterId, state)
+              }
+            />
           )}
 
           {lanes && lanes.lanes.length > 0 ? (

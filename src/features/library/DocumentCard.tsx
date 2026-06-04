@@ -131,7 +131,14 @@ export function DocumentCard({
           <p className="truncate" title={doc.filename}>
             {doc.filename}
           </p>
-          <p>{progress}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p>{progress}</p>
+            {doc.chapters_running > 0 && (
+              <span className="inline-flex items-center rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-foreground tabular-nums">
+                {doc.chapters_running}/{doc.chapters_total} chapters processing
+              </span>
+            )}
+          </div>
           <p className="flex items-center gap-1.5">
             <CalendarDays className="size-3.5" />
             {formatExamDate(doc.exam_date)}

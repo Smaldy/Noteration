@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models.enums import DocumentMode
+from backend.schemas.chapter import ChapterStatusOut
 from backend.schemas.library import DocumentSummaryOut
 from backend.schemas.reorder import ReorderRequest
 from backend.schemas.structure import (
@@ -103,6 +104,20 @@ def document_tree(
     """The confirmed chapter/topic tree (Study View sidebar)."""
     try:
         return docsvc.get_document_tree(session, document_id)
+    except docsvc.DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
+@router.get(
+    "/{document_id}/chapters/status", response_model=list[ChapterStatusOut]
+)
+def document_chapter_statuses(
+    document_id: int,
+    session: Session = Depends(get_session),
+) -> list[docsvc.ChapterStatus]:
+    """Per-chapter lane state + topic-status counts (Queue page accordion)."""
+    try:
+        return docsvc.get_chapter_statuses(session, document_id)
     except docsvc.DocumentNotFoundError:
         raise HTTPException(status_code=404, detail="Document not found")
 

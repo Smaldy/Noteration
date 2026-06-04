@@ -25,3 +25,5 @@ class DocumentSummaryOut(BaseModel):
     uploaded_at: datetime
     topics_total: int
     topics_ready: int
+    chapters_total: int
+    chapters_running: int  # chapter lanes set to process (running)

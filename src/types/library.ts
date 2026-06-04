@@ -19,4 +19,7 @@ export interface DocumentSummary {
   uploaded_at: string;
   topics_total: number;
   topics_ready: number;
+  chapters_total: number;
+  /** Chapter lanes set to process (running). */
+  chapters_running: number;
 }

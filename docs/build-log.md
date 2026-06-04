@@ -1366,6 +1366,20 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     a normal togglable row). Confirm now navigates to `/queue?document_id=` (not the
     Library) so the user sees what's processing. `tsc -b` + `npm run build` clean;
     backend unchanged (**430 passed**).
+  - **Wave 6 — Queue page per-chapter status + resume (DONE).** Backend:
+    `GET /api/documents/{id}/chapters/status` (`docsvc.get_chapter_statuses`, one
+    grouped Chapter→Topic outer-join query → per-chapter lane state + page range +
+    ready/processing/queued/error topic counts; `ChapterStatusOut`; 404 unknown), and
+    `list_documents` gained `chapters_total`/`chapters_running` (a second grouped
+    query) for the Library badge. Frontend: `types/chapter.ts`, `stores/chapters.ts`
+    (fetch + `PATCH /api/chapters/{id}/queue_state` then refresh), and
+    `ChapterStatusList`/`ChapterRow` — a per-document section on the Queue page
+    (shown when `?document_id=` is set, polled every 5s) with a state-tinted spine,
+    page badge, ready/total progress bar (animated), status pill, and a Resume/Pause
+    button (Overnight shows a badge). `DocumentCard` gained an "X/Y chapters
+    processing" pill when any lane is running. +4 backend tests (counts+state,
+    scoping, HTTP shape+404, library running-count). Tree green: backend **434
+    passed**, `tsc -b` + `npm run build` clean.
 
 ## DECISIONS
 
