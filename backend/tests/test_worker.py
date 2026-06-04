@@ -139,6 +139,29 @@ def db_factory() -> Generator[sessionmaker, None, None]:
     engine.dispose()
 
 
+@pytest.fixture
+def file_db_factory(tmp_path: Path) -> Generator[sessionmaker, None, None]:
+    # A real file DB so concurrent worker threads each get their OWN connection
+    # (StaticPool shares one connection — unsafe under true parallelism). WAL +
+    # busy_timeout mirror production so concurrent commits serialize cleanly.
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'lanes.db'}",
+        connect_args={"check_same_thread": False},
+    )
+
+    @event.listens_for(engine, "connect")
+    def _pragmas(dbapi_connection, _record) -> None:  # noqa: ANN001
+        cur = dbapi_connection.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.execute("PRAGMA busy_timeout=5000")
+        cur.close()
+
+    Base.metadata.create_all(engine)
+    yield sessionmaker(bind=engine, expire_on_commit=False)
+    engine.dispose()
+
+
 def _seed_confirmed_document(session: Session, tmp_path: Path) -> Document:
     md = tmp_path / "doc.md"
     md.write_text("# Kinematics\n\nVelocity is dx/dt.\n", encoding="utf-8")
@@ -369,3 +392,84 @@ def test_drain_does_not_throttle_when_not_free_tier(
     waits: list[float] = []
     drain_once(session, sleep=waits.append)
     assert waits == []
+
+
+# --- two lanes on distinct providers run concurrently (point 7) --------------
+
+
+def _named_smart(name: str) -> _SmartProvider:
+    provider = _SmartProvider()
+    provider.name = name  # distinct lane-arbitration identity
+    return provider
+
+
+def _seed_named_document(session: Session, tmp_path: Path, subject_name: str) -> None:
+    md = tmp_path / f"{subject_name}.md"
+    md.write_text("# Kinematics\n\nVelocity is dx/dt.\n", encoding="utf-8")
+    subject = Subject(name=subject_name)
+    document = Document(
+        subject=subject, filename="f.pdf", file_hash=subject_name, markdown_path=str(md)
+    )
+    session.add_all([subject, document])
+    session.commit()
+    docsvc.confirm_structure(
+        session,
+        document.id,
+        chapters=[
+            ChapterIn(
+                title="Mechanics",
+                topics=[TopicIn(title="Kinematics", priority=TopicPriority.exam_critical)],
+            )
+        ],
+    )
+
+
+def test_worker_processes_two_lanes_on_distinct_providers(
+    file_db_factory: sessionmaker, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Two subjects (two lanes) + a paid-only config so there's no 12s free-tier
+    # gate to stretch the run. The waterfall offers two distinct providers, so the
+    # lanes can be dispatched on separate slots — concurrently, in two threads.
+    seed = file_db_factory()
+    _seed_named_document(seed, tmp_path, "Physics")
+    _seed_named_document(seed, tmp_path, "Chemistry")
+    seed.add(Settings(id=1, allow_paid=True, api_key_claude="c"))
+    seed.commit()
+    seed.close()
+
+    monkeypatch.setattr(
+        worker_mod,
+        "build_waterfall_from_settings",
+        lambda settings, **kw: Waterfall(
+            [_named_smart("claude_paid"), _named_smart("ollama")]
+        ),
+    )
+
+    worker = QueueWorker(file_db_factory, poll_interval=0.02)
+    worker.start()
+    try:
+        deadline = time.time() + 8.0
+        while time.time() < deadline:
+            check = file_db_factory()
+            total = check.query(QueueJob).count()
+            done = check.query(QueueJob).filter_by(state=QueueState.done).count()
+            check.close()
+            if total and done == total:
+                break
+            time.sleep(0.05)
+    finally:
+        worker.stop()
+
+    verify = file_db_factory()
+    # Both lanes fully processed — each topic ready with its note.
+    topics = verify.query(Topic).all()
+    assert topics and all(t.status is TopicStatus.ready for t in topics)
+    assert verify.query(Note).count() == 2  # one per subject's topic
+    # The two lanes were served by two different providers (concurrent dispatch).
+    providers = {
+        j.assigned_provider
+        for j in verify.query(QueueJob).all()
+        if j.assigned_provider and j.assigned_provider != "none"
+    }
+    assert providers == {"claude_paid", "ollama"}
+    verify.close()

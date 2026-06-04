@@ -11,17 +11,25 @@ restart. The topic is the atomic unit; nothing here ever spans the whole documen
 from __future__ import annotations
 
 import enum
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.models.enums import QueueStage, QueueState, TopicPriority, TopicStatus
-from backend.models.hierarchy import Chapter, Topic, utcnow
+from backend.models.enums import (
+    QueueLaneState,
+    QueueStage,
+    QueueState,
+    TopicPriority,
+    TopicStatus,
+)
+from backend.models.hierarchy import Chapter, Subject, Topic, utcnow
 from backend.models.processing import ProviderState, QueueJob
 from backend.services.providers.base import (
     AllProvidersExhausted,
+    Provider,
     ProviderResult,
 )
 
@@ -39,6 +47,14 @@ class JobOutcome(enum.StrEnum):
     failed = "failed"  # terminal: exceeded max_attempts
     deferred_retry = "deferred_retry"  # transient failure, will retry later
     exhausted = "exhausted"  # all providers down — stop the batch, wait for wake-up
+
+
+class SubjectLaneNotFound(Exception):
+    """Raised when a lane operation targets a subject that doesn't exist."""
+
+    def __init__(self, subject_id: int) -> None:
+        super().__init__(f"subject {subject_id} not found")
+        self.subject_id = subject_id
 
 
 # A job goes to `failed` after this many attempts (then it poisons only itself;
@@ -113,6 +129,30 @@ def document_token_usage(
         )
     ) or 0
     return spent, estimate_topic_tokens(non_skip) * DOC_BUDGET_OVERSPEND_FACTOR
+
+
+# Lane contention rank: a foreground (actively-running) lane beats a background
+# (overnight) lane when both want the same single-slot provider (point 8). A paused
+# lane never competes (it is excluded entirely).
+_LANE_RANK = {QueueLaneState.running: 0, QueueLaneState.overnight: 1}
+
+
+@dataclass(frozen=True)
+class _LaneCandidate:
+    """A subject lane's highest-priority claimable job, ready for arbitration."""
+
+    subject_id: int
+    lane_rank: int  # 0 = foreground (running), 1 = background (overnight)
+    job: QueueJob
+    sort_key: tuple
+
+
+@dataclass(frozen=True)
+class DispatchClaim:
+    """One arbitration result: a claimed job and the provider assigned to run it."""
+
+    job_id: int
+    provider: str
 
 
 class QueueService:
@@ -203,6 +243,183 @@ class QueueService:
                 return job
         return None
 
+    # -- lane-aware dispatch (Wave B) ----------------------------------------
+
+    def claim_dispatch(
+        self,
+        providers: Sequence[Provider],
+        *,
+        blocked_providers: frozenset[str] = frozenset(),
+    ) -> list[DispatchClaim]:
+        """Arbitrate one dispatch cycle: claim ≤1 job per available provider.
+
+        The cap is **one in-flight topic per provider** (point 7): a provider that
+        already holds a running job, is disabled, has no headroom, or is temporarily
+        blocked (e.g. a free-tier request-pacing gate) is skipped. Lanes compete for
+        the remaining slots cheapest-first; when two lanes want the same provider the
+        **foreground** (running) lane wins and the background (overnight) lane waits
+        (point 8). Paused lanes never dispatch (point 9).
+
+        Each claim atomically marks its job ``running`` and stamps the assigned
+        provider, so both the in-flight set and a lane's active provider are
+        derivable from the DB. Returns the claims for the caller to execute — each
+        on a single-provider waterfall, so a job can't silently spill onto another
+        provider's slot and break the per-provider cap.
+        """
+        now = self.clock()
+        in_flight = set(
+            self.session.scalars(
+                select(QueueJob.assigned_provider).where(
+                    QueueJob.state == QueueState.running,
+                    QueueJob.assigned_provider.is_not(None),
+                )
+            ).all()
+        )
+        available: list[Provider] = []
+        for provider in providers:  # cost order preserved
+            if not provider.enabled:
+                continue
+            if provider.name in in_flight or provider.name in blocked_providers:
+                continue
+            probe = provider.budget_probe()
+            if not probe.available or probe.headroom <= 0:
+                continue
+            available.append(provider)
+        if not available:
+            return []
+
+        candidates = self._eligible_lane_candidates(now)
+        if not candidates:
+            return []
+
+        claims: list[DispatchClaim] = []
+        taken_subjects: set[int] = set()
+        for provider in available:  # cheapest slot → highest-ranked waiting lane
+            for candidate in candidates:
+                if candidate.subject_id in taken_subjects:
+                    continue
+                job = candidate.job
+                job.state = QueueState.running
+                job.assigned_provider = provider.name
+                self._sync_topic_status(job.topic_id)
+                claims.append(DispatchClaim(job.id, provider.name))
+                taken_subjects.add(candidate.subject_id)
+                break
+        if claims:
+            self.session.commit()
+        return claims
+
+    def waiting_lanes(self, providers: Sequence[Provider]) -> dict[int, str]:
+        """Lanes that have eligible work but lost provider contention this cycle.
+
+        Returns ``{subject_id: provider_name}`` — the (cheapest in-flight) provider
+        each waiting lane is blocked on, for the queue view's "waiting for <provider>".
+        A lane is waiting when it's eligible but every provider it could use is
+        already in-flight for another lane.
+        """
+        now = self.clock()
+        running = dict(
+            self.session.execute(
+                select(QueueJob.assigned_provider, QueueJob.subject_id).where(
+                    QueueJob.state == QueueState.running,
+                    QueueJob.assigned_provider.is_not(None),
+                )
+            ).all()
+        )
+        busy_providers = set(running)
+        if not busy_providers:
+            return {}
+        enabled_names = [p.name for p in providers if p.enabled]
+        in_flight_subjects = set(running.values())
+        waiting: dict[int, str] = {}
+        for candidate in self._eligible_lane_candidates(now):
+            if candidate.subject_id in in_flight_subjects:
+                continue  # already running somewhere — not waiting
+            blocker = next((n for n in enabled_names if n in busy_providers), None)
+            if blocker is not None:
+                waiting[candidate.subject_id] = blocker
+        return waiting
+
+    def set_lane_state(self, subject_id: int, state: QueueLaneState) -> None:
+        """Set a subject lane's state, persisted so it survives restart (point 9).
+
+        Pausing additionally rolls this lane's in-flight jobs cleanly back to
+        ``pending`` (never half-written: ``process_job`` commits a stage atomically,
+        so a running job wrote no domain rows). That frees a single-instance provider
+        (e.g. Ollama) for a waiting lane — the manual hand-over mechanism.
+        """
+        subject = self.session.get(Subject, subject_id)
+        if subject is None:
+            raise SubjectLaneNotFound(subject_id)
+        subject.queue_state = state
+        if state is QueueLaneState.paused:
+            running = self.session.scalars(
+                select(QueueJob).where(
+                    QueueJob.subject_id == subject_id,
+                    QueueJob.state == QueueState.running,
+                )
+            ).all()
+            for job in running:
+                job.state = QueueState.pending
+                job.assigned_provider = None
+                self._sync_topic_status(job.topic_id)
+        self.session.commit()
+
+    def pause_lane(self, subject_id: int) -> None:
+        self.set_lane_state(subject_id, QueueLaneState.paused)
+
+    def resume_lane(self, subject_id: int) -> None:
+        self.set_lane_state(subject_id, QueueLaneState.running)
+
+    def set_overnight(self, subject_id: int, enabled: bool) -> None:
+        self.set_lane_state(
+            subject_id,
+            QueueLaneState.overnight if enabled else QueueLaneState.running,
+        )
+
+    def _eligible_lane_candidates(self, now: datetime) -> list[_LaneCandidate]:
+        """Each non-paused lane's highest-priority *claimable* job, ranked.
+
+        Walks pending jobs in global priority order and takes the first eligible one
+        per subject (due now, prerequisites done, document under budget). Lanes are
+        then ordered foreground-first, then by that job's priority — the order
+        provider slots are handed out in.
+        """
+        lane_states = self._lane_states()
+        over_budget: dict[int, bool] = {}
+        candidates: list[_LaneCandidate] = []
+        seen: set[int] = set()
+        for job in self.pending_in_priority_order():
+            subject_id = job.subject_id
+            if subject_id in seen:
+                continue
+            state = lane_states.get(subject_id, QueueLaneState.running)
+            if state is QueueLaneState.paused:
+                seen.add(subject_id)  # lane hard-stopped — never dispatch it
+                continue
+            if job.resume_after is not None and job.resume_after > now:
+                continue  # deferred; a later job in this lane may still be eligible
+            if self._document_over_budget(job.topic_id, over_budget):
+                continue
+            if not self._prerequisites_done(job):
+                continue
+            candidates.append(
+                _LaneCandidate(
+                    subject_id=subject_id,
+                    lane_rank=_LANE_RANK.get(state, 0),
+                    job=job,
+                    sort_key=self._sort_key(job),
+                )
+            )
+            seen.add(subject_id)
+        candidates.sort(key=lambda c: (c.lane_rank, c.sort_key, c.subject_id))
+        return candidates
+
+    def _lane_states(self) -> dict[int, QueueLaneState]:
+        return dict(
+            self.session.execute(select(Subject.id, Subject.queue_state)).all()
+        )
+
     def process_job(self, job: QueueJob, processor: StageProcessor) -> JobOutcome:
         """Run one claimed job's stage and commit the result atomically.
 
@@ -271,6 +488,25 @@ class QueueService:
             job.state = QueueState.pending
         self.session.commit()
         return len(orphaned)
+
+    def release_running_job(self, job_id: int) -> bool:
+        """Reset a claimed-but-unprocessed job back to pending (worker safety net).
+
+        With the lane model the claim (mark ``running``) and the processing happen
+        in separate steps/threads. If a dispatch worker dies *after* claiming but
+        *before* ``process_job`` commits an outcome, the job would otherwise sit in
+        ``running`` until the next restart's orphan recovery. This releases it
+        immediately so the slot frees up. No-op unless the job is still running
+        (a completed job has already moved past ``running``).
+        """
+        job = self.session.get(QueueJob, job_id)
+        if job is None or job.state is not QueueState.running:
+            return False
+        job.state = QueueState.pending
+        job.assigned_provider = None
+        self._sync_topic_status(job.topic_id)
+        self.session.commit()
+        return True
 
     def retry_topic(self, topic_id: int) -> int:
         """Requeue a topic's terminally-failed jobs (the retry UI action).

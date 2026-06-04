@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -75,27 +75,17 @@ def _free_tier_throttle_seconds(settings: Settings) -> float:
     return FREE_TIER_THROTTLE_SECONDS if model in FREE_TIER_GEMINI_MODELS else 0.0
 
 
-def _make_throttle(
-    settings: Settings, sleep: Callable[[float], None]
-) -> Callable[[QueueJob, JobOutcome], None] | None:
-    """Build the inter-job throttle for a drain, or None when none is needed.
+def _is_billable_call(outcome: JobOutcome, assigned_provider: str | None) -> bool:
+    """True when a job actually consumed a provider request (not a formula no-op).
 
-    Sleeps ``sleep(seconds)`` only after a job that actually consumed a model
-    request (a successful generation call). Formula *registration* and other
-    no-op/failed jobs spend no request quota, so they are never throttled.
+    Formula *registration* and failed/exhausted jobs spend no request quota, so the
+    free-tier per-minute pacing must not count them.
     """
-    seconds = _free_tier_throttle_seconds(settings)
-    if seconds <= 0:
-        return None
-
-    def throttle(job: QueueJob, outcome: JobOutcome) -> None:
-        if outcome is not JobOutcome.done:
-            return
-        provider = job.assigned_provider or ""
-        if provider and provider != NO_OP_PROVIDER:
-            sleep(seconds)
-
-    return throttle
+    return (
+        outcome is JobOutcome.done
+        and bool(assigned_provider)
+        and assigned_provider != NO_OP_PROVIDER
+    )
 
 
 def _settings_fingerprint(settings: Settings) -> tuple:
@@ -173,19 +163,19 @@ def drain_once(
     """Run one drain cycle on an open session; return jobs processed.
 
     No pending work, or no provider configured → no-op (0). Otherwise reuse (via
-    ``cache``) the waterfall built from current ``Settings`` and hand a
-    stage-dispatching processor to ``run_batch`` (which claims due jobs, respects
-    defers, and stops on exhaustion). Pure of thread concerns so it's directly
-    unit-testable.
+    ``cache``) the waterfall built from current ``Settings`` and drain it lane-aware:
+    each cycle ``claim_dispatch`` claims ≤1 job per available provider (the
+    per-provider cap + lane contention), and each claim is processed on a
+    single-provider waterfall so it stays in its assigned slot. Sequential here (one
+    job at a time) — the *running worker* runs the per-provider claims concurrently;
+    this one-shot path is for tests and is directly unit-testable.
 
-    ``sleep`` is invoked between free-tier model calls to enforce the per-minute
-    throttle; it defaults to a no-op so one-shot callers/tests don't block. The
-    running worker passes an interruptible sleep (its stop event's ``wait``) so a
-    long throttle doesn't delay shutdown.
+    ``sleep`` is invoked after each billable free-tier model call to enforce the
+    per-minute pacing; it defaults to a no-op so one-shot callers/tests don't block.
 
     Passing a ``WaterfallCache`` keeps the provider rate-limit state alive between
-    calls (the running worker does this); without one the waterfall is rebuilt
-    each call, which is fine for one-shot callers and tests.
+    calls (the running worker does this); without one the waterfall is rebuilt each
+    call, which is fine for one-shot callers and tests.
     """
     settings = get_settings(session)
     queue = QueueService(
@@ -201,9 +191,29 @@ def drain_once(
         waterfall = cache.for_settings(settings, clock=clock)
     else:
         waterfall = build_waterfall_from_settings(settings, clock=clock)
-    processor = make_pipeline_processor(waterfall)
-    throttle = _make_throttle(settings, sleep)
-    return queue.run_batch(processor, max_jobs=max_jobs, throttle=throttle)
+    providers_by_name = {p.name: p for p in waterfall.providers}
+    throttle_seconds = _free_tier_throttle_seconds(settings)
+
+    processed = 0
+    while processed < max_jobs:
+        claims = queue.claim_dispatch(waterfall.providers)
+        if not claims:
+            break
+        for claim in claims:
+            if processed >= max_jobs:
+                break
+            provider = providers_by_name.get(claim.provider)
+            if provider is None:  # defensive: assigned provider vanished
+                continue
+            sub = Waterfall([provider], clock=clock)
+            job = session.get(QueueJob, claim.job_id)
+            outcome = queue.process_job(job, make_pipeline_processor(sub))
+            processed += 1
+            if throttle_seconds > 0 and _is_billable_call(
+                outcome, job.assigned_provider
+            ):
+                sleep(throttle_seconds)
+    return processed
 
 
 class QueueWorker:
@@ -224,6 +234,12 @@ class QueueWorker:
         # One cache for the worker's lifetime so provider rate-limit windows
         # persist across drains (rebuilt only when provider settings change).
         self._waterfall_cache = WaterfallCache()
+        # Per-provider "earliest next dispatch" gate enforcing the free-tier
+        # per-minute pacing while still letting *other* providers run concurrently
+        # (a provider in its gate window is skipped by claim_dispatch, the rest
+        # proceed). Mutated from per-claim worker threads, so guard it with a lock.
+        self._provider_gate: dict[str, datetime] = {}
+        self._gate_lock = threading.Lock()
 
     def start(self) -> None:
         """Recover orphaned jobs, then spawn the daemon drain thread (idempotent)."""
@@ -267,16 +283,101 @@ class QueueWorker:
             self._stop.wait(self._poll_interval)
 
     def _tick(self) -> None:
+        """Drain the queue lane-aware until no slot is claimable.
+
+        Each cycle plans one round of claims (≤1 per available provider) and runs
+        them **concurrently** — one thread per provider slot — so distinct providers
+        (e.g. Ollama + Gemini) genuinely process topics at the same time (point 7).
+        Loops while work remains; the per-provider gate paces free-tier dispatch.
+        The outer ``_run`` loop sleeps ``poll_interval`` once nothing is claimable.
+        """
+        while not self._stop.is_set():
+            plan = self._plan_and_claim()
+            if plan is None:
+                return
+            claims, waterfall, throttle_seconds = plan
+            if len(claims) == 1:
+                # Single slot — run inline; no thread overhead for the common case.
+                self._process_claim(claims[0], waterfall, throttle_seconds)
+            else:
+                threads = [
+                    threading.Thread(
+                        target=self._process_claim,
+                        args=(claim, waterfall, throttle_seconds),
+                        name=f"noteration-dispatch-{claim.provider}",
+                        daemon=True,
+                    )
+                    for claim in claims
+                ]
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join()
+
+    def _plan_and_claim(self):
+        """Plan + claim one dispatch cycle in a short-lived session.
+
+        Returns ``(claims, waterfall, throttle_seconds)`` or ``None`` when nothing
+        is claimable (no provider configured, no pending work, or every available
+        provider is gated/in-flight).
+        """
         session = self._session_factory()
         try:
-            processed = drain_once(
-                session,
-                max_jobs=self._max_jobs,
-                cache=self._waterfall_cache,
-                # Interruptible sleep so a free-tier throttle never delays stop().
-                sleep=self._stop.wait,
+            settings = get_settings(session)
+            if not _has_configured_provider(settings):
+                return None
+            queue = QueueService(
+                session, per_doc_token_budget=settings.per_document_token_budget
             )
-            if processed:
-                logger.info("Queue worker processed %d job(s)", processed)
+            if not queue.pending_in_priority_order():
+                return None
+            waterfall = self._waterfall_cache.for_settings(settings)
+            now = utcnow()
+            with self._gate_lock:
+                blocked = frozenset(
+                    name for name, until in self._provider_gate.items() if until > now
+                )
+            claims = queue.claim_dispatch(waterfall.providers, blocked_providers=blocked)
+            if not claims:
+                return None
+            logger.info("Queue worker dispatching %d claim(s)", len(claims))
+            return claims, waterfall, _free_tier_throttle_seconds(settings)
+        finally:
+            session.close()
+
+    def _process_claim(self, claim, waterfall: Waterfall, throttle_seconds: float) -> None:
+        """Process one claimed job on its assigned single-provider waterfall."""
+        session = self._session_factory()
+        try:
+            queue = QueueService(session)
+            job = session.get(QueueJob, claim.job_id)
+            if job is None:
+                return
+            provider = next(
+                (p for p in waterfall.providers if p.name == claim.provider), None
+            )
+            if provider is None:
+                self._release_claim(claim.job_id)
+                return
+            sub = Waterfall([provider], clock=utcnow)
+            outcome = queue.process_job(job, make_pipeline_processor(sub))
+            if throttle_seconds > 0 and _is_billable_call(outcome, job.assigned_provider):
+                with self._gate_lock:
+                    self._provider_gate[claim.provider] = utcnow() + timedelta(
+                        seconds=throttle_seconds
+                    )
+        except Exception:  # noqa: BLE001 - one bad claim must not kill the worker
+            logger.exception("Queue worker: processing a claim failed")
+            self._release_claim(claim.job_id)
+        finally:
+            session.close()
+
+    def _release_claim(self, job_id: int) -> None:
+        """Free a job stranded in ``running`` when a claim couldn't be processed."""
+        session = self._session_factory()
+        try:
+            QueueService(session).release_running_job(job_id)
+        except Exception:  # noqa: BLE001 - best-effort; never raise from cleanup
+            logger.exception("Queue worker: releasing a stuck claim failed")
         finally:
             session.close()

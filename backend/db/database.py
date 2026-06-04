@@ -24,10 +24,17 @@ engine = create_engine(
 
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:  # noqa: ANN001
-    """Enable WAL + foreign keys on every new connection."""
+    """Enable WAL + foreign keys on every new connection.
+
+    ``busy_timeout`` lets a writer wait (rather than error "database is locked")
+    when another connection holds the write lock — the queue now runs one provider
+    thread per slot, so two topics on distinct providers can commit concurrently.
+    WAL serializes those writers; the timeout absorbs the brief overlap.
+    """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA busy_timeout=5000")
     cursor.close()
 
 

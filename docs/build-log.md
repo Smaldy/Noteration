@@ -1152,6 +1152,55 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     sleep under the new default cooldown — fixed (`cooldown_seconds=0`). Tree green:
     full suite **377 passed** (+14), `npm run build` untouched.
 
+- **Wave B — per-subject queue lanes + pause/resume (DONE, user-directed; reliability
+  core, TDD + code-review).** The queue is no longer one global pipeline — it's
+  per-subject **lanes** that dispatch concurrently across distinct providers, each
+  independently pausable. Built on B6's lane model in committed sub-waves:
+  - **B6 (committed `a389c69`)** — lane model: `QueueJob.subject_id` (denormalized,
+    set on enqueue) + `Subject.queue_state` (`running`/`paused`/`overnight`) +
+    migration `d9e0f1a2b3c4` (backfill subject_id, then NOT NULL; `alembic check`
+    clean, round-trips, applied to live DB). +3 model tests.
+  - **B7/B8 — arbitration (`services/queue.py`).** `claim_dispatch(providers)` is the
+    explicit dispatch-arbitration step: the concurrency cap is **one in-flight topic
+    per provider** (not a global number), so total concurrency = number of distinct
+    active providers (Ollama serializes to a single lane; Gemini + Ollama run at
+    once). When two lanes want the same provider, the **foreground** lane wins and
+    the background lane waits — `waiting_lanes()` reports the contended provider for
+    the "waiting for <provider>" view. Cheapest-provider-to-highest-ranked-lane
+    greedy assignment; each claim atomically marks the job `running` + stamps the
+    assigned provider.
+  - **B9 — pause/resume (`set_lane_state`/`pause_lane`/`resume_lane`).** Pause
+    hard-stops new dispatch for that lane only and rolls its in-flight jobs cleanly
+    back to `queued` (never half-written — `process_job` commits atomically), which
+    **frees a single-instance provider for a waiting lane** (manual hand-over). State
+    is persisted on `Subject` so it survives restart; resume re-dispatches from the
+    lane's highest-priority queued topic.
+  - **B10 — overnight is per-subject.** `set_overnight` flips a lane to `overnight`
+    (background-rank in contention); multiple subjects run overnight independently;
+    `exam_critical`-first ordering applies within each lane.
+  - **Worker (`services/worker.py`) — true concurrency.** `_tick` plans one cycle
+    (`claim_dispatch`) and runs the per-provider claims on **one OS thread per
+    provider slot**, so distinct providers genuinely process topics in parallel; it
+    loops while work remains. A per-provider pacing **gate** enforces the free-tier
+    12s spacing while letting other providers run. `drain_once` (one-shot/tests) does
+    the same lane-aware claim loop sequentially — preserving every existing worker
+    test (throttle counts, rpm-window persistence). Added `PRAGMA busy_timeout=5000`
+    so concurrent provider commits serialize cleanly under WAL.
+  - **code-review** (reliability core) found one robustness gap: with claim and
+    process now split across threads, a worker dying mid-claim could strand a job in
+    `running` until restart. Fixed: `QueueService.release_running_job` + a
+    `_release_claim` safety net in the worker. Race analysis: a pause concurrent with
+    an in-flight commit is benign (the worker's atomic commit wins → completed work
+    kept, nothing half-written).
+  - Tests (TDD): one-in-flight-per-provider + single-lane-one-provider + two-lanes-
+    two-providers-concurrent + unavailable-provider-skipped; foreground-wins-
+    contention + waiting-lane; pause hands single provider to a waiting lane + paused
+    lane doesn't dispatch + resume restores + unknown-subject-raises + pause-survives-
+    restart-with-no-half-written-work; overnight exam_critical-first + multiple
+    overnight subjects; release-stranded-claim; plus a **two-lanes-on-distinct-
+    providers** worker integration test on a real file DB (separate connections) proving
+    concurrent dispatch end-to-end. Tree green: full suite **394 passed**.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the
@@ -1357,6 +1406,36 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   representative samples (distinct id suffixes) until it has run at least 40, and
   every wall-clock/throughput figure is cooldown-inclusive and labelled "sustained,
   not burst."
+- **Concurrency cap = one in-flight topic PER PROVIDER (Wave B; OVERRIDES any
+  earlier "global 2–3 topic cap" assumption in docs/).** Per point 7, the old
+  global concurrency number is replaced: a single model can't generate two topics
+  at once (one Ollama on a 6GB 3060 would thrash VRAM), so each provider has exactly
+  one in-flight slot; total concurrency is just the count of distinct active
+  providers. Implemented as `claim_dispatch` claiming ≤1 job per provider; the
+  worker runs those claims on one thread per provider slot.
+- **Foreground = `running` lane, background = `overnight` lane (Wave B; resolves an
+  unspecified gap in point 8).** The contention rule says "the foreground/active
+  subject wins," but the background worker has no notion of which Study View is
+  open. Cheapest reasonable backend-knowable model: a `running` lane is foreground
+  and beats an `overnight` lane for a contended provider; the overnight lane waits.
+  Two foreground lanes tie-break by topic priority then subject id. (The frontend
+  badge separately reflects the actually-open subject — Wave D — but dispatch
+  arbitration uses lane state.)
+- **Pause rolls in-flight jobs back to `queued` for prompt hand-over (Wave B).**
+  Point 9 allows "either finishes or rolls back cleanly." We roll back so pausing an
+  Ollama lane frees the provider for a waiting lane immediately. Safe because
+  `process_job` commits a stage atomically — a `running` job wrote no domain rows.
+  The rare race where the worker thread finishes exactly as pause rolls back is
+  benign: the thread's atomic commit wins, so completed work is kept (never-zero-
+  result preserved) and the lane simply didn't stop that one in-flight topic.
+- **True concurrency via threads + `busy_timeout` (Wave B; realizes point 7).** The
+  worker executes each cycle's per-provider claims on real OS threads (one per
+  provider), each with its own session/connection, so Ollama + Gemini run in
+  parallel. `PRAGMA busy_timeout=5000` lets the brief overlapping WAL writers wait
+  rather than error. Free-tier request pacing is preserved per-provider (a gate
+  blocks only the throttled provider, not the others). The one-shot `drain_once`
+  stays sequential (tests + lower-risk callers); `run_batch`/`claim_next` are kept
+  as the single-lane primitives the lower-level queue tests use.
 
 ## BLOCKED
 
