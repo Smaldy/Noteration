@@ -73,6 +73,20 @@ class FormulaState(enum.StrEnum):
     verified = "verified"
 
 
+class HistoryEventType(enum.StrEnum):
+    """Notable, append-only generation-history events (Wave C).
+
+    Replaces the previously-planned overnight notification: instead of pushing a
+    notification, the app keeps a visible chronological log. ``topic_generated``
+    records which topic was made by which provider and how long it took;
+    ``provider_switch`` records when the active provider changed (e.g. Ollama→Gemini
+    at a reset window).
+    """
+
+    topic_generated = "topic_generated"
+    provider_switch = "provider_switch"
+
+
 class ScheduleSource(enum.StrEnum):
     sm2 = "sm2"
     manual = "manual"  # user-created/moved (custom events, topic/subject sessions, drag-drop)

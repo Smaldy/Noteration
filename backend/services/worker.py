@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
@@ -30,6 +31,7 @@ from backend.db.database import SessionLocal
 from backend.models.hierarchy import utcnow
 from backend.models.processing import QueueJob
 from backend.models.settings import Settings
+from backend.services import history
 from backend.services.pipeline.formula import NO_OP_PROVIDER
 from backend.services.pipeline.processors import make_pipeline_processor
 from backend.services.providers.factory import build_waterfall_from_settings
@@ -86,6 +88,25 @@ def _is_billable_call(outcome: JobOutcome, assigned_provider: str | None) -> boo
         and bool(assigned_provider)
         and assigned_provider != NO_OP_PROVIDER
     )
+
+
+def _record_generation_history(
+    session: Session, job: QueueJob, outcome: JobOutcome, seconds: float
+) -> None:
+    """Log a topic-generated history event (+ a provider switch when it changed).
+
+    Only billable generations are logged — formula registration no-ops produce no
+    studiable output and no provider switch. Best-effort: the audit log never
+    breaks a drain.
+    """
+    if _is_billable_call(outcome, job.assigned_provider):
+        history.record_generation_safe(
+            session,
+            topic_id=job.topic_id,
+            subject_id=job.subject_id,
+            provider=job.assigned_provider,
+            seconds=seconds,
+        )
 
 
 def _settings_fingerprint(settings: Settings) -> tuple:
@@ -207,8 +228,12 @@ def drain_once(
                 continue
             sub = Waterfall([provider], clock=clock)
             job = session.get(QueueJob, claim.job_id)
+            started = clock()
             outcome = queue.process_job(job, make_pipeline_processor(sub))
             processed += 1
+            _record_generation_history(
+                session, job, outcome, (clock() - started).total_seconds()
+            )
             if throttle_seconds > 0 and _is_billable_call(
                 outcome, job.assigned_provider
             ):
@@ -360,7 +385,11 @@ class QueueWorker:
                 self._release_claim(claim.job_id)
                 return
             sub = Waterfall([provider], clock=utcnow)
+            started = time.monotonic()
             outcome = queue.process_job(job, make_pipeline_processor(sub))
+            _record_generation_history(
+                session, job, outcome, time.monotonic() - started
+            )
             if throttle_seconds > 0 and _is_billable_call(outcome, job.assigned_provider):
                 with self._gate_lock:
                     self._provider_gate[claim.provider] = utcnow() + timedelta(

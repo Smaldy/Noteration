@@ -1201,6 +1201,32 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     providers** worker integration test on a real file DB (separate connections) proving
     concurrent dispatch end-to-end. Tree green: full suite **394 passed**.
 
+- **Wave C — backend status & history (DONE, user-directed).** Lane-aware status +
+  the generation-history log that replaces overnight notifications.
+  - **Lane-aware status (point 11).** `queue_view.get_lane_statuses(session,
+    providers)` returns per subject lane: state (`running`/`paused`/`overnight`/
+    `waiting`), ready/processing/queued/error counts, `resume_at` if cooling, and the
+    lane's active provider; plus the global active provider and the waterfall order
+    with per-provider state (`active`/`cooling`/`disabled`). `GET /api/queue/lanes`.
+    A failover is reflected (provider 1 cooling, the lane now active on provider 2).
+  - **History log (point 12).** `HistoryEvent` table (`subject_id`/`topic_id`
+    nullable + `SET NULL` so the log survives deletes; `event_type`,
+    `provider_from`/`provider_to`, `detail`, `created_at`) + migration
+    `8624ad2393c6` (`alembic check` clean, round-trips, applied). `services/history.py`
+    records `topic_generated` (which topic, which provider, wall-clock seconds) and,
+    when the provider changes, a `provider_switch` first — the switch is derived from
+    the log's last generation provider, so no extra worker state. The worker (and
+    one-shot `drain_once`) record a billable generation best-effort (never breaks a
+    drain). `GET /api/queue/history` (enriched with subject/topic names, one query).
+    No notification code existed to remove.
+  - **Lane controls.** `POST /api/queue/lanes/{id}/{pause,resume,overnight}` over
+    `QueueService.pause_lane`/`resume_lane`/`set_overnight` (204/404) for Wave D.
+  - Tests: history writes a topic_generated event + a switch on provider change +
+    enriched view; lane status reflects pause→paused / overnight / resume→running and
+    a failover (provider 1 cooling, lane active on provider 2) and disabled providers;
+    HTTP lanes/controls/history + 404; HistoryEvent SET-NULL survives subject delete.
+    Tree green: full suite **404 passed**.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the
@@ -1436,6 +1462,19 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   blocks only the throttled provider, not the others). The one-shot `drain_once`
   stays sequential (tests + lower-risk callers); `run_batch`/`claim_next` are kept
   as the single-lane primitives the lower-level queue tests use.
+- **Provider waterfall state derived from live config + defer reasons, not
+  ProviderState (Wave C).** Point 11 says "sourced from ProviderState," but the
+  queue cools providers in-memory and `ProviderState` only accumulates cost/tokens
+  (its `reset_at`/`enabled` aren't actively maintained). The accurate cheapest
+  option: `disabled` from the built provider's `enabled` flag, `cooling` from the
+  provider name parsed out of deferred jobs' recorded reasons (e.g. "gemini_free:
+  429 …" — the waterfall stamps the reason on the job), else `active`. This needs no
+  new reliability-core writes and reflects the real live state.
+- **History switch-events are best-effort under concurrency (Wave C).** With two
+  providers generating in parallel, the `provider_switch` derivation (compare to the
+  last logged generation provider) can race and log a slightly off switch. The audit
+  log is non-critical (every generation is still recorded), so this is accepted
+  rather than serialized — recording never blocks or breaks a drain.
 
 ## BLOCKED
 

@@ -9,6 +9,8 @@ from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
     FormulaState,
+    HistoryEventType,
+    QueueLaneState,
     QueueStage,
     QueueState,
     ScheduleSource,
@@ -16,7 +18,7 @@ from backend.models.enums import (
     TopicStatus,
 )
 from backend.models.hierarchy import Chapter, Document, Subject, Topic
-from backend.models.processing import ProviderState, QueueJob
+from backend.models.processing import HistoryEvent, ProviderState, QueueJob
 from backend.models.schedule import ScheduleEntry
 from backend.models.settings import Settings
 
@@ -33,6 +35,7 @@ __all__ = [
     "ScheduleEntry",
     "QueueJob",
     "ProviderState",
+    "HistoryEvent",
     "Settings",
     "DocumentStatus",
     "DocumentMode",
@@ -40,6 +43,8 @@ __all__ = [
     "TopicStatus",
     "QueueStage",
     "QueueState",
+    "QueueLaneState",
     "FormulaState",
+    "HistoryEventType",
     "ScheduleSource",
 ]

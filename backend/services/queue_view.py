@@ -8,16 +8,19 @@ sent to a model, so they are not "in the queue".
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.models import Chapter, Topic
-from backend.models.enums import QueueState, TopicPriority, TopicStatus
+from backend.models import Chapter, Subject, Topic
+from backend.models.enums import QueueLaneState, QueueState, TopicPriority, TopicStatus
 from backend.models.processing import QueueJob
-from backend.services.queue import document_token_usage
+from backend.services import history
+from backend.services.providers.base import Provider
+from backend.services.queue import QueueService, document_token_usage
 
 
 @dataclass
@@ -53,6 +56,153 @@ _STATUS_FIELDS = {
     TopicStatus.queued: "queued",
     TopicStatus.error: "error",
 }
+
+
+# --- lane-aware status (Wave C) ---------------------------------------------
+
+
+@dataclass
+class LaneStatus:
+    """One subject lane's live status for the queue screen."""
+
+    subject_id: int
+    subject_name: str
+    # Reported state: running / paused / overnight / waiting (a blend of the
+    # configured lane state and the runtime contention state).
+    state: str
+    queue_state: str  # configured lane state: running / paused / overnight
+    ready: int = 0
+    processing: int = 0
+    queued: int = 0
+    error: int = 0
+    active_provider: str | None = None  # provider of this lane's running job
+    waiting_for: str | None = None  # provider it's blocked on (when waiting)
+    resume_at: datetime | None = None  # earliest deferred job in this lane
+
+
+@dataclass
+class ProviderLaneState:
+    """A waterfall provider's coarse state for the global provider strip."""
+
+    provider: str
+    state: str  # active / cooling / disabled
+
+
+@dataclass
+class LaneQueueStatus:
+    lanes: list[LaneStatus]
+    active_provider: str | None  # the globally most-recent generating provider
+    providers: list[ProviderLaneState]  # waterfall order + per-provider state
+
+
+def _derive_lane_state(lane: LaneStatus) -> str:
+    if lane.queue_state == QueueLaneState.paused.value:
+        return "paused"
+    if lane.waiting_for is not None and lane.active_provider is None:
+        return "waiting"
+    if lane.queue_state == QueueLaneState.overnight.value:
+        return "overnight"
+    return "running"
+
+
+def _cooling_providers(session: Session) -> set[str]:
+    """Provider names parsed from deferred jobs' recorded reasons ("<name>: ...").
+
+    The waterfall cools providers in-memory, but it stamps the deferral reason on
+    the job (e.g. "gemini_free: 429 …"), so a cooling provider is recoverable from
+    the DB without persisting per-provider reset state.
+    """
+    reasons = session.scalars(
+        select(QueueJob.last_error).where(
+            QueueJob.state == QueueState.pending,
+            QueueJob.resume_after.is_not(None),
+            QueueJob.last_error.is_not(None),
+        )
+    ).all()
+    names: set[str] = set()
+    for reason in reasons:
+        if reason and ":" in reason:
+            names.add(reason.split(":", 1)[0].strip())
+    return names
+
+
+def get_lane_statuses(
+    session: Session, providers: Sequence[Provider]
+) -> LaneQueueStatus:
+    """Per-subject lane status + the global provider strip (Wave C, point 11)."""
+    queue = QueueService(session)
+    waiting = queue.waiting_lanes(providers)
+
+    lanes_by_id: dict[int, LaneStatus] = {
+        sid: LaneStatus(
+            subject_id=sid, subject_name=name, state="running", queue_state=str(qs)
+        )
+        for sid, name, qs in session.execute(
+            select(Subject.id, Subject.name, Subject.queue_state)
+        ).all()
+    }
+
+    present: set[int] = set()
+    for sid, status, count in session.execute(
+        select(Chapter.subject_id, Topic.status, func.count())
+        .join(Topic, Topic.chapter_id == Chapter.id)
+        .where(Topic.priority != TopicPriority.skip)
+        .group_by(Chapter.subject_id, Topic.status)
+    ).all():
+        lane = lanes_by_id.get(sid)
+        if lane is None:
+            continue
+        present.add(sid)
+        setattr(lane, _STATUS_FIELDS[status], count)
+
+    for sid, provider in session.execute(
+        select(QueueJob.subject_id, QueueJob.assigned_provider).where(
+            QueueJob.state == QueueState.running,
+            QueueJob.assigned_provider.is_not(None),
+        )
+    ).all():
+        lane = lanes_by_id.get(sid)
+        if lane is not None and lane.active_provider is None:
+            lane.active_provider = provider
+
+    for sid, resume in session.execute(
+        select(QueueJob.subject_id, func.min(QueueJob.resume_after))
+        .where(
+            QueueJob.state == QueueState.pending,
+            QueueJob.resume_after.is_not(None),
+        )
+        .group_by(QueueJob.subject_id)
+    ).all():
+        lane = lanes_by_id.get(sid)
+        if lane is not None:
+            lane.resume_at = resume
+
+    lanes: list[LaneStatus] = []
+    for sid in present:
+        lane = lanes_by_id[sid]
+        lane.waiting_for = waiting.get(sid)
+        lane.state = _derive_lane_state(lane)
+        lanes.append(lane)
+    lanes.sort(key=lambda lane: lane.subject_name.lower())
+
+    active = history.last_generation_provider(session) or next(
+        (lane.active_provider for lane in lanes if lane.active_provider), None
+    )
+    cooling = _cooling_providers(session)
+    provider_states = [
+        ProviderLaneState(
+            provider=p.name,
+            state="disabled"
+            if not p.enabled
+            else "cooling"
+            if p.name in cooling
+            else "active",
+        )
+        for p in providers
+    ]
+    return LaneQueueStatus(
+        lanes=lanes, active_provider=active, providers=provider_states
+    )
 
 
 def get_queue_status(

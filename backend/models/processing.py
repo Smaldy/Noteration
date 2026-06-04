@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.database import Base
 from backend.db.types import UTCDateTime
-from backend.models.enums import QueueStage, QueueState
+from backend.models.enums import HistoryEventType, QueueStage, QueueState
 from backend.models.hierarchy import utcnow
 
 if TYPE_CHECKING:
@@ -52,6 +52,33 @@ class QueueJob(Base):
     )
 
     topic: Mapped[Topic] = relationship(back_populates="queue_jobs")
+
+
+class HistoryEvent(Base):
+    """Append-only log of notable generation events (Wave C).
+
+    The cost-visibility/transparency surface that replaces overnight notifications.
+    ``subject_id``/``topic_id`` are nullable (global events like a provider switch
+    aren't tied to a subject) and ``SET NULL`` on delete so the log survives the
+    deletion of what it references.
+    """
+
+    __tablename__ = "history_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    subject_id: Mapped[int | None] = mapped_column(
+        ForeignKey("subjects.id", ondelete="SET NULL"), default=None
+    )
+    topic_id: Mapped[int | None] = mapped_column(
+        ForeignKey("topics.id", ondelete="SET NULL"), default=None
+    )
+    event_type: Mapped[HistoryEventType] = mapped_column(
+        SAEnum(HistoryEventType, native_enum=False)
+    )
+    provider_from: Mapped[str | None] = mapped_column(default=None)
+    provider_to: Mapped[str | None] = mapped_column(default=None)
+    detail: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
 class ProviderState(Base):

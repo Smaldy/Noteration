@@ -17,6 +17,7 @@ from backend.models import (
     Document,
     Flashcard,
     Formula,
+    HistoryEvent,
     Note,
     ProviderState,
     QueueJob,
@@ -30,6 +31,7 @@ from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
     FormulaState,
+    HistoryEventType,
     QueueLaneState,
     QueueStage,
     QueueState,
@@ -118,6 +120,29 @@ def test_queue_job_subject_id_round_trip_and_cascade(session: Session) -> None:
     session.delete(session.get(Subject, subject_id))
     session.commit()
     assert session.scalars(select(QueueJob)).all() == []
+
+
+def test_history_event_survives_subject_delete_via_set_null(session: Session) -> None:
+    topic = _make_topic(session)
+    subject_id = topic.chapter.subject_id
+    event = HistoryEvent(
+        subject_id=subject_id,
+        topic_id=topic.id,
+        event_type=HistoryEventType.topic_generated,
+        provider_to="gemini_free",
+        detail="3.0s",
+    )
+    session.add(event)
+    session.commit()
+
+    # Deleting the subject cascades the topic away but the audit event survives
+    # with its references nulled (SET NULL), so the log isn't lost.
+    session.delete(session.get(Subject, subject_id))
+    session.commit()
+    session.expire_all()
+    surviving = session.scalars(select(HistoryEvent)).one()
+    assert surviving.subject_id is None and surviving.topic_id is None
+    assert surviving.provider_to == "gemini_free"
 
 
 def test_chapter_denormalized_subject_id(session: Session) -> None:
