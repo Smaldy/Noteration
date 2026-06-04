@@ -1261,6 +1261,21 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     the open Study View's subject provider (the queue screen shows the full per-lane
     breakdown), per the cheapest-honest reading of point 13.
 
+- **Chapter Lanes & Lazy Ingestion (user-directed; fixes the 700-page context
+  explosion + adds per-chapter processing control). In progress.**
+  - **Wave 1 — data model (DONE).** `Chapter` gained a per-chapter lane
+    `queue_state` (reuses `QueueLaneState`, but defaults to **`paused`** — unlike
+    the subject lane which defaults to `running` — so on confirm every chapter
+    starts paused and the user explicitly enables the ones to process) plus the
+    nullable 1-indexed page range `page_start`/`page_end` (set for outline-backed
+    books; `None` for slide decks / headingless docs → existing source-loading path
+    unchanged). One additive migration `9a1b2c3d4e5f` (`server_default 'paused'`
+    backfills existing chapters, page range NULL; applied to live DB, `alembic
+    check` clean, downgrade/upgrade round-trips). +4 model tests (chapter default
+    paused, all-states round-trip, page range None + integer round-trip). Tree
+    green: full suite **409 passed**. (Note: the spec prompt calls the enum
+    `QueueState`; the actual reused enum is `QueueLaneState`.)
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the
