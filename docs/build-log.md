@@ -1351,6 +1351,21 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
       cache; 60/500-page reduction < 15%; load_topic_source uses chapter markdown for
       an outline chapter with the right idx/pages; no-page-range keeps the whole-doc
       path + never runs chapter markdown). Tree green: full suite **430 passed**.
+  - **Wave 5 — structure review per-chapter controls (DONE, frontend; ran
+    `/frontend-design`).** The detection output now carries `priority` per topic
+    (skip on trash) and `page_start`/`page_end` per chapter (mirrored into
+    `types/structure.ts`). `structureReducer` reads the backend priority (no longer
+    hard-codes `medium`), carries each chapter's `queueState` (default **paused**) +
+    page range, gains `setChapterQueueState` + `isChapterSkipped`, counts only
+    non-skip topics in running chapters for the live estimate, and emits
+    `queue_state`/`page_start`/`page_end` in `toConfirmPayload`. `StructureReviewPage`
+    chapter rows: a **Process/Paused** shadcn `Switch` (default off), a running chapter
+    gets a primary accent spine + `primary-soft` wash, a `pp. 12–79` page badge when
+    known, and **trash chapters** render muted/dashed with a struck title + an
+    "auto-skipped" badge and no switch (un-skipping a topic flips the chapter back to
+    a normal togglable row). Confirm now navigates to `/queue?document_id=` (not the
+    Library) so the user sees what's processing. `tsc -b` + `npm run build` clean;
+    backend unchanged (**430 passed**).
 
 ## DECISIONS
 

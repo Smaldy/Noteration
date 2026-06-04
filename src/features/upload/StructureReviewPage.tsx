@@ -2,9 +2,12 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { ApiError, api } from "@/lib/api";
 import type {
   ConfirmStructureResult,
@@ -13,12 +16,19 @@ import type {
 
 import { PriorityPills } from "./PriorityPills";
 import {
+  type EditChapter,
   emptyEditState,
   generatableTopicCount,
+  isChapterSkipped,
   isConfirmable,
   structureReducer,
   toConfirmPayload,
 } from "./structureReducer";
+
+function pageRangeLabel(chapter: EditChapter): string | null {
+  if (chapter.pageStart == null || chapter.pageEnd == null) return null;
+  return `pp. ${chapter.pageStart}–${chapter.pageEnd}`;
+}
 
 type LoadStatus = "loading" | "ready" | "error";
 
@@ -86,7 +96,9 @@ export function StructureReviewPage() {
         `/documents/${documentId}/structure`,
         toConfirmPayload(state, examDate.trim() === "" ? null : examDate),
       );
-      navigate(homePath);
+      // Go to the Queue so the user immediately sees which chapters are
+      // processing (and can resume the paused ones) rather than the Library.
+      navigate(`/queue?document_id=${documentId}`);
     } catch (err) {
       setSubmitError(
         err instanceof ApiError ? err.message : "Could not confirm. Try again.",
@@ -121,7 +133,9 @@ export function StructureReviewPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Review structure</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Rename, add, or remove chapters and topics, and set each topic&apos;s
-        priority. Nothing is generated until you confirm.
+        priority. Toggle <span className="font-medium text-foreground">Process</span>{" "}
+        on the chapters you want to generate now — the rest stay paused and cost
+        nothing until you resume them. Nothing is generated until you confirm.
       </p>
 
       {needsManual && (
@@ -140,8 +154,22 @@ export function StructureReviewPage() {
       )}
 
       <div className="mt-6 space-y-4">
-        {state.chapters.map((chapter) => (
-          <div key={chapter.uid} className="rounded-xl border p-4">
+        {state.chapters.map((chapter) => {
+          const skipped = isChapterSkipped(chapter);
+          const running = chapter.queueState !== "paused";
+          const range = pageRangeLabel(chapter);
+          return (
+          <div
+            key={chapter.uid}
+            className={cn(
+              "rounded-xl border p-4 transition-colors",
+              skipped
+                ? "border-dashed bg-muted/30 opacity-70"
+                : running
+                  ? "border-l-2 border-l-primary bg-primary-soft/30"
+                  : "",
+            )}
+          >
             <div className="flex items-center gap-2">
               <Input
                 value={chapter.title}
@@ -153,8 +181,49 @@ export function StructureReviewPage() {
                     title: e.target.value,
                   })
                 }
-                className="font-medium"
+                className={cn(
+                  "font-medium",
+                  skipped && "text-muted-foreground line-through",
+                )}
               />
+              {range && (
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 tabular-nums font-normal text-muted-foreground"
+                >
+                  {range}
+                </Badge>
+              )}
+              {skipped ? (
+                <Badge
+                  variant="outline"
+                  className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground"
+                >
+                  auto-skipped
+                </Badge>
+              ) : (
+                <label className="flex shrink-0 cursor-pointer select-none items-center gap-2">
+                  <span
+                    className={cn(
+                      "text-xs font-medium tabular-nums",
+                      running ? "text-primary" : "text-muted-foreground",
+                    )}
+                  >
+                    {running ? "Process" : "Paused"}
+                  </span>
+                  <Switch
+                    checked={running}
+                    onCheckedChange={(on) =>
+                      dispatch({
+                        type: "setChapterQueueState",
+                        cuid: chapter.uid,
+                        state: on ? "running" : "paused",
+                      })
+                    }
+                    aria-label="Process this chapter"
+                  />
+                </label>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -165,7 +234,9 @@ export function StructureReviewPage() {
               </Button>
             </div>
 
-            <div className="mt-3 space-y-2 pl-2">
+            <div
+              className={cn("mt-3 space-y-2 pl-2", skipped && "opacity-70")}
+            >
               {chapter.topics.map((topic) => (
                 <div key={topic.uid} className="flex items-center gap-2">
                   <Input
@@ -217,7 +288,8 @@ export function StructureReviewPage() {
               </Button>
             </div>
           </div>
-        ))}
+          );
+        })}
 
         <Button variant="outline" onClick={() => dispatch({ type: "addChapter" })}>
           <Plus />

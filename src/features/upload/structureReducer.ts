@@ -1,4 +1,5 @@
 import type {
+  ChapterQueueState,
   ConfirmStructureIn,
   ProposedStructure,
   TopicPriority,
@@ -15,6 +16,18 @@ export interface EditChapter {
   uid: number;
   title: string;
   topics: EditTopic[];
+  /** Per-chapter lane the user toggles. Defaults to paused (enable to process). */
+  queueState: ChapterQueueState;
+  /** Outline-backed page range, or null for non-outline trees. */
+  pageStart: number | null;
+  pageEnd: number | null;
+}
+
+/** A chapter is auto-skipped when every one of its topics is `skip` (trash). */
+export function isChapterSkipped(chapter: EditChapter): boolean {
+  return (
+    chapter.topics.length > 0 && chapter.topics.every((t) => t.priority === "skip")
+  );
 }
 
 export interface EditState {
@@ -25,6 +38,7 @@ export interface EditState {
 export type EditAction =
   | { type: "init"; structure: ProposedStructure }
   | { type: "setChapterTitle"; cuid: number; title: string }
+  | { type: "setChapterQueueState"; cuid: number; state: ChapterQueueState }
   | { type: "addChapter" }
   | { type: "removeChapter"; cuid: number }
   | { type: "setTopicTitle"; cuid: number; tuid: number; title: string }
@@ -34,16 +48,23 @@ export type EditAction =
 
 export const emptyEditState: EditState = { chapters: [], nextUid: 1 };
 
-/** Build editable state from a detected structure (topics default to medium). */
+/** Build editable state from a detected structure.
+
+ * Topic priorities come from the backend (it pre-sets `skip` on trash chapters);
+ * chapters carry their outline page range and default to `paused` — the student
+ * explicitly enables the chapters to process. */
 export function initEditState(structure: ProposedStructure): EditState {
   let uid = 1;
   const chapters = structure.chapters.map((chapter) => ({
     uid: uid++,
     title: chapter.title,
+    queueState: "paused" as ChapterQueueState,
+    pageStart: chapter.page_start,
+    pageEnd: chapter.page_end,
     topics: chapter.topics.map((topic) => ({
       uid: uid++,
       title: topic.title,
-      priority: "medium" as TopicPriority,
+      priority: topic.priority ?? ("medium" as TopicPriority),
     })),
   }));
   return { chapters, nextUid: uid };
@@ -68,6 +89,12 @@ export function structureReducer(state: EditState, action: EditAction): EditStat
     case "setChapterTitle":
       return mapChapter(state, action.cuid, (c) => ({ ...c, title: action.title }));
 
+    case "setChapterQueueState":
+      return mapChapter(state, action.cuid, (c) => ({
+        ...c,
+        queueState: action.state,
+      }));
+
     case "addChapter":
       return {
         ...state,
@@ -77,6 +104,9 @@ export function structureReducer(state: EditState, action: EditAction): EditStat
           {
             uid: state.nextUid,
             title: "",
+            queueState: "paused",
+            pageStart: null,
+            pageEnd: null,
             topics: [
               { uid: state.nextUid + 1, title: "", priority: "medium" },
             ],
@@ -140,12 +170,14 @@ export function isConfirmable(state: EditState): boolean {
   );
 }
 
-/** Number of topics that will actually be generated (non-skip). */
+/** Topics that will actually be generated now: non-skip topics in RUNNING (or
+ * overnight) chapters. A paused chapter's topics exist but won't process until
+ * the user resumes it, so they don't count toward the pre-flight estimate. */
 export function generatableTopicCount(state: EditState): number {
-  return state.chapters.reduce(
-    (sum, c) => sum + c.topics.filter((t) => t.priority !== "skip").length,
-    0,
-  );
+  return state.chapters.reduce((sum, c) => {
+    if (c.queueState === "paused") return sum;
+    return sum + c.topics.filter((t) => t.priority !== "skip").length;
+  }, 0);
 }
 
 /** Project the editable tree into the confirm payload (trims titles). */
@@ -156,6 +188,9 @@ export function toConfirmPayload(
   return {
     chapters: state.chapters.map((c) => ({
       title: c.title.trim(),
+      queue_state: c.queueState,
+      page_start: c.pageStart,
+      page_end: c.pageEnd,
       topics: c.topics.map((t) => ({ title: t.title.trim(), priority: t.priority })),
     })),
     exam_date: examDate,

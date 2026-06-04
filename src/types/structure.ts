@@ -1,18 +1,25 @@
 /** Mirrors `backend/schemas/structure.py`. */
 
 export type TopicPriority = "exam_critical" | "medium" | "skip";
+/** Per-chapter lane (reuses the subject lane states). Confirm defaults to paused. */
+export type ChapterQueueState = "running" | "paused" | "overnight";
 
 // --- proposed structure (GET …/structure, read-only) ------------------------
 
 export interface ProposedTopic {
   title: string;
   order_index: number;
+  /** Default priority the backend seeds (e.g. `skip` for trash chapters). */
+  priority: TopicPriority;
 }
 
 export interface ProposedChapter {
   title: string;
   order_index: number;
   topics: ProposedTopic[];
+  /** Outline-backed page range (1-indexed inclusive); null for non-outline trees. */
+  page_start: number | null;
+  page_end: number | null;
 }
 
 export interface ProposedStructure {
@@ -38,6 +45,10 @@ export interface TopicIn {
 export interface ChapterIn {
   title: string;
   topics: TopicIn[];
+  /** Per-chapter lane; defaults to paused server-side if omitted. */
+  queue_state: ChapterQueueState;
+  page_start: number | null;
+  page_end: number | null;
 }
 
 export interface ConfirmStructureIn {
