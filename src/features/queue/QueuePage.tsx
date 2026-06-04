@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowLeft, Clock, RotateCw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,10 +17,7 @@ const POLL_MS = 5000;
 
 export function QueuePage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState("lanes");
-  const documentIdParam = searchParams.get("document_id");
-  const documentId = documentIdParam ? Number(documentIdParam) : null;
 
   const { status, error, retrying, fetchStatus, retryTopic } = useQueueStore();
   const lanes = useLanesStore((s) => s.status);
@@ -32,9 +29,9 @@ export function QueuePage() {
   const resumeLane = useLanesStore((s) => s.resumeLane);
   const setOvernight = useLanesStore((s) => s.setOvernight);
 
-  const chapterStatuses = useChaptersStore((s) => s.statuses);
+  const chapterGroups = useChaptersStore((s) => s.groups);
   const chapterBusy = useChaptersStore((s) => s.busy);
-  const fetchChapters = useChaptersStore((s) => s.fetch);
+  const fetchChapters = useChaptersStore((s) => s.fetchGroups);
   const setChapterState = useChaptersStore((s) => s.setQueueState);
 
   useEffect(() => {
@@ -42,14 +39,12 @@ export function QueuePage() {
       void fetchStatus();
       void fetchLanes();
       void fetchHistory();
-      if (documentId != null && Number.isFinite(documentId)) {
-        void fetchChapters(documentId);
-      }
+      void fetchChapters();
     };
     tick();
     const timer = setInterval(tick, POLL_MS);
     return () => clearInterval(timer);
-  }, [fetchStatus, fetchLanes, fetchHistory, fetchChapters, documentId]);
+  }, [fetchStatus, fetchLanes, fetchHistory, fetchChapters]);
 
   const totalReady = status?.ready ?? 0;
   const totalQueued = status?.queued ?? 0;
@@ -114,15 +109,13 @@ export function QueuePage() {
             </Banner>
           )}
 
-          {documentId != null && (
-            <ChapterStatusList
-              statuses={chapterStatuses}
-              busy={chapterBusy}
-              onSetState={(chapterId, state) =>
-                void setChapterState(chapterId, state)
-              }
-            />
-          )}
+          <ChapterStatusList
+            groups={chapterGroups}
+            busy={chapterBusy}
+            onSetState={(chapterId, state) =>
+              void setChapterState(chapterId, state)
+            }
+          />
 
           {lanes && lanes.lanes.length > 0 ? (
             <ul className="space-y-3">

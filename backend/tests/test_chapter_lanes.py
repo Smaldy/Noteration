@@ -377,3 +377,91 @@ def test_patch_chapter_queue_state_resumes_and_404(
         "/api/chapters/999/queue_state", json={"queue_state": "running"}
     )
     assert missing.status_code == 404
+
+
+# --- trash front/back matter is excluded ------------------------------------
+
+
+def test_chapter_statuses_excludes_trash_chapters(session: Session) -> None:
+    document = _confirm(
+        session,
+        [
+            ChapterIn(title="Copyright", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="Copyright")]),
+            ChapterIn(title="Chapter 1", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="Intro")]),
+            ChapterIn(title="Index", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="Index")]),
+        ],
+    )
+    titles = [s.title for s in docsvc.get_chapter_statuses(session, document.id)]
+    assert titles == ["Chapter 1"]
+
+
+def test_document_tree_drops_trash_chapters_and_topics(session: Session) -> None:
+    document = _confirm(
+        session,
+        [
+            # A whole trash chapter (e.g. confirmed before the detection fix).
+            ChapterIn(title="Dedication", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="Dedication")]),
+            # A real chapter holding a stray trash topic alongside a real one.
+            ChapterIn(title="Mechanics", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="Preface"), TopicIn(title="Forces")]),
+        ],
+    )
+    tree = docsvc.get_document_tree(session, document.id)
+    assert [c.title for c in tree.chapters] == ["Mechanics"]
+    assert [t.title for t in tree.chapters[0].topics] == ["Forces"]
+
+
+# --- grouped book chapter lanes (always reachable) --------------------------
+
+
+def test_book_chapter_groups_lists_only_multichapter_in_progress(
+    session: Session,
+) -> None:
+    # A book (2 chapters), still processing → listed.
+    book = _confirm(
+        session,
+        [
+            ChapterIn(title="Ch 1", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="a")]),
+            ChapterIn(title="Ch 2", queue_state=QueueLaneState.paused,
+                      topics=[TopicIn(title="b")]),
+        ],
+    )
+    # A single-chapter deck → covered by its subject lane, excluded.
+    _confirm(
+        session,
+        [ChapterIn(title="Slides", queue_state=QueueLaneState.running,
+                   topics=[TopicIn(title="s")])],
+    )
+
+    groups = docsvc.get_book_chapter_groups(session)
+    assert [g.document_id for g in groups] == [book.id]
+    assert [c.title for c in groups[0].chapters] == ["Ch 1", "Ch 2"]
+    assert groups[0].subject_name == "Physics"
+
+
+def test_book_chapter_groups_excludes_finished_books(session: Session) -> None:
+    document = _confirm(
+        session,
+        [
+            ChapterIn(title="Ch 1", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="a")]),
+            ChapterIn(title="Ch 2", queue_state=QueueLaneState.running,
+                      topics=[TopicIn(title="b")]),
+        ],
+    )
+    for topic in session.scalars(select(Topic)).all():
+        topic.status = TopicStatus.ready
+    session.commit()
+
+    # Every chapter running and fully ready → finished → not in the active queue.
+    assert docsvc.get_book_chapter_groups(session) == []
+    # Pausing one chapter brings the book back (there's something to resume).
+    chapter = session.scalars(select(Chapter).where(Chapter.title == "Ch 2")).one()
+    chapter.queue_state = QueueLaneState.paused
+    session.commit()
+    assert [g.document_id for g in docsvc.get_book_chapter_groups(session)] == [document.id]

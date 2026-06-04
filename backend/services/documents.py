@@ -37,6 +37,7 @@ from backend.services.pipeline.pdf_outline import (
     ChapterSlice,
     extract_chapters_from_toc,
     extract_pdf_structure,
+    is_trash,
 )
 from backend.services.pipeline.structure import (
     ProposedChapter,
@@ -318,11 +319,19 @@ def _structure_from_slices(slices: Sequence[ChapterSlice]) -> ProposedStructure:
     """Build the proposed tree from outline chapter slices.
 
     Each slice is one chapter carrying its page range; its single topic (named for
-    the chapter) seeds ``skip`` priority for trash/front-matter and ``medium``
-    otherwise. ``has_headings`` stays ``True`` — each chapter is one page-bounded
-    unit, so the proportional-slicing "topic order matters" warning doesn't apply
-    (lazy per-chapter markdown scopes generation by page range, not topic order).
+    the chapter) seeds ``medium`` priority. ``has_headings`` stays ``True`` — each
+    chapter is one page-bounded unit, so the proportional-slicing "topic order
+    matters" warning doesn't apply (lazy per-chapter markdown scopes generation by
+    page range, not topic order).
+
+    Trash front/back matter (cover, copyright, dedication, index, …) is **dropped
+    entirely** rather than proposed as a skip topic: the user never wants notes for
+    it, and leaving it in only clutters the topic list / queue (user-reported). The
+    page span the book uses for trash pages is simply not covered — that's fine,
+    nothing reads it. ``_looks_like_book`` still sees the full slices, so dropping a
+    multi-page back-matter entry can't flip a real book onto the slide path.
     """
+    kept = [sl for sl in slices if not is_trash(sl.title)]
     chapters = [
         ProposedChapter(
             title=sl.title,
@@ -337,7 +346,7 @@ def _structure_from_slices(slices: Sequence[ChapterSlice]) -> ProposedStructure:
             page_start=sl.page_start,
             page_end=sl.page_end,
         )
-        for index, sl in enumerate(slices)
+        for index, sl in enumerate(kept)
     ]
     return ProposedStructure(
         chapters=chapters, needs_manual=False, method="pdf_outline", has_headings=True
@@ -484,7 +493,14 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
     )
 
     by_chapter: dict[int, list[TopicNode]] = {}
+    raw_topic_count: dict[int, int] = {}
     for topic in topics:
+        raw_topic_count[topic.chapter_id] = raw_topic_count.get(topic.chapter_id, 0) + 1
+        # Drop front/back-matter topics (copyright, dedication, …) so they never
+        # clutter the sidebar. New uploads never create these (filtered at
+        # detection); this also cleans books confirmed before that fix landed.
+        if is_trash(topic.title):
+            continue
         by_chapter.setdefault(topic.chapter_id, []).append(
             TopicNode(
                 id=topic.id,
@@ -497,6 +513,15 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
             )
         )
 
+    def _keep(chapter: Chapter) -> bool:
+        if is_trash(chapter.title):
+            return False  # a whole front/back-matter chapter (e.g. "Index")
+        # A chapter that *had* topics but lost them all to the trash filter is now
+        # an empty heading — drop it. A genuinely empty chapter (never had topics)
+        # is preserved, as before.
+        had = raw_topic_count.get(chapter.id, 0)
+        return not (had and not by_chapter.get(chapter.id))
+
     chapter_nodes = [
         ChapterNode(
             id=chapter.id,
@@ -505,6 +530,7 @@ def get_document_tree(session: Session, document_id: int) -> DocumentTree:
             topics=by_chapter.get(chapter.id, []),
         )
         for chapter in chapters
+        if _keep(chapter)
     ]
     return DocumentTree(
         document_id=document.id,
@@ -582,7 +608,78 @@ def get_chapter_statuses(session: Session, document_id: int) -> list[ChapterStat
             topics_error=row[10],
         )
         for row in rows
+        # Front/back matter is never processed — keep it out of the queue view.
+        if not is_trash(row[1])
     ]
+
+
+@dataclass
+class DocumentChapters:
+    """One book's chapter lanes, for the Queue page's always-visible accordion."""
+
+    document_id: int
+    filename: str
+    subject_id: int
+    subject_name: str
+    chapters: list[ChapterStatus]
+
+
+def get_book_chapter_groups(session: Session) -> list[DocumentChapters]:
+    """Per-document chapter lanes for every multi-chapter (book) document.
+
+    The Queue page used to show chapter resume/pause controls only when it carried
+    a ``?document_id=`` query param, which only the post-confirm redirect set — so
+    navigating back to the queue any other way "collapsed" a book into its bare
+    subject lane and the user lost the per-chapter controls (user-reported). This
+    returns the chapter lanes for *all* books in one query, so the queue can always
+    show them without a param.
+
+    A book is a document with **≥2 chapters**; a single-chapter document (a slide
+    deck's one "Slides" unit) is already represented by its subject lane, so it's
+    excluded. A book whose every chapter is running *and* fully ready is finished
+    and dropped too (it belongs in the Library, not the active queue). Trash
+    front/back-matter chapters are filtered exactly as ``get_chapter_statuses`` does.
+    """
+    groups: dict[int, DocumentChapters] = {}
+    for doc_id in (
+        session.execute(
+            select(Chapter.document_id)
+            .group_by(Chapter.document_id)
+            .having(func.count(Chapter.id) >= 2)
+        )
+        .scalars()
+        .all()
+    ):
+        chapters = get_chapter_statuses(session, doc_id)
+        if len(chapters) < 2:
+            continue  # dropped to <2 once trash chapters were filtered out
+        finished = all(
+            ch.queue_state is QueueLaneState.running
+            and ch.topics_ready >= ch.topics_total
+            for ch in chapters
+        )
+        if finished:
+            continue
+        document = session.get(Document, doc_id)
+        if document is None:  # pragma: no cover - referential integrity
+            continue
+        subject = session.get(Subject, document.subject_id)
+        groups[doc_id] = DocumentChapters(
+            document_id=doc_id,
+            filename=document.filename,
+            subject_id=document.subject_id,
+            subject_name=subject.name if subject else "",
+            chapters=chapters,
+        )
+
+    # Order by the Library's manual order so the queue matches the user's layout.
+    order = {
+        doc.id: (doc.order_index, doc.id)
+        for doc in session.execute(
+            select(Document).where(Document.id.in_(groups))
+        ).scalars()
+    }
+    return sorted(groups.values(), key=lambda g: order.get(g.document_id, (0, 0)))
 
 
 def _persist_upload(data: bytes, uploads_dir: Path) -> Path:

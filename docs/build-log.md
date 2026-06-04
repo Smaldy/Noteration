@@ -1409,6 +1409,30 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   405 at the start of this work, +32), `alembic check` clean, `tsc -b` + `npm run
   build` clean.
 
+- **Fix — Book front/back matter clutter + chapter controls vanishing (DONE,
+  user-reported).** Two defects from real book uploads:
+  1. **Trash outlines (copyright/dedication/index/…) still cluttered the topic
+     list.** They were *proposed as skip topics* so the user could un-skip — but the
+     user never wants them, "not even in the future." Now they're **dropped
+     entirely**, not skipped: `_structure_from_slices` filters `is_trash` slices out
+     of the proposed tree (`_looks_like_book` still sees the *full* slices, so a
+     multi-page back-matter entry can't flip a real book onto the slide path).
+     Already-confirmed books are cleaned at the read layer too: `get_document_tree`
+     drops trash chapters/topics (and a chapter emptied *by* that filter, while a
+     genuinely-empty chapter is preserved), and `get_chapter_statuses` drops trash
+     chapters. Updated 1 outline test; +2 tests (tree + statuses exclude trash).
+  2. **Per-chapter resume/pause "collapsed into the subject" on revisit.** The Queue
+     page only rendered chapter controls when the URL carried `?document_id=`, which
+     only the post-confirm redirect set — so returning via the header/badge "Queue"
+     links dropped it and the book showed only its bare subject lane. New
+     `docsvc.get_book_chapter_groups` + `GET /api/queue/chapters` returns chapter
+     lanes for **every in-progress book** (≥2 chapters; finished/fully-ready books and
+     single-chapter decks excluded), grouped by document with subject + filename
+     headers. The Queue page always fetches/renders the groups (no param); the
+     confirm redirect is now plain `/queue`. +2 tests (multi-chapter-in-progress
+     only; finished excluded, pausing brings it back). Tree green: backend **441
+     passed**, `tsc -b` + `npm run build` clean.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

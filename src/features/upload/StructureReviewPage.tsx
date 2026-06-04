@@ -98,7 +98,9 @@ export function StructureReviewPage() {
       );
       // Go to the Queue so the user immediately sees which chapters are
       // processing (and can resume the paused ones) rather than the Library.
-      navigate(`/queue?document_id=${documentId}`);
+      // The queue lists every book's chapter lanes, so no document scope is
+      // needed — they stay reachable whenever the user returns.
+      navigate("/queue");
     } catch (err) {
       setSubmitError(
         err instanceof ApiError ? err.message : "Could not confirm. Try again.",

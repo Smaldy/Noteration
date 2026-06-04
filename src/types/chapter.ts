@@ -14,3 +14,12 @@ export interface ChapterStatus {
   topics_queued: number;
   topics_error: number;
 }
+
+/** A book's chapter lanes grouped under its document (Queue page). */
+export interface DocumentChapters {
+  document_id: number;
+  filename: string;
+  subject_id: number;
+  subject_name: string;
+  chapters: ChapterStatus[];
+}

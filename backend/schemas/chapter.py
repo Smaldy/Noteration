@@ -28,3 +28,15 @@ class ChapterStatusOut(BaseModel):
     topics_processing: int
     topics_queued: int
     topics_error: int
+
+
+class DocumentChaptersOut(BaseModel):
+    """One book's chapter lanes, grouped under its document (Queue page)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    document_id: int
+    filename: str
+    subject_id: int
+    subject_name: str
+    chapters: list[ChapterStatusOut]

@@ -1,9 +1,13 @@
 import { motion } from "framer-motion";
-import { Moon, Pause, Play } from "lucide-react";
+import { BookOpen, Moon, Pause, Play } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ChapterQueueState, ChapterStatus } from "@/types/chapter";
+import type {
+  ChapterQueueState,
+  ChapterStatus,
+  DocumentChapters,
+} from "@/types/chapter";
 
 const STATE_STYLE: Record<
   ChapterQueueState,
@@ -27,33 +31,48 @@ const STATE_STYLE: Record<
 };
 
 interface ChapterStatusListProps {
-  statuses: ChapterStatus[];
+  /** Chapter lanes grouped by their book (document). */
+  groups: DocumentChapters[];
   busy: number | null;
   onSetState: (chapterId: number, state: ChapterQueueState) => void;
 }
 
 export function ChapterStatusList({
-  statuses,
+  groups,
   busy,
   onSetState,
 }: ChapterStatusListProps) {
-  if (statuses.length === 0) return null;
+  if (groups.length === 0) return null;
   return (
-    <section>
-      <h2 className="text-sm font-semibold tracking-tight">Chapters</h2>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        Resume a paused chapter to start generating its topics; pause one to stop.
-      </p>
-      <ul className="mt-3 space-y-2">
-        {statuses.map((chapter) => (
-          <ChapterRow
-            key={chapter.id}
-            chapter={chapter}
-            busy={busy === chapter.id}
-            onSetState={onSetState}
-          />
-        ))}
-      </ul>
+    <section className="space-y-5">
+      <div>
+        <h2 className="text-sm font-semibold tracking-tight">Chapters</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Resume a paused chapter to start generating its topics; pause one to stop.
+        </p>
+      </div>
+      {groups.map((group) => (
+        <div key={group.document_id}>
+          {/* Books are scoped per document so the user always knows which one. */}
+          <h3 className="flex items-center gap-1.5 px-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <BookOpen className="size-3.5 shrink-0" />
+            <span className="truncate">{group.subject_name}</span>
+            <span className="truncate font-normal normal-case text-muted-foreground/70">
+              · {group.filename}
+            </span>
+          </h3>
+          <ul className="mt-2 space-y-2">
+            {group.chapters.map((chapter) => (
+              <ChapterRow
+                key={chapter.id}
+                chapter={chapter}
+                busy={busy === chapter.id}
+                onSetState={onSetState}
+              />
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
   );
 }

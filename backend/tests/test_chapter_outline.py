@@ -165,8 +165,9 @@ def _doc(session: Session, tmp_path: Path, *, markdown: str, file_hash: str) -> 
 
 
 def test_detect_uses_outline_path_over_markdown(session: Session, tmp_path: Path) -> None:
-    # Markdown HAS headings, but an outline exists → the outline (with page ranges
-    # + trash skip) wins, because markdown headings carry no page mapping.
+    # Markdown HAS headings, but an outline exists → the outline (with page ranges)
+    # wins, because markdown headings carry no page mapping. Trash front/back matter
+    # (Cover, Index) is dropped entirely — not proposed even as a skip topic.
     document = _doc(session, tmp_path, markdown="# Ignored\n# AlsoIgnored\n", file_hash="bk")
     (tmp_path / "bk.pdf").write_bytes(b"%PDF-1.4 fake")
     outline = [(1, "Cover", 1), (1, "Chapter 1", 2), (1, "Index", 10)]
@@ -180,12 +181,11 @@ def test_detect_uses_outline_path_over_markdown(session: Session, tmp_path: Path
 
     assert structure.method == "pdf_outline"
     assert structure.needs_manual is False
-    assert [c.title for c in structure.chapters] == ["Cover", "Chapter 1", "Index"]
-    chapter_one = structure.chapters[1]
+    # Cover + Index are trash → gone; only the real chapter remains, with its page
+    # range intact (the multi-page Index still let _looks_like_book see a book).
+    assert [c.title for c in structure.chapters] == ["Chapter 1"]
+    chapter_one = structure.chapters[0]
     assert (chapter_one.page_start, chapter_one.page_end) == (2, 9)
-    # Trash entries seed skip priority; the real chapter is medium.
-    assert structure.chapters[0].topics[0].priority is TopicPriority.skip
-    assert structure.chapters[2].topics[0].priority is TopicPriority.skip
     assert chapter_one.topics[0].priority is TopicPriority.medium
 
 

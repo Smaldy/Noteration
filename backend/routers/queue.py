@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models import Subject, Topic
+from backend.schemas.chapter import DocumentChaptersOut
 from backend.schemas.queue import (
     HistoryEventOut,
     LaneQueueStatusOut,
@@ -18,6 +19,7 @@ from backend.schemas.queue import (
     QueueStatusOut,
     RetryResult,
 )
+from backend.services import documents as docsvc
 from backend.services import history, queue_view
 from backend.services.providers.factory import build_waterfall_from_settings
 from backend.services.queue import QueueService, SubjectLaneNotFound
@@ -36,6 +38,18 @@ def queue_status(
     return queue_view.get_queue_status(
         session, document_id=document_id, per_doc_token_budget=budget
     )
+
+
+@router.get("/chapters", response_model=list[DocumentChaptersOut])
+def book_chapter_lanes(
+    session: Session = Depends(get_session),
+) -> list[docsvc.DocumentChapters]:
+    """Chapter lanes for every in-progress book, grouped by document.
+
+    Lets the Queue page always show per-chapter resume/pause controls, instead of
+    only right after a structure confirm (which is the only place that set the old
+    ``?document_id=`` param)."""
+    return docsvc.get_book_chapter_groups(session)
 
 
 @router.get("/lanes", response_model=LaneQueueStatusOut)
