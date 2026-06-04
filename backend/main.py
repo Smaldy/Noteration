@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.routers import (
     assessment,
     bookmarks,
+    chapters,
     documents,
     notes,
     queue,
@@ -62,6 +63,7 @@ def health() -> dict[str, str]:
 
 api.include_router(subjects.router)
 api.include_router(documents.router)
+api.include_router(chapters.router)
 api.include_router(topics.router)
 api.include_router(notes.router)
 api.include_router(queue.router)

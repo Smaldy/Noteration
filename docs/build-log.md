@@ -1300,6 +1300,34 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     - +9 tests (trash match; TOC slicing real book + level-1 page_end filter;
       read_toc none/present; ingest stamps outline; detect outline-over-markdown +
       deck-gate + no-outline fallback). Tree green: full suite **418 passed**.
+  - **Wave 3 — confirm wires page ranges + chapter queue_state (DONE).**
+    `ChapterIn` accepts `queue_state` (**defaults `paused`** per the locked
+    "explicitly enable what you study" rule) + optional `page_start`/`page_end`;
+    `confirm_structure` persists all three onto the `Chapter` row and **enqueues a
+    topic only when it is non-skip AND its chapter isn't paused** — a paused
+    chapter's topics exist in the tree but create zero jobs until resumed. Queue
+    gains chapter lanes mirroring subject lanes: `set_chapter_state` /
+    `pause_chapter` / `resume_chapter` (+ `ChapterLaneNotFound`) — pause rolls the
+    chapter's in-flight jobs back to `pending` (atomic, never half-written),
+    resume/overnight lazily enqueues jobs for any non-skip topic that has none yet
+    (mode-aware stages). `claim_next` and `_eligible_lane_candidates` skip jobs whose
+    chapter is paused (`_paused_chapter_topic_ids`, join Topic→Chapter) — a paused
+    chapter never dispatches, but another running chapter in the same subject still
+    does. New `PATCH /api/chapters/{id}/queue_state` (`routers/chapters.py` +
+    `schemas/chapter.py`, 204/404) drives it. `EXAM_STAGES` moved to `queue.py`
+    (single source; documents imports it).
+    - **Blast radius (handled):** the `Chapter` model now defaults `queue_state` to
+      `paused`, so queue/worker/e2e/confirm tests that build chapters directly had to
+      opt their lanes into `running` (else the new claim filter excludes them) —
+      updated those helpers + the HTTP confirm payload.
+    - **Expected until Wave 5 (logged):** the current frontend's `toConfirmPayload`
+      doesn't send `queue_state` yet, so confirming via the pre-Wave-5 UI defaults
+      every chapter to paused (nothing processes). Wave 5 adds the per-chapter
+      toggles + the Queue-page resume that complete the loop.
+    - +7 tests (confirm paused→topics-no-jobs + page-range persisted; confirm
+      running→jobs; resume enqueues + doesn't duplicate; pause rolls back in-flight;
+      claim never claims a paused chapter; PATCH 204 resume + 404). Tree green: full
+      suite **425 passed**.
 
 ## DECISIONS
 

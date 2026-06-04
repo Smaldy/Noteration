@@ -22,7 +22,12 @@ from sqlalchemy.pool import StaticPool
 import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.db.database import Base
 from backend.models import Document, Note, Subject
-from backend.models.enums import QueueState, TopicPriority, TopicStatus
+from backend.models.enums import (
+    QueueLaneState,
+    QueueState,
+    TopicPriority,
+    TopicStatus,
+)
 from backend.models.hierarchy import Topic
 from backend.models.processing import QueueJob
 from backend.models.settings import Settings
@@ -177,6 +182,7 @@ def _seed_confirmed_document(session: Session, tmp_path: Path) -> Document:
         chapters=[
             ChapterIn(
                 title="Mechanics",
+                queue_state=QueueLaneState.running,
                 topics=[TopicIn(title="Kinematics", priority=TopicPriority.exam_critical)],
             )
         ],
@@ -280,6 +286,7 @@ def _seed_two_topic_document(session: Session, tmp_path: Path) -> None:
         chapters=[
             ChapterIn(
                 title="Mechanics",
+                queue_state=QueueLaneState.running,
                 topics=[
                     TopicIn(title="Kinematics", priority=TopicPriority.exam_critical),
                     TopicIn(title="Dynamics", priority=TopicPriority.exam_critical),
@@ -418,6 +425,7 @@ def _seed_named_document(session: Session, tmp_path: Path, subject_name: str) ->
         chapters=[
             ChapterIn(
                 title="Mechanics",
+                queue_state=QueueLaneState.running,
                 topics=[TopicIn(title="Kinematics", priority=TopicPriority.exam_critical)],
             )
         ],

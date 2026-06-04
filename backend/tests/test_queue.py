@@ -20,7 +20,13 @@ from backend.models import (
     Subject,
     Topic,
 )
-from backend.models.enums import QueueStage, QueueState, TopicPriority, TopicStatus
+from backend.models.enums import (
+    QueueLaneState,
+    QueueStage,
+    QueueState,
+    TopicPriority,
+    TopicStatus,
+)
 from backend.models.processing import QueueJob
 from backend.services.providers import (
     AllProvidersExhausted,
@@ -41,7 +47,13 @@ def _topic(
 ) -> Topic:
     subject = Subject(name="S")
     document = Document(subject=subject, filename="f.pdf", file_hash="h")
-    chapter = Chapter(document=document, subject=subject, title="C", order_index=0)
+    chapter = Chapter(
+        document=document,
+        subject=subject,
+        title="C",
+        order_index=0,
+        queue_state=QueueLaneState.running,  # chapters default to paused; this lane processes
+    )
     topic = Topic(
         chapter=chapter, title=title, priority=priority, order_index=order_index
     )

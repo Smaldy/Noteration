@@ -58,7 +58,15 @@ def _lane(
     """Seed a subject lane with topics and enqueue their jobs."""
     subject = Subject(name=name, queue_state=state)
     doc = Document(subject=subject, filename="f.pdf", file_hash=name)
-    chapter = Chapter(document=doc, subject=subject, title="Ch", order_index=0)
+    # Chapters default to paused; these lane tests exercise the *subject* lane, so
+    # the chapter lane must be running for its jobs to be claimable.
+    chapter = Chapter(
+        document=doc,
+        subject=subject,
+        title="Ch",
+        order_index=0,
+        queue_state=QueueLaneState.running,
+    )
     topics = [
         Topic(
             chapter=chapter,

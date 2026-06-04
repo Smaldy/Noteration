@@ -21,7 +21,7 @@ from backend.models import Chapter, Document, Subject, Topic
 from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
-    QueueStage,
+    QueueLaneState,
     TopicPriority,
     TopicStatus,
 )
@@ -44,12 +44,7 @@ from backend.services.pipeline.structure import (
     ProposedTopic,
     detect_structure,
 )
-from backend.services.queue import QueueService
-
-# Stages enqueued per topic in exam mode: the consolidated generation stage only.
-# The formula stage attaches LaTeX to a Note, and exam docs have no notes, so it
-# is skipped entirely (no wasted vision/registration work). See build-log E3.
-EXAM_STAGES: tuple[QueueStage, ...] = (QueueStage.notes,)
+from backend.services.queue import EXAM_STAGES, QueueService
 
 # Original PDFs are kept (gitignored) so a forced re-ingest has the source again.
 UPLOADS_DIR = CACHE_ROOT / "uploads"
@@ -358,13 +353,16 @@ def confirm_structure(
     if exam_date is not None:
         subject.exam_date = exam_date
 
-    created_topics: list[Topic] = []
+    created: list[tuple[Topic, Chapter]] = []
     for ch_index, chapter_in in enumerate(chapters):
         chapter = Chapter(
             document_id=document.id,
             subject_id=document.subject_id,
             title=chapter_in.title,
             order_index=ch_index,
+            queue_state=chapter_in.queue_state,
+            page_start=chapter_in.page_start,
+            page_end=chapter_in.page_end,
         )
         session.add(chapter)
         session.flush()  # assign chapter.id
@@ -376,19 +374,23 @@ def confirm_structure(
                 order_index=t_index,
             )
             session.add(topic)
-            created_topics.append(topic)
+            created.append((topic, chapter))
     session.flush()  # assign topic ids before enqueueing
 
     # Enqueue and flip status in the *same* transaction as the tree, so a crash
     # can't leave a confirmed-but-partially-queued document (re-confirm is
-    # refused). 'skip' topics create no jobs.
+    # refused). A topic creates no jobs when it is 'skip' OR its chapter is
+    # paused — a paused chapter's topics exist in the tree but stay un-enqueued
+    # until the user resumes the chapter (the focus-only-what-you-study control).
     queue = QueueService(session)
     # Exam docs run the generation stage only (no formula stage — there's no Note
     # to attach equations to). Study docs use the default formula→generation order.
     stages = EXAM_STAGES if document.mode is DocumentMode.exam else None
     enqueued = 0
-    for topic in created_topics:
+    for topic, chapter in created:
         if topic.priority is TopicPriority.skip:
+            continue
+        if chapter.queue_state is QueueLaneState.paused:
             continue
         if stages is None:
             queue.enqueue_topic(topic, commit=False)
@@ -399,7 +401,7 @@ def confirm_structure(
     document.status = DocumentStatus.processing
     session.commit()
 
-    return ConfirmCounts(len(chapters), len(created_topics), enqueued)
+    return ConfirmCounts(len(chapters), len(created), enqueued)
 
 
 @dataclass

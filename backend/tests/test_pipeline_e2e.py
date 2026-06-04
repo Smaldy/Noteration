@@ -14,7 +14,13 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from backend.models import Document, Flashcard, MCQ, Note, Subject
-from backend.models.enums import DocumentMode, QueueStage, QueueState, TopicPriority
+from backend.models.enums import (
+    DocumentMode,
+    QueueLaneState,
+    QueueStage,
+    QueueState,
+    TopicPriority,
+)
 from backend.models.processing import QueueJob
 from backend.schemas.structure import ChapterIn, TopicIn
 from backend.services import documents as docsvc
@@ -70,6 +76,7 @@ def _seed_confirmed_document(session: Session, tmp_path: Path) -> Document:
         chapters=[
             ChapterIn(
                 title="Mechanics",
+                queue_state=QueueLaneState.running,
                 topics=[TopicIn(title="Kinematics", priority=TopicPriority.exam_critical)],
             )
         ],
@@ -119,6 +126,7 @@ def test_exam_doc_pipeline_produces_assessment_only(
         chapters=[
             ChapterIn(
                 title="Mechanics",
+                queue_state=QueueLaneState.running,
                 topics=[TopicIn(title="Kinematics", priority=TopicPriority.exam_critical)],
             )
         ],

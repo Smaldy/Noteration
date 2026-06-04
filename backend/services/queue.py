@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.models.enums import (
+    DocumentMode,
     QueueLaneState,
     QueueStage,
     QueueState,
@@ -57,6 +58,14 @@ class SubjectLaneNotFound(Exception):
         self.subject_id = subject_id
 
 
+class ChapterLaneNotFound(Exception):
+    """Raised when a chapter-lane operation targets a chapter that doesn't exist."""
+
+    def __init__(self, chapter_id: int) -> None:
+        super().__init__(f"chapter {chapter_id} not found")
+        self.chapter_id = chapter_id
+
+
 # A job goes to `failed` after this many attempts (then it poisons only itself;
 # every other topic is unaffected).
 MAX_ATTEMPTS = 3
@@ -84,6 +93,11 @@ PRIORITY_RANK = {TopicPriority.exam_critical: 0, TopicPriority.medium: 1}
 # Default stages enqueued per topic. Formula may be a no-op when a topic has no
 # math; it stays in the set so ordering/eligibility are uniform.
 DEFAULT_STAGES: tuple[QueueStage, ...] = STAGE_ORDER
+
+# Stages enqueued per topic in exam mode: the consolidated generation stage only.
+# The formula stage attaches LaTeX to a Note, and exam docs have no notes, so it
+# is skipped entirely (no wasted vision/registration work). See build-log E3.
+EXAM_STAGES: tuple[QueueStage, ...] = (QueueStage.notes,)
 
 # Rough per-topic token cost (cost-strategy.md "token budgets per call"). Source
 # input is now bounded (~generation.SOURCE_MAX_CHARS) and outputs are capped, so a
@@ -231,7 +245,10 @@ class QueueService:
         """
         now = self.clock()
         over_budget: dict[int, bool] = {}  # document_id → over its token budget
+        paused_topics = self._paused_chapter_topic_ids()
         for job in self.pending_in_priority_order():
+            if job.topic_id in paused_topics:
+                continue  # the topic's chapter lane is paused — never dispatch it
             if job.resume_after is not None and job.resume_after > now:
                 continue  # deferred until its reset/retry window
             if self._document_over_budget(job.topic_id, over_budget):
@@ -377,6 +394,81 @@ class QueueService:
             QueueLaneState.overnight if enabled else QueueLaneState.running,
         )
 
+    # -- per-chapter lanes (Chapter Lanes) -----------------------------------
+
+    def set_chapter_state(self, chapter_id: int, state: QueueLaneState) -> None:
+        """Set a chapter lane's state, persisted on the ``Chapter`` row.
+
+        Pausing rolls this chapter's in-flight jobs cleanly back to ``pending``
+        (same safety as ``pause_lane`` — ``process_job`` commits atomically, so a
+        running job wrote no domain rows). Un-pausing (``running``/``overnight``)
+        enqueues jobs for any non-skip topic in the chapter that has none yet, so a
+        chapter confirmed paused (no jobs created) starts processing on resume.
+        """
+        chapter = self.session.get(Chapter, chapter_id)
+        if chapter is None:
+            raise ChapterLaneNotFound(chapter_id)
+        chapter.queue_state = state
+        if state is QueueLaneState.paused:
+            self._rollback_chapter_inflight(chapter_id)
+        else:
+            self._enqueue_missing_chapter_topics(chapter)
+        self.session.commit()
+
+    def pause_chapter(self, chapter_id: int) -> None:
+        self.set_chapter_state(chapter_id, QueueLaneState.paused)
+
+    def resume_chapter(self, chapter_id: int) -> None:
+        self.set_chapter_state(chapter_id, QueueLaneState.running)
+
+    def _rollback_chapter_inflight(self, chapter_id: int) -> None:
+        running = self.session.scalars(
+            select(QueueJob)
+            .join(Topic, QueueJob.topic_id == Topic.id)
+            .where(
+                Topic.chapter_id == chapter_id,
+                QueueJob.state == QueueState.running,
+            )
+        ).all()
+        for job in running:
+            job.state = QueueState.pending
+            job.assigned_provider = None
+            self._sync_topic_status(job.topic_id)
+
+    def _enqueue_missing_chapter_topics(self, chapter: Chapter) -> None:
+        stages = self._stages_for_chapter(chapter)
+        topics = self.session.scalars(
+            select(Topic).where(Topic.chapter_id == chapter.id)
+        ).all()
+        for topic in topics:
+            if topic.priority is TopicPriority.skip:
+                continue
+            has_jobs = self.session.scalar(
+                select(func.count())
+                .select_from(QueueJob)
+                .where(QueueJob.topic_id == topic.id)
+            )
+            if not has_jobs:
+                self.enqueue_topic(topic, stages, commit=False)
+
+    @staticmethod
+    def _stages_for_chapter(chapter: Chapter) -> tuple[QueueStage, ...]:
+        """Generation stages for a chapter's topics, per the document mode."""
+        document = chapter.document
+        if document is not None and document.mode is DocumentMode.exam:
+            return EXAM_STAGES
+        return DEFAULT_STAGES
+
+    def _paused_chapter_topic_ids(self) -> set[int]:
+        """Topic ids whose chapter lane is paused — their jobs are never claimed."""
+        return set(
+            self.session.scalars(
+                select(Topic.id)
+                .join(Chapter, Topic.chapter_id == Chapter.id)
+                .where(Chapter.queue_state == QueueLaneState.paused)
+            ).all()
+        )
+
     def _eligible_lane_candidates(self, now: datetime) -> list[_LaneCandidate]:
         """Each non-paused lane's highest-priority *claimable* job, ranked.
 
@@ -386,6 +478,7 @@ class QueueService:
         provider slots are handed out in.
         """
         lane_states = self._lane_states()
+        paused_topics = self._paused_chapter_topic_ids()
         over_budget: dict[int, bool] = {}
         candidates: list[_LaneCandidate] = []
         seen: set[int] = set()
@@ -396,6 +489,10 @@ class QueueService:
             state = lane_states.get(subject_id, QueueLaneState.running)
             if state is QueueLaneState.paused:
                 seen.add(subject_id)  # lane hard-stopped — never dispatch it
+                continue
+            if job.topic_id in paused_topics:
+                # Chapter lane paused — skip this job but NOT the whole subject lane:
+                # another (running) chapter in the same subject may still dispatch.
                 continue
             if job.resume_after is not None and job.resume_after > now:
                 continue  # deferred; a later job in this lane may still be eligible

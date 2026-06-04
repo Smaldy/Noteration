@@ -6,7 +6,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.models.enums import DocumentStatus, TopicPriority
+from backend.models.enums import DocumentStatus, QueueLaneState, TopicPriority
 
 
 class DocumentOut(BaseModel):
@@ -76,6 +76,13 @@ class TopicIn(BaseModel):
 class ChapterIn(BaseModel):
     title: str = Field(min_length=1)
     topics: list[TopicIn] = Field(min_length=1)
+    # Per-chapter lane. Defaults to ``paused``: confirming a document starts every
+    # chapter paused, and the student explicitly enables the chapters to process
+    # (so a 700-page book never auto-burns free-tier quota on chapters not studied).
+    queue_state: QueueLaneState = QueueLaneState.paused
+    # Outline-backed page range (1-indexed, inclusive); null for non-outline trees.
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 class ConfirmStructureIn(BaseModel):

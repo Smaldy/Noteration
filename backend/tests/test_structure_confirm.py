@@ -12,6 +12,7 @@ from backend.models import Chapter, Document, Subject, Topic
 from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
+    QueueLaneState,
     QueueStage,
     QueueState,
     TopicPriority,
@@ -32,15 +33,22 @@ def _seed_document(
 
 
 def _tree() -> list[ChapterIn]:
+    # Chapters explicitly set running so their non-skip topics enqueue (the schema
+    # default is paused — a confirmed chapter processes nothing until enabled).
     return [
         ChapterIn(
             title="Chapter 1",
+            queue_state=QueueLaneState.running,
             topics=[
                 TopicIn(title="Kinematics", priority=TopicPriority.exam_critical),
                 TopicIn(title="Appendix", priority=TopicPriority.skip),
             ],
         ),
-        ChapterIn(title="Chapter 2", topics=[TopicIn(title="Dynamics")]),
+        ChapterIn(
+            title="Chapter 2",
+            queue_state=QueueLaneState.running,
+            topics=[TopicIn(title="Dynamics")],
+        ),
     ]
 
 
@@ -142,10 +150,11 @@ def test_all_skip_enqueues_nothing(session: Session) -> None:
     chapters = [
         ChapterIn(
             title="C",
+            queue_state=QueueLaneState.running,
             topics=[TopicIn(title="t", priority=TopicPriority.skip)],
         )
     ]
     counts = docsvc.confirm_structure(session, document.id, chapters=chapters)
     assert counts.topics_created == 1
-    assert counts.topics_enqueued == 0
+    assert counts.topics_enqueued == 0  # 0 from skip, not from a paused chapter
     assert session.scalars(select(QueueJob)).all() == []

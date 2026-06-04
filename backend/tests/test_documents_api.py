@@ -333,6 +333,7 @@ def test_confirm_structure_http_flow(
         "chapters": [
             {
                 "title": "Chapter 1",
+                "queue_state": "running",
                 "topics": [
                     {"title": "Kinematics", "priority": "exam_critical"},
                     {"title": "Appendix", "priority": "skip"},
