@@ -37,6 +37,8 @@ class ProposedTopicOut(BaseModel):
 
     title: str
     order_index: int
+    # Default priority the review UI seeds (e.g. ``skip`` for trash chapters).
+    priority: TopicPriority = TopicPriority.medium
 
 
 class ProposedChapterOut(BaseModel):
@@ -45,6 +47,9 @@ class ProposedChapterOut(BaseModel):
     title: str
     order_index: int
     topics: list[ProposedTopicOut]
+    # Outline-backed page range (1-indexed, inclusive); null for non-outline trees.
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 class ProposedStructureOut(BaseModel):

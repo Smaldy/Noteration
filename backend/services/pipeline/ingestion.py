@@ -40,10 +40,19 @@ DEFAULT_DPI = 150
 # fallback (docs/ai-pipeline.md stage 1) rather than fed to heading detection.
 _MIN_CHARS_PER_PAGE = 8
 
+# Fewer than this many embedded TOC entries isn't a real outline (a stray title
+# bookmark or two); below it we treat the document as having no outline.
+MIN_TOC_ENTRIES = 3
+
+# One embedded table-of-contents entry: (level, title, 1-indexed page number).
+OutlineEntry = tuple[int, str, int]
+
 # Converter: PDF path -> markdown text. Renderer: (PDF, out_dir, dpi) -> page
-# image paths written under out_dir, page order ascending.
+# image paths written under out_dir, page order ascending. OutlineExtractor: PDF
+# path -> its embedded TOC (or None when there's no usable outline).
 Converter = Callable[[Path], str]
 Renderer = Callable[[Path, Path, int], "list[Path]"]
+OutlineExtractor = Callable[[Path], "list[OutlineEntry] | None"]
 
 
 @dataclass(frozen=True)
@@ -57,6 +66,10 @@ class IngestionResult:
     page_count: int
     is_scanned: bool  # no usable text layer → manual structure fallback
     from_cache: bool  # True when served from a prior ingestion (no re-pay)
+    # Embedded TOC (level, title, 1-indexed page), or None when the PDF has no
+    # usable outline. Drives chapter slicing + lazy per-chapter markdown for books;
+    # always derived live from the source PDF (cheap) so it survives cache hits.
+    outline: list[OutlineEntry] | None = None
 
 
 # --- default backends (imported lazily so unit tests stay dependency-free) ---
@@ -66,6 +79,36 @@ def _markitdown_convert(pdf_path: Path) -> str:
     from markitdown import MarkItDown
 
     return MarkItDown().convert(str(pdf_path)).text_content
+
+
+def read_toc(pdf_path: str | Path) -> tuple[list[OutlineEntry] | None, int]:
+    """Return ``(outline, total_pages)`` for a PDF — the embedded-TOC primitive.
+
+    The outline is the list of ``(level, title, 1-indexed page)`` entries, or
+    ``None`` when the PDF has fewer than ``MIN_TOC_ENTRIES`` (no real outline).
+    Never raises: a malformed/locked PDF or a missing PyMuPDF just yields
+    ``(None, 0)`` so callers fall back to markdown/manual detection.
+    """
+    try:
+        import fitz  # PyMuPDF, lazy
+    except ImportError:  # pragma: no cover - PyMuPDF is a hard dep in practice
+        return None, 0
+    try:
+        with fitz.open(str(pdf_path)) as doc:
+            total_pages = doc.page_count
+            toc = doc.get_toc(simple=True)  # [[level, title, page], ...]
+    except Exception:  # noqa: BLE001 - any reader error → no outline, not a crash
+        return None, 0
+    if len(toc) < MIN_TOC_ENTRIES:
+        return None, total_pages
+    outline = [
+        (max(1, int(level)), str(title), int(page)) for level, title, page, *_ in toc
+    ]
+    return outline, total_pages
+
+
+def _default_outline(pdf_path: Path) -> list[OutlineEntry] | None:
+    return read_toc(pdf_path)[0]
 
 
 def _pymupdf_render(pdf_path: Path, out_dir: Path, dpi: int) -> list[Path]:
@@ -101,6 +144,7 @@ def ingest(
     cache_root: str | Path = CACHE_ROOT,
     convert: Converter = _markitdown_convert,
     render: Renderer = _pymupdf_render,
+    extract_outline: OutlineExtractor = _default_outline,
     dpi: int = DEFAULT_DPI,
     force: bool = False,
 ) -> IngestionResult:
@@ -109,14 +153,19 @@ def ingest(
     ``force=True`` rebuilds even when a valid cache exists. The build runs in a
     staging directory that is swapped into place atomically, so a crash mid-ingest
     never leaves a partial cache that the cache-check would later trust.
+
+    The embedded outline is read live from the source PDF on every call (cheap —
+    just the TOC, no markitdown/rendering) and stamped onto the result, so a cache
+    hit still carries it without bloating the cached artifacts.
     """
     pdf_path = Path(pdf_path)
     cache_root = Path(cache_root)
     file_hash = compute_file_hash(pdf_path)
     cache_dir = cache_root / file_hash
+    outline = extract_outline(pdf_path)
 
     if not force:
-        cached = _load_cache(cache_dir, file_hash)
+        cached = _load_cache(cache_dir, file_hash, outline)
         if cached is not None:
             return cached
 
@@ -155,6 +204,7 @@ def ingest(
         page_count=page_count,
         is_scanned=is_scanned,
         from_cache=False,
+        outline=outline,
     )
 
 
@@ -168,8 +218,14 @@ def _looks_scanned(markdown: str, page_count: int) -> bool:
     return non_whitespace < _MIN_CHARS_PER_PAGE * page_count
 
 
-def _load_cache(cache_dir: Path, file_hash: str) -> IngestionResult | None:
-    """Return a result from cache, or ``None`` if absent/stale/incomplete."""
+def _load_cache(
+    cache_dir: Path, file_hash: str, outline: list[OutlineEntry] | None
+) -> IngestionResult | None:
+    """Return a result from cache, or ``None`` if absent/stale/incomplete.
+
+    ``outline`` is supplied by the caller (read live from the source PDF) rather
+    than cached, so it's stamped onto a cache-hit result too.
+    """
     manifest_path = cache_dir / MANIFEST_NAME
     if not manifest_path.is_file():
         return None
@@ -194,6 +250,7 @@ def _load_cache(cache_dir: Path, file_hash: str) -> IngestionResult | None:
         page_count=manifest["page_count"],
         is_scanned=manifest["is_scanned"],
         from_cache=True,
+        outline=outline,
     )
 
 

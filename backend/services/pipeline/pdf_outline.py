@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
+from backend.services.pipeline.ingestion import OutlineEntry
 from backend.services.pipeline.structure import (
     _CHAPTER_RE,
     ProposedChapter,
@@ -90,6 +92,76 @@ _TOPIC_STOPWORDS = frozenset(
         "del", "della", "delle", "dei", "degli", "come", "che", "con",
     }
 )
+
+
+# Front/back matter that is never worth generating notes or assessment for. A
+# deterministic string match (no AI) — case-insensitive against the stripped TOC
+# title — flags these to auto-skip so the user isn't deselecting them every upload.
+TRASH_TITLES: frozenset[str] = frozenset(
+    {
+        "cover",
+        "copyright",
+        "dedication",
+        "preface",
+        "acknowledgments",
+        "acknowledgements",
+        "brief contents",
+        "table of contents",
+        "contents",
+        "references",
+        "bibliography",
+        "index",
+        "about the authors",
+        "about the author",
+        "digital resources for students",
+        "digital resources",
+        "title page",
+        "foreword",
+        "colophon",
+    }
+)
+
+
+@dataclass
+class ChapterSlice:
+    """One top-level chapter recovered from a PDF's outline, with its page span."""
+
+    title: str
+    page_start: int  # 1-indexed, inclusive
+    page_end: int  # 1-indexed, inclusive
+    auto_skip: bool  # True for trash front/back matter or single-page entries
+
+
+def is_trash(title: str) -> bool:
+    """True when a chapter title is front/back matter we always auto-skip."""
+    return title.strip().lower() in TRASH_TITLES
+
+
+def extract_chapters_from_toc(
+    outline: list[OutlineEntry],
+    total_pages: int,
+) -> list[ChapterSlice]:
+    """Slice a PDF's top-level (level 1) TOC entries into chapters with page spans.
+
+    A chapter runs from its own start page to one page before the next chapter's
+    start; the last chapter runs to ``total_pages``. Trash titles and single-page
+    entries (front matter) are returned too, marked ``auto_skip`` so the user can
+    still un-skip them in review.
+    """
+    level1 = [
+        (title.strip(), page) for level, title, page in outline if level == 1
+    ]
+    slices: list[ChapterSlice] = []
+    for index, (title, page_start) in enumerate(level1):
+        if index + 1 < len(level1):
+            page_end = level1[index + 1][1] - 1
+        else:
+            page_end = total_pages
+        # Guard against a non-monotonic outline: never end before we start.
+        page_end = max(page_end, page_start)
+        auto_skip = is_trash(title) or page_start == page_end
+        slices.append(ChapterSlice(title, page_start, page_end, auto_skip))
+    return slices
 
 
 def extract_pdf_structure(pdf_path: str | Path) -> ProposedStructure | None:

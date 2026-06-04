@@ -23,6 +23,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from backend.models.enums import TopicPriority
+
 # ATX heading: up to 3 leading spaces, 1-6 '#', a space, the title, optional
 # trailing '#'s. (Setext '===' underlines are rare in markitdown output.)
 _ATX_RE = re.compile(r"^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$")
@@ -40,6 +42,9 @@ _FENCE_RE = re.compile(r"^\s*(```|~~~)")
 class ProposedTopic:
     title: str
     order_index: int
+    # Default priority the review UI seeds the topic with. Trash chapters from an
+    # outline come back pre-set to ``skip`` so the user doesn't deselect them by hand.
+    priority: TopicPriority = TopicPriority.medium
 
 
 @dataclass
@@ -47,6 +52,10 @@ class ProposedChapter:
     title: str
     order_index: int
     topics: list[ProposedTopic] = field(default_factory=list)
+    # Outline-backed page range (1-indexed, inclusive) for lazy per-chapter
+    # markdown. ``None`` for markdown/font-derived trees (no page mapping).
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 @dataclass

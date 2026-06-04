@@ -1275,6 +1275,31 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     paused, all-states round-trip, page range None + integer round-trip). Tree
     green: full suite **409 passed**. (Note: the spec prompt calls the enum
     `QueueState`; the actual reused enum is `QueueLaneState`.)
+  - **Wave 2 — outline extraction + trash filter (DONE).** The PDF's embedded TOC
+    becomes the primary structure signal for **books**, giving per-chapter page
+    ranges (what lazy per-chapter markdown needs to kill the 700-page context
+    explosion). `ingestion.read_toc(pdf)` → `(outline, total_pages)` (the TOC
+    primitive; `None` below 3 entries, never raises); `IngestionResult.outline`
+    (derived live from the source PDF on every call — cheap, survives cache hits,
+    no manifest bump / cache invalidation). `pdf_outline.py`: `TRASH_TITLES`
+    (frozenset) + `is_trash` (deterministic, case-insensitive strip match, zero AI)
+    + `ChapterSlice` + `extract_chapters_from_toc(outline, total_pages)` (level-1
+    entries only; page_end = next level-1 start − 1, last = total_pages; trash
+    titles and single-page entries → `auto_skip`). `detect_for_document` is now
+    three tiers: **(1) outline-backed book** (page ranges + trash skip, wins over
+    markdown because markdown headings carry no page mapping), **(2) markdown
+    headings**, **(3) PDF outline/font fallback**. Each outline chapter is one
+    page-bounded topic seeded `skip`/`medium`; `page_start`/`page_end`/`priority`
+    exposed on `ProposedChapterOut`/`ProposedTopicOut`.
+    - **`/code-review` caught one real regression (fixed):** a slide deck exported
+      with per-slide bookmarks also has a ≥3-entry TOC, but every entry is a single
+      page — slicing it gives N one-page, all-auto-skipped "chapters". Gated Tier 1
+      with `_looks_like_book` (≥2 genuinely multi-page chapters) so bookmarked decks
+      fall through to the proven slide-grouping path (Tier 3) instead. +regression
+      test.
+    - +9 tests (trash match; TOC slicing real book + level-1 page_end filter;
+      read_toc none/present; ingest stamps outline; detect outline-over-markdown +
+      deck-gate + no-outline fallback). Tree green: full suite **418 passed**.
 
 ## DECISIONS
 

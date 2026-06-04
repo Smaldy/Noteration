@@ -26,9 +26,24 @@ from backend.models.enums import (
     TopicStatus,
 )
 from backend.schemas.structure import ChapterIn
-from backend.services.pipeline.ingestion import CACHE_ROOT, IngestionResult, ingest
-from backend.services.pipeline.pdf_outline import extract_pdf_structure
-from backend.services.pipeline.structure import ProposedStructure, detect_structure
+from backend.services.pipeline.ingestion import (
+    CACHE_ROOT,
+    IngestionResult,
+    OutlineEntry,
+    ingest,
+    read_toc,
+)
+from backend.services.pipeline.pdf_outline import (
+    ChapterSlice,
+    extract_chapters_from_toc,
+    extract_pdf_structure,
+)
+from backend.services.pipeline.structure import (
+    ProposedChapter,
+    ProposedStructure,
+    ProposedTopic,
+    detect_structure,
+)
 from backend.services.queue import QueueService
 
 # Stages enqueued per topic in exam mode: the consolidated generation stage only.
@@ -42,6 +57,9 @@ PDF_MAGIC = b"%PDF"
 
 IngestFn = Callable[[Path], IngestionResult]
 PdfOutlineFn = Callable[[Path], ProposedStructure | None]
+# Reads a PDF's embedded outline: (outline | None, total_pages). Injectable so the
+# outline-primary detection path is unit-testable without a real TOC-bearing PDF.
+OutlineReaderFn = Callable[[Path], "tuple[list[OutlineEntry] | None, int]"]
 
 
 class InvalidPDFError(ValueError):
@@ -206,19 +224,46 @@ def detect_for_document(
     document_id: int,
     *,
     pdf_outline_fn: PdfOutlineFn = extract_pdf_structure,
+    outline_reader: OutlineReaderFn = read_toc,
     uploads_dir: str | Path = UPLOADS_DIR,
 ) -> ProposedStructure:
     """Propose a chapter/topic tree for a document.
 
-    Heading detection over the cached markdown is the primary signal. When that
-    finds nothing (``needs_manual`` — markitdown often emits no headings for slide
-    decks/lecture PDFs), fall back to mining the original PDF's embedded outline
-    and font sizes (``docs/ai-pipeline.md`` Stage 2's sanctioned no-model
-    fallback) so a plainly-structured document isn't reported as unrecognized.
+    Detection has three tiers, in order of preference:
+
+    1. **Embedded outline (books).** When the original PDF carries a real TOC, its
+       top-level entries become chapters *with page ranges* — the page ranges are
+       what lazy per-chapter markdown needs to avoid running markitdown over the
+       whole 700-page book (the context-explosion fix). Trash front/back matter is
+       auto-skipped deterministically. This wins over markdown headings precisely
+       because markdown headings carry no page mapping.
+    2. **Markdown headings** over the cached markdown (slide decks/lecture PDFs that
+       markitdown converts cleanly, books without an outline).
+    3. **PDF outline/font-size fallback** (``extract_pdf_structure``) when the
+       markdown yields nothing — ``docs/ai-pipeline.md`` Stage 2's no-model
+       fallback so a plainly-structured document isn't reported as unrecognized.
     """
     document = session.get(Document, document_id)
     if document is None:
         raise DocumentNotFoundError(document_id)
+
+    pdf_path = Path(uploads_dir) / f"{document.file_hash}.pdf"
+    have_pdf = bool(document.file_hash) and pdf_path.is_file()
+
+    # Tier 1: outline-backed book → chapters with page ranges. Gated to genuine
+    # books: a slide deck exported with per-slide bookmarks ("Slide 1", "Slide 2")
+    # also has a TOC, but each entry is a single page — slicing that gives N
+    # one-page, all-auto-skipped "chapters". Those decks belong on the slide path
+    # (Tier 3's extract_pdf_structure, which groups slides), so require real
+    # multi-page chapter structure before taking Tier 1.
+    if have_pdf:
+        outline, total_pages = outline_reader(pdf_path)
+        if outline is not None:
+            slices = extract_chapters_from_toc(outline, total_pages)
+            if _looks_like_book(slices):
+                return _structure_from_slices(slices)
+
+    # Tier 2: markdown headings.
     if not document.markdown_path:
         raise MarkdownUnavailableError(document_id)
     path = Path(document.markdown_path)
@@ -229,8 +274,8 @@ def detect_for_document(
     if not proposed.needs_manual:
         return proposed
 
-    pdf_path = Path(uploads_dir) / f"{document.file_hash}.pdf"
-    if document.file_hash and pdf_path.is_file():
+    # Tier 3: PDF outline/font-size fallback.
+    if have_pdf:
         from_pdf = pdf_outline_fn(pdf_path)
         if from_pdf is not None and from_pdf.chapters:
             # The tree came from the PDF outline, not markdown headings, so the
@@ -239,6 +284,48 @@ def detect_for_document(
             from_pdf.has_headings = False
             return from_pdf
     return proposed
+
+
+# A book's chapters span many pages; a bookmarked slide deck's "chapters" are one
+# page each. Require at least this many genuinely multi-page chapters to treat the
+# outline as a book (otherwise it's a deck → use the slide-grouping path).
+_MIN_BOOK_CHAPTERS = 2
+
+
+def _looks_like_book(slices: Sequence[ChapterSlice]) -> bool:
+    """True when the outline has real multi-page chapter structure (not a deck)."""
+    multipage = sum(1 for sl in slices if sl.page_end > sl.page_start)
+    return multipage >= _MIN_BOOK_CHAPTERS
+
+
+def _structure_from_slices(slices: Sequence[ChapterSlice]) -> ProposedStructure:
+    """Build the proposed tree from outline chapter slices.
+
+    Each slice is one chapter carrying its page range; its single topic (named for
+    the chapter) seeds ``skip`` priority for trash/front-matter and ``medium``
+    otherwise. ``has_headings`` stays ``True`` — each chapter is one page-bounded
+    unit, so the proportional-slicing "topic order matters" warning doesn't apply
+    (lazy per-chapter markdown scopes generation by page range, not topic order).
+    """
+    chapters = [
+        ProposedChapter(
+            title=sl.title,
+            order_index=index,
+            topics=[
+                ProposedTopic(
+                    title=sl.title,
+                    order_index=0,
+                    priority=TopicPriority.skip if sl.auto_skip else TopicPriority.medium,
+                )
+            ],
+            page_start=sl.page_start,
+            page_end=sl.page_end,
+        )
+        for index, sl in enumerate(slices)
+    ]
+    return ProposedStructure(
+        chapters=chapters, needs_manual=False, method="pdf_outline", has_headings=True
+    )
 
 
 def confirm_structure(
