@@ -11,7 +11,7 @@ from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.database import Base
@@ -98,6 +98,20 @@ class Chapter(Base):
     )  # denormalized; keep consistent with document.subject_id on write
     title: Mapped[str]
     order_index: Mapped[int] = mapped_column(default=0)
+    # Per-chapter queue lane (Chapter Lanes): reuses the same lane states as the
+    # subject lane, but a *chapter* defaults to ``paused`` — on confirm every
+    # chapter starts paused and the user explicitly enables the ones to process,
+    # so a 700-page book never burns free-tier quota on chapters not being studied.
+    queue_state: Mapped[QueueLaneState] = mapped_column(
+        SAEnum(QueueLaneState, native_enum=False),
+        default=QueueLaneState.paused,
+        server_default="paused",
+    )
+    # Outline-backed page range (1-indexed, inclusive). Set for books whose TOC
+    # gives chapter spans; ``None`` for slide decks / headingless docs that follow
+    # the existing whole-doc / proportional source-loading path unchanged.
+    page_start: Mapped[int | None] = mapped_column(Integer, default=None)
+    page_end: Mapped[int | None] = mapped_column(Integer, default=None)
 
     document: Mapped[Document] = relationship(back_populates="chapters")
     # Writable many-to-one so the denormalized subject_id is set on assignment;

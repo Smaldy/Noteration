@@ -154,6 +154,54 @@ def test_chapter_denormalized_subject_id(session: Session) -> None:
     assert chapter.subject_id == doc.subject_id == subject.id
 
 
+def test_chapter_queue_state_default_is_paused(session: Session) -> None:
+    # A chapter lane defaults to paused (unlike the subject lane, which is
+    # running) — on confirm the user explicitly enables chapters to process.
+    subject = Subject(name="Networking")
+    doc = Document(subject=subject, filename="book.pdf", file_hash="h")
+    chapter = Chapter(document=doc, subject=subject, title="Chapter 1")
+    session.add(chapter)
+    session.commit()
+    assert chapter.queue_state is QueueLaneState.paused
+
+
+def test_chapter_queue_state_round_trips_all_states(session: Session) -> None:
+    subject = Subject(name="Networking")
+    doc = Document(subject=subject, filename="book.pdf", file_hash="h")
+    for i, state in enumerate(QueueLaneState):
+        chapter = Chapter(
+            document=doc, subject=subject, title=f"Ch{i}", queue_state=state
+        )
+        session.add(chapter)
+    session.commit()
+    session.expire_all()
+    states = {c.queue_state for c in session.scalars(select(Chapter)).all()}
+    assert states == set(QueueLaneState)
+
+
+def test_chapter_page_range_defaults_none(session: Session) -> None:
+    subject = Subject(name="Networking")
+    doc = Document(subject=subject, filename="slides.pdf", file_hash="h")
+    chapter = Chapter(document=doc, subject=subject, title="Deck")
+    session.add(chapter)
+    session.commit()
+    assert chapter.page_start is None
+    assert chapter.page_end is None
+
+
+def test_chapter_page_range_round_trips_integers(session: Session) -> None:
+    subject = Subject(name="Networking")
+    doc = Document(subject=subject, filename="book.pdf", file_hash="h")
+    chapter = Chapter(
+        document=doc, subject=subject, title="Chapter 3", page_start=12, page_end=79
+    )
+    session.add(chapter)
+    session.commit()
+    session.expire(chapter)
+    assert chapter.page_start == 12
+    assert chapter.page_end == 79
+
+
 def test_topic_enum_defaults(session: Session) -> None:
     topic = _make_topic(session)
     assert topic.priority is TopicPriority.medium
