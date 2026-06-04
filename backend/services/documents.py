@@ -27,7 +27,7 @@ from backend.models.enums import (
 )
 from backend.schemas.structure import ChapterIn
 from backend.services.pipeline.ingestion import (
-    CACHE_ROOT,
+    UPLOADS_DIR,
     IngestionResult,
     OutlineEntry,
     ingest,
@@ -46,8 +46,6 @@ from backend.services.pipeline.structure import (
 )
 from backend.services.queue import EXAM_STAGES, QueueService
 
-# Original PDFs are kept (gitignored) so a forced re-ingest has the source again.
-UPLOADS_DIR = CACHE_ROOT / "uploads"
 PDF_MAGIC = b"%PDF"
 
 IngestFn = Callable[[Path], IngestionResult]

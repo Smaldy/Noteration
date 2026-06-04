@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from backend.models import Chapter, Document, Flashcard, MCQ, Note, Topic
 from backend.models.enums import DocumentMode
 from backend.models.processing import QueueJob
+from backend.services.pipeline.ingestion import UPLOADS_DIR, get_chapter_markdown
 from backend.services.pipeline.structure import _clean_title, iter_atx_headings
 from backend.services.providers.base import ProviderResult
 from backend.services.providers.waterfall import Waterfall
@@ -197,10 +198,27 @@ def get_or_create_ai_note(session: Session, topic: Topic) -> Note:
 
 
 def load_topic_source(session: Session, topic: Topic) -> str:
-    """Slice the topic's source markdown: topic section → chapter section → doc."""
+    """Slice the topic's source markdown.
+
+    Outline-backed chapter (``page_start`` set) → **lazy per-chapter markdown**:
+    convert only the chapter's pages (cached), then slice the topic's heading
+    within that chapter — so a 700-page book never loads the whole document for one
+    topic. Otherwise (slide decks / headingless / no outline) → the existing
+    whole-document path: topic section → chapter section → proportional slice.
+    """
     chapter = session.get(Chapter, topic.chapter_id)
     document = session.get(Document, chapter.document_id) if chapter else None
-    if document is None or not document.markdown_path:
+    if document is None:
+        raise TopicSourceUnavailableError(topic.id)
+
+    if (
+        chapter is not None
+        and chapter.page_start is not None
+        and chapter.page_end is not None
+    ):
+        return _load_chapter_scoped_source(session, document, chapter, topic)
+
+    if not document.markdown_path:
         raise TopicSourceUnavailableError(topic.id)
     path = Path(document.markdown_path)
     if not path.is_file():
@@ -220,7 +238,35 @@ def load_topic_source(session: Session, topic: Topic) -> str:
     # topic re-send the entire file, which exhausts the token budget (a 13-topic
     # 14k-token doc cost ~180k input tokens). Give the topic its proportional
     # contiguous slice instead — see DECISIONS in docs/build-log.md.
-    return _proportional_slice(session, document, topic, markdown)
+    ordered = _ordered_topic_ids(session, document)
+    return _cap_source(_proportional_window(ordered, topic.id, markdown))
+
+
+def _load_chapter_scoped_source(
+    session: Session, document: Document, chapter: Chapter, topic: Topic
+) -> str:
+    """Source for a topic in an outline-backed chapter, scoped to that chapter.
+
+    Convert just the chapter's page range (cached on disk), then slice the topic's
+    heading within the chapter markdown; if no heading matches, give the topic a
+    proportional slice over the *chapter* markdown only (never the whole document).
+    """
+    pdf_path = UPLOADS_DIR / f"{document.file_hash}.pdf"
+    if not document.file_hash or not pdf_path.is_file():
+        raise TopicSourceUnavailableError(str(pdf_path))
+
+    chapter_md = get_chapter_markdown(
+        pdf_path,
+        document.file_hash,
+        chapter.order_index,
+        chapter.page_start,
+        chapter.page_end,
+    )
+    section = slice_section(chapter_md, topic.title)
+    if section:
+        return _cap_source(section)
+    ordered = _ordered_chapter_topic_ids(session, chapter)
+    return _cap_source(_proportional_window(ordered, topic.id, chapter_md))
 
 
 def _cap_source(text: str, *, max_chars: int = SOURCE_MAX_CHARS) -> str:
@@ -242,29 +288,36 @@ def _ordered_topic_ids(session: Session, document: Document) -> list[int]:
     return [row[0] for row in rows]
 
 
-def _proportional_slice(
-    session: Session, document: Document, topic: Topic, markdown: str
-) -> str:
-    """Give ``topic`` its share of ``markdown`` by position among the doc's topics.
+def _ordered_chapter_topic_ids(session: Session, chapter: Chapter) -> list[int]:
+    """Topic ids within one chapter in reading order."""
+    rows = session.execute(
+        select(Topic.id)
+        .where(Topic.chapter_id == chapter.id)
+        .order_by(Topic.order_index, Topic.id)
+    ).all()
+    return [row[0] for row in rows]
 
-    Without headings we can't locate a topic's exact text, so we assume topics
-    were defined in reading order and hand each one a contiguous window of the
-    document (with a little overlap). A single-topic document still gets the whole
-    (capped) text — that's one call, not N.
+
+def _proportional_window(ordered_ids: list[int], topic_id: int, markdown: str) -> str:
+    """Give ``topic_id`` its share of ``markdown`` by position among ``ordered_ids``.
+
+    Without headings we can't locate a topic's exact text, so we assume topics were
+    defined in reading order and hand each one a contiguous window (with a little
+    overlap). A single id (or unknown id) gets the whole text — one call, not N.
+    The caller applies ``_cap_source``.
     """
-    ordered = _ordered_topic_ids(session, document)
-    count = len(ordered)
+    count = len(ordered_ids)
     if count <= 1:
-        return _cap_source(markdown)
+        return markdown
     try:
-        index = ordered.index(topic.id)
+        index = ordered_ids.index(topic_id)
     except ValueError:
         index = 0
     total = len(markdown)
     window = total / count
     start = max(0, int(index * window) - SOURCE_OVERLAP_CHARS)
     end = min(total, int((index + 1) * window) + SOURCE_OVERLAP_CHARS)
-    return _cap_source(markdown[start:end])
+    return markdown[start:end]
 
 
 def slice_section(markdown: str, title: str) -> str | None:

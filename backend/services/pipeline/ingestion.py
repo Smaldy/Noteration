@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import shutil
+import tempfile
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -28,10 +29,15 @@ from pathlib import Path
 
 # Cache root: backend/cache/ (gitignored). One subdirectory per file hash.
 CACHE_ROOT = Path(__file__).resolve().parents[2] / "cache"
+# Original uploaded PDFs (content-addressed) live here so a later phase can
+# re-derive page-range markdown without re-uploading. See documents.py.
+UPLOADS_DIR = CACHE_ROOT / "uploads"
 
 MANIFEST_NAME = "manifest.json"
 MARKDOWN_NAME = "document.md"
 PAGES_DIRNAME = "pages"
+# Per-chapter lazy markdown cache: cache/<hash>/chapters/<chapter_idx>.md.
+CHAPTERS_DIRNAME = "chapters"
 MANIFEST_VERSION = 1
 DEFAULT_DPI = 150
 
@@ -206,6 +212,77 @@ def ingest(
         from_cache=False,
         outline=outline,
     )
+
+
+def get_chapter_markdown(
+    pdf_path: str | Path,
+    file_hash: str,
+    chapter_idx: int,
+    page_start: int,
+    page_end: int,
+    *,
+    cache_root: str | Path = CACHE_ROOT,
+    converter: Converter = _markitdown_convert,
+) -> str:
+    """Markdown for ONE chapter's page range (1-indexed inclusive), disk-cached.
+
+    The fix for the 700-page context explosion: instead of converting the whole
+    book at upload and re-sending the entire blob per topic, we convert only the
+    chapter's pages, the first time that chapter is processed, and cache the result
+    at ``cache/<hash>/chapters/<chapter_idx>.md``.
+
+    On a cache hit the cached markdown is returned without touching the converter.
+    On a miss the page range is extracted into a temporary sub-PDF (PyMuPDF
+    ``insert_pdf``; ``page_start - 1`` because PyMuPDF is 0-indexed), converted, and
+    the result cached atomically. ``converter`` is injectable so the slicing/cache
+    logic is unit-testable without a real markitdown call.
+    """
+    cache_dir = Path(cache_root) / file_hash / CHAPTERS_DIRNAME
+    cache_path = cache_dir / f"{chapter_idx}.md"
+    if cache_path.is_file():
+        return cache_path.read_text(encoding="utf-8")
+
+    markdown = _convert_page_range(Path(pdf_path), page_start, page_end, converter)
+
+    cache_dir.mkdir(parents=True, exist_ok=True)  # tolerate a concurrent create
+    staging = cache_dir / f".{chapter_idx}-{uuid.uuid4().hex}.tmp"
+    staging.write_text(markdown, encoding="utf-8")
+    os.replace(staging, cache_path)  # atomic swap-in
+    return markdown
+
+
+def _convert_page_range(
+    pdf_path: Path, page_start: int, page_end: int, converter: Converter
+) -> str:
+    """Extract a 1-indexed inclusive page range to a temp sub-PDF and convert it.
+
+    The temp file is created closed and unlinked in a ``finally`` (not
+    ``delete=True``) because on Windows a still-open NamedTemporaryFile can't be
+    reopened by markitdown by path.
+    """
+    import fitz  # PyMuPDF, lazy
+
+    tmp_path: Path | None = None
+    with fitz.open(str(pdf_path)) as doc:
+        last = doc.page_count - 1
+        from_page = max(0, page_start - 1)
+        to_page = min(page_end - 1, last)
+        if to_page < from_page:
+            to_page = from_page
+        sub = fitz.open()
+        try:
+            sub.insert_pdf(doc, from_page=from_page, to_page=to_page)
+            fd, name = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd)
+            tmp_path = Path(name)
+            sub.save(str(tmp_path))
+        finally:
+            sub.close()
+    try:
+        return converter(tmp_path)
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
 
 
 # --- internals --------------------------------------------------------------

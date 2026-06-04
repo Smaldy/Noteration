@@ -1328,6 +1328,29 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
       running→jobs; resume enqueues + doesn't duplicate; pause rolls back in-flight;
       claim never claims a paused chapter; PATCH 204 resume + 404). Tree green: full
       suite **425 passed**.
+  - **Wave 4 — lazy per-chapter markdown (DONE; the core context-explosion fix).**
+    `ingestion.get_chapter_markdown(pdf, hash, chapter_idx, page_start, page_end, *,
+    converter=)` converts ONLY a chapter's page range and caches it at
+    `cache/<hash>/chapters/<chapter_idx>.md`: cache hit returns cached markdown
+    without touching the converter; miss extracts the range into a temp sub-PDF
+    (`fitz.insert_pdf`, `page_start-1` for 0-indexing, range clamped to the doc),
+    converts, and writes the cache atomically (`os.replace`). Temp file is
+    mkstemp+manual-unlink-in-`finally` (NOT `delete=True` — a still-open temp can't
+    be reopened by markitdown on Windows); cache dir `mkdir(exist_ok=True)`.
+    `load_topic_source` now branches: an **outline-backed chapter** (`page_start`
+    set) loads the chapter markdown and slices the topic heading within it (else a
+    proportional window over the *chapter* markdown only), so a 700-page book never
+    loads the whole document for one topic; a chapter **without** a page range keeps
+    the existing whole-doc path unchanged (slide decks / headingless). `UPLOADS_DIR`
+    moved to `ingestion.py` (the cache layer; `documents`/`formula` import it from
+    there); the proportional-slice logic was refactored to a shared
+    `_proportional_window` reused doc-scoped and chapter-scoped (behavior preserved).
+    - **Token reduction measured (synthetic):** a 60-page chapter slice is < 15% of
+      the 500-page full-doc conversion (12%).
+    - +5 tests (cache hit skips converter; miss converts the 4-page range + writes
+      cache; 60/500-page reduction < 15%; load_topic_source uses chapter markdown for
+      an outline chapter with the right idx/pages; no-page-range keeps the whole-doc
+      path + never runs chapter markdown). Tree green: full suite **430 passed**.
 
 ## DECISIONS
 
