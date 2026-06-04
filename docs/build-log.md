@@ -1057,6 +1057,58 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     {deleted:0}). Tree green: backend **355 passed**, `tsc -b` + `npm run build`
     clean.
 
+- **Calendar hourly scheduling (DONE, user-requested).** Per-hour study times +
+  a togglable hourly Day view + Settings for the day window and slot gap.
+  - **Data model.** `ScheduleEntry.start_time` (nullable `Time`, wall-clock, no tz)
+    pins a session to an hour; null = all-day (SM-2/auto entries never set it).
+    Three `Settings` columns drive the hourly Day view: `calendar_day_start_hour`
+    (8), `calendar_day_end_hour` (23), `calendar_slot_minutes` (60). One migration
+    `c8d9e0f1a2b3` (`start_time` nullable + 3 settings cols, `server_default`
+    8/23/60); applied to live DB, downgrade/upgrade round-trips, `alembic check`
+    clean.
+  - **API.** `start_time` ("HH:MM") on `CalendarEntryOut`, and on create/update —
+    tri-state on update (omit = unchanged · `null` = clear to all-day · "HH:MM" =
+    pin; a pure time change marks the entry `manual` so it survives an SM-2
+    rebuild). Settings schema carries the three fields; `calendar_slot_minutes` is
+    a `Literal[15,30,60,90,120]`, hours validated `ge/le` with a cross-field check
+    that end > start (→ 422). `study.create_entry`/`update_entry` thread
+    `start_time`.
+  - **Frontend.** Added `@fullcalendar/timegrid`. The Day toolbar button is
+    **double-clicked** to toggle between the agenda list (`listDay`) and the
+    hourly grid (`timeGridDay`); the choice persists in localStorage and the open
+    Day view switches live. The hourly grid reads `slotMinTime`/`slotMaxTime`/
+    `slotDuration` from Settings. Timed entries render as soft chips at their hour
+    (new `.fc-timegrid-event` CSS mirrors the daygrid chip); all-day entries sit in
+    the all-day row. A slot click prefills the time in the Add dialog; both the Add
+    and Edit dialogs gained an optional time field; drag-drop carries the new time
+    (and clears it when dropped into the all-day slot). New Settings "Calendar"
+    section: day start/end hour steppers + a slot-size segmented control.
+  - +8 backend tests (create-with/without-time, set→clear, omit-leaves-unchanged;
+    settings calendar defaults/set/inverted-window-422/bad-slot-422). Tree green:
+    backend **363 passed**, `tsc -b` + `npm run build` clean.
+  - **Time-picker redesign + display fix (DONE, user-reported "time doesn't save /
+    looks all-day / UI is awful").** Root cause of "doesn't save / all-day": the
+    time *was* persisting (verified live: POST returns `start_time:"09:30"`), but
+    the calendar **never rendered it**, so a timed event was visually identical to
+    an all-day one. Fixes: (1) every event chip now leads with a clean tabular
+    **time badge** in the event's own colour ("9:30 · Topic") across month / week /
+    agenda / "+N more" popover — hidden only in the hour-grid where vertical
+    position already says the time. (2) Replaced the native `<input type="time">`
+    with a bespoke **iOS-alarm wheel picker** (`components/TimeWheel.tsx`): two
+    momentum scroll-snap drums (hours · 5-min minutes) with a 3D cylinder tilt
+    (per-row opacity/scale/rotateX painted in rAF on scroll), edge fade masks, a
+    centred selection band, and click-to-pick rows; `overscroll-behavior:contain`
+    so it doesn't scroll the dialog. (3) A shared `features/calendar/TimeField.tsx`
+    (All-day ⇄ "At a specific time" `Switch` + live readout, framer-motion reveal)
+    drives the wheel in both the Add and Edit dialogs — default is all-day, a slot
+    click in the hour-grid presets the time + opens it on. (4) Professional
+    hour-grid skin (quiet hairline slots, tabular axis clock labels, today wash,
+    accent now-line) and timed-event chips that fill their slot. Verified live via
+    Playwright screenshots (wheel, month time-badges, June-8 hour-grid placement at
+    9:30 & 14:00, popover badges); throwaway scripts + the temp Playwright dep
+    removed afterward. Frontend-only; `tsc -b` + `npm run build` clean, backend
+    still **363 passed**.
+
 1. **Phase 9 cont.** — Upload/Structure Review → Study View (Notes/Quiz/Flashcards)
    → Calendar → Queue → Settings, one feature end-to-end at a time.
 2. Phases 10–11 (Cost UX, Benchmark harness) per `RUFLO-BUILD.md`.

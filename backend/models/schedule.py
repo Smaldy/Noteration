@@ -11,7 +11,7 @@ away with the subject. See docs/build-log.md (calendar manual-events fix).
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
@@ -38,6 +38,10 @@ class ScheduleEntry(Base):
         ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True
     )
     date: Mapped[date]
+    # Optional time-of-day (wall-clock, no tz) the session should start. When set,
+    # the entry pins to that hour in the calendar's hourly Day view; left null it
+    # stays an all-day item. SM-2/auto entries never set it.
+    start_time: Mapped[time | None] = mapped_column(default=None)
     # User-supplied event name; for topic/subject sessions this falls back to the
     # topic/subject name at read time when left blank.
     title: Mapped[str | None] = mapped_column(default=None)

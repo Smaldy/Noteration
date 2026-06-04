@@ -25,8 +25,13 @@ interface CalendarStore {
   fetchRange: (start: string, end: string) => Promise<void>;
   /** Re-fetch the current range (after a mutation). */
   refresh: () => Promise<void>;
-  /** Move an entry to a new date; throws on failure so the UI can revert. */
-  reschedule: (entryId: number, date: string) => Promise<void>;
+  /** Move an entry to a new date (and optionally a new start time, or `null` to
+   *  clear it); throws on failure so the UI can revert. */
+  reschedule: (
+    entryId: number,
+    date: string,
+    startTime?: string | null,
+  ) => Promise<void>;
 
   createEntry: (body: ScheduleEntryCreate) => Promise<CalendarEntry>;
   updateEntry: (entryId: number, body: ScheduleEntryUpdate) => Promise<CalendarEntry>;
@@ -75,10 +80,13 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     if (range) await fetchRange(range.start, range.end);
   },
 
-  reschedule: async (entryId, date) => {
+  reschedule: async (entryId, date, startTime) => {
+    const body: ScheduleEntryUpdate = { date };
+    // undefined → leave the time unchanged; null → clear; "HH:MM" → set.
+    if (startTime !== undefined) body.start_time = startTime;
     const updated = await api.patch<CalendarEntry>(
       `/study/schedule/${entryId}`,
-      { date },
+      body,
     );
     set((state) => ({
       entries: state.entries.map((e) => (e.id === entryId ? updated : e)),

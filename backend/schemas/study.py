@@ -6,6 +6,7 @@ from __future__ import annotations
 # default (ScheduleEntryUpdate) would shadow the bare ``date`` type when pydantic
 # evaluates ``date | None``. Referencing the type as ``Date`` avoids the clash.
 from datetime import date as Date
+from datetime import time as Time
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -42,6 +43,7 @@ class CalendarEntryOut(BaseModel):
 
     id: int
     date: Date
+    start_time: str | None = None  # "HH:MM" wall-clock, or null for an all-day item
     source: ScheduleSource
     is_revision_buffer: bool
     is_deadline: bool = False
@@ -63,6 +65,7 @@ class ScheduleEntryCreate(BaseModel):
     """Create a user calendar entry: topic, subject, custom event, or deadline."""
 
     date: Date
+    start_time: Time | None = None  # accepts "HH:MM" / "HH:MM:SS"; null = all-day
     topic_id: int | None = None
     subject_id: int | None = None
     title: str | None = None
@@ -83,9 +86,14 @@ class ScheduleEntryCreate(BaseModel):
 
 
 class ScheduleEntryUpdate(BaseModel):
-    """Partial update: any subset of date/title/description/completed."""
+    """Partial update: any subset of date/start_time/title/description/completed.
+
+    ``start_time`` is tri-state: omitted = leave unchanged; an explicit ``null`` =
+    clear it (back to all-day); ``"HH:MM"`` = pin to that hour.
+    """
 
     date: Date | None = None
+    start_time: Time | None = None
     title: str | None = None
     description: str | None = None
     completed: bool | None = None

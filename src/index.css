@@ -541,6 +541,61 @@ input[type="range"].app-range:focus-visible {
   padding: 0;
   color: inherit;
 }
+/* Hourly Day (time-grid) view: render the same soft chip, filling the slot
+   block rather than FullCalendar's saturated default event. */
+.fc .fc-timegrid-event {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.fc .fc-timegrid-event .fc-event-main {
+  padding: 0;
+  color: inherit;
+}
+.fc .fc-timegrid-event .cal-chip {
+  height: 100%;
+  align-items: flex-start;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
+}
+/* Hour-grid chrome: quiet hairline rows, a roomy left axis with tabular
+   clock labels, a soft today wash, and an accent now-line. */
+.fc .fc-timegrid-slot {
+  height: 2.6rem;
+  border-color: color-mix(in oklab, var(--fc-border-color) 55%, transparent);
+}
+.fc .fc-timegrid-slot-minor {
+  border-top-style: dotted;
+  border-color: color-mix(in oklab, var(--fc-border-color) 35%, transparent);
+}
+.fc .fc-timegrid-slot-label,
+.fc .fc-timegrid-axis-cushion {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.fc .fc-timegrid-axis {
+  border-color: var(--fc-border-color);
+}
+.fc .fc-timegrid-col.fc-day-today {
+  background: color-mix(in oklab, var(--primary) 4%, transparent);
+}
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--primary);
+}
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+/* The all-day shelf above the hours: a soft tray, not a heavy band. */
+.fc .fc-timegrid-axis-frame {
+  justify-content: flex-end;
+}
+.fc .fc-timegrid .fc-daygrid-body {
+  background: color-mix(in oklab, var(--muted) 40%, transparent);
+}
 /* One colour token per kind, set on the event root so both the daygrid chip
    and the list-view dot inherit it. */
 .fc-ev-sm2 {
@@ -608,6 +663,34 @@ input[type="range"].app-range:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* A timed event leads with a clean tabular clock badge in the event's own
+   colour, so a scheduled session reads instantly as "9:30 · Topic". */
+.fc .cal-chip-time {
+  flex: none;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.12rem 0.32rem;
+  border-radius: 0.35rem;
+  color: color-mix(in oklab, var(--ev, var(--cal-sm2)) 82%, var(--foreground));
+  background: color-mix(in oklab, var(--ev, var(--cal-sm2)) 18%, var(--card));
+}
+.fc-ev-exam .cal-chip-time {
+  color: white;
+  background: color-mix(in oklab, var(--cal-exam) 40%, transparent);
+}
+/* List view leads each row with a fixed-width clock so titles line up. */
+.fc .cal-list-time {
+  flex: none;
+  min-width: 3.1rem;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: color-mix(in oklab, var(--ev, var(--cal-sm2)) 70%, var(--foreground));
 }
 
 /* Agenda (list) view — used for Day: wide, readable rows that use the full
@@ -704,4 +787,101 @@ input[type="range"].app-range:focus-visible {
 /* Chips fill the popover width and stack with even spacing. */
 .fc .fc-popover-body .fc-daygrid-event {
   margin: 0.12rem 0;
+}
+
+/* ── Time wheel (iOS-alarm picker) ──────────────────────────────────────────
+   Two scroll drums with a centred selection band, 3D cylinder tilt (applied
+   per-row in JS), and gradient fade masks at the edges. */
+.time-wheel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(
+      120% 80% at 50% 50%,
+      color-mix(in oklab, var(--primary) 7%, var(--card)) 0%,
+      var(--card) 70%
+    );
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent),
+    0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
+  user-select: none;
+}
+.time-wheel-drum {
+  position: relative;
+  width: 3.2rem;
+  perspective: 640px;
+  z-index: 1;
+}
+.time-wheel-track {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  transform-style: preserve-3d;
+  /* Fade rows toward the top/bottom edges (the classic drum vignette). */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 28%,
+    #000 72%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 28%,
+    #000 72%,
+    transparent 100%
+  );
+}
+.time-wheel-track::-webkit-scrollbar {
+  display: none;
+}
+.time-wheel-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  scroll-snap-align: center;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.45rem;
+  letter-spacing: 0.01em;
+  color: var(--foreground);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  will-change: transform, opacity;
+}
+.time-wheel-colon {
+  z-index: 2;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: color-mix(in oklab, var(--primary) 75%, var(--foreground));
+  padding-bottom: 0.12rem;
+}
+/* The selection band: a soft rounded pill behind the centre row. */
+.time-wheel-band {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  top: 50%;
+  height: 40px;
+  transform: translateY(-50%);
+  border-radius: 0.7rem;
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--primary) 28%, transparent);
+  pointer-events: none;
+  z-index: 0;
 }

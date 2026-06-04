@@ -35,6 +35,11 @@ class Settings(Base):
     per_document_token_budget: Mapped[int] = mapped_column(default=0)
     pomodoro_work_min: Mapped[int] = mapped_column(default=25)
     pomodoro_break_min: Mapped[int] = mapped_column(default=5)
+    # Calendar hourly Day view: the visible hour window [start, end) and the slot
+    # gap in minutes (e.g. 60 = one row per hour, 30 = half-hour rows).
+    calendar_day_start_hour: Mapped[int] = mapped_column(default=8)
+    calendar_day_end_hour: Mapped[int] = mapped_column(default=23)
+    calendar_slot_minutes: Mapped[int] = mapped_column(default=60)
     theme: Mapped[str] = mapped_column(default="system")
     accent_color: Mapped[str | None] = mapped_column(default=None)
     font_family: Mapped[str | None] = mapped_column(default=None)

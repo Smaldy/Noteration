@@ -2,6 +2,7 @@
 
 export type Theme = "system" | "light" | "dark";
 export type GeminiModel = "gemini-2.5-flash-lite" | "gemini-2.5-flash";
+export type CalendarSlot = 15 | 30 | 60 | 90 | 120;
 
 export interface Settings {
   allow_paid: boolean;
@@ -12,6 +13,9 @@ export interface Settings {
   per_document_token_budget: number;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
+  calendar_day_start_hour: number;
+  calendar_day_end_hour: number;
+  calendar_slot_minutes: number;
   theme: string;
   accent_color: string | null;
   font_family: string | null;
@@ -31,6 +35,9 @@ export interface SettingsUpdate {
   per_document_token_budget?: number;
   pomodoro_work_min?: number;
   pomodoro_break_min?: number;
+  calendar_day_start_hour?: number;
+  calendar_day_end_hour?: number;
+  calendar_slot_minutes?: CalendarSlot;
   theme?: Theme;
   accent_color?: string | null;
   font_family?: string | null;

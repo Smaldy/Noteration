@@ -132,6 +132,53 @@ def test_create_unknown_topic_404(client):
     assert resp.status_code == 404
 
 
+# --- start time (hourly scheduling) ----------------------------------------- #
+
+
+def test_create_with_start_time(client):
+    resp = client.post(
+        "/api/study/schedule",
+        json={"date": TODAY.isoformat(), "title": "Morning block", "start_time": "09:30"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["start_time"] == "09:30"
+
+
+def test_create_without_time_is_all_day(client):
+    resp = client.post(
+        "/api/study/schedule", json={"date": TODAY.isoformat(), "title": "Whenever"}
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["start_time"] is None
+
+
+def test_set_then_clear_start_time(client):
+    entry = client.post(
+        "/api/study/schedule", json={"date": TODAY.isoformat(), "title": "X"}
+    ).json()
+    set_resp = client.patch(
+        f"/api/study/schedule/{entry['id']}", json={"start_time": "14:00"}
+    )
+    assert set_resp.json()["start_time"] == "14:00"
+    # Explicit null clears it back to all-day.
+    cleared = client.patch(
+        f"/api/study/schedule/{entry['id']}", json={"start_time": None}
+    )
+    assert cleared.json()["start_time"] is None
+
+
+def test_omitting_start_time_leaves_it_unchanged(client):
+    entry = client.post(
+        "/api/study/schedule",
+        json={"date": TODAY.isoformat(), "title": "X", "start_time": "08:15"},
+    ).json()
+    # A title-only edit must not wipe the previously-set time.
+    body = client.patch(
+        f"/api/study/schedule/{entry['id']}", json={"title": "Renamed"}
+    ).json()
+    assert body["start_time"] == "08:15"
+
+
 # --- complete / on-time ----------------------------------------------------- #
 
 

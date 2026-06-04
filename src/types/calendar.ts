@@ -7,6 +7,8 @@ export interface CalendarEntry {
   id: number;
   /** ISO date (YYYY-MM-DD). */
   date: string;
+  /** "HH:MM" wall-clock start, or null for an all-day item. */
+  start_time: string | null;
   source: ScheduleSource;
   is_revision_buffer: boolean;
   is_deadline: boolean;
@@ -46,6 +48,8 @@ export interface CatalogSubject {
 
 export interface ScheduleEntryCreate {
   date: string;
+  /** "HH:MM" — pin to an hour; omit for an all-day item. */
+  start_time?: string;
   topic_id?: number;
   subject_id?: number;
   title?: string;
@@ -55,6 +59,8 @@ export interface ScheduleEntryCreate {
 
 export interface ScheduleEntryUpdate {
   date?: string;
+  /** "HH:MM" to pin, null to clear (all-day), omit to leave unchanged. */
+  start_time?: string | null;
   title?: string;
   description?: string;
   completed?: boolean;

@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  CalendarClock,
   Check,
   KeyRound,
   Minus,
@@ -25,7 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { applyAppearance, useSettingsStore } from "@/stores/settings";
-import type { GeminiModel, Settings, Theme } from "@/types/settings";
+import type { CalendarSlot, GeminiModel, Settings, Theme } from "@/types/settings";
 
 interface FormState {
   allow_paid: boolean;
@@ -34,10 +35,37 @@ interface FormState {
   per_document_token_budget: number;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
+  calendar_day_start_hour: number;
+  calendar_day_end_hour: number;
+  calendar_slot_minutes: CalendarSlot;
   theme: Theme;
   accent_color: string; // "" = follow theme default
   font_family: string;
   font_size: number;
+}
+
+const SLOT_OPTIONS: { value: CalendarSlot; label: string }[] = [
+  { value: 15, label: "15 min" },
+  { value: 30, label: "30 min" },
+  { value: 60, label: "1 hour" },
+  { value: 90, label: "1.5 hr" },
+  { value: 120, label: "2 hours" },
+];
+
+const SLOT_VALUES: CalendarSlot[] = [15, 30, 60, 90, 120];
+
+/** Snap an arbitrary stored slot value to the nearest allowed option. */
+function toSlot(n: number): CalendarSlot {
+  return SLOT_VALUES.includes(n as CalendarSlot)
+    ? (n as CalendarSlot)
+    : SLOT_VALUES.reduce((best, v) =>
+        Math.abs(v - n) < Math.abs(best - n) ? v : best,
+      );
+}
+
+/** Format an hour (0–24) as a clock label, e.g. 8 → "8:00", 23 → "23:00". */
+function hourLabel(h: number): string {
+  return `${h}:00`;
 }
 
 const GEMINI_MODELS: { value: GeminiModel; label: string; hint: string }[] = [
@@ -93,6 +121,7 @@ const SECTIONS: {
   { id: "api-keys", label: "API keys", icon: KeyRound },
   { id: "providers", label: "Providers", icon: Sparkles },
   { id: "pomodoro", label: "Pomodoro", icon: Timer },
+  { id: "calendar", label: "Calendar", icon: CalendarClock },
   { id: "appearance", label: "Appearance", icon: Palette },
 ];
 
@@ -104,6 +133,9 @@ function toForm(s: Settings): FormState {
     per_document_token_budget: s.per_document_token_budget,
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
+    calendar_day_start_hour: s.calendar_day_start_hour,
+    calendar_day_end_hour: s.calendar_day_end_hour,
+    calendar_slot_minutes: toSlot(s.calendar_slot_minutes),
     theme: (s.theme as Theme) ?? "system",
     accent_color: s.accent_color ?? "",
     font_family: s.font_family ?? "sans",
@@ -226,6 +258,9 @@ export function SettingsPage() {
         per_document_token_budget: form.per_document_token_budget,
         pomodoro_work_min: form.pomodoro_work_min,
         pomodoro_break_min: form.pomodoro_break_min,
+        calendar_day_start_hour: form.calendar_day_start_hour,
+        calendar_day_end_hour: form.calendar_day_end_hour,
+        calendar_slot_minutes: form.calendar_slot_minutes,
         theme: form.theme,
         accent_color: form.accent_color || null,
         font_family: form.font_family,
@@ -370,11 +405,60 @@ export function SettingsPage() {
           </Section>
 
           <Section
+            id="calendar"
+            icon={CalendarClock}
+            title="Calendar"
+            description="The hourly Day view's visible window and slot size. Double-click the Day button in the calendar to switch it to the hourly grid."
+            delay={220}
+          >
+            <div className="flex flex-wrap gap-6">
+              <Field label="Day starts at">
+                <NumberField
+                  min={0}
+                  max={form.calendar_day_end_hour - 1}
+                  value={form.calendar_day_start_hour}
+                  onChange={(v) => set("calendar_day_start_hour", v)}
+                  className="w-32"
+                />
+              </Field>
+              <Field label="Day ends at">
+                <NumberField
+                  min={form.calendar_day_start_hour + 1}
+                  max={24}
+                  value={form.calendar_day_end_hour}
+                  onChange={(v) => set("calendar_day_end_hour", v)}
+                  className="w-32"
+                />
+              </Field>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Showing {hourLabel(form.calendar_day_start_hour)} –{" "}
+              {hourLabel(form.calendar_day_end_hour)}.
+            </p>
+            <Field label="Time slot size">
+              <Segmented
+                group="slot"
+                value={String(form.calendar_slot_minutes)}
+                onChange={(v) =>
+                  set("calendar_slot_minutes", Number(v) as CalendarSlot)
+                }
+                options={SLOT_OPTIONS.map((o) => ({
+                  value: String(o.value),
+                  label: o.label,
+                }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                The gap between rows in the hourly Day view.
+              </p>
+            </Field>
+          </Section>
+
+          <Section
             id="appearance"
             icon={Palette}
             title="Appearance"
             description="Changes preview instantly; Save to keep them."
-            delay={220}
+            delay={280}
           >
             <Field label="Theme">
               <Segmented

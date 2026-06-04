@@ -9,7 +9,7 @@ router) and commits.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -118,6 +118,7 @@ def create_entry(
     db: Session,
     *,
     on_date: date,
+    start_time: time | None = None,
     topic_id: int | None = None,
     subject_id: int | None = None,
     title: str | None = None,
@@ -150,6 +151,7 @@ def create_entry(
         topic_id=topic_id,
         subject_id=subject_id,
         date=on_date,
+        start_time=start_time,
         title=cleaned_title,
         description=(description or "").strip() or None,
         source=ScheduleSource.manual,
@@ -169,6 +171,7 @@ def update_entry(
     entry_id: int,
     *,
     new_date: date | None = None,
+    start_time: object = _UNSET,
     title: object = _UNSET,
     description: object = _UNSET,
     completed: bool | None = None,
@@ -192,6 +195,12 @@ def update_entry(
         # A deadline marker stays a deadline when moved; other entries become
         # ``manual`` so the move survives an SM-2 rebuild.
         if not entry.is_deadline:
+            entry.source = ScheduleSource.manual
+    if start_time is not _UNSET:
+        # None clears it (all-day); a time pins it. A pure time change still
+        # counts as a manual edit so it survives an SM-2 rebuild.
+        entry.start_time = start_time if isinstance(start_time, time) else None
+        if not entry.is_deadline and not date_changed:
             entry.source = ScheduleSource.manual
     if title is not _UNSET:
         entry.title = (title or "").strip() or None if isinstance(title, str) else None

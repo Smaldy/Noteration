@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { useCalendarStore } from "@/stores/calendar";
 import type { CalendarEntry } from "@/types/calendar";
 
+import { TimeField } from "./TimeField";
+
 interface Props {
   entry: CalendarEntry | null;
   onClose: () => void;
@@ -24,6 +26,8 @@ export function EditEventDialog({ entry, onClose }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [useTime, setUseTime] = useState(false);
+  const [time, setTime] = useState("09:00");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -31,6 +35,8 @@ export function EditEventDialog({ entry, onClose }: Props) {
     setTitle(entry.title);
     setDescription(entry.description ?? "");
     setDate(entry.date);
+    setUseTime(entry.start_time != null);
+    setTime(entry.start_time ?? "09:00");
     setBusy(false);
   }, [entry]);
 
@@ -40,7 +46,13 @@ export function EditEventDialog({ entry, onClose }: Props) {
     if (!entry) return;
     setBusy(true);
     try {
-      await updateEntry(entry.id, { title, description, date });
+      // Off clears the time (back to all-day); on pins it.
+      await updateEntry(entry.id, {
+        title,
+        description,
+        date,
+        start_time: useTime ? time : null,
+      });
       onClose();
     } catch {
       setBusy(false);
@@ -110,6 +122,14 @@ export function EditEventDialog({ entry, onClose }: Props) {
               disabled={busy}
             />
           </div>
+
+          <TimeField
+            enabled={useTime}
+            onToggle={setUseTime}
+            time={time}
+            onTime={setTime}
+            disabled={busy}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="edit-desc">

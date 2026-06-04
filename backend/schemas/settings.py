@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.models.settings import Settings
 
 Theme = Literal["system", "light", "dark"]
+# Allowed slot gaps (minutes) for the calendar's hourly Day view.
+CalendarSlot = Literal[15, 30, 60, 90, 120]
 # The free-tier Gemini models the user may pick between (gemini-2.0-flash is gone:
 # its free tier is now limit:0). flash-lite is cheapest; flash is more capable.
 GeminiModel = Literal["gemini-2.5-flash-lite", "gemini-2.5-flash"]
@@ -28,6 +30,9 @@ class SettingsOut(BaseModel):
     per_document_token_budget: int
     pomodoro_work_min: int
     pomodoro_break_min: int
+    calendar_day_start_hour: int
+    calendar_day_end_hour: int
+    calendar_slot_minutes: int
     theme: str
     accent_color: str | None
     font_family: str | None
@@ -46,6 +51,9 @@ class SettingsOut(BaseModel):
             per_document_token_budget=settings.per_document_token_budget,
             pomodoro_work_min=settings.pomodoro_work_min,
             pomodoro_break_min=settings.pomodoro_break_min,
+            calendar_day_start_hour=settings.calendar_day_start_hour,
+            calendar_day_end_hour=settings.calendar_day_end_hour,
+            calendar_slot_minutes=settings.calendar_slot_minutes,
             theme=settings.theme,
             accent_color=settings.accent_color,
             font_family=settings.font_family,
@@ -72,7 +80,23 @@ class SettingsUpdate(BaseModel):
     per_document_token_budget: int | None = Field(default=None, ge=0)
     pomodoro_work_min: int | None = Field(default=None, ge=1, le=180)
     pomodoro_break_min: int | None = Field(default=None, ge=1, le=120)
+    # Hourly Day-view window. end must exceed start; the calendar clamps too.
+    calendar_day_start_hour: int | None = Field(default=None, ge=0, le=23)
+    calendar_day_end_hour: int | None = Field(default=None, ge=1, le=24)
+    calendar_slot_minutes: CalendarSlot | None = None
     theme: Theme | None = None
     accent_color: str | None = None
     font_family: str | None = None
     font_size: int | None = Field(default=None, ge=10, le=32)
+
+    @model_validator(mode="after")
+    def _day_window_ordered(self) -> "SettingsUpdate":
+        if (
+            self.calendar_day_start_hour is not None
+            and self.calendar_day_end_hour is not None
+            and self.calendar_day_end_hour <= self.calendar_day_start_hour
+        ):
+            raise ValueError(
+                "calendar_day_end_hour must be greater than calendar_day_start_hour"
+            )
+        return self

@@ -134,3 +134,42 @@ def test_http_patch_sets_per_document_token_budget(client: TestClient) -> None:
 def test_http_patch_rejects_negative_token_budget(client: TestClient) -> None:
     response = client.patch("/api/settings", json={"per_document_token_budget": -1})
     assert response.status_code == 422
+
+
+# --- calendar hourly Day-view config ---------------------------------------- #
+
+
+def test_http_get_calendar_defaults(client: TestClient) -> None:
+    body = client.get("/api/settings").json()
+    assert body["calendar_day_start_hour"] == 8
+    assert body["calendar_day_end_hour"] == 23
+    assert body["calendar_slot_minutes"] == 60
+
+
+def test_http_patch_sets_calendar_window(client: TestClient) -> None:
+    response = client.patch(
+        "/api/settings",
+        json={
+            "calendar_day_start_hour": 6,
+            "calendar_day_end_hour": 22,
+            "calendar_slot_minutes": 30,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["calendar_day_start_hour"] == 6
+    assert body["calendar_day_end_hour"] == 22
+    assert body["calendar_slot_minutes"] == 30
+
+
+def test_http_patch_rejects_inverted_window(client: TestClient) -> None:
+    response = client.patch(
+        "/api/settings",
+        json={"calendar_day_start_hour": 20, "calendar_day_end_hour": 8},
+    )
+    assert response.status_code == 422  # end must exceed start
+
+
+def test_http_patch_rejects_unknown_slot_size(client: TestClient) -> None:
+    response = client.patch("/api/settings", json={"calendar_slot_minutes": 45})
+    assert response.status_code == 422  # only 15/30/60/90/120 allowed

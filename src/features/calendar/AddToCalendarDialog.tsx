@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { useCalendarStore } from "@/stores/calendar";
 import type { CatalogTopic } from "@/types/calendar";
 
+import { TimeField } from "./TimeField";
+
 type Mode = "custom" | "topic" | "subject" | "deadline";
 
 interface Props {
@@ -24,6 +26,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Prefill the date (YYYY-MM-DD). */
   presetDate?: string;
+  /** Prefill the start time (HH:MM), e.g. from an hourly-grid slot click. */
+  presetTime?: string;
   /** When set, lock to a single topic (e.g. opened from the Study View). */
   presetTopic?: { id: number; title: string };
   onCreated?: () => void;
@@ -37,6 +41,7 @@ export function AddToCalendarDialog({
   open,
   onOpenChange,
   presetDate,
+  presetTime,
   presetTopic,
   onCreated,
 }: Props) {
@@ -44,6 +49,8 @@ export function AddToCalendarDialog({
 
   const [mode, setMode] = useState<Mode>(presetTopic ? "topic" : "custom");
   const [date, setDate] = useState(presetDate ?? todayIso());
+  const [useTime, setUseTime] = useState(!!presetTime);
+  const [time, setTime] = useState(presetTime || "09:00");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [search, setSearch] = useState("");
@@ -58,6 +65,8 @@ export function AddToCalendarDialog({
     void fetchCatalog();
     setMode(presetTopic ? "topic" : "custom");
     setDate(presetDate ?? todayIso());
+    setUseTime(!!presetTime);
+    setTime(presetTime || "09:00");
     setTitle("");
     setDescription("");
     setSearch("");
@@ -75,7 +84,7 @@ export function AddToCalendarDialog({
     setSubjectId("");
     setBusy(false);
     setError(null);
-  }, [open, presetDate, presetTopic, fetchCatalog]);
+  }, [open, presetDate, presetTime, presetTopic, fetchCatalog]);
 
   const filteredSubjects = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -104,6 +113,7 @@ export function AddToCalendarDialog({
     try {
       await createEntry({
         date,
+        start_time: useTime ? time : undefined,
         title: title.trim() || undefined,
         description: description.trim() || undefined,
         topic_id: mode === "topic" && topic ? topic.id : undefined,
@@ -274,6 +284,14 @@ export function AddToCalendarDialog({
               disabled={busy}
             />
           </div>
+
+          <TimeField
+            enabled={useTime}
+            onToggle={setUseTime}
+            time={time}
+            onTime={setTime}
+            disabled={busy}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="ev-desc">

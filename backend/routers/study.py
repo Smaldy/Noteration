@@ -89,6 +89,7 @@ def _entry_out(entry: ScheduleEntry) -> CalendarEntryOut:
     return CalendarEntryOut(
         id=entry.id,
         date=entry.date,
+        start_time=entry.start_time.strftime("%H:%M") if entry.start_time else None,
         source=entry.source,
         is_revision_buffer=entry.is_revision_buffer,
         is_deadline=entry.is_deadline,
@@ -134,6 +135,7 @@ def create_schedule_entry(
         entry = study_service.create_entry(
             db,
             on_date=payload.date,
+            start_time=payload.start_time,
             topic_id=payload.topic_id,
             subject_id=payload.subject_id,
             title=payload.title,
@@ -159,6 +161,8 @@ def update_schedule_entry(
     # Only forward title/description when the client actually sent them, so an
     # omitted field is left unchanged (vs. an explicit null/"" which clears it).
     field_kwargs: dict = {}
+    if "start_time" in provided:
+        field_kwargs["start_time"] = payload.start_time
     if "title" in provided:
         field_kwargs["title"] = payload.title
     if "description" in provided:
