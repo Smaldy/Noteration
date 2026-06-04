@@ -76,6 +76,7 @@ async def upload_document(
         document=DocumentOut.model_validate(document),
         page_count=result.page_count,
         is_scanned=result.is_scanned,
+        book_mode=result.book_mode,
     )
 
 

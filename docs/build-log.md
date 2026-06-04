@@ -1380,6 +1380,34 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     processing" pill when any lane is running. +4 backend tests (counts+state,
     scoping, HTTP shape+404, library running-count). Tree green: backend **434
     passed**, `tsc -b` + `npm run build` clean.
+  - **Wave 7 — upload progress feedback + book-mode skip (DONE; ran
+    `/frontend-design`).** Backend: large outline-backed **books skip whole-document
+    markitdown at upload** entirely (`ingest` renders pages first, then if the outline
+    is a real book — `_outline_is_book`: ≥2 multi-page level-1 chapters, the SAME gate
+    as detection tier-1 — **and** page_count > `BOOK_MODE_MIN_PAGES` (80), it sets
+    `markdown=""`, `markdown_path=None`, `book_mode=True`, and writes no `document.md`;
+    the manifest records `book_mode`/`markdown_file=None` and `_load_cache` honours it,
+    backward-compatible with v1 caches). A long **bookmarked slide deck** (single-page
+    TOC entries) is deliberately NOT book-mode so it still gets markdown (detection
+    would otherwise have none). `create_document` stores `markdown_path=None` for
+    books; `UploadResult.book_mode` exposed. The lazy per-chapter markdown (Wave 4)
+    supplies a book's generation source, so notes generate with no whole-doc blob.
+    Frontend: `api.uploadWithProgress` (XHR transfer %), threaded through the store's
+    `uploadDocument`; `UploadDialog` is now a staged flow with `AnimatePresence` —
+    **Uploading** (live % bar) → **Analysing structure…** (spinner) → **Ready** (book
+    vs page framing, then auto-opens review), and can't be dismissed mid-transfer.
+    +3 backend tests (large book skips markitdown; short deck still converts; long
+    bookmarked deck is not book-mode). Tree green: backend **437 passed**, `tsc -b` +
+    `npm run build` clean.
+
+  **Chapter Lanes & Lazy Ingestion: feature complete across all 7 waves.** The
+  700-page context explosion is fixed (outline → page-ranged chapters → lazy
+  per-chapter markdown, whole-doc markitdown skipped for books), per-chapter
+  processing control ships end-to-end (confirm defaults paused → review toggles →
+  Queue-page resume/pause), trash front/back matter auto-skips deterministically, and
+  the upload dialog shows real progress stages. Final: backend **437 passed** (was
+  405 at the start of this work, +32), `alembic check` clean, `tsc -b` + `npm run
+  build` clean.
 
 ## DECISIONS
 

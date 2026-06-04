@@ -16,4 +16,6 @@ export interface UploadResult {
   page_count: number;
   /** No text layer → the client should offer the manual-structure path. */
   is_scanned: boolean;
+  /** Large outline-backed book whose markdown is converted lazily per chapter. */
+  book_mode: boolean;
 }

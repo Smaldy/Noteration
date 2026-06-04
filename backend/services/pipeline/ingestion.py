@@ -41,6 +41,12 @@ CHAPTERS_DIRNAME = "chapters"
 MANIFEST_VERSION = 1
 DEFAULT_DPI = 150
 
+# Outline-backed books over this many pages skip whole-document markitdown at
+# upload entirely — their markdown is converted lazily per chapter when a chapter
+# is processed (the context-explosion fix). Smaller books still convert eagerly
+# (markitdown is cheap there) and slide decks always do.
+BOOK_MODE_MIN_PAGES = 80
+
 # A PDF with fewer than this many non-whitespace markdown chars *per page* has no
 # usable text layer (scanned/image-only) and is flagged for the manual-structure
 # fallback (docs/ai-pipeline.md stage 1) rather than fed to heading detection.
@@ -67,7 +73,9 @@ class IngestionResult:
 
     file_hash: str
     markdown: str
-    markdown_path: Path
+    # ``None`` for book-mode docs whose whole-document markdown was skipped (their
+    # per-chapter markdown is converted lazily); a cache path otherwise.
+    markdown_path: Path | None
     page_image_paths: list[Path]
     page_count: int
     is_scanned: bool  # no usable text layer → manual structure fallback
@@ -76,6 +84,9 @@ class IngestionResult:
     # usable outline. Drives chapter slicing + lazy per-chapter markdown for books;
     # always derived live from the source PDF (cheap) so it survives cache hits.
     outline: list[OutlineEntry] | None = None
+    # True when whole-document markitdown was skipped at upload (large outline-backed
+    # book → lazy per-chapter markdown). The structure UI frames it differently.
+    book_mode: bool = False
 
 
 # --- default backends (imported lazily so unit tests stay dependency-free) ---
@@ -115,6 +126,25 @@ def read_toc(pdf_path: str | Path) -> tuple[list[OutlineEntry] | None, int]:
 
 def _default_outline(pdf_path: Path) -> list[OutlineEntry] | None:
     return read_toc(pdf_path)[0]
+
+
+def _outline_is_book(outline: list[OutlineEntry], total_pages: int) -> bool:
+    """True when the outline has >= 2 multi-page top-level chapters (a real book).
+
+    Mirrors the detection tier-1 gate (``documents._looks_like_book`` over
+    ``extract_chapters_from_toc``): a bookmarked slide deck (single-page entries)
+    is NOT a book. Skipping whole-doc markdown is only safe when detection will
+    actually use the outline, so this must stay in step with that gate.
+    """
+    starts = [page for level, _, page in outline if level == 1]
+    if len(starts) < 2:
+        return False
+    multipage = 0
+    for index, start in enumerate(starts):
+        end = starts[index + 1] - 1 if index + 1 < len(starts) else total_pages
+        if end > start:
+            multipage += 1
+    return multipage >= 2
 
 
 def _pymupdf_render(pdf_path: Path, out_dir: Path, dpi: int) -> list[Path]:
@@ -175,22 +205,34 @@ def ingest(
         if cached is not None:
             return cached
 
-    # Cache miss (or forced rebuild). Convert first so a converter failure costs
-    # nothing on disk; then build the rest in a private staging dir.
-    markdown = convert(pdf_path)
+    # Cache miss (or forced rebuild). Render pages first so we know the page count,
+    # then decide whether this is a large outline-backed book — those skip whole-doc
+    # markitdown entirely (their markdown is converted lazily per chapter). The
+    # build runs in a private staging dir swapped into place atomically.
     staging = cache_root / f".tmp-{file_hash}-{uuid.uuid4().hex}"
     try:
         page_paths = render(pdf_path, staging / PAGES_DIRNAME, dpi)
         page_count = len(page_paths)
-        is_scanned = _looks_scanned(markdown, page_count)
-        (staging / MARKDOWN_NAME).write_text(markdown, encoding="utf-8")
+        book_mode = (
+            outline is not None
+            and page_count > BOOK_MODE_MIN_PAGES
+            and _outline_is_book(outline, page_count)
+        )
+        if book_mode:
+            markdown = ""
+            is_scanned = False  # no whole-doc markdown to judge; not the scanned path
+        else:
+            markdown = convert(pdf_path)
+            is_scanned = _looks_scanned(markdown, page_count)
+            (staging / MARKDOWN_NAME).write_text(markdown, encoding="utf-8")
         manifest = {
             "version": MANIFEST_VERSION,
             "file_hash": file_hash,
             "source_filename": pdf_path.name,
             "page_count": page_count,
             "is_scanned": is_scanned,
-            "markdown_file": MARKDOWN_NAME,
+            "book_mode": book_mode,
+            "markdown_file": None if book_mode else MARKDOWN_NAME,
             "page_files": [p.name for p in page_paths],
         }
         (staging / MANIFEST_NAME).write_text(
@@ -205,12 +247,13 @@ def ingest(
     return IngestionResult(
         file_hash=file_hash,
         markdown=markdown,
-        markdown_path=cache_dir / MARKDOWN_NAME,
+        markdown_path=None if book_mode else cache_dir / MARKDOWN_NAME,
         page_image_paths=[pages_dir / name for name in manifest["page_files"]],
         page_count=page_count,
         is_scanned=is_scanned,
         from_cache=False,
         outline=outline,
+        book_mode=book_mode,
     )
 
 
@@ -313,21 +356,32 @@ def _load_cache(
     if manifest.get("version") != MANIFEST_VERSION:
         return None
 
-    markdown_path = cache_dir / manifest["markdown_file"]
     page_paths = [cache_dir / PAGES_DIRNAME / name for name in manifest["page_files"]]
-    # Trust the cache only if every referenced artifact is actually present.
-    if not markdown_path.is_file() or not all(p.is_file() for p in page_paths):
+    if not all(p.is_file() for p in page_paths):
         return None
+
+    # Book-mode caches carry no whole-document markdown (it's lazy per chapter).
+    book_mode = manifest.get("book_mode", False)
+    markdown_file = manifest.get("markdown_file")
+    if book_mode or markdown_file is None:
+        markdown = ""
+        markdown_path: Path | None = None
+    else:
+        markdown_path = cache_dir / markdown_file
+        if not markdown_path.is_file():
+            return None
+        markdown = markdown_path.read_text(encoding="utf-8")
 
     return IngestionResult(
         file_hash=file_hash,
-        markdown=markdown_path.read_text(encoding="utf-8"),
+        markdown=markdown,
         markdown_path=markdown_path,
         page_image_paths=page_paths,
         page_count=manifest["page_count"],
         is_scanned=manifest["is_scanned"],
         from_cache=True,
         outline=outline,
+        book_mode=book_mode,
     )
 
 

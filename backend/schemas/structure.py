@@ -27,6 +27,9 @@ class UploadResult(BaseModel):
     document: DocumentOut
     page_count: int
     is_scanned: bool  # no text layer → the client should offer manual structure
+    # True when this is a large outline-backed book whose whole-document markdown
+    # was skipped (converted lazily per chapter). The upload UI frames it as a book.
+    book_mode: bool = False
 
 
 # --- proposed structure (detection output, read-only) -----------------------

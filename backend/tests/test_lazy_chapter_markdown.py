@@ -13,7 +13,31 @@ from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Subject, Topic
 from backend.services.pipeline import generation
-from backend.services.pipeline.ingestion import get_chapter_markdown
+from backend.services.pipeline.ingestion import get_chapter_markdown, ingest
+
+
+def _make_toc_pdf(path: Path, pages: int, toc) -> Path:
+    fitz = __import__("fitz")  # PyMuPDF
+    doc = fitz.open()
+    for i in range(pages):
+        doc.new_page().insert_text((72, 72), f"Page {i + 1}")
+    doc.set_toc(toc)
+    doc.save(str(path))
+    doc.close()
+    return path
+
+
+def _fake_render(n: int):
+    def render(_pdf: Path, out_dir: Path, _dpi: int) -> list[Path]:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        paths: list[Path] = []
+        for i in range(n):
+            p = out_dir / f"page-{i + 1:05d}.png"
+            p.write_bytes(b"x")
+            paths.append(p)
+        return paths
+
+    return render
 
 
 def _make_pdf(path: Path, pages: int) -> Path:
@@ -89,6 +113,68 @@ def test_chapter_slice_is_small_fraction_of_full_doc(tmp_path: Path) -> None:
         pdf, "chap", 1, 100, 159, cache_root=cache_root, converter=proportional
     )
     assert len(chapter) < 0.15 * len(full)  # 60 / 500 = 12%
+
+
+# --- book-mode: skip whole-document markitdown ------------------------------
+
+
+def test_large_book_skips_markitdown(tmp_path: Path) -> None:
+    # 90 pages with 3 multi-page chapters → outline-backed book → markdown skipped.
+    pdf = _make_toc_pdf(
+        tmp_path / "book.pdf",
+        pages=90,
+        toc=[[1, "Chapter 1", 1], [1, "Chapter 2", 40], [1, "Chapter 3", 70]],
+    )
+    calls: list[Path] = []
+
+    def spy(p: Path) -> str:
+        calls.append(p)
+        return "WHOLE DOC MARKDOWN"
+
+    result = ingest(
+        pdf, cache_root=tmp_path / "cache", convert=spy, render=_fake_render(90)
+    )
+    assert result.book_mode is True
+    assert result.markdown_path is None
+    assert calls == []  # markitdown never ran for the whole book
+
+
+def test_short_deck_still_runs_markitdown(tmp_path: Path) -> None:
+    pdf = _make_toc_pdf(
+        tmp_path / "deck.pdf",
+        pages=20,
+        toc=[[1, "S1", 1], [1, "S2", 8], [1, "S3", 15]],
+    )
+    calls: list[Path] = []
+
+    def spy(p: Path) -> str:
+        calls.append(p)
+        return "# Deck\n\ncontent"
+
+    result = ingest(
+        pdf, cache_root=tmp_path / "cache", convert=spy, render=_fake_render(20)
+    )
+    assert result.book_mode is False
+    assert result.markdown_path is not None
+    assert len(calls) == 1
+
+
+def test_long_bookmarked_deck_is_not_book_mode(tmp_path: Path) -> None:
+    # >80 pages, but every TOC entry is a single page (a bookmarked slide deck):
+    # NOT a book, so markdown must still be built (else detection would have none).
+    toc = [[1, f"Slide {i}", i] for i in range(1, 91)]
+    pdf = _make_toc_pdf(tmp_path / "longdeck.pdf", pages=90, toc=toc)
+    calls: list[Path] = []
+
+    def spy(p: Path) -> str:
+        calls.append(p)
+        return "slide text"
+
+    result = ingest(
+        pdf, cache_root=tmp_path / "cache", convert=spy, render=_fake_render(90)
+    )
+    assert result.book_mode is False
+    assert len(calls) == 1
 
 
 # --- load_topic_source routing ---------------------------------------------

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +16,12 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { type LibraryStore, useLibraryStore } from "@/stores/library";
 import { useSubjectsStore } from "@/stores/subjects";
+import type { UploadResult } from "@/types/document";
 
 const NEW_SUBJECT = "__new__";
+
+/** Upload lifecycle: pick a file (form), transfer it, analyse it, done. */
+type Phase = "form" | "uploading" | "analysing" | "ready";
 
 // A zustand hook compatible with the documents store (study or exam section).
 type DocumentsStoreHook = <T>(selector: (state: LibraryStore) => T) => T;
@@ -45,8 +51,13 @@ export function UploadDialog({
   const [subjectChoice, setSubjectChoice] = useState<string>(NEW_SUBJECT);
   const [newSubjectName, setNewSubjectName] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<Phase>("form");
+  const [uploadPct, setUploadPct] = useState(0);
+  const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const routeTimer = useRef<number | null>(null);
+
+  const busy = phase !== "form";
 
   // Load subjects whenever the dialog opens; reset transient state on close.
   useEffect(() => {
@@ -56,9 +67,19 @@ export function UploadDialog({
       setNewSubjectName("");
       setFile(null);
       setError(null);
-      setBusy(false);
+      setPhase("form");
+      setUploadPct(0);
+      setResult(null);
     }
   }, [open, fetchSubjects]);
+
+  // Clean up the auto-route timer on unmount.
+  useEffect(
+    () => () => {
+      if (routeTimer.current) window.clearTimeout(routeTimer.current);
+    },
+    [],
+  );
 
   const creatingNew = subjectChoice === NEW_SUBJECT;
   const canSubmit =
@@ -68,25 +89,41 @@ export function UploadDialog({
 
   async function handleSubmit() {
     if (file === null) return;
-    setBusy(true);
     setError(null);
+    setUploadPct(0);
+    setPhase("uploading");
     try {
       const subjectId = creatingNew
         ? (await createSubject({ name: newSubjectName.trim() })).id
         : Number(subjectChoice);
-      const result = await uploadDocument(subjectId, file);
-      onOpenChange(false);
-      onUploaded?.(result.document.id);
+      const uploaded = await uploadDocument(subjectId, file, (pct) => {
+        setUploadPct(pct);
+        if (pct >= 100) setPhase("analysing");
+      });
+      setResult(uploaded);
+      setPhase("ready");
+      // Briefly show the result, then route into structure review.
+      routeTimer.current = window.setTimeout(() => {
+        onOpenChange(false);
+        onUploaded?.(uploaded.document.id);
+      }, 1300);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Upload failed. Please try again.",
       );
-      setBusy(false);
+      setPhase("form");
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Don't let an escape/overlay click dismiss the dialog mid-transfer.
+        if (!next && (phase === "uploading" || phase === "analysing")) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{exam ? "Add an exam PDF" : "Upload a PDF"}</DialogTitle>
@@ -100,6 +137,23 @@ export function UploadDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <AnimatePresence mode="wait">
+          {busy ? (
+            <motion.div
+              key="progress"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <UploadProgress phase={phase} pct={uploadPct} result={result} exam={exam} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="subject">Subject</Label>
@@ -147,18 +201,87 @@ export function UploadDialog({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={busy}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
-            {busy ? "Reading your PDF…" : "Upload"}
+            Upload
           </Button>
         </DialogFooter>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function UploadProgress({
+  phase,
+  pct,
+  result,
+  exam,
+}: {
+  phase: Phase;
+  pct: number;
+  result: UploadResult | null;
+  exam: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-8 text-center">
+      <div className="grid size-14 place-items-center rounded-2xl bg-primary-soft text-primary-soft-foreground">
+        {phase === "ready" ? (
+          <motion.span
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 18 }}
+          >
+            <CheckCircle2 className="size-7" />
+          </motion.span>
+        ) : phase === "uploading" ? (
+          <UploadCloud className="size-7" />
+        ) : (
+          <Loader2 className="size-7 animate-spin" />
+        )}
+      </div>
+
+      {phase === "uploading" && (
+        <div className="w-full max-w-xs space-y-2">
+          <p className="text-sm font-medium">Uploading…</p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <motion.div
+              className="h-full rounded-full bg-primary"
+              initial={false}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.2 }}
+            />
+          </div>
+          <p className="text-xs tabular-nums text-muted-foreground">{pct}%</p>
+        </div>
+      )}
+
+      {phase === "analysing" && (
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Analysing structure…</p>
+          <p className="text-xs text-muted-foreground">
+            Reading the PDF outline and detecting chapters.
+          </p>
+        </div>
+      )}
+
+      {phase === "ready" && result && (
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Ready</p>
+          <p className="text-xs text-muted-foreground">
+            {result.book_mode
+              ? `${result.page_count}-page book — chapters are converted as you process them.`
+              : exam
+                ? `Read ${result.page_count} ${result.page_count === 1 ? "page" : "pages"} — ready to build practice.`
+                : `Read ${result.page_count} ${result.page_count === 1 ? "page" : "pages"} — ready to review.`}
+          </p>
+          <p className="text-xs text-muted-foreground">Opening review…</p>
+        </div>
+      )}
+    </div>
   );
 }

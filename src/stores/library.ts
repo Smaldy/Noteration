@@ -12,8 +12,13 @@ export interface LibraryStore {
   error: string | null;
   /** Fetch this section's documents from `GET /api/documents?mode=…` (newest first). */
   fetchDocuments: () => Promise<void>;
-  /** Upload a PDF to a subject in this section's mode, then refresh the list. */
-  uploadDocument: (subjectId: number, file: File) => Promise<UploadResult>;
+  /** Upload a PDF to a subject in this section's mode, then refresh the list.
+   * ``onProgress`` reports file-transfer percentage (0–100) during the upload. */
+  uploadDocument: (
+    subjectId: number,
+    file: File,
+    onProgress?: (pct: number) => void,
+  ) => Promise<UploadResult>;
   /** Delete a subject (and all its documents/topics), then refresh the list. */
   deleteSubject: (subjectId: number) => Promise<void>;
   /** Bookmark/unbookmark a subject (optimistic; reverts on failure). */
@@ -45,12 +50,16 @@ function createDocumentsStore(mode: DocumentMode) {
         set({ status: "error", error });
       }
     },
-    uploadDocument: async (subjectId, file) => {
+    uploadDocument: async (subjectId, file, onProgress) => {
       const form = new FormData();
       form.append("subject_id", String(subjectId));
       form.append("file", file);
       form.append("mode", mode);
-      const result = await api.upload<UploadResult>("/documents", form);
+      const result = await api.uploadWithProgress<UploadResult>(
+        "/documents",
+        form,
+        onProgress,
+      );
       await get().fetchDocuments();
       return result;
     },

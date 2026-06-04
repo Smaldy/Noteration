@@ -224,7 +224,8 @@ def create_document(
         subject_id=subject_id,
         filename=filename,
         file_hash=result.file_hash,
-        markdown_path=str(result.markdown_path),
+        # Book-mode docs skip whole-doc markdown (lazy per chapter) → no path.
+        markdown_path=str(result.markdown_path) if result.markdown_path else None,
         status=DocumentStatus.uploaded,
         mode=mode,
         order_index=(min_order if min_order is not None else 0) - 1,

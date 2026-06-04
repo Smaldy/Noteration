@@ -73,5 +73,37 @@ export const api = {
   // Multipart: do NOT set Content-Type — the browser adds the boundary itself.
   upload: <T>(path: string, form: FormData) =>
     request<T>(path, { method: "POST", body: form }),
+  // Multipart upload with transfer-progress (XHR — fetch can't report upload %).
+  uploadWithProgress: <T>(
+    path: string,
+    form: FormData,
+    onProgress?: (pct: number) => void,
+  ) =>
+    new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE}${path}`);
+      xhr.setRequestHeader("Accept", "application/json");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.responseText ? (JSON.parse(xhr.responseText) as T) : (undefined as T));
+          return;
+        }
+        let detail = `Request failed (${xhr.status})`;
+        try {
+          const body = JSON.parse(xhr.responseText) as { detail?: unknown };
+          if (typeof body.detail === "string") detail = body.detail;
+        } catch {
+          // non-JSON error body
+        }
+        reject(new ApiError(xhr.status, detail));
+      };
+      xhr.onerror = () => reject(new ApiError(0, "Cannot reach the Noteration backend."));
+      xhr.send(form);
+    }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
