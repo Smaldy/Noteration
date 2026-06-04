@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarClock,
   Check,
+  FileText,
   KeyRound,
   Minus,
   Palette,
@@ -33,6 +34,7 @@ interface FormState {
   ollama_enabled: boolean;
   gemini_model: GeminiModel;
   per_document_token_budget: number;
+  note_length: number;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   calendar_day_start_hour: number;
@@ -120,6 +122,7 @@ const SECTIONS: {
 }[] = [
   { id: "api-keys", label: "API keys", icon: KeyRound },
   { id: "providers", label: "Providers", icon: Sparkles },
+  { id: "generation", label: "Generation", icon: FileText },
   { id: "pomodoro", label: "Pomodoro", icon: Timer },
   { id: "calendar", label: "Calendar", icon: CalendarClock },
   { id: "appearance", label: "Appearance", icon: Palette },
@@ -131,6 +134,7 @@ function toForm(s: Settings): FormState {
     ollama_enabled: s.ollama_enabled,
     gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",
     per_document_token_budget: s.per_document_token_budget,
+    note_length: s.note_length ?? 3,
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
     calendar_day_start_hour: s.calendar_day_start_hour,
@@ -256,6 +260,7 @@ export function SettingsPage() {
         ollama_enabled: form.ollama_enabled,
         gemini_model: form.gemini_model,
         per_document_token_budget: form.per_document_token_budget,
+        note_length: form.note_length,
         pomodoro_work_min: form.pomodoro_work_min,
         pomodoro_break_min: form.pomodoro_break_min,
         calendar_day_start_hour: form.calendar_day_start_hour,
@@ -377,6 +382,36 @@ export function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Safety cap: a document is paused if it spends more than this many
                 tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate).
+              </p>
+            </Field>
+          </Section>
+
+          <Section
+            id="generation"
+            icon={FileText}
+            title="Note generation"
+            description="How much content the AI generates per topic."
+            delay={150}
+          >
+            <Field label={`Notes length — ${form.note_length} ${form.note_length === 1 ? "page" : "pages"} per topic`}>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">Brief</span>
+                <div className="w-60 max-w-full">
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    value={form.note_length}
+                    onChange={(e) => set("note_length", Number(e.target.value))}
+                    className="app-range"
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">Detailed</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A "page" is a unit of content (~300 words). The AI aims for this
+                many pages per topic; if a topic doesn't have enough material it
+                generates what it can. More pages use more tokens.
               </p>
             </Field>
           </Section>

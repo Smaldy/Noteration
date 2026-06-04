@@ -136,6 +136,24 @@ def test_http_patch_rejects_negative_token_budget(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+# --- notes length (pages of content per topic) ------------------------------- #
+
+
+def test_http_get_note_length_default(client: TestClient) -> None:
+    assert client.get("/api/settings").json()["note_length"] == 3
+
+
+def test_http_patch_sets_note_length(client: TestClient) -> None:
+    response = client.patch("/api/settings", json={"note_length": 8})
+    assert response.status_code == 200, response.text
+    assert response.json()["note_length"] == 8
+
+
+def test_http_patch_rejects_out_of_range_note_length(client: TestClient) -> None:
+    assert client.patch("/api/settings", json={"note_length": 0}).status_code == 422
+    assert client.patch("/api/settings", json={"note_length": 11}).status_code == 422
+
+
 # --- calendar hourly Day-view config ---------------------------------------- #
 
 

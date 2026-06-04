@@ -11,6 +11,8 @@ export interface Settings {
   gemini_model: string;
   /** Per-document token ceiling. 0 = automatic (estimate × factor). */
   per_document_token_budget: number;
+  /** Notes length per topic, in "pages" (units of content). 1-10. */
+  note_length: number;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   calendar_day_start_hour: number;
@@ -33,6 +35,7 @@ export interface SettingsUpdate {
   ollama_enabled?: boolean;
   gemini_model?: GeminiModel;
   per_document_token_budget?: number;
+  note_length?: number;
   pomodoro_work_min?: number;
   pomodoro_break_min?: number;
   calendar_day_start_hour?: number;

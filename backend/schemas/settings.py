@@ -28,6 +28,7 @@ class SettingsOut(BaseModel):
     ollama_enabled: bool
     gemini_model: str
     per_document_token_budget: int
+    note_length: int
     pomodoro_work_min: int
     pomodoro_break_min: int
     calendar_day_start_hour: int
@@ -49,6 +50,7 @@ class SettingsOut(BaseModel):
             ollama_enabled=settings.ollama_enabled,
             gemini_model=settings.gemini_model,
             per_document_token_budget=settings.per_document_token_budget,
+            note_length=settings.note_length,
             pomodoro_work_min=settings.pomodoro_work_min,
             pomodoro_break_min=settings.pomodoro_break_min,
             calendar_day_start_hour=settings.calendar_day_start_hour,
@@ -78,6 +80,8 @@ class SettingsUpdate(BaseModel):
     gemini_model: GeminiModel | None = None
     # 0 = automatic ceiling (estimate × factor); a positive value is a flat cap.
     per_document_token_budget: int | None = Field(default=None, ge=0)
+    # Notes length in "pages" (units of content) per topic; 1-10.
+    note_length: int | None = Field(default=None, ge=1, le=10)
     pomodoro_work_min: int | None = Field(default=None, ge=1, le=180)
     pomodoro_break_min: int | None = Field(default=None, ge=1, le=120)
     # Hourly Day-view window. end must exceed start; the calendar clamps too.

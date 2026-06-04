@@ -38,11 +38,28 @@ from backend.services.pipeline.ingestion import UPLOADS_DIR, get_chapter_markdow
 from backend.services.pipeline.structure import _clean_title, iter_atx_headings
 from backend.services.providers.base import ProviderResult
 from backend.services.providers.waterfall import Waterfall
+from backend.services.settings import get_settings
+
+# Notes "length" — how much notes content to generate per topic, in *pages*
+# (units of content). The user picks 1-10 in Settings (``Settings.note_length``);
+# the model is asked to aim for that many pages and to produce only what the
+# source genuinely supports when there isn't enough material (never pad/invent).
+MIN_NOTE_LENGTH = 1
+MAX_NOTE_LENGTH = 10
+DEFAULT_NOTE_LENGTH = 3
+# A "page" of notes ≈ this many words; drives the prompt's word target.
+WORDS_PER_PAGE = 300
 
 # Output cap — sized so one runaway generation can't burn quota (cost-strategy.md
-# "token budgets per call"). One call now carries both notes and the assessment,
-# so the cap is the sum of the old two (~2k notes + ~2k assessment). Tunable later.
-GENERATION_MAX_TOKENS = 4096
+# "token budgets per call"). One call carries both notes and the assessment. The
+# assessment half is roughly fixed; the notes half scales with the requested page
+# count so longer notes aren't truncated mid-page. These are *ceilings* — the
+# prompt drives the actual length. At the default 3 pages this is ~4k, matching
+# the previous flat cap.
+ASSESSMENT_OUTPUT_TOKENS = 2048
+NOTES_OUTPUT_TOKENS_PER_PAGE = 650
+# Back-compat default (3 pages); callers can still pass an explicit ``max_tokens``.
+GENERATION_MAX_TOKENS = ASSESSMENT_OUTPUT_TOKENS + DEFAULT_NOTE_LENGTH * NOTES_OUTPUT_TOKENS_PER_PAGE
 # Exam mode drops notes but asks for ~10-15 MCQs + ~10-15 flashcards (denser
 # practice), so it needs more output headroom than the notes+5-10-each study call.
 EXAM_GENERATION_MAX_TOKENS = 6144
@@ -54,11 +71,32 @@ EXAM_GENERATION_MAX_TOKENS = 6144
 # the safety net for documents whose markdown has no headings to slice by —
 # scanned/slide PDFs, or topics renamed during review. ~8k chars ≈ 2k tokens.
 SOURCE_MAX_CHARS = 8000
+# More requested note pages pull a larger slice of the topic's source so the
+# model has enough material to expand into longer notes; fewer pages need less
+# context (cheaper). Scales with ``note_length`` and is bounded both ways so the
+# dominant (input) cost stays in check. At the default 3 pages this is ~7.8k,
+# matching the previous flat ``SOURCE_MAX_CHARS`` cap.
+SOURCE_CHARS_PER_PAGE = 2600
 # A little context carried across proportional-slice boundaries so a topic isn't
 # cut off mid-paragraph when there are no headings to slice on.
 SOURCE_OVERLAP_CHARS = 400
 
 SourceLoader = Callable[[Session, Topic], str]
+
+
+def clamp_note_length(note_length: int) -> int:
+    """Clamp a requested note length into the supported 1-10 page range."""
+    return max(MIN_NOTE_LENGTH, min(MAX_NOTE_LENGTH, note_length))
+
+
+def study_max_tokens(note_length: int) -> int:
+    """Output-token ceiling for a study generation call at this note length."""
+    return ASSESSMENT_OUTPUT_TOKENS + clamp_note_length(note_length) * NOTES_OUTPUT_TOKENS_PER_PAGE
+
+
+def source_cap_for(note_length: int) -> int:
+    """Per-call source (input) character ceiling for this note length."""
+    return clamp_note_length(note_length) * SOURCE_CHARS_PER_PAGE
 
 
 class TopicSourceUnavailableError(Exception):
@@ -122,15 +160,26 @@ def build_generation_prompt(
     source_text: str,
     *,
     mode: DocumentMode = DocumentMode.study,
+    note_length: int = DEFAULT_NOTE_LENGTH,
 ) -> str:
     """Prompt for the single generation call, grounded in the topic's source.
 
     In ``study`` mode this asks for notes + an aligned assessment in one JSON
-    object so the notes never have to be re-sent as context for a second call. In
-    ``exam`` mode (the Exam Prep section) it drops notes entirely and asks for a
-    denser assessment. The shape is spelled out inline so providers without native
-    JSON-schema support still return the right structure.
+    object so the notes never have to be re-sent as context for a second call;
+    ``note_length`` (1-10 pages) sets how much notes content to aim for. In
+    ``exam`` mode (the Exam Prep section) it drops notes entirely (``note_length``
+    is ignored) and asks for a denser assessment. The shape is spelled out inline
+    so providers without native JSON-schema support still return the right
+    structure.
     """
+    pages = clamp_note_length(note_length)
+    words = pages * WORDS_PER_PAGE
+    length_rule = (
+        f"  * Length: aim for about {pages} page{'s' if pages != 1 else ''} of "
+        f"notes (~{words} words). If the source doesn't contain enough material "
+        "for that, write only what the source genuinely supports — never pad, "
+        "repeat, or invent content to reach the target.\n"
+    )
     if mode is DocumentMode.exam:
         return (
             "You are an expert engineering tutor preparing a student for an exam. "
@@ -162,6 +211,7 @@ def build_generation_prompt(
         "- notes_md: Well-structured Markdown notes covering the key concepts, "
         "definitions, and formulas; concise but complete; do not invent material "
         "the source does not support. Formatting rules (follow exactly):\n"
+        f"{length_rule}"
         "  * Organise with `##` and `###` headings and short paragraphs; separate "
         "every heading, paragraph, and list with a blank line.\n"
         "  * Use `-` bullet lists for enumerations and key points; use numbered "
@@ -197,7 +247,9 @@ def get_or_create_ai_note(session: Session, topic: Topic) -> Note:
     return note
 
 
-def load_topic_source(session: Session, topic: Topic) -> str:
+def load_topic_source(
+    session: Session, topic: Topic, *, max_chars: int = SOURCE_MAX_CHARS
+) -> str:
     """Slice the topic's source markdown.
 
     Outline-backed chapter (``page_start`` set) → **lazy per-chapter markdown**:
@@ -205,6 +257,9 @@ def load_topic_source(session: Session, topic: Topic) -> str:
     within that chapter — so a 700-page book never loads the whole document for one
     topic. Otherwise (slide decks / headingless / no outline) → the existing
     whole-document path: topic section → chapter section → proportional slice.
+
+    ``max_chars`` hard-caps the returned text (the dominant input-cost lever); it
+    scales with the requested note length so longer notes get more context.
     """
     chapter = session.get(Chapter, topic.chapter_id)
     document = session.get(Document, chapter.document_id) if chapter else None
@@ -216,7 +271,9 @@ def load_topic_source(session: Session, topic: Topic) -> str:
         and chapter.page_start is not None
         and chapter.page_end is not None
     ):
-        return _load_chapter_scoped_source(session, document, chapter, topic)
+        return _load_chapter_scoped_source(
+            session, document, chapter, topic, max_chars=max_chars
+        )
 
     if not document.markdown_path:
         raise TopicSourceUnavailableError(topic.id)
@@ -227,11 +284,11 @@ def load_topic_source(session: Session, topic: Topic) -> str:
 
     section = slice_section(markdown, topic.title)
     if section:
-        return _cap_source(section)
+        return _cap_source(section, max_chars=max_chars)
     if chapter is not None:
         section = slice_section(markdown, chapter.title)
         if section:
-            return _cap_source(section)
+            return _cap_source(section, max_chars=max_chars)
     # No heading matched the topic or its chapter — e.g. a headingless PDF
     # (scanned/slide decks, or markitdown output with no ATX structure) or a
     # topic renamed during review. Returning the WHOLE document here made every
@@ -239,11 +296,18 @@ def load_topic_source(session: Session, topic: Topic) -> str:
     # 14k-token doc cost ~180k input tokens). Give the topic its proportional
     # contiguous slice instead — see DECISIONS in docs/build-log.md.
     ordered = _ordered_topic_ids(session, document)
-    return _cap_source(_proportional_window(ordered, topic.id, markdown))
+    return _cap_source(
+        _proportional_window(ordered, topic.id, markdown), max_chars=max_chars
+    )
 
 
 def _load_chapter_scoped_source(
-    session: Session, document: Document, chapter: Chapter, topic: Topic
+    session: Session,
+    document: Document,
+    chapter: Chapter,
+    topic: Topic,
+    *,
+    max_chars: int = SOURCE_MAX_CHARS,
 ) -> str:
     """Source for a topic in an outline-backed chapter, scoped to that chapter.
 
@@ -264,9 +328,11 @@ def _load_chapter_scoped_source(
     )
     section = slice_section(chapter_md, topic.title)
     if section:
-        return _cap_source(section)
+        return _cap_source(section, max_chars=max_chars)
     ordered = _ordered_chapter_topic_ids(session, chapter)
-    return _cap_source(_proportional_window(ordered, topic.id, chapter_md))
+    return _cap_source(
+        _proportional_window(ordered, topic.id, chapter_md), max_chars=max_chars
+    )
 
 
 def _cap_source(text: str, *, max_chars: int = SOURCE_MAX_CHARS) -> str:
@@ -502,11 +568,17 @@ def parse_more_flashcards(text: str) -> list[ParsedFlashcard]:
     return cards
 
 
+def _resolve_note_length(session: Session) -> int:
+    """The user's configured notes length (1-10 pages), clamped."""
+    return clamp_note_length(get_settings(session).note_length)
+
+
 def make_generation_processor(
     waterfall: Waterfall,
     *,
     source_loader: SourceLoader = load_topic_source,
-    max_tokens: int = GENERATION_MAX_TOKENS,
+    note_length: int | None = None,
+    max_tokens: int | None = None,
     exam_max_tokens: int = EXAM_GENERATION_MAX_TOKENS,
 ) -> Callable[[QueueJob, Session], ProviderResult]:
     """Build the queue ``StageProcessor`` for the consolidated generation stage.
@@ -517,17 +589,33 @@ def make_generation_processor(
     Prep section) the call is assessment-only: no Note is written, just MCQs +
     flashcards. Either way the rows are added uncommitted; the queue commits the
     whole stage atomically.
+
+    ``note_length`` (1-10 pages) sets how much notes content to generate and scales
+    both the per-call source window and the output-token ceiling; ``None`` reads it
+    from ``Settings`` per job so a change in Settings takes effect on the next job
+    without rebuilding the processor. ``max_tokens`` overrides the computed study
+    ceiling when given.
     """
 
     def process(job: QueueJob, session: Session) -> ProviderResult:
         topic = session.get(Topic, job.topic_id)
         mode = topic_document_mode(session, topic)
         is_exam = mode is DocumentMode.exam
-        source = source_loader(session, topic)
-        prompt = build_generation_prompt(topic.title, source, mode=mode)
+        length = note_length if note_length is not None else _resolve_note_length(session)
+        # Exam mode has no notes, so its source window stays at the fixed default;
+        # study mode scales the window with the requested note length.
+        if source_loader is load_topic_source:
+            cap = SOURCE_MAX_CHARS if is_exam else source_cap_for(length)
+            source = source_loader(session, topic, max_chars=cap)
+        else:
+            source = source_loader(session, topic)
+        prompt = build_generation_prompt(
+            topic.title, source, mode=mode, note_length=length
+        )
+        study_cap = max_tokens if max_tokens is not None else study_max_tokens(length)
         result = waterfall.generate(
             prompt,
-            max_tokens=exam_max_tokens if is_exam else max_tokens,
+            max_tokens=exam_max_tokens if is_exam else study_cap,
             response_schema=EXAM_GENERATION_SCHEMA if is_exam else GENERATION_SCHEMA,
         )
         parsed = parse_generation(result.text, require_notes=not is_exam)

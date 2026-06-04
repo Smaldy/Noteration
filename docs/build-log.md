@@ -1433,6 +1433,33 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
      only; finished excluded, pausing brings it back). Tree green: backend **441
      passed**, `tsc -b` + `npm run build` clean.
 
+- **Note generation length (DONE, user-requested).** A Settings control for how
+  much notes content the AI generates per topic — 1 to 10 "pages" (units of
+  content, ~300 words each). New `Settings.note_length` (default **3**; migration
+  `a7b8c9d0e1f2`, `server_default '3'` backfills the singleton; applied to live DB,
+  `alembic check` clean). Schema validates 1-10 (`SettingsUpdate.note_length`
+  `ge=1, le=10`); `SettingsOut` carries it. `generation.py`: `build_generation_prompt`
+  gained a `note_length` arg that adds an explicit length rule to the study notes
+  prompt ("aim for about N page(s) (~N×300 words); if the source doesn't contain
+  enough material, write only what it genuinely supports — never pad, repeat, or
+  invent" → the "do what you can" guarantee). Two derived knobs scale with the
+  setting so the full 1-10 range is real, not just prompt text: `study_max_tokens`
+  (output ceiling = 2048 assessment + N×650 notes — at the default 3 this is ~4k,
+  matching the previous flat cap) and `source_cap_for` (per-call source input
+  window = N×2600 chars, so longer notes pull more context; ~7.8k at the default,
+  matching the old `SOURCE_MAX_CHARS`). `load_topic_source` (+ the chapter-scoped
+  path) takes an optional `max_chars`; the generation processor resolves
+  `note_length` from `Settings` **per job** (no waterfall-cache fingerprint needed
+  — a change takes effect on the next job) and threads the scaled source cap +
+  output cap. **Exam mode is unaffected** (no notes; its source window stays at the
+  fixed 8000-char default). Frontend: a "Note generation" Settings section with a
+  1-10 slider (Brief → Detailed) + the page/word explanation; wired through
+  `FormState`/`toForm`/save and `types/settings.ts`. +9 tests (settings default/
+  set/range-422; prompt states + clamps the page target; output/source scaling;
+  `load_topic_source` honours `max_chars`; processor uses the configured length).
+  Tree green: backend **448 passed** (3 pre-existing date-sensitive calendar/study
+  failures unrelated to this work), `tsc -b` + `npm run build` clean.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the
@@ -1681,6 +1708,18 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   last logged generation provider) can race and log a slightly off switch. The audit
   log is non-critical (every generation is still recorded), so this is accepted
   rather than serialized — recording never blocks or breaks a drain.
+- **Note length scales prompt + caps, resolved per job (Note generation length).**
+  Making the 1-10 setting *real* (not just a prompt hint) means the output-token
+  ceiling and the source-input window both scale with it — otherwise the upper half
+  of the slider would be inert (truncated output, or too little source to expand).
+  Defaults are tuned so `note_length=3` reproduces the previous flat caps (~4k
+  output, ~8k source), so existing behaviour is unchanged for anyone who never
+  touches the slider. The generation processor reads `Settings.note_length` per job
+  rather than threading it through the worker's waterfall cache: notes length isn't
+  a provider-identity concern (no limiter state), so a per-job `get_settings` read
+  is the cheapest correct option and makes a change take effect on the next job with
+  no rebuild. Exam mode (no notes) keeps the fixed source window so its assessment
+  cost is unaffected.
 
 ## BLOCKED
 

@@ -33,6 +33,11 @@ class Settings(Base):
     # 0 = automatic budget (estimate × overspend factor); a positive value is a
     # flat ceiling. See services/queue.py.
     per_document_token_budget: Mapped[int] = mapped_column(default=0)
+    # How much notes content to generate per topic, in "pages" (units of content,
+    # ~300 words each). 1-10; the model is asked to aim for this many pages and to
+    # produce only what the source supports when there isn't enough material. See
+    # services/pipeline/generation.py.
+    note_length: Mapped[int] = mapped_column(default=3)
     pomodoro_work_min: Mapped[int] = mapped_column(default=25)
     pomodoro_break_min: Mapped[int] = mapped_column(default=5)
     # Calendar hourly Day view: the visible hour window [start, end) and the slot

@@ -13,12 +13,16 @@ from backend.models.enums import QueueStage, QueueState
 from backend.models.processing import QueueJob
 from backend.services.pipeline.generation import (
     GENERATION_SCHEMA,
+    SOURCE_CHARS_PER_PAGE,
     TopicSourceUnavailableError,
     build_generation_prompt,
     load_topic_source,
     make_generation_processor,
     slice_section,
+    source_cap_for,
+    study_max_tokens,
 )
+from backend.services.settings import update_settings
 from backend.services.queue import JobOutcome, QueueService
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
@@ -183,6 +187,55 @@ def test_build_generation_prompt_includes_title_and_source() -> None:
     assert "Velocity is rate of change." in prompt
     assert "JSON" in prompt  # asks for one combined JSON object
     assert "flashcards" in prompt
+
+
+# --- notes length (pages of content per topic) ------------------------------
+
+
+def test_build_generation_prompt_states_the_page_target() -> None:
+    one = build_generation_prompt("Kinematics", "src", note_length=1)
+    assert "1 page" in one  # singular
+    ten = build_generation_prompt("Kinematics", "src", note_length=10)
+    assert "10 pages" in ten
+    assert "3000 words" in ten  # 10 * WORDS_PER_PAGE
+    # The "do what you can" guarantee is spelled out so the model never pads.
+    assert "never pad" in ten
+
+
+def test_note_length_clamped_in_prompt() -> None:
+    # Out-of-range values are clamped, not echoed verbatim.
+    assert "10 pages" in build_generation_prompt("T", "s", note_length=99)
+    assert "1 page" in build_generation_prompt("T", "s", note_length=-5)
+
+
+def test_study_max_tokens_and_source_cap_scale_with_length() -> None:
+    assert study_max_tokens(1) < study_max_tokens(3) < study_max_tokens(10)
+    assert source_cap_for(1) < source_cap_for(3) < source_cap_for(10)
+    assert source_cap_for(5) == 5 * SOURCE_CHARS_PER_PAGE
+
+
+def test_load_topic_source_respects_max_chars(session: Session, tmp_path: Path) -> None:
+    # A larger cap returns more of a headingless doc than a smaller one.
+    [topic] = _seed_headingless(session, tmp_path, ["Only topic"])
+    small = load_topic_source(session, topic, max_chars=2000)
+    large = load_topic_source(session, topic, max_chars=12000)
+    assert len(small) <= 2000
+    assert len(large) > len(small)
+
+
+def test_generation_processor_uses_configured_note_length(
+    session: Session, tmp_path: Path
+) -> None:
+    # The processor reads Settings.note_length per job and scales the output cap.
+    update_settings(session, {"note_length": 9})
+    queue, job = _gen_job(session, tmp_path)
+    provider = MockProvider("gemini_free", text=_GEN_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    outcome = queue.process_job(job, processor)
+
+    assert outcome is JobOutcome.done
+    assert provider.last_max_tokens == study_max_tokens(9)
 
 
 # --- the consolidated StageProcessor via the real queue ---------------------

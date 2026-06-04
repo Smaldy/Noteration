@@ -55,6 +55,7 @@ class MockProvider(Provider):
         self.generate_calls = 0
         self.transcribe_calls = 0
         self.last_response_schema: dict[str, Any] | None = None
+        self.last_max_tokens: int | None = None
 
     def budget_probe(self) -> BudgetProbe:
         return BudgetProbe(
@@ -74,6 +75,7 @@ class MockProvider(Provider):
     ) -> ProviderResult:
         self.generate_calls += 1
         self.last_response_schema = response_schema
+        self.last_max_tokens = max_tokens
         if self.raises is not None:
             raise self.raises
         return self._result()
