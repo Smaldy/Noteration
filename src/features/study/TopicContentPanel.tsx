@@ -100,7 +100,11 @@ export function TopicContentPanel({
 
         {!isExam && (
           <TabsContent value="notes">
-            <NotesTab topicId={content.id} notes={content.notes} />
+            <NotesTab
+              topicId={content.id}
+              notes={content.notes}
+              generatedBy={content.generated_by}
+            />
           </TabsContent>
         )}
         <TabsContent value="quiz">

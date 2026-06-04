@@ -8,6 +8,7 @@ import { ExamPracticePage } from "@/features/exam/ExamPracticePage";
 import { ExamPrepPage } from "@/features/exam/ExamPrepPage";
 import { LibraryPage } from "@/features/library/LibraryPage";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
+import { ProviderBadge } from "@/features/queue/ProviderBadge";
 import { QueuePage } from "@/features/queue/QueuePage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { StudyPage } from "@/features/study/StudyPage";
@@ -51,7 +52,8 @@ export default function App() {
           </Routes>
         </motion.div>
       </AnimatePresence>
-      {/* Persistent across routes — the timer keeps running as you navigate. */}
+      {/* Persistent across routes — always-visible status + the running timer. */}
+      <ProviderBadge />
       <PomodoroWidget />
     </>
   );

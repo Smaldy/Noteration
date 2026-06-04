@@ -77,6 +77,8 @@ export interface TopicContent {
   status: TopicStatus;
   studied: boolean;
   bookmarked: boolean;
+  /** Provider that generated this topic's AI content (in-view provenance), or null. */
+  generated_by: string | null;
   notes: Note[];
   mcqs: MCQ[];
   flashcards: FlashcardContent[];

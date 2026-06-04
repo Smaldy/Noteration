@@ -1,23 +1,45 @@
 import { AlertCircle, ArrowLeft, Clock, RotateCw } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useLanesStore } from "@/stores/lanes";
 import { useQueueStore } from "@/stores/queue";
+import { HistoryView } from "./HistoryView";
+import { LaneCard } from "./LaneCard";
+import { ProviderStrip } from "./ProviderStrip";
 
 const POLL_MS = 5000;
 
 export function QueuePage() {
   const navigate = useNavigate();
-  const { status, loadState, error, retrying, fetchStatus, retryTopic } =
-    useQueueStore();
+  const [tab, setTab] = useState("lanes");
+
+  const { status, error, retrying, fetchStatus, retryTopic } = useQueueStore();
+  const lanes = useLanesStore((s) => s.status);
+  const history = useLanesStore((s) => s.history);
+  const busy = useLanesStore((s) => s.busy);
+  const fetchLanes = useLanesStore((s) => s.fetchLanes);
+  const fetchHistory = useLanesStore((s) => s.fetchHistory);
+  const pauseLane = useLanesStore((s) => s.pauseLane);
+  const resumeLane = useLanesStore((s) => s.resumeLane);
+  const setOvernight = useLanesStore((s) => s.setOvernight);
 
   useEffect(() => {
-    void fetchStatus();
-    const timer = setInterval(() => void fetchStatus(), POLL_MS);
+    const tick = () => {
+      void fetchStatus();
+      void fetchLanes();
+      void fetchHistory();
+    };
+    tick();
+    const timer = setInterval(tick, POLL_MS);
     return () => clearInterval(timer);
-  }, [fetchStatus]);
+  }, [fetchStatus, fetchLanes, fetchHistory]);
+
+  const totalReady = status?.ready ?? 0;
+  const totalQueued = status?.queued ?? 0;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -32,59 +54,77 @@ export function QueuePage() {
 
       <h1 className="text-3xl font-bold tracking-tight">Processing queue</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Topics generate in the background within free-tier budgets. Study what&apos;s
-        ready now — the rest keeps going.
+        Each subject runs its own lane — pause one to hand its model to another. Study
+        what&apos;s ready now; the rest keeps going on free tiers.
       </p>
 
-      {loadState === "loading" && status === null && (
-        <p className="mt-8 text-sm text-muted-foreground">Loading…</p>
-      )}
-      {loadState === "error" && status === null && (
-        <p className="mt-8 text-sm text-destructive">{error}</p>
-      )}
+      <Tabs value={tab} onValueChange={setTab} className="mt-6">
+        <TabsList>
+          <TabsTrigger value="lanes">Lanes</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
 
-      {status && (
-        <>
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Ready" value={status.ready} tone="ready" />
-            <Stat label="Processing" value={status.processing} tone="processing" />
-            <Stat label="Queued" value={status.queued} tone="queued" />
-            <Stat label="Errored" value={status.error} tone="error" />
-          </div>
-
-          {status.resume_at && (
-            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-              <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
-              <div className="min-w-0">
-                <p>{formatResume(status.resume_at)}</p>
-                {status.paused_reason && (
-                  <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
-                    Provider said: {status.paused_reason}
-                  </p>
-                )}
-              </div>
-            </div>
+        <TabsContent value="lanes" className="mt-5 space-y-5">
+          {lanes && lanes.providers.length > 0 && (
+            <ProviderStrip providers={lanes.providers} active={lanes.active_provider} />
           )}
 
-          {status.budget_paused && (
-            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-              <div className="min-w-0">
-                <p>
-                  A document hit its token budget
-                  {status.token_budget > 0 &&
-                    ` (~${status.token_spent.toLocaleString()} / ${status.token_budget.toLocaleString()} tokens)`}{" "}
-                  and is paused to protect your quota.
+          {/* Global never-zero-result summary. */}
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-emerald-600">{totalReady} ready</span> ·{" "}
+            {totalQueued} queued
+            {status?.resume_at && ` · ${resumeSummary(status.resume_at)}`}
+          </p>
+
+          {status?.resume_at && (
+            <Banner tone="amber" icon={<Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />}>
+              <p>{formatResume(status.resume_at)}</p>
+              {status.paused_reason && (
+                <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                  Provider said: {status.paused_reason}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Raise the per-document token budget in Settings to continue.
-                </p>
-              </div>
-            </div>
+              )}
+            </Banner>
           )}
 
-          {status.errors.length > 0 && (
-            <section className="mt-8">
+          {status?.budget_paused && (
+            <Banner tone="amber" icon={<AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />}>
+              <p>
+                A document hit its token budget
+                {status.token_budget > 0 &&
+                  ` (~${status.token_spent.toLocaleString()} / ${status.token_budget.toLocaleString()} tokens)`}{" "}
+                and is paused to protect your quota.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Raise the per-document token budget in Settings to continue.
+              </p>
+            </Banner>
+          )}
+
+          {lanes && lanes.lanes.length > 0 ? (
+            <ul className="space-y-3">
+              {lanes.lanes.map((lane) => (
+                <LaneCard
+                  key={lane.subject_id}
+                  lane={lane}
+                  busy={busy === lane.subject_id}
+                  onPauseToggle={() =>
+                    void (lane.queue_state === "paused"
+                      ? resumeLane(lane.subject_id)
+                      : pauseLane(lane.subject_id))
+                  }
+                  onOvernightToggle={(v) => void setOvernight(lane.subject_id, v)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {error ?? "Nothing in the queue yet. Upload a document to get started."}
+            </p>
+          )}
+
+          {status && status.errors.length > 0 && (
+            <section>
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <AlertCircle className="size-4 text-destructive" />
                 Needs attention
@@ -98,9 +138,7 @@ export function QueuePage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{item.title}</p>
                       {item.last_error && (
-                        <p className="truncate text-xs text-muted-foreground">
-                          {item.last_error}
-                        </p>
+                        <p className="truncate text-xs text-muted-foreground">{item.last_error}</p>
                       )}
                     </div>
                     <Button
@@ -109,9 +147,7 @@ export function QueuePage() {
                       onClick={() => void retryTopic(item.topic_id)}
                       disabled={retrying === item.topic_id}
                     >
-                      <RotateCw
-                        className={cn(retrying === item.topic_id && "animate-spin")}
-                      />
+                      <RotateCw className={cn(retrying === item.topic_id && "animate-spin")} />
                       Retry
                     </Button>
                   </li>
@@ -119,49 +155,50 @@ export function QueuePage() {
               </ul>
             </section>
           )}
+        </TabsContent>
 
-          {status.total === 0 && (
-            <p className="mt-8 text-sm text-muted-foreground">
-              Nothing in the queue yet. Upload a document to get started.
-            </p>
-          )}
-        </>
-      )}
+        <TabsContent value="history" className="mt-5">
+          <HistoryView events={history} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-const TONES: Record<string, string> = {
-  ready: "text-emerald-600",
-  processing: "text-sky-600",
-  queued: "text-muted-foreground",
-  error: "text-destructive",
-};
-
-function Stat({
-  label,
-  value,
+function Banner({
   tone,
+  icon,
+  children,
 }: {
-  label: string;
-  value: number;
-  tone: keyof typeof TONES;
+  tone: "amber";
+  icon: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border p-4">
-      <p className={cn("text-2xl font-semibold", TONES[tone])}>{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div
+      className={cn(
+        "flex items-start gap-2 rounded-lg border p-3 text-sm",
+        tone === "amber" && "border-amber-500/30 bg-amber-500/5",
+      )}
+    >
+      {icon}
+      <div className="min-w-0">{children}</div>
     </div>
   );
+}
+
+function resumeSummary(iso: string): string {
+  const time = new Date(iso).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `resuming ~${time}`;
 }
 
 function formatResume(iso: string): string {
   const when = new Date(iso);
   const minutes = Math.max(0, Math.round((when.getTime() - Date.now()) / 60000));
-  const time = when.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   if (minutes <= 0) return `Resuming shortly (around ${time}).`;
   return `A provider quota is cooling — resuming around ${time} (~${minutes} min).`;
 }

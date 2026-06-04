@@ -1227,6 +1227,40 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
     HTTP lanes/controls/history + 404; HistoryEvent SET-NULL survives subject delete.
     Tree green: full suite **404 passed**.
 
+- **Wave D — frontend surfaces (DONE, user-directed; `frontend-design`).** Built
+  within the existing design system (Montserrat/Plus Jakarta Sans, accent-derived
+  palette, framer-motion, shadcn) so the new chrome reads as one product.
+  - **D13 — persistent active-provider badge** (`features/queue/ProviderBadge.tsx`,
+    mounted in `App` top-right alongside the Pomodoro widget). Polls `/queue/lanes`
+    every 10s; shows the active provider tier-colored (green free · amber local · red
+    paid via the shared `lib/providers.ts`); on a failover the label cross-fades and
+    the dot **pulses**. On idle it shows the last known provider (backend
+    `active_provider` = last generation provider).
+  - **D14 — in-view provider stamp.** Backend exposes `TopicContentOut.generated_by`
+    (the notes-stage `QueueJob.assigned_provider`, real provider only — formula
+    no-ops excluded). `NotesTab` mirrors the `manual`-tag pattern: an AI note shows
+    the generating model on hover (tier dot + short name), same placement/styling.
+  - **D15 — lane-aware Queue screen** (`QueuePage` + `LaneCard` + `ProviderStrip`).
+    A **Lanes** tab: the cheapest-first waterfall strip with per-provider state
+    (active / cooling / disabled), the global "X ready · Y queued · resuming ~HH:MM"
+    summary + cooling/budget banners, and one **card per subject lane** — state-tinted
+    spine (running/overnight/waiting/paused), the four counts, active provider or
+    "waiting for <provider>", resume countdown, a **pause/resume** toggle (Steam
+    hand-off) and an **overnight** switch — plus the global "needs attention" errored-
+    topic list with per-topic retry. `stores/lanes.ts` (poll + pause/resume/overnight),
+    `types/lanes.ts`.
+  - **D16 — history view.** A **History** tab in the same screen: a timeline reading
+    `/queue/history` — provider switches (from→to + timestamp) and per-topic
+    generations (topic · subject · provider · seconds). Replaces notifications.
+  - Tree green: backend **405 passed** (+ `generated_by` provenance test), `npm run
+    build` clean (tsc + vite).
+  - **Deferred polish (logged):** per-queued-topic reorder/repriority and "regenerate
+    on a better provider" (need additional backend: a regenerate endpoint + a
+    provider-rank comparison) — the core lane controls, retry, badge, stamp, and
+    history are delivered. The badge uses the global most-recent provider rather than
+    the open Study View's subject provider (the queue screen shows the full per-lane
+    breakdown), per the cheapest-honest reading of point 13.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

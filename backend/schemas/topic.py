@@ -100,6 +100,9 @@ class TopicContentOut(BaseModel):
     status: TopicStatus
     studied: bool
     bookmarked: bool
+    # The provider that generated this topic's AI content (the in-view provenance
+    # stamp), from the notes-stage QueueJob; None for manual/ungenerated topics.
+    generated_by: str | None = None
     notes: list[NoteOut]
     mcqs: list[MCQOut]
     flashcards: list[FlashcardOut]

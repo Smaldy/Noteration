@@ -117,6 +117,35 @@ def test_get_topic_content_unknown_raises(session: Session) -> None:
         topicsvc.get_topic_content(session, 999)
 
 
+def test_topic_content_stamps_generating_provider(session: Session) -> None:
+    from backend.models import QueueJob
+    from backend.models.enums import QueueStage
+
+    _, topic_id = _seed_document(session)
+    subject_id = session.get(Topic, topic_id).chapter.subject_id
+    # The notes stage ran on Gemini; the formula stage was a no-op ("none").
+    session.add_all(
+        [
+            QueueJob(
+                topic_id=topic_id,
+                subject_id=subject_id,
+                stage=QueueStage.notes,
+                assigned_provider="gemini_free",
+            ),
+            QueueJob(
+                topic_id=topic_id,
+                subject_id=subject_id,
+                stage=QueueStage.formula,
+                assigned_provider="none",
+            ),
+        ]
+    )
+    session.commit()
+
+    topic = topicsvc.get_topic_content(session, topic_id)
+    assert topic.generated_by == "gemini_free"  # real provider, not the formula no-op
+
+
 # --- HTTP tests (shared in-memory DB via StaticPool) ------------------------
 
 

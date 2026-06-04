@@ -7,8 +7,9 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.models import Flashcard, Formula, MCQ, Note, Topic
-from backend.services.pipeline.formula import transcribe_pending_formulas
+from backend.models import Flashcard, Formula, MCQ, Note, QueueJob, Topic
+from backend.models.enums import QueueStage
+from backend.services.pipeline.formula import NO_OP_PROVIDER, transcribe_pending_formulas
 from backend.services.pipeline.generation import (
     GENERATE_MORE_MAX_TOKENS,
     MORE_FLASHCARDS_SCHEMA,
@@ -65,7 +66,20 @@ def get_topic_content(session: Session, topic_id: int) -> Topic:
     ).scalar_one_or_none()
     if topic is None:
         raise TopicNotFoundError(topic_id)
+    # Transient provenance stamp (point 14): which provider generated this topic.
+    topic.generated_by = _generating_provider(session, topic_id)
     return topic
+
+
+def _generating_provider(session: Session, topic_id: int) -> str | None:
+    """The provider that ran this topic's generation (notes) stage, if any real one."""
+    provider = session.scalar(
+        select(QueueJob.assigned_provider).where(
+            QueueJob.topic_id == topic_id,
+            QueueJob.stage == QueueStage.notes,
+        )
+    )
+    return provider if provider and provider != NO_OP_PROVIDER else None
 
 
 def transcribe_formulas(session: Session, topic_id: int) -> list[Formula]:
