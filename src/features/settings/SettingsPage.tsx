@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   Check,
   KeyRound,
+  Minus,
   Palette,
+  Plus,
   RotateCcw,
   Sparkles,
   Timer,
@@ -330,15 +332,12 @@ export function SettingsPage() {
               onChange={(v) => set("ollama_enabled", v)}
             />
             <Field label="Per-document token budget">
-              <Input
-                type="number"
+              <NumberField
                 min={0}
                 step={1000}
                 value={form.per_document_token_budget}
-                onChange={(e) =>
-                  set("per_document_token_budget", Math.max(0, Number(e.target.value)))
-                }
-                className="w-40"
+                onChange={(v) => set("per_document_token_budget", v)}
+                className="w-44"
               />
               <p className="text-xs text-muted-foreground">
                 Safety cap: a document is paused if it spends more than this many
@@ -350,23 +349,21 @@ export function SettingsPage() {
           <Section id="pomodoro" icon={Timer} title="Pomodoro" delay={160}>
             <div className="flex flex-wrap gap-6">
               <Field label="Work minutes">
-                <Input
-                  type="number"
+                <NumberField
                   min={1}
                   max={180}
                   value={form.pomodoro_work_min}
-                  onChange={(e) => set("pomodoro_work_min", Number(e.target.value))}
-                  className="w-28"
+                  onChange={(v) => set("pomodoro_work_min", v)}
+                  className="w-32"
                 />
               </Field>
               <Field label="Break minutes">
-                <Input
-                  type="number"
+                <NumberField
                   min={1}
                   max={120}
                   value={form.pomodoro_break_min}
-                  onChange={(e) => set("pomodoro_break_min", Number(e.target.value))}
-                  className="w-28"
+                  onChange={(v) => set("pomodoro_break_min", v)}
+                  className="w-32"
                 />
               </Field>
             </div>
@@ -765,6 +762,92 @@ function Field({
       </div>
       {children}
     </div>
+  );
+}
+
+/** Refined numeric stepper: a − / value / + control that replaces the cheap,
+ *  unthemed native number-input spinners. Clamps to min/max and supports step. */
+function NumberField({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  className,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  className?: string;
+}) {
+  const clamp = (n: number) => {
+    if (Number.isNaN(n)) return min ?? 0;
+    let v = n;
+    if (min != null) v = Math.max(min, v);
+    if (max != null) v = Math.min(max, v);
+    return v;
+  };
+  const atMin = min != null && value <= min;
+  const atMax = max != null && value >= max;
+
+  return (
+    <div
+      className={cn(
+        "inline-flex h-9 items-stretch overflow-hidden rounded-lg border border-input bg-transparent shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring",
+        className,
+      )}
+    >
+      <StepButton
+        label="Decrease"
+        disabled={atMin}
+        onClick={() => onChange(clamp(value - step))}
+      >
+        <Minus className="size-3.5" />
+      </StepButton>
+      <input
+        type="number"
+        inputMode="numeric"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(clamp(Number(e.target.value)))}
+        className="w-full min-w-0 border-x border-input bg-transparent text-center text-sm tabular-nums outline-none"
+      />
+      <StepButton
+        label="Increase"
+        disabled={atMax}
+        onClick={() => onChange(clamp(value + step))}
+      >
+        <Plus className="size-3.5" />
+      </StepButton>
+    </div>
+  );
+}
+
+function StepButton({
+  children,
+  label,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode;
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground active:bg-secondary/70 disabled:pointer-events-none disabled:opacity-30"
+    >
+      {children}
+    </button>
   );
 }
 

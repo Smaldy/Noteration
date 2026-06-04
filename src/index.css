@@ -100,6 +100,18 @@
   * {
     border-color: var(--border);
   }
+
+  /* Remove the native number-input spinners app-wide — they ignore the theme
+     and look cheap. Numeric controls get a custom − / + stepper instead. */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
   html {
     scroll-behavior: smooth;
   }
@@ -495,8 +507,11 @@ input[type="range"].app-range:focus-visible {
     background 0.15s ease,
     color 0.15s ease;
 }
-/* Today reads as a single filled badge rather than a tinted whole cell. */
-.fc .fc-day-today {
+/* Today reads as a single filled badge rather than a tinted whole cell. The
+   `:not(.fc-popover)` guard matters: FullCalendar copies the day's classes onto
+   the "+N more" popover, so without it this !important wash made the popover
+   near-transparent and the cell behind it bled through. */
+.fc .fc-day-today:not(.fc-popover) {
   background: var(--fc-today-bg-color) !important;
 }
 .fc .fc-day-today .fc-daygrid-day-number {
@@ -667,6 +682,8 @@ input[type="range"].app-range:focus-visible {
   background: var(--popover);
   box-shadow: 0 16px 40px -16px rgb(0 0 0 / 0.3);
   overflow: hidden;
+  /* Never exceed the viewport: the header stays put and the body scrolls. */
+  max-width: min(18rem, calc(100vw - 1.5rem));
 }
 .fc .fc-popover-header {
   background: var(--muted);
@@ -676,6 +693,15 @@ input[type="range"].app-range:focus-visible {
   font-size: 0.8rem;
   padding: 0.5rem 0.7rem;
 }
+/* Cap the list so a day with many topics scrolls inside the popover instead of
+   growing taller than the screen (which pushed the top entries off-view). */
 .fc .fc-popover-body {
   padding: 0.4rem;
+  max-height: min(60vh, 18rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Chips fill the popover width and stack with even spacing. */
+.fc .fc-popover-body .fc-daygrid-event {
+  margin: 0.12rem 0;
 }
