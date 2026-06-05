@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Check, Sparkles, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
@@ -17,6 +18,7 @@ interface QuizTabProps {
 }
 
 export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -28,8 +30,8 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
       <div className="py-12 text-center">
         <p className="text-sm text-muted-foreground">
           {topicId != null
-            ? "No quiz questions yet for this topic."
-            : "No quiz questions here yet."}
+            ? t("study.quiz.emptyTopic")
+            : t("study.quiz.emptyPooled")}
         </p>
         {topicId != null && (
           <div className="mt-4 flex justify-center">
@@ -55,11 +57,13 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
           {correct} / {mcqs.length}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {correct === mcqs.length ? "Perfect!" : "Review the ones you missed."}
+          {correct === mcqs.length
+            ? t("study.quiz.perfect")
+            : t("study.quiz.reviewMissed")}
         </p>
         <div className="mt-6 flex items-center justify-center gap-2">
           <Button variant="outline" onClick={restart}>
-            Try again
+            {t("study.quiz.tryAgain")}
           </Button>
           {topicId != null && <GenerateMoreQuestions topicId={topicId} />}
         </div>
@@ -99,7 +103,10 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
         />
       </div>
       <p className="mb-1 text-xs text-muted-foreground">
-        Question {index + 1} of {mcqs.length}
+        {t("study.quiz.questionProgress", {
+          current: index + 1,
+          total: mcqs.length,
+        })}
       </p>
 
       <motion.div
@@ -151,7 +158,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
           {mcq.explanation ? (
             <p>{mcq.explanation}</p>
           ) : (
-            <p className="text-muted-foreground">No explanation provided.</p>
+            <p className="text-muted-foreground">{t("study.quiz.noExplanation")}</p>
           )}
         </div>
       )}
@@ -159,7 +166,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
       <div className="mt-6 flex items-center justify-between gap-2">
         {topicId != null ? <GenerateMoreQuestions topicId={topicId} /> : <span />}
         <Button onClick={next} disabled={!revealed}>
-          {index === mcqs.length - 1 ? "Finish" : "Next"}
+          {index === mcqs.length - 1 ? t("study.quiz.finish") : t("study.quiz.next")}
         </Button>
       </div>
     </div>
@@ -167,6 +174,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
 }
 
 function GenerateMoreQuestions({ topicId }: { topicId: number }) {
+  const { t } = useTranslation();
   const generateMore = useStudyStore((s) => s.generateMore);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +186,7 @@ function GenerateMoreQuestions({ topicId }: { topicId: number }) {
       await generateMore(topicId, "mcqs");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Couldn't generate more questions.",
+        err instanceof ApiError ? err.message : t("study.quiz.generateMoreError"),
       );
     } finally {
       setBusy(false);
@@ -189,7 +197,7 @@ function GenerateMoreQuestions({ topicId }: { topicId: number }) {
     <div className="flex flex-col items-start gap-1">
       <Button variant="ghost" size="sm" onClick={() => void run()} disabled={busy}>
         <Sparkles />
-        {busy ? "Generating…" : "Generate more questions"}
+        {busy ? t("study.quiz.generating") : t("study.quiz.generateMore")}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

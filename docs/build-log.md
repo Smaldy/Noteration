@@ -1523,6 +1523,25 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   **Next:** 3b Study view, 3c Settings, 3d Calendar + Queue, 3e Upload/Exam/
   Pomodoro/Bookmarks/Search.
 
+- **Multilingual support — Wave 3b (DONE, user-requested): Study view.** Added the
+  `study` locale namespace (+ shared `common.loading`/`common.library`) across
+  en/it/es and switched all Study-view components to `useTranslation`:
+  `StudyPage` (back-to-library link, loading/empty/“select a topic” states, delete-
+  topic `confirm`/`alert` with `{{title}}`), `StudySidebar` (combined-practice
+  block, per-chapter Quiz/Cards + titles, drag/delete a11y labels — also tidied
+  the old “Quiz this argument” → “…this chapter”), `TopicContentPanel` (Notes/Quiz/
+  Flashcards tab labels — counts kept outside the string — and the calendar/
+  fullscreen/Esc controls), `NotesTab` (empty/add/adding, formula-reconstruct with
+  i18next pluralization `reconstruct_one|_other` + `{{count}}`, manual/generated-by
+  badges, lock/unlock/edit/delete, empty-note placeholder, formula heading +
+  per-state badge via `study.notes.state.*` with raw-value fallback), `QuizTab`
+  (empty states, score/“Perfect!”, `{{current}}/{{total}}` progress, explanation
+  fallback, Finish/Next, generate-more), and `FlashcardsTab` (empty/deck-complete,
+  card progress, click-to-reveal, Incorrect/Skip/Correct, Front/Back faces,
+  generate-more). Tree green: `tsc -b` + `npm run build` clean (backend untouched,
+  **460 passed**). **Next:** 3c Settings, 3d Calendar + Queue, 3e Upload/Exam/
+  Pomodoro/Bookmarks/Search.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

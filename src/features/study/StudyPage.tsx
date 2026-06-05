@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useStudyStore } from "@/stores/study";
@@ -10,6 +11,7 @@ import { TopicContentPanel } from "./TopicContentPanel";
 export function StudyPage() {
   const { id, topicId } = useParams<{ id: string; topicId?: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const documentId = Number(id);
   const selectedTopicId = topicId ? Number(topicId) : null;
 
@@ -42,10 +44,7 @@ export function StudyPage() {
   }
 
   async function handleDeleteTopic(deleteId: number, title: string) {
-    const ok = window.confirm(
-      `Delete the topic "${title}" and its notes, quiz, and flashcards? ` +
-        `This can't be undone.`,
-    );
+    const ok = window.confirm(t("study.deleteTopicConfirm", { title }));
     if (!ok) return;
     try {
       await deleteTopic(deleteId, documentId);
@@ -54,7 +53,7 @@ export function StudyPage() {
         navigate(`/documents/${documentId}/study`);
       }
     } catch {
-      window.alert("Couldn't delete that topic. Please try again.");
+      window.alert(t("study.deleteTopicFailed"));
     }
   }
 
@@ -67,11 +66,11 @@ export function StudyPage() {
           className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Library
+          {t("common.library")}
         </button>
 
         {treeStatus === "loading" && (
-          <p className="px-2 text-sm text-muted-foreground">Loading…</p>
+          <p className="px-2 text-sm text-muted-foreground">{t("common.loading")}</p>
         )}
         {treeStatus === "error" && (
           <p className="px-2 text-sm text-destructive">{treeError}</p>
@@ -97,12 +96,12 @@ export function StudyPage() {
       <main className="min-w-0 flex-1">
         {selectedTopicId === null && (
           <p className="py-20 text-center text-sm text-muted-foreground">
-            Select a topic from the sidebar to start studying.
+            {t("study.selectTopic")}
           </p>
         )}
         {selectedTopicId !== null && contentStatus === "loading" && (
           <p className="py-20 text-center text-sm text-muted-foreground">
-            Loading topic…
+            {t("study.loadingTopic")}
           </p>
         )}
         {selectedTopicId !== null && contentStatus === "error" && (

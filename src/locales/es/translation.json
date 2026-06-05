@@ -1,6 +1,8 @@
 {
   "common": {
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "loading": "Cargando…",
+    "library": "Biblioteca"
   },
   "nav": {
     "examPrep": "Preparación de examen",
@@ -35,6 +37,89 @@
       "processing": "Procesando",
       "ready": "Listo",
       "error": "Error"
+    }
+  },
+  "study": {
+    "selectTopic": "Selecciona un tema de la barra lateral para empezar a estudiar.",
+    "loadingTopic": "Cargando tema…",
+    "deleteTopicConfirm": "¿Eliminar el tema \"{{title}}\" y sus apuntes, cuestionario y tarjetas? Esta acción no se puede deshacer.",
+    "deleteTopicFailed": "No se pudo eliminar el tema. Inténtalo de nuevo.",
+    "sidebar": {
+      "combinedPractice": "Práctica combinada",
+      "wholeSubject": "Asignatura completa",
+      "wholeDeck": "Documento completo",
+      "quiz": "Cuestionario",
+      "cards": "Tarjetas",
+      "quizChapter": "Cuestionario de este capítulo",
+      "flashcardsChapter": "Tarjetas de este capítulo",
+      "dragToReorder": "Arrastra para reordenar",
+      "deleteTopic": "Eliminar tema",
+      "deleteTopicAria": "Eliminar tema {{title}}"
+    },
+    "tabs": {
+      "notes": "Apuntes",
+      "quiz": "Cuestionario",
+      "flashcards": "Tarjetas",
+      "addToCalendar": "Añadir este tema al calendario",
+      "fullscreen": "Pantalla completa",
+      "enterFullscreen": "Activar pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
+      "exitFullscreenEsc": "Salir de pantalla completa (Esc)"
+    },
+    "notes": {
+      "empty": "Aún no hay apuntes para este tema — añade los tuyos abajo.",
+      "add": "Añadir apunte",
+      "adding": "Añadiendo…",
+      "reconstruct_one": "Reconstruir {{count}} fórmula",
+      "reconstruct_other": "Reconstruir {{count}} fórmulas",
+      "reconstructing": "Reconstruyendo…",
+      "reconstructError": "No se pudieron reconstruir las fórmulas — un proveedor de visión puede estar ocupado.",
+      "deleteBlockConfirm": "¿Eliminar este bloque de apuntes?",
+      "manual": "manual",
+      "generatedBy": "Generado por {{provider}}",
+      "lock": "Bloquear",
+      "unlock": "Desbloquear",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "emptyNote": "_Este apunte está vacío._",
+      "formulas": "Fórmulas",
+      "equationDetected": "ecuación detectada — aún no reconstruida",
+      "state": {
+        "pending": "pendiente",
+        "verified": "verificada",
+        "reconstructed": "reconstruida"
+      }
+    },
+    "quiz": {
+      "emptyTopic": "Aún no hay preguntas para este tema.",
+      "emptyPooled": "Aún no hay preguntas aquí.",
+      "perfect": "¡Perfecto!",
+      "reviewMissed": "Repasa las que fallaste.",
+      "tryAgain": "Intentar de nuevo",
+      "questionProgress": "Pregunta {{current}} de {{total}}",
+      "noExplanation": "No se proporcionó explicación.",
+      "finish": "Finalizar",
+      "next": "Siguiente",
+      "generateMore": "Generar más preguntas",
+      "generating": "Generando…",
+      "generateMoreError": "No se pudieron generar más preguntas."
+    },
+    "flashcards": {
+      "emptyTopic": "Aún no hay tarjetas para este tema.",
+      "emptyPooled": "Aún no hay tarjetas aquí.",
+      "deckComplete": "Mazo completado",
+      "reviewAgain": "Repasar de nuevo",
+      "cardProgress": "Tarjeta {{current}} de {{total}}",
+      "clickToReveal": "Haz clic en la tarjeta para revelar la respuesta.",
+      "incorrect": "Incorrecta",
+      "skip": "Omitir",
+      "correct": "Correcta",
+      "gradeError": "No se pudo guardar tu valoración.",
+      "front": "Anverso",
+      "back": "Reverso",
+      "generateMore": "Generar más tarjetas",
+      "generating": "Generando…",
+      "generateMoreError": "No se pudieron generar más tarjetas."
     }
   },
   "settings": {

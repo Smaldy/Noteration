@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ export function FlashcardsTab({
   flashcards,
   fullscreen = false,
 }: FlashcardsTabProps) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -40,8 +42,8 @@ export function FlashcardsTab({
       <div className="py-12 text-center">
         <p className="text-sm text-muted-foreground">
           {topicId != null
-            ? "No flashcards yet for this topic."
-            : "No flashcards here yet."}
+            ? t("study.flashcards.emptyTopic")
+            : t("study.flashcards.emptyPooled")}
         </p>
         {topicId != null && (
           <div className="mt-4 flex justify-center">
@@ -55,7 +57,7 @@ export function FlashcardsTab({
   if (index >= flashcards.length) {
     return (
       <div className="py-12 text-center">
-        <p className="text-lg font-medium">Deck complete</p>
+        <p className="text-lg font-medium">{t("study.flashcards.deckComplete")}</p>
         <div className="mt-6 flex items-center justify-center gap-2">
           <Button
             variant="outline"
@@ -64,7 +66,7 @@ export function FlashcardsTab({
               setFlipped(false);
             }}
           >
-            Review again
+            {t("study.flashcards.reviewAgain")}
           </Button>
           {topicId != null && <GenerateMoreFlashcards topicId={topicId} />}
         </div>
@@ -83,7 +85,7 @@ export function FlashcardsTab({
       setFlipped(false);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not save your grade.",
+        err instanceof ApiError ? err.message : t("study.flashcards.gradeError"),
       );
     } finally {
       setBusy(false);
@@ -93,7 +95,10 @@ export function FlashcardsTab({
   return (
     <div className="flex flex-col items-center">
       <p className="mb-3 text-xs text-muted-foreground">
-        Card {index + 1} of {flashcards.length}
+        {t("study.flashcards.cardProgress", {
+          current: index + 1,
+          total: flashcards.length,
+        })}
       </p>
 
       <motion.div
@@ -115,14 +120,23 @@ export function FlashcardsTab({
           animate={{ rotateY: flipped ? 180 : 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          <CardFace label="Front" text={card.front} big={fullscreen} />
-          <CardFace label="Back" text={card.back} flipped big={fullscreen} />
+          <CardFace
+            label={t("study.flashcards.front")}
+            text={card.front}
+            big={fullscreen}
+          />
+          <CardFace
+            label={t("study.flashcards.back")}
+            text={card.back}
+            flipped
+            big={fullscreen}
+          />
         </motion.div>
       </motion.div>
 
       {!flipped ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Click the card to reveal the answer.
+          {t("study.flashcards.clickToReveal")}
         </p>
       ) : (
         <motion.div
@@ -136,17 +150,17 @@ export function FlashcardsTab({
             onClick={() => void grade("incorrect")}
             disabled={busy}
           >
-            Incorrect
+            {t("study.flashcards.incorrect")}
           </Button>
           <Button
             variant="ghost"
             onClick={() => void grade("skip")}
             disabled={busy}
           >
-            Skip
+            {t("study.flashcards.skip")}
           </Button>
           <Button onClick={() => void grade("correct")} disabled={busy}>
-            Correct
+            {t("study.flashcards.correct")}
           </Button>
         </motion.div>
       )}
@@ -163,6 +177,7 @@ export function FlashcardsTab({
 }
 
 function GenerateMoreFlashcards({ topicId }: { topicId: number }) {
+  const { t } = useTranslation();
   const generateMore = useStudyStore((s) => s.generateMore);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +189,9 @@ function GenerateMoreFlashcards({ topicId }: { topicId: number }) {
       await generateMore(topicId, "flashcards");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Couldn't generate more flashcards.",
+        err instanceof ApiError
+          ? err.message
+          : t("study.flashcards.generateMoreError"),
       );
     } finally {
       setBusy(false);
@@ -185,7 +202,9 @@ function GenerateMoreFlashcards({ topicId }: { topicId: number }) {
     <div className="flex flex-col items-center gap-1">
       <Button variant="ghost" size="sm" onClick={() => void run()} disabled={busy}>
         <Sparkles />
-        {busy ? "Generating…" : "Generate more flashcards"}
+        {busy
+          ? t("study.flashcards.generating")
+          : t("study.flashcards.generateMore")}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

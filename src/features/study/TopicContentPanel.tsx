@@ -1,5 +1,6 @@
 import { CalendarPlus, Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AddToCalendarDialog } from "@/features/calendar/AddToCalendarDialog";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export function TopicContentPanel({
   content: TopicContent;
   mode?: DocumentMode;
 }) {
+  const { t } = useTranslation();
   // Exam-prep documents are assessment-only — no notes were generated, so the
   // Notes tab is dropped and the quiz leads.
   const isExam = mode === "exam";
@@ -62,12 +64,16 @@ export function TopicContentPanel({
           )}
         >
           <TabsList>
-            {!isExam && <TabsTrigger value="notes">Notes</TabsTrigger>}
+            {!isExam && (
+              <TabsTrigger value="notes">{t("study.tabs.notes")}</TabsTrigger>
+            )}
             <TabsTrigger value="quiz">
-              Quiz{content.mcqs.length > 0 && ` (${content.mcqs.length})`}
+              {t("study.tabs.quiz")}
+              {content.mcqs.length > 0 && ` (${content.mcqs.length})`}
             </TabsTrigger>
             <TabsTrigger value="flashcards">
-              Flashcards{content.flashcards.length > 0 && ` (${content.flashcards.length})`}
+              {t("study.tabs.flashcards")}
+              {content.flashcards.length > 0 && ` (${content.flashcards.length})`}
             </TabsTrigger>
           </TabsList>
           {/* In normal view the controls live at the end of the tab row; in
@@ -79,8 +85,8 @@ export function TopicContentPanel({
                 size="icon"
                 className="text-muted-foreground"
                 onClick={() => setAddToCalendar(true)}
-                title="Add this topic to the calendar"
-                aria-label="Add this topic to the calendar"
+                title={t("study.tabs.addToCalendar")}
+                aria-label={t("study.tabs.addToCalendar")}
               >
                 <CalendarPlus />
               </Button>
@@ -89,8 +95,8 @@ export function TopicContentPanel({
                 size="icon"
                 className="text-muted-foreground"
                 onClick={() => setFullscreen(true)}
-                title="Full screen"
-                aria-label="Enter full screen"
+                title={t("study.tabs.fullscreen")}
+                aria-label={t("study.tabs.enterFullscreen")}
               >
                 <Maximize2 />
               </Button>
@@ -135,8 +141,8 @@ export function TopicContentPanel({
         <button
           type="button"
           onClick={() => setFullscreen(false)}
-          title="Exit full screen (Esc)"
-          aria-label="Exit full screen"
+          title={t("study.tabs.exitFullscreenEsc")}
+          aria-label={t("study.tabs.exitFullscreen")}
           className="glass fixed right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-all hover:text-foreground hover:shadow-md active:scale-95"
         >
           <Minimize2 className="size-4" />

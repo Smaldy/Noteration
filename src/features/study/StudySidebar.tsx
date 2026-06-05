@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Layers, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import { cn } from "@/lib/utils";
@@ -40,21 +41,22 @@ interface StudySidebarProps {
 
 export function StudySidebar(props: StudySidebarProps) {
   const { tree, onPractice } = props;
+  const { t } = useTranslation();
   return (
     <nav className="space-y-4">
       {onPractice && (
         <div className="space-y-2 rounded-lg border bg-card/50 p-2.5">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
             <Layers className="size-3.5" />
-            Combined practice
+            {t("study.sidebar.combinedPractice")}
           </p>
           <PracticeRow
-            label="Whole subject"
+            label={t("study.sidebar.wholeSubject")}
             onQuiz={() => onPractice("subjects", tree.subject_id, "quiz")}
             onCards={() => onPractice("subjects", tree.subject_id, "flashcards")}
           />
           <PracticeRow
-            label="Whole deck"
+            label={t("study.sidebar.wholeDeck")}
             onQuiz={() => onPractice("documents", tree.document_id, "quiz")}
             onCards={() => onPractice("documents", tree.document_id, "flashcards")}
           />
@@ -76,6 +78,7 @@ function PracticeRow({
   onQuiz: () => void;
   onCards: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="truncate text-sm">{label}</span>
@@ -85,7 +88,7 @@ function PracticeRow({
           onClick={onQuiz}
           className="rounded px-1.5 py-0.5 font-medium text-primary hover:bg-primary/10"
         >
-          Quiz
+          {t("study.sidebar.quiz")}
         </button>
         <span className="text-muted-foreground/50">·</span>
         <button
@@ -93,7 +96,7 @@ function PracticeRow({
           onClick={onCards}
           className="rounded px-1.5 py-0.5 font-medium text-primary hover:bg-primary/10"
         >
-          Cards
+          {t("study.sidebar.cards")}
         </button>
       </span>
     </div>
@@ -109,6 +112,7 @@ function ChapterGroup({
   onReorderTopics,
   onPractice,
 }: { chapter: ChapterNode } & Omit<StudySidebarProps, "tree">) {
+  const { t } = useTranslation();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -134,20 +138,20 @@ function ChapterGroup({
           <span className="flex shrink-0 items-center gap-1 text-[11px]">
             <button
               type="button"
-              title="Quiz this argument"
+              title={t("study.sidebar.quizChapter")}
               onClick={() => onPractice("chapters", chapter.id, "quiz")}
               className="rounded px-1 py-0.5 font-medium text-primary hover:bg-primary/10"
             >
-              Quiz
+              {t("study.sidebar.quiz")}
             </button>
             <span className="text-muted-foreground/50">·</span>
             <button
               type="button"
-              title="Flashcards for this argument"
+              title={t("study.sidebar.flashcardsChapter")}
               onClick={() => onPractice("chapters", chapter.id, "flashcards")}
               className="rounded px-1 py-0.5 font-medium text-primary hover:bg-primary/10"
             >
-              Cards
+              {t("study.sidebar.cards")}
             </button>
           </span>
         )}
@@ -192,6 +196,7 @@ function SortableTopic({
   onDelete: () => void;
   onToggleBookmark: (bookmarked: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: topic.id });
   const skipped = topic.priority === "skip";
@@ -208,8 +213,8 @@ function SortableTopic({
     >
       <button
         type="button"
-        aria-label="Drag to reorder"
-        title="Drag to reorder"
+        aria-label={t("study.sidebar.dragToReorder")}
+        title={t("study.sidebar.dragToReorder")}
         className="shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground/40 opacity-0 transition hover:text-foreground focus-visible:opacity-100 active:cursor-grabbing group-hover/topic:opacity-100"
         {...attributes}
         {...listeners}
@@ -241,8 +246,8 @@ function SortableTopic({
         />
         <button
           type="button"
-          title="Delete topic"
-          aria-label={`Delete topic ${topic.title}`}
+          title={t("study.sidebar.deleteTopic")}
+          aria-label={t("study.sidebar.deleteTopicAria", { title: topic.title })}
           onClick={onDelete}
           className="rounded p-1 text-muted-foreground opacity-0 transition hover:text-destructive focus-visible:opacity-100 group-hover/topic:opacity-100"
         >
