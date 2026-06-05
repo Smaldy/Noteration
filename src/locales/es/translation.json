@@ -123,12 +123,122 @@
     }
   },
   "settings": {
+    "title": "Ajustes",
+    "subtitle": "Configura los proveedores, el ritmo de estudio y el aspecto de Noteration.",
+    "headerTag": "Ajustes",
+    "save": {
+      "discard": "Descartar",
+      "save": "Guardar cambios",
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "unsaved": "Cambios sin guardar",
+      "allSaved": "Todos los cambios guardados"
+    },
+    "nav": {
+      "apiKeys": "Claves API",
+      "providers": "Proveedores",
+      "generation": "Generación",
+      "language": "Idioma",
+      "pomodoro": "Pomodoro",
+      "calendar": "Calendario",
+      "appearance": "Apariencia"
+    },
+    "number": {
+      "decrease": "Disminuir",
+      "increase": "Aumentar"
+    },
+    "apiKeys": {
+      "title": "Claves API",
+      "description": "Se guardan localmente; las usa la cascada de proveedores.",
+      "geminiKey": "Clave de Gemini",
+      "claudeKey": "Clave de Claude",
+      "placeholderReplace": "•••••••• (reemplazar)",
+      "placeholderAdd": "Añadir una clave",
+      "set": "Configurada"
+    },
+    "providers": {
+      "title": "Cascada de proveedores",
+      "description": "Los proveedores gratuitos van primero. El orden es automático (los más baratos primero).",
+      "geminiModel": "Modelo de Gemini",
+      "models": {
+        "flashLiteHint": "El más barato y rápido — recomendado para generación masiva.",
+        "flashHint": "Más capaz, usa más cuota por tema."
+      },
+      "allowPaid": {
+        "label": "Permitir alternativa de pago (Claude)",
+        "hint": "Desactivado = nunca gasta; solo planes gratuitos."
+      },
+      "ollama": {
+        "label": "Usar Ollama local",
+        "hint": "Incluye un modelo local de $0 en la cascada (debe estar instalado)."
+      },
+      "budget": {
+        "label": "Presupuesto de tokens por documento",
+        "hint": "Límite de seguridad: un documento se pausa si gasta más de estos tokens. 0 = automático (pausa solo un exceso claro, ~3× la estimación)."
+      }
+    },
+    "generation": {
+      "title": "Generación de apuntes",
+      "description": "Cuánto contenido genera la IA por tema.",
+      "notesLength_one": "Longitud de apuntes — {{count}} página por tema",
+      "notesLength_other": "Longitud de apuntes — {{count}} páginas por tema",
+      "brief": "Breve",
+      "detailed": "Detallado",
+      "explanation": "Una \"página\" es una unidad de contenido (~300 palabras). La IA intenta alcanzar este número de páginas por tema; si un tema no tiene suficiente material, genera lo que puede. Más páginas usan más tokens."
+    },
     "language": {
       "navLabel": "Idioma",
       "title": "Idioma",
       "description": "El idioma de la interfaz y el idioma en el que se escriben los nuevos apuntes, cuestionarios y tarjetas generados por la IA.",
       "fieldLabel": "Idioma de la app",
       "hint": "Cambia la interfaz al instante. El nuevo contenido generado por la IA usa este idioma; el contenido ya generado no cambia."
+    },
+    "pomodoro": {
+      "title": "Pomodoro",
+      "workMinutes": "Minutos de trabajo",
+      "breakMinutes": "Minutos de descanso"
+    },
+    "calendar": {
+      "title": "Calendario",
+      "description": "La ventana visible y el tamaño de franja de la vista Día por horas. Haz doble clic en el botón Día del calendario para cambiar a la cuadrícula por horas.",
+      "dayStartsAt": "El día empieza a las",
+      "dayEndsAt": "El día termina a las",
+      "showing": "Mostrando {{start}} – {{end}}.",
+      "slotSize": "Tamaño de franja horaria",
+      "slotHint": "El espacio entre filas en la vista Día por horas.",
+      "slots": {
+        "15": "15 min",
+        "30": "30 min",
+        "60": "1 hora",
+        "90": "1,5 h",
+        "120": "2 horas"
+      }
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "description": "Los cambios se previsualizan al instante; guarda para conservarlos.",
+      "theme": "Tema",
+      "themes": {
+        "system": "Sistema",
+        "light": "Claro",
+        "dark": "Oscuro"
+      },
+      "accent": "Color de acento",
+      "accentDefault": "Predeterminado del tema",
+      "accentCustom": "Color personalizado",
+      "font": "Fuente",
+      "baseFontSize": "Tamaño base del texto — {{size}}px",
+      "colors": {
+        "indigo": "Índigo",
+        "violet": "Violeta",
+        "blue": "Azul",
+        "sky": "Cielo",
+        "teal": "Verde azulado",
+        "emerald": "Esmeralda",
+        "amber": "Ámbar",
+        "rose": "Rosa",
+        "slate": "Pizarra"
+      }
     }
   }
 }

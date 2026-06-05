@@ -1542,6 +1542,25 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   **460 passed**). **Next:** 3c Settings, 3d Calendar + Queue, 3e Upload/Exam/
   Pomodoro/Bookmarks/Search.
 
+- **Multilingual support — Wave 3c (DONE, user-requested): Settings page.** Extended
+  the `settings` locale namespace (en/it/es) to the whole page — already had
+  `settings.language` from Wave 1; added `title`/`subtitle`/`headerTag`, `save`
+  (discard/save/saving/saved/unsaved/allSaved), `nav` (scroll-spy section labels),
+  `number` (stepper a11y), and per-section blocks: `apiKeys` (incl. masked-key
+  placeholders + the “Set” pill), `providers` (waterfall description, Gemini-model
+  hints, allow-paid/Ollama toggles, token-budget), `generation` (notes-length label
+  with i18next plural `notesLength_one|_other` + `{{count}}`, Brief/Detailed,
+  explanation), `pomodoro`, `calendar` (day-window, `showing {{start}}–{{end}}`,
+  slot-size options), and `appearance` (theme labels, localized accent **color
+  names**, Theme-default/Custom titles, font, `baseFontSize {{size}}px`).
+  `SettingsPage.tsx`: `SECTIONS` now carries `labelKey`s; the segmented theme/slot
+  options and the Gemini-model hint resolve through `t`; `Shell`/`SectionNav`/
+  `ActionBar`/`NumberField`/`SetBadge` each took a `useTranslation`. Font-family
+  option labels (Inter/Newsreader/Mono/Jakarta) and the “A” size glyphs stay as-is
+  (proper names/typographic marks). Tree green: `tsc -b` + `npm run build` clean
+  (backend untouched, **460 passed**). **Next:** 3d Calendar + Queue, 3e Upload/
+  Exam/Pomodoro/Bookmarks/Search.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

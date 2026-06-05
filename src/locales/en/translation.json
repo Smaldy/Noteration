@@ -123,12 +123,122 @@
     }
   },
   "settings": {
+    "title": "Settings",
+    "subtitle": "Tune the providers, study rhythm, and how Noteration looks.",
+    "headerTag": "Settings",
+    "save": {
+      "discard": "Discard",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "unsaved": "Unsaved changes",
+      "allSaved": "All changes saved"
+    },
+    "nav": {
+      "apiKeys": "API keys",
+      "providers": "Providers",
+      "generation": "Generation",
+      "language": "Language",
+      "pomodoro": "Pomodoro",
+      "calendar": "Calendar",
+      "appearance": "Appearance"
+    },
+    "number": {
+      "decrease": "Decrease",
+      "increase": "Increase"
+    },
+    "apiKeys": {
+      "title": "API keys",
+      "description": "Stored locally; used by the provider waterfall.",
+      "geminiKey": "Gemini key",
+      "claudeKey": "Claude key",
+      "placeholderReplace": "•••••••• (replace)",
+      "placeholderAdd": "Add a key",
+      "set": "Set"
+    },
+    "providers": {
+      "title": "Provider waterfall",
+      "description": "Free providers run first. Order is automatic (cheapest-first).",
+      "geminiModel": "Gemini model",
+      "models": {
+        "flashLiteHint": "Cheapest, fastest — recommended for bulk generation.",
+        "flashHint": "More capable, uses more quota per topic."
+      },
+      "allowPaid": {
+        "label": "Allow paid fallback (Claude)",
+        "hint": "Off = never spend; free tiers only."
+      },
+      "ollama": {
+        "label": "Use local Ollama",
+        "hint": "Include a local $0 model in the waterfall (must be installed)."
+      },
+      "budget": {
+        "label": "Per-document token budget",
+        "hint": "Safety cap: a document is paused if it spends more than this many tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate)."
+      }
+    },
+    "generation": {
+      "title": "Note generation",
+      "description": "How much content the AI generates per topic.",
+      "notesLength_one": "Notes length — {{count}} page per topic",
+      "notesLength_other": "Notes length — {{count}} pages per topic",
+      "brief": "Brief",
+      "detailed": "Detailed",
+      "explanation": "A \"page\" is a unit of content (~300 words). The AI aims for this many pages per topic; if a topic doesn't have enough material it generates what it can. More pages use more tokens."
+    },
     "language": {
       "navLabel": "Language",
       "title": "Language",
       "description": "The interface language, and the language new AI notes, quizzes, and flashcards are written in.",
       "fieldLabel": "App language",
       "hint": "Changes the interface immediately. New AI-generated content uses this language; already-generated content is unchanged."
+    },
+    "pomodoro": {
+      "title": "Pomodoro",
+      "workMinutes": "Work minutes",
+      "breakMinutes": "Break minutes"
+    },
+    "calendar": {
+      "title": "Calendar",
+      "description": "The hourly Day view's visible window and slot size. Double-click the Day button in the calendar to switch it to the hourly grid.",
+      "dayStartsAt": "Day starts at",
+      "dayEndsAt": "Day ends at",
+      "showing": "Showing {{start}} – {{end}}.",
+      "slotSize": "Time slot size",
+      "slotHint": "The gap between rows in the hourly Day view.",
+      "slots": {
+        "15": "15 min",
+        "30": "30 min",
+        "60": "1 hour",
+        "90": "1.5 hr",
+        "120": "2 hours"
+      }
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Changes preview instantly; Save to keep them.",
+      "theme": "Theme",
+      "themes": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "accent": "Accent color",
+      "accentDefault": "Theme default",
+      "accentCustom": "Custom color",
+      "font": "Font",
+      "baseFontSize": "Base font size — {{size}}px",
+      "colors": {
+        "indigo": "Indigo",
+        "violet": "Violet",
+        "blue": "Blue",
+        "sky": "Sky",
+        "teal": "Teal",
+        "emerald": "Emerald",
+        "amber": "Amber",
+        "rose": "Rose",
+        "slate": "Slate"
+      }
     }
   }
 }

@@ -79,30 +79,32 @@ function hourLabel(h: number): string {
   return `${h}:00`;
 }
 
-const GEMINI_MODELS: { value: GeminiModel; label: string; hint: string }[] = [
+// Model tier names stay as-is (proper names); the hint is translated via key.
+const GEMINI_MODELS: { value: GeminiModel; label: string; hintKey: string }[] = [
   {
     value: "gemini-2.5-flash-lite",
     label: "Flash Lite",
-    hint: "Cheapest, fastest — recommended for bulk generation.",
+    hintKey: "settings.providers.models.flashLiteHint",
   },
   {
     value: "gemini-2.5-flash",
     label: "Flash",
-    hint: "More capable, uses more quota per topic.",
+    hintKey: "settings.providers.models.flashHint",
   },
 ];
 
-// Curated accent palette (hex drives the whole derived palette live).
-const PRESET_ACCENTS: { name: string; hex: string }[] = [
-  { name: "Indigo", hex: "#6366f1" },
-  { name: "Violet", hex: "#8b5cf6" },
-  { name: "Blue", hex: "#3b82f6" },
-  { name: "Sky", hex: "#0ea5e9" },
-  { name: "Teal", hex: "#14b8a6" },
-  { name: "Emerald", hex: "#10b981" },
-  { name: "Amber", hex: "#f59e0b" },
-  { name: "Rose", hex: "#f43f5e" },
-  { name: "Slate", hex: "#475569" },
+// Curated accent palette (hex drives the whole derived palette live). `key`
+// indexes the localized color name under settings.appearance.colors.
+const PRESET_ACCENTS: { key: string; hex: string }[] = [
+  { key: "indigo", hex: "#6366f1" },
+  { key: "violet", hex: "#8b5cf6" },
+  { key: "blue", hex: "#3b82f6" },
+  { key: "sky", hex: "#0ea5e9" },
+  { key: "teal", hex: "#14b8a6" },
+  { key: "emerald", hex: "#10b981" },
+  { key: "amber", hex: "#f59e0b" },
+  { key: "rose", hex: "#f43f5e" },
+  { key: "slate", hex: "#475569" },
 ];
 
 const FONT_OPTIONS: { value: string; label: string }[] = [
@@ -126,16 +128,17 @@ const FONT_PREVIEW: Record<string, string> = {
 // so the nav can never drift out of sync with the content.
 const SECTIONS: {
   id: string;
-  label: string;
+  /** i18n key for the nav label. */
+  labelKey: string;
   icon: ComponentType<{ className?: string }>;
 }[] = [
-  { id: "api-keys", label: "API keys", icon: KeyRound },
-  { id: "providers", label: "Providers", icon: Sparkles },
-  { id: "generation", label: "Generation", icon: FileText },
-  { id: "language", label: "Language", icon: Globe },
-  { id: "pomodoro", label: "Pomodoro", icon: Timer },
-  { id: "calendar", label: "Calendar", icon: CalendarClock },
-  { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "api-keys", labelKey: "settings.nav.apiKeys", icon: KeyRound },
+  { id: "providers", labelKey: "settings.nav.providers", icon: Sparkles },
+  { id: "generation", labelKey: "settings.nav.generation", icon: FileText },
+  { id: "language", labelKey: "settings.nav.language", icon: Globe },
+  { id: "pomodoro", labelKey: "settings.nav.pomodoro", icon: Timer },
+  { id: "calendar", labelKey: "settings.nav.calendar", icon: CalendarClock },
+  { id: "appearance", labelKey: "settings.nav.appearance", icon: Palette },
 ];
 
 function toForm(s: Settings): FormState {
@@ -315,40 +318,46 @@ export function SettingsPage() {
 
         <div className="min-w-0 space-y-7">
           <header className="animate-rise space-y-1.5">
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {t("settings.title")}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Tune the providers, study rhythm, and how Noteration looks.
+              {t("settings.subtitle")}
             </p>
           </header>
 
           <Section
             id="api-keys"
             icon={KeyRound}
-            title="API keys"
-            description="Stored locally; used by the provider waterfall."
+            title={t("settings.apiKeys.title")}
+            description={t("settings.apiKeys.description")}
             delay={40}
           >
             <Field
-              label="Gemini key"
+              label={t("settings.apiKeys.geminiKey")}
               badge={settings.gemini_key_set ? <SetBadge /> : undefined}
             >
               <Input
                 type="password"
                 placeholder={
-                  settings.gemini_key_set ? "•••••••• (replace)" : "Add a key"
+                  settings.gemini_key_set
+                    ? t("settings.apiKeys.placeholderReplace")
+                    : t("settings.apiKeys.placeholderAdd")
                 }
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
               />
             </Field>
             <Field
-              label="Claude key"
+              label={t("settings.apiKeys.claudeKey")}
               badge={settings.claude_key_set ? <SetBadge /> : undefined}
             >
               <Input
                 type="password"
                 placeholder={
-                  settings.claude_key_set ? "•••••••• (replace)" : "Add a key"
+                  settings.claude_key_set
+                    ? t("settings.apiKeys.placeholderReplace")
+                    : t("settings.apiKeys.placeholderAdd")
                 }
                 value={claudeKey}
                 onChange={(e) => setClaudeKey(e.target.value)}
@@ -359,11 +368,11 @@ export function SettingsPage() {
           <Section
             id="providers"
             icon={Sparkles}
-            title="Provider waterfall"
-            description="Free providers run first. Order is automatic (cheapest-first)."
+            title={t("settings.providers.title")}
+            description={t("settings.providers.description")}
             delay={100}
           >
-            <Field label="Gemini model">
+            <Field label={t("settings.providers.geminiModel")}>
               <Segmented
                 group="gemini"
                 value={form.gemini_model}
@@ -371,22 +380,25 @@ export function SettingsPage() {
                 options={GEMINI_MODELS.map((m) => ({ value: m.value, label: m.label }))}
               />
               <p className="text-xs text-muted-foreground">
-                {GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hint}
+                {t(
+                  GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hintKey ??
+                    "settings.providers.models.flashLiteHint",
+                )}
               </p>
             </Field>
             <Toggle
-              label="Allow paid fallback (Claude)"
-              hint="Off = never spend; free tiers only."
+              label={t("settings.providers.allowPaid.label")}
+              hint={t("settings.providers.allowPaid.hint")}
               checked={form.allow_paid}
               onChange={(v) => set("allow_paid", v)}
             />
             <Toggle
-              label="Use local Ollama"
-              hint="Include a local $0 model in the waterfall (must be installed)."
+              label={t("settings.providers.ollama.label")}
+              hint={t("settings.providers.ollama.hint")}
               checked={form.ollama_enabled}
               onChange={(v) => set("ollama_enabled", v)}
             />
-            <Field label="Per-document token budget">
+            <Field label={t("settings.providers.budget.label")}>
               <NumberField
                 min={0}
                 step={1000}
@@ -395,8 +407,7 @@ export function SettingsPage() {
                 className="w-44"
               />
               <p className="text-xs text-muted-foreground">
-                Safety cap: a document is paused if it spends more than this many
-                tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate).
+                {t("settings.providers.budget.hint")}
               </p>
             </Field>
           </Section>
@@ -404,13 +415,19 @@ export function SettingsPage() {
           <Section
             id="generation"
             icon={FileText}
-            title="Note generation"
-            description="How much content the AI generates per topic."
+            title={t("settings.generation.title")}
+            description={t("settings.generation.description")}
             delay={150}
           >
-            <Field label={`Notes length — ${form.note_length} ${form.note_length === 1 ? "page" : "pages"} per topic`}>
+            <Field
+              label={t("settings.generation.notesLength", {
+                count: form.note_length,
+              })}
+            >
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">Brief</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.generation.brief")}
+                </span>
                 <div className="w-60 max-w-full">
                   <input
                     type="range"
@@ -421,12 +438,12 @@ export function SettingsPage() {
                     className="app-range"
                   />
                 </div>
-                <span className="text-xs text-muted-foreground">Detailed</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.generation.detailed")}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                A "page" is a unit of content (~300 words). The AI aims for this
-                many pages per topic; if a topic doesn't have enough material it
-                generates what it can. More pages use more tokens.
+                {t("settings.generation.explanation")}
               </p>
             </Field>
           </Section>
@@ -454,9 +471,14 @@ export function SettingsPage() {
             </Field>
           </Section>
 
-          <Section id="pomodoro" icon={Timer} title="Pomodoro" delay={160}>
+          <Section
+            id="pomodoro"
+            icon={Timer}
+            title={t("settings.pomodoro.title")}
+            delay={160}
+          >
             <div className="flex flex-wrap gap-6">
-              <Field label="Work minutes">
+              <Field label={t("settings.pomodoro.workMinutes")}>
                 <NumberField
                   min={1}
                   max={180}
@@ -465,7 +487,7 @@ export function SettingsPage() {
                   className="w-32"
                 />
               </Field>
-              <Field label="Break minutes">
+              <Field label={t("settings.pomodoro.breakMinutes")}>
                 <NumberField
                   min={1}
                   max={120}
@@ -480,12 +502,12 @@ export function SettingsPage() {
           <Section
             id="calendar"
             icon={CalendarClock}
-            title="Calendar"
-            description="The hourly Day view's visible window and slot size. Double-click the Day button in the calendar to switch it to the hourly grid."
+            title={t("settings.calendar.title")}
+            description={t("settings.calendar.description")}
             delay={220}
           >
             <div className="flex flex-wrap gap-6">
-              <Field label="Day starts at">
+              <Field label={t("settings.calendar.dayStartsAt")}>
                 <NumberField
                   min={0}
                   max={form.calendar_day_end_hour - 1}
@@ -494,7 +516,7 @@ export function SettingsPage() {
                   className="w-32"
                 />
               </Field>
-              <Field label="Day ends at">
+              <Field label={t("settings.calendar.dayEndsAt")}>
                 <NumberField
                   min={form.calendar_day_start_hour + 1}
                   max={24}
@@ -505,10 +527,12 @@ export function SettingsPage() {
               </Field>
             </div>
             <p className="text-xs text-muted-foreground">
-              Showing {hourLabel(form.calendar_day_start_hour)} –{" "}
-              {hourLabel(form.calendar_day_end_hour)}.
+              {t("settings.calendar.showing", {
+                start: hourLabel(form.calendar_day_start_hour),
+                end: hourLabel(form.calendar_day_end_hour),
+              })}
             </p>
-            <Field label="Time slot size">
+            <Field label={t("settings.calendar.slotSize")}>
               <Segmented
                 group="slot"
                 value={String(form.calendar_slot_minutes)}
@@ -517,11 +541,11 @@ export function SettingsPage() {
                 }
                 options={SLOT_OPTIONS.map((o) => ({
                   value: String(o.value),
-                  label: o.label,
+                  label: t(`settings.calendar.slots.${o.value}`),
                 }))}
               />
               <p className="text-xs text-muted-foreground">
-                The gap between rows in the hourly Day view.
+                {t("settings.calendar.slotHint")}
               </p>
             </Field>
           </Section>
@@ -529,42 +553,42 @@ export function SettingsPage() {
           <Section
             id="appearance"
             icon={Palette}
-            title="Appearance"
-            description="Changes preview instantly; Save to keep them."
+            title={t("settings.appearance.title")}
+            description={t("settings.appearance.description")}
             delay={280}
           >
-            <Field label="Theme">
+            <Field label={t("settings.appearance.theme")}>
               <Segmented
                 group="theme"
                 value={form.theme}
                 onChange={(v) => set("theme", v as Theme)}
-                options={(["system", "light", "dark"] as Theme[]).map((t) => ({
-                  value: t,
-                  label: t[0].toUpperCase() + t.slice(1),
+                options={(["system", "light", "dark"] as Theme[]).map((th) => ({
+                  value: th,
+                  label: t(`settings.appearance.themes.${th}`),
                 }))}
               />
             </Field>
 
-            <Field label="Accent color">
+            <Field label={t("settings.appearance.accent")}>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Swatch
                   selected={form.accent_color === ""}
                   onClick={() => set("accent_color", "")}
-                  title="Theme default"
+                  title={t("settings.appearance.accentDefault")}
                   dashed
                 />
                 {PRESET_ACCENTS.map((c) => (
                   <Swatch
                     key={c.hex}
                     color={c.hex}
-                    title={c.name}
+                    title={t(`settings.appearance.colors.${c.key}`)}
                     selected={form.accent_color.toLowerCase() === c.hex.toLowerCase()}
                     onClick={() => set("accent_color", c.hex)}
                   />
                 ))}
                 <label
                   className="relative ml-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-dashed border-muted-foreground/50 text-base text-muted-foreground transition-transform hover:scale-110"
-                  title="Custom color"
+                  title={t("settings.appearance.accentCustom")}
                 >
                   +
                   <input
@@ -577,7 +601,7 @@ export function SettingsPage() {
               </div>
             </Field>
 
-            <Field label="Font">
+            <Field label={t("settings.appearance.font")}>
               <div className="inline-flex flex-wrap gap-2">
                 {FONT_OPTIONS.map((f) => (
                   <button
@@ -598,7 +622,11 @@ export function SettingsPage() {
               </div>
             </Field>
 
-            <Field label={`Base font size — ${form.font_size}px`}>
+            <Field
+              label={t("settings.appearance.baseFontSize", {
+                size: form.font_size,
+              })}
+            >
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">A</span>
                 <div className="w-60 max-w-full">
@@ -630,6 +658,7 @@ function Shell({
   footer?: ReactNode;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-screen flex-col">
       <header className="glass sticky top-0 z-20 border-b">
@@ -640,10 +669,10 @@ function Shell({
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Library
+            {t("common.library")}
           </button>
           <span className="font-display text-sm font-semibold tracking-tight text-muted-foreground">
-            Settings
+            {t("settings.headerTag")}
           </span>
         </div>
       </header>
@@ -665,6 +694,7 @@ function SectionNav({
   active: string;
   onJump: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <nav className="hidden lg:block">
       <div className="sticky top-24 space-y-0.5">
@@ -696,7 +726,7 @@ function SectionNav({
                   on ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
                 )}
               />
-              <span className="relative z-10">{s.label}</span>
+              <span className="relative z-10">{t(s.labelKey)}</span>
             </button>
           );
         })}
@@ -720,6 +750,7 @@ function ActionBar({
   onSave: () => void;
   onDiscard: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <footer className="glass sticky bottom-0 z-20 border-t">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-6 py-4">
@@ -744,7 +775,7 @@ function ActionBar({
                 className="inline-flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400"
               >
                 <Check className="size-4" />
-                Saved
+                {t("settings.save.saved")}
               </motion.span>
             ) : dirty ? (
               <motion.span
@@ -755,10 +786,12 @@ function ActionBar({
                 className="inline-flex items-center gap-1.5 text-muted-foreground"
               >
                 <span className="size-1.5 rounded-full bg-amber-500" />
-                Unsaved changes
+                {t("settings.save.unsaved")}
               </motion.span>
             ) : (
-              <span className="text-muted-foreground/60">All changes saved</span>
+              <span className="text-muted-foreground/60">
+                {t("settings.save.allSaved")}
+              </span>
             )}
           </AnimatePresence>
         </div>
@@ -770,10 +803,10 @@ function ActionBar({
             disabled={!dirty || saving}
           >
             <RotateCcw />
-            Discard
+            {t("settings.save.discard")}
           </Button>
           <Button onClick={onSave} disabled={!dirty || saving}>
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? t("settings.save.saving") : t("settings.save.save")}
           </Button>
         </div>
       </div>
@@ -946,6 +979,7 @@ function NumberField({
     if (max != null) v = Math.min(max, v);
     return v;
   };
+  const { t } = useTranslation();
   const atMin = min != null && value <= min;
   const atMax = max != null && value >= max;
 
@@ -957,7 +991,7 @@ function NumberField({
       )}
     >
       <StepButton
-        label="Decrease"
+        label={t("settings.number.decrease")}
         disabled={atMin}
         onClick={() => onChange(clamp(value - step))}
       >
@@ -974,7 +1008,7 @@ function NumberField({
         className="w-full min-w-0 border-x border-input bg-transparent text-center text-sm tabular-nums outline-none"
       />
       <StepButton
-        label="Increase"
+        label={t("settings.number.increase")}
         disabled={atMax}
         onClick={() => onChange(clamp(value + step))}
       >
@@ -1010,10 +1044,11 @@ function StepButton({
 
 /** Small "key is configured" status pill. */
 function SetBadge() {
+  const { t } = useTranslation();
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
       <Check className="size-3" strokeWidth={3} />
-      Set
+      {t("settings.apiKeys.set")}
     </span>
   );
 }
