@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CalendarDays, FileText, GripVertical, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,11 @@ import type { DocumentSummary } from "@/types/library";
 
 import { StatusBadge } from "./StatusBadge";
 
-function formatExamDate(iso: string | null): string {
-  if (!iso) return "No exam date";
+function formatExamDate(iso: string, locale: string): string {
   // `iso` is a date-only string (YYYY-MM-DD); parse as local to avoid a TZ shift.
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -42,13 +42,17 @@ export function DocumentCard({
   actions?: ReactNode;
 }) {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: doc.id });
 
   const progress =
     doc.topics_total === 0
-      ? "No topics yet"
-      : `${doc.topics_ready} of ${doc.topics_total} topics ready`;
+      ? t("library.card.noTopicsYet")
+      : t("library.card.topicsReady", {
+          ready: doc.topics_ready,
+          total: doc.topics_total,
+        });
 
   // Not-yet-confirmed documents go to structure review; confirmed ones to study.
   const destination =
@@ -90,8 +94,8 @@ export function DocumentCard({
             <div className="flex min-w-0 items-center gap-1.5">
               <button
                 type="button"
-                aria-label="Drag to reorder"
-                title="Drag to reorder"
+                aria-label={t("library.card.dragToReorder")}
+                title={t("library.card.dragToReorder")}
                 onClick={(e) => e.stopPropagation()}
                 className="-ml-1 shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground/50 transition-colors hover:text-foreground active:cursor-grabbing"
                 {...attributes}
@@ -113,8 +117,10 @@ export function DocumentCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  title="Delete subject"
-                  aria-label={`Delete ${doc.subject_name}`}
+                  title={t("library.card.deleteSubject")}
+                  aria-label={t("library.card.deleteSubjectAria", {
+                    name: doc.subject_name,
+                  })}
                   className="size-7 text-muted-foreground hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -135,13 +141,18 @@ export function DocumentCard({
             <p>{progress}</p>
             {doc.chapters_running > 0 && (
               <span className="inline-flex items-center rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-foreground tabular-nums">
-                {doc.chapters_running}/{doc.chapters_total} chapters processing
+                {t("library.card.chaptersProcessing", {
+                  running: doc.chapters_running,
+                  total: doc.chapters_total,
+                })}
               </span>
             )}
           </div>
           <p className="flex items-center gap-1.5">
             <CalendarDays className="size-3.5" />
-            {formatExamDate(doc.exam_date)}
+            {doc.exam_date
+              ? formatExamDate(doc.exam_date, i18n.language)
+              : t("library.card.noExamDate")}
           </p>
           {actions && (
             <div

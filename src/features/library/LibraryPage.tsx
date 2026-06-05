@@ -23,6 +23,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export function LibraryPage() {
   } = useLibraryStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -68,14 +70,13 @@ export function LibraryPage() {
 
   async function handleDelete(doc: DocumentSummary) {
     const ok = window.confirm(
-      `Delete the subject "${doc.subject_name}" and all of its documents, ` +
-        `topics, notes, and schedule? This can't be undone.`,
+      t("library.deleteConfirm", { name: doc.subject_name }),
     );
     if (!ok) return;
     try {
       await deleteSubject(doc.subject_id);
     } catch {
-      window.alert("Couldn't delete that subject. Please try again.");
+      window.alert(t("library.deleteFailed"));
     }
   }
 
@@ -83,39 +84,39 @@ export function LibraryPage() {
     <div className="mx-auto max-w-5xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Library</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("library.title")}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Your uploaded documents and their study progress.
+            {t("library.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate("/exam")}>
             <GraduationCap />
-            Exam Prep
+            {t("nav.examPrep")}
           </Button>
           <Button variant="outline" onClick={() => navigate("/bookmarks")}>
             <Bookmark />
-            Bookmarks
+            {t("nav.bookmarks")}
           </Button>
           <Button variant="outline" onClick={() => navigate("/calendar")}>
             <CalendarDays />
-            Calendar
+            {t("nav.calendar")}
           </Button>
           <Button variant="outline" onClick={() => navigate("/queue")}>
             <ListChecks />
-            Queue
+            {t("nav.queue")}
           </Button>
           <Button
             variant="outline"
             size="icon"
-            title="Settings"
+            title={t("nav.settings")}
             onClick={() => navigate("/settings")}
           >
             <Settings />
           </Button>
           <Button onClick={() => setUploadOpen(true)}>
             <Plus />
-            Upload PDF
+            {t("nav.uploadPdf")}
           </Button>
         </div>
       </header>
@@ -131,7 +132,7 @@ export function LibraryPage() {
       </div>
 
       {status === "loading" && (
-        <p className="text-sm text-muted-foreground">Loading your library…</p>
+        <p className="text-sm text-muted-foreground">{t("library.loading")}</p>
       )}
 
       {status === "error" && (
@@ -143,7 +144,7 @@ export function LibraryPage() {
             className="mt-3"
             onClick={() => void fetchDocuments()}
           >
-            Retry
+            {t("common.retry")}
           </Button>
         </div>
       )}
@@ -151,14 +152,13 @@ export function LibraryPage() {
       {status === "loaded" && documents.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
           <BookOpen className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">No documents yet</h2>
+          <h2 className="text-lg font-medium">{t("library.empty.title")}</h2>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Upload an engineering PDF to generate notes, MCQs, flashcards, and a
-            study schedule.
+            {t("library.empty.description")}
           </p>
           <Button className="mt-5" onClick={() => setUploadOpen(true)}>
             <Plus />
-            Upload PDF
+            {t("library.empty.cta")}
           </Button>
         </div>
       )}

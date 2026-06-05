@@ -1,4 +1,42 @@
 {
+  "common": {
+    "retry": "Retry"
+  },
+  "nav": {
+    "examPrep": "Exam Prep",
+    "bookmarks": "Bookmarks",
+    "calendar": "Calendar",
+    "queue": "Queue",
+    "settings": "Settings",
+    "uploadPdf": "Upload PDF"
+  },
+  "library": {
+    "title": "Library",
+    "subtitle": "Your uploaded documents and their study progress.",
+    "loading": "Loading your library…",
+    "empty": {
+      "title": "No documents yet",
+      "description": "Upload an engineering PDF to generate notes, MCQs, flashcards, and a study schedule.",
+      "cta": "Upload PDF"
+    },
+    "deleteConfirm": "Delete the subject \"{{name}}\" and all of its documents, topics, notes, and schedule? This can't be undone.",
+    "deleteFailed": "Couldn't delete that subject. Please try again.",
+    "card": {
+      "noExamDate": "No exam date",
+      "noTopicsYet": "No topics yet",
+      "topicsReady": "{{ready}} of {{total}} topics ready",
+      "chaptersProcessing": "{{running}}/{{total}} chapters processing",
+      "dragToReorder": "Drag to reorder",
+      "deleteSubject": "Delete subject",
+      "deleteSubjectAria": "Delete {{name}}"
+    },
+    "status": {
+      "uploaded": "Uploaded",
+      "processing": "Processing",
+      "ready": "Ready",
+      "error": "Error"
+    }
+  },
   "settings": {
     "language": {
       "navLabel": "Language",

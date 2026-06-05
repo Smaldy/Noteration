@@ -1,4 +1,42 @@
 {
+  "common": {
+    "retry": "Reintentar"
+  },
+  "nav": {
+    "examPrep": "Preparación de examen",
+    "bookmarks": "Favoritos",
+    "calendar": "Calendario",
+    "queue": "Cola",
+    "settings": "Ajustes",
+    "uploadPdf": "Subir PDF"
+  },
+  "library": {
+    "title": "Biblioteca",
+    "subtitle": "Tus documentos subidos y su progreso de estudio.",
+    "loading": "Cargando tu biblioteca…",
+    "empty": {
+      "title": "Aún no hay documentos",
+      "description": "Sube un PDF de ingeniería para generar apuntes, preguntas tipo test, tarjetas y un plan de estudio.",
+      "cta": "Subir PDF"
+    },
+    "deleteConfirm": "¿Eliminar la asignatura \"{{name}}\" y todos sus documentos, temas, apuntes y planificación? Esta acción no se puede deshacer.",
+    "deleteFailed": "No se pudo eliminar la asignatura. Inténtalo de nuevo.",
+    "card": {
+      "noExamDate": "Sin fecha de examen",
+      "noTopicsYet": "Aún no hay temas",
+      "topicsReady": "{{ready}} de {{total}} temas listos",
+      "chaptersProcessing": "{{running}}/{{total}} capítulos en proceso",
+      "dragToReorder": "Arrastra para reordenar",
+      "deleteSubject": "Eliminar asignatura",
+      "deleteSubjectAria": "Eliminar {{name}}"
+    },
+    "status": {
+      "uploaded": "Subido",
+      "processing": "Procesando",
+      "ready": "Listo",
+      "error": "Error"
+    }
+  },
   "settings": {
     "language": {
       "navLabel": "Idioma",

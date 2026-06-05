@@ -1507,6 +1507,22 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   directive is exercised; the model's adherence will be confirmed when generating
   against a key.) **Next:** Waves 3a-3e — UI string extraction.
 
+- **Multilingual support — Wave 3a of 3 (DONE, user-requested): shared UI +
+  Library.** First UI-string extraction sub-wave. Locale files
+  (`src/locales/{en,it,es}/translation.json`) gained `common` (retry), `nav`
+  (examPrep/bookmarks/calendar/queue/settings/uploadPdf), and `library` (title,
+  subtitle, loading, empty state, delete confirm/fail, card progress/chapters/
+  drag/delete labels, status badge labels) namespaces — authored in all three
+  languages. Components switched to `useTranslation`: `LibraryPage` (header +
+  nav buttons, loading/error/empty states, delete `confirm`/`alert` via
+  interpolation `{{name}}`), `DocumentCard` (progress `{{ready}}/{{total}}`,
+  chapters-processing badge, exam-date now formatted with the active locale via
+  `i18n.language` + a localized "No exam date", drag/delete a11y labels), and the
+  shared `StatusBadge` (uploaded/processing/ready/error via `library.status.*`).
+  Tree green: `tsc -b` + `npm run build` clean (backend untouched, **460 passed**).
+  **Next:** 3b Study view, 3c Settings, 3d Calendar + Queue, 3e Upload/Exam/
+  Pomodoro/Bookmarks/Search.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

@@ -1,12 +1,7 @@
+import { useTranslation } from "react-i18next";
+
 import { Badge } from "@/components/ui/badge";
 import type { DocumentStatus } from "@/types/library";
-
-const LABELS: Record<DocumentStatus, string> = {
-  uploaded: "Uploaded",
-  processing: "Processing",
-  ready: "Ready",
-  error: "Error",
-};
 
 const VARIANTS: Record<
   DocumentStatus,
@@ -19,5 +14,6 @@ const VARIANTS: Record<
 };
 
 export function StatusBadge({ status }: { status: DocumentStatus }) {
-  return <Badge variant={VARIANTS[status]}>{LABELS[status]}</Badge>;
+  const { t } = useTranslation();
+  return <Badge variant={VARIANTS[status]}>{t(`library.status.${status}`)}</Badge>;
 }

@@ -1,4 +1,42 @@
 {
+  "common": {
+    "retry": "Riprova"
+  },
+  "nav": {
+    "examPrep": "Preparazione esame",
+    "bookmarks": "Preferiti",
+    "calendar": "Calendario",
+    "queue": "Coda",
+    "settings": "Impostazioni",
+    "uploadPdf": "Carica PDF"
+  },
+  "library": {
+    "title": "Libreria",
+    "subtitle": "I tuoi documenti caricati e i progressi di studio.",
+    "loading": "Caricamento della libreria…",
+    "empty": {
+      "title": "Ancora nessun documento",
+      "description": "Carica un PDF tecnico per generare appunti, quiz a risposta multipla, flashcard e un piano di studio.",
+      "cta": "Carica PDF"
+    },
+    "deleteConfirm": "Eliminare la materia \"{{name}}\" e tutti i suoi documenti, argomenti, appunti e pianificazione? L'operazione non può essere annullata.",
+    "deleteFailed": "Impossibile eliminare la materia. Riprova.",
+    "card": {
+      "noExamDate": "Nessuna data d'esame",
+      "noTopicsYet": "Ancora nessun argomento",
+      "topicsReady": "{{ready}} di {{total}} argomenti pronti",
+      "chaptersProcessing": "{{running}}/{{total}} capitoli in elaborazione",
+      "dragToReorder": "Trascina per riordinare",
+      "deleteSubject": "Elimina materia",
+      "deleteSubjectAria": "Elimina {{name}}"
+    },
+    "status": {
+      "uploaded": "Caricato",
+      "processing": "In elaborazione",
+      "ready": "Pronto",
+      "error": "Errore"
+    }
+  },
   "settings": {
     "language": {
       "navLabel": "Lingua",
