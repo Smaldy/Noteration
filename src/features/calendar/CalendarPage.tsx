@@ -60,6 +60,11 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+// Hoisted to module scope so the reference is stable across renders. Passing a
+// fresh array inline made FullCalendar rebuild its DateEnv every render, which
+// re-fired `datesSet` → fetchRange → setState → re-render → infinite loop.
+const FC_LOCALES = [itLocale, esLocale];
+
 export function CalendarPage() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
@@ -130,7 +135,9 @@ export function CalendarPage() {
     };
     btn.addEventListener("dblclick", onDbl);
     return () => btn.removeEventListener("dblclick", onDbl);
-  });
+    // The Day button element is replaced when its mode flips, so re-attach only
+    // when `dayHourly` changes (not on every render).
+  }, [dayHourly]);
 
   function toggleDayMode() {
     setDayHourly((hourly) => {
@@ -255,7 +262,7 @@ export function CalendarPage() {
               listPlugin,
             ]}
             initialView="dayGridMonth"
-            locales={[itLocale, esLocale]}
+            locales={FC_LOCALES}
             locale={i18n.language}
             height="100%"
             expandRows

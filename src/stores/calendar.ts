@@ -21,8 +21,9 @@ interface CalendarStore {
   catalog: CatalogSubject[];
   catalogLoaded: boolean;
 
-  /** Load entries for a date range (inclusive YYYY-MM-DD). */
-  fetchRange: (start: string, end: string) => Promise<void>;
+  /** Load entries for a date range (inclusive YYYY-MM-DD). Skips the network
+   *  call when the range is already loaded unless `force` is set. */
+  fetchRange: (start: string, end: string, force?: boolean) => Promise<void>;
   /** Re-fetch the current range (after a mutation). */
   refresh: () => Promise<void>;
   /** Move an entry to a new date (and optionally a new start time, or `null` to
@@ -58,7 +59,21 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   catalog: [],
   catalogLoaded: false,
 
-  fetchRange: async (start, end) => {
+  fetchRange: async (start, end, force = false) => {
+    // Skip redundant refetches for a range we already hold — a fresh entries
+    // array on every `datesSet` would otherwise re-render the calendar and
+    // re-fire `datesSet`, forming an infinite loop. Mutations pass `force` via
+    // `refresh()` to bypass this.
+    const { range, loadState } = get();
+    if (
+      !force &&
+      range &&
+      range.start === start &&
+      range.end === end &&
+      loadState === "loaded"
+    ) {
+      return;
+    }
     if (get().entries.length === 0) set({ loadState: "loading" });
     set({ range: { start, end } });
     try {
@@ -77,7 +92,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
 
   refresh: async () => {
     const { range, fetchRange } = get();
-    if (range) await fetchRange(range.start, range.end);
+    if (range) await fetchRange(range.start, range.end, true);
   },
 
   reschedule: async (entryId, date, startTime) => {
