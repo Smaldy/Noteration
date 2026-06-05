@@ -49,3 +49,8 @@ class Settings(Base):
     accent_color: Mapped[str | None] = mapped_column(default=None)
     font_family: Mapped[str | None] = mapped_column(default=None)
     font_size: Mapped[int] = mapped_column(default=16)
+    # UI + AI-content language: "en" (default), "it", or "es". Drives the
+    # frontend i18n and is injected into the generation prompts so new notes,
+    # MCQs, and flashcards are produced in the chosen language. See
+    # services/pipeline/generation.py.
+    language: Mapped[str] = mapped_column(default="en")

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { setLanguage } from "@/i18n";
 import { ApiError, api } from "@/lib/api";
 import type { Settings, SettingsUpdate } from "@/types/settings";
 
@@ -167,6 +168,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     try {
       const settings = await api.get<Settings>("/settings");
       applyAppearance(settings);
+      setLanguage(settings.language); // reconcile the cached language with the backend
       set({ settings, loadState: "loaded" });
     } catch (err) {
       set({
@@ -182,6 +184,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     try {
       const settings = await api.patch<Settings>("/settings", changes);
       applyAppearance(settings);
+      setLanguage(settings.language);
       set({ settings });
     } catch (err) {
       set({

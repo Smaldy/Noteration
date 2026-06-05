@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "language": {
+      "navLabel": "Lingua",
+      "title": "Lingua",
+      "description": "La lingua dell'interfaccia e quella in cui vengono scritti i nuovi appunti, quiz e flashcard generati dall'IA.",
+      "fieldLabel": "Lingua dell'app",
+      "hint": "Cambia subito l'interfaccia. I nuovi contenuti generati dall'IA usano questa lingua; i contenuti già generati restano invariati."
+    }
+  }
+}

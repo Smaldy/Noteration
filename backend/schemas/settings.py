@@ -18,6 +18,9 @@ CalendarSlot = Literal[15, 30, 60, 90, 120]
 # The free-tier Gemini models the user may pick between (gemini-2.0-flash is gone:
 # its free tier is now limit:0). flash-lite is cheapest; flash is more capable.
 GeminiModel = Literal["gemini-2.5-flash-lite", "gemini-2.5-flash"]
+# UI + AI-content language. "en" is the default; the AI is asked to generate new
+# notes/MCQs/flashcards in the chosen language (see services/pipeline/generation.py).
+Language = Literal["en", "it", "es"]
 
 
 class SettingsOut(BaseModel):
@@ -38,6 +41,7 @@ class SettingsOut(BaseModel):
     accent_color: str | None
     font_family: str | None
     font_size: int
+    language: str
     # Derived — keys are never echoed back.
     gemini_key_set: bool
     claude_key_set: bool
@@ -60,6 +64,7 @@ class SettingsOut(BaseModel):
             accent_color=settings.accent_color,
             font_family=settings.font_family,
             font_size=settings.font_size,
+            language=settings.language,
             gemini_key_set=bool(settings.api_key_gemini),
             claude_key_set=bool(settings.api_key_claude),
         )
@@ -92,6 +97,7 @@ class SettingsUpdate(BaseModel):
     accent_color: str | None = None
     font_family: str | None = None
     font_size: int | None = Field(default=None, ge=10, le=32)
+    language: Language | None = None
 
     @model_validator(mode="after")
     def _day_window_ordered(self) -> "SettingsUpdate":

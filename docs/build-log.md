@@ -1460,6 +1460,30 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   Tree green: backend **448 passed** (3 pre-existing date-sensitive calendar/study
   failures unrelated to this work), `tsc -b` + `npm run build` clean.
 
+- **Multilingual support — Wave 1 of 3 (DONE, user-requested).** English (default)
+  / Italian / Spanish, selectable in Settings. Scope (user choice): translate the
+  whole UI **and** have the AI generate *new* notes/MCQs/flashcards in the chosen
+  language; already-generated content is left unchanged. Source of truth = the
+  `Settings` singleton (one value, two consumers: the frontend i18n and — Wave 2 —
+  the generation prompts). **Wave 1 = foundation + the field + the picker:**
+  backend `Settings.language` (default `"en"`; migration `b8c9d0e1f2a3`,
+  `server_default 'en'`, applied to the live DB, `alembic check` clean), schema
+  `Language` Literal (`en`|`it`|`es`) on `SettingsOut`/`SettingsUpdate`. Frontend:
+  added `i18next` + `react-i18next`; `src/i18n/index.ts` (static-bundled
+  `en/it/es` resources, `fallbackLng: en`, a localStorage-cached language so first
+  paint matches the saved choice with no English flash, and `setLanguage` syncing
+  i18next + the cache + `<html lang>`); `src/locales/{en,it,es}/translation.json`
+  (seeded with the Settings language section — broad string extraction is Waves
+  3a-3e). `main.tsx` imports the i18n init; the settings store calls `setLanguage`
+  on fetch **and** save to reconcile the cache with the backend; a **Language**
+  section + segmented picker added to Settings (live preview on change, revert on
+  leave, persisted on save), wired through `FormState`/`toForm`/save and
+  `types/settings.ts`. +4 backend tests (default `en`, set it/es/en round-trip,
+  reject `fr` → 422). Tree green: full suite **455 passed**, `tsc -b` +
+  `npm run build` clean. **Next:** Wave 2 — thread the language into the
+  generation/exam/"more" prompts (resolved from Settings per job); Waves 3a-3e —
+  extract the UI strings namespace by namespace.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

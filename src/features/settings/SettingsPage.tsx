@@ -4,6 +4,7 @@ import {
   CalendarClock,
   Check,
   FileText,
+  Globe,
   KeyRound,
   Minus,
   Palette,
@@ -19,12 +20,19 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  LANGUAGE_NAMES,
+  SUPPORTED_LANGUAGES,
+  setLanguage,
+  type Language,
+} from "@/i18n";
 import { cn } from "@/lib/utils";
 import { applyAppearance, useSettingsStore } from "@/stores/settings";
 import type { CalendarSlot, GeminiModel, Settings, Theme } from "@/types/settings";
@@ -44,6 +52,7 @@ interface FormState {
   accent_color: string; // "" = follow theme default
   font_family: string;
   font_size: number;
+  language: Language;
 }
 
 const SLOT_OPTIONS: { value: CalendarSlot; label: string }[] = [
@@ -123,6 +132,7 @@ const SECTIONS: {
   { id: "api-keys", label: "API keys", icon: KeyRound },
   { id: "providers", label: "Providers", icon: Sparkles },
   { id: "generation", label: "Generation", icon: FileText },
+  { id: "language", label: "Language", icon: Globe },
   { id: "pomodoro", label: "Pomodoro", icon: Timer },
   { id: "calendar", label: "Calendar", icon: CalendarClock },
   { id: "appearance", label: "Appearance", icon: Palette },
@@ -144,11 +154,13 @@ function toForm(s: Settings): FormState {
     accent_color: s.accent_color ?? "",
     font_family: s.font_family ?? "sans",
     font_size: s.font_size,
+    language: (s.language as Language) ?? "en",
   };
 }
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { settings, loadState, saving, saveError, fetchSettings, updateSettings } =
     useSettingsStore();
 
@@ -166,7 +178,7 @@ export function SettingsPage() {
     if (settings) setForm(toForm(settings));
   }, [settings]);
 
-  // Live preview: reflect appearance edits immediately (persisted on Save).
+  // Live preview: reflect appearance + language edits immediately (persisted on Save).
   useEffect(() => {
     if (!form) return;
     applyAppearance({
@@ -175,9 +187,10 @@ export function SettingsPage() {
       accent_color: form.accent_color || null,
       font_family: form.font_family || null,
     });
+    setLanguage(form.language);
   }, [form]);
 
-  // On leaving, snap back to the persisted appearance (discard unsaved preview).
+  // On leaving, snap back to the persisted appearance + language (discard preview).
   useEffect(() => {
     return () => {
       const s = useSettingsStore.getState().settings;
@@ -188,6 +201,7 @@ export function SettingsPage() {
           accent_color: s.accent_color,
           font_family: s.font_family,
         });
+        setLanguage(s.language);
       }
     };
   }, []);
@@ -270,6 +284,7 @@ export function SettingsPage() {
         accent_color: form.accent_color || null,
         font_family: form.font_family,
         font_size: form.font_size,
+        language: form.language,
         ...(geminiKey.trim() ? { api_key_gemini: geminiKey.trim() } : {}),
         ...(claudeKey.trim() ? { api_key_claude: claudeKey.trim() } : {}),
       });
@@ -412,6 +427,29 @@ export function SettingsPage() {
                 A "page" is a unit of content (~300 words). The AI aims for this
                 many pages per topic; if a topic doesn't have enough material it
                 generates what it can. More pages use more tokens.
+              </p>
+            </Field>
+          </Section>
+
+          <Section
+            id="language"
+            icon={Globe}
+            title={t("settings.language.title")}
+            description={t("settings.language.description")}
+            delay={155}
+          >
+            <Field label={t("settings.language.fieldLabel")}>
+              <Segmented
+                group="language"
+                value={form.language}
+                onChange={(v) => set("language", v as Language)}
+                options={SUPPORTED_LANGUAGES.map((code) => ({
+                  value: code,
+                  label: LANGUAGE_NAMES[code],
+                }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.language.hint")}
               </p>
             </Field>
           </Section>

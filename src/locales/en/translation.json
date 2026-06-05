@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "language": {
+      "navLabel": "Language",
+      "title": "Language",
+      "description": "The interface language, and the language new AI notes, quizzes, and flashcards are written in.",
+      "fieldLabel": "App language",
+      "hint": "Changes the interface immediately. New AI-generated content uses this language; already-generated content is unchanged."
+    }
+  }
+}

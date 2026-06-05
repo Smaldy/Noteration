@@ -3,6 +3,7 @@
 export type Theme = "system" | "light" | "dark";
 export type GeminiModel = "gemini-2.5-flash-lite" | "gemini-2.5-flash";
 export type CalendarSlot = 15 | 30 | 60 | 90 | 120;
+export type Language = "en" | "it" | "es";
 
 export interface Settings {
   allow_paid: boolean;
@@ -22,6 +23,7 @@ export interface Settings {
   accent_color: string | null;
   font_family: string | null;
   font_size: number;
+  language: string;
   gemini_key_set: boolean;
   claude_key_set: boolean;
 }
@@ -45,4 +47,5 @@ export interface SettingsUpdate {
   accent_color?: string | null;
   font_family?: string | null;
   font_size?: number;
+  language?: Language;
 }

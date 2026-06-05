@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "language": {
+      "navLabel": "Idioma",
+      "title": "Idioma",
+      "description": "El idioma de la interfaz y el idioma en el que se escriben los nuevos apuntes, cuestionarios y tarjetas generados por la IA.",
+      "fieldLabel": "Idioma de la app",
+      "hint": "Cambia la interfaz al instante. El nuevo contenido generado por la IA usa este idioma; el contenido ya generado no cambia."
+    }
+  }
+}

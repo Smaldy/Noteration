@@ -191,3 +191,25 @@ def test_http_patch_rejects_inverted_window(client: TestClient) -> None:
 def test_http_patch_rejects_unknown_slot_size(client: TestClient) -> None:
     response = client.patch("/api/settings", json={"calendar_slot_minutes": 45})
     assert response.status_code == 422  # only 15/30/60/90/120 allowed
+
+
+# --- language (UI + AI-content) --------------------------------------------- #
+
+
+def test_get_settings_default_language_is_english(session: Session) -> None:
+    assert settings_service.get_settings(session).language == "en"
+
+
+def test_http_get_language_default(client: TestClient) -> None:
+    assert client.get("/api/settings").json()["language"] == "en"
+
+
+def test_http_patch_sets_language(client: TestClient) -> None:
+    for code in ("it", "es", "en"):
+        response = client.patch("/api/settings", json={"language": code})
+        assert response.status_code == 200, response.text
+        assert response.json()["language"] == code
+
+
+def test_http_patch_rejects_unknown_language(client: TestClient) -> None:
+    assert client.patch("/api/settings", json={"language": "fr"}).status_code == 422
