@@ -154,6 +154,50 @@ def test_http_patch_rejects_out_of_range_note_length(client: TestClient) -> None
     assert client.patch("/api/settings", json={"note_length": 11}).status_code == 422
 
 
+# --- Gemini rotation + enable, Ollama model --------------------------------- #
+
+
+def test_get_settings_provider_defaults(session: Session) -> None:
+    s = settings_service.get_settings(session)
+    assert s.gemini_enabled is True  # Gemini on by default
+    assert s.gemini_rotation is False  # static by default (opt-in rotation)
+    assert s.ollama_model is None
+
+
+def test_http_get_provider_defaults(client: TestClient) -> None:
+    body = client.get("/api/settings").json()
+    assert body["gemini_enabled"] is True
+    assert body["gemini_rotation"] is False
+    assert body["ollama_model"] is None
+
+
+def test_http_patch_accepts_3_1_models(client: TestClient) -> None:
+    for model in ("gemini-3.1-flash", "gemini-3.1-flash-lite"):
+        response = client.patch("/api/settings", json={"gemini_model": model})
+        assert response.status_code == 200, response.text
+        assert response.json()["gemini_model"] == model
+
+
+def test_http_patch_toggles_gemini_and_rotation(client: TestClient) -> None:
+    response = client.patch(
+        "/api/settings", json={"gemini_enabled": False, "gemini_rotation": True}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["gemini_enabled"] is False
+    assert body["gemini_rotation"] is True
+
+
+def test_http_patch_sets_and_clears_ollama_model(client: TestClient) -> None:
+    set_resp = client.patch("/api/settings", json={"ollama_model": "llama3.1"})
+    assert set_resp.status_code == 200, set_resp.text
+    assert set_resp.json()["ollama_model"] == "llama3.1"
+    # An empty string clears it (Ollama then has no model → won't serve).
+    clear_resp = client.patch("/api/settings", json={"ollama_model": ""})
+    assert clear_resp.status_code == 200, clear_resp.text
+    assert clear_resp.json()["ollama_model"] is None
+
+
 # --- calendar hourly Day-view config ---------------------------------------- #
 
 

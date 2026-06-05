@@ -20,15 +20,25 @@ class Settings(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=SINGLETON_ID)
     api_key_gemini: Mapped[str | None] = mapped_column(default=None)
     api_key_claude: Mapped[str | None] = mapped_column(default=None)
-    # Which Gemini model the free-tier provider calls. flash-lite is the cheapest
-    # 2.5 tier (no "thinking" overhead); flash is more capable. (gemini-2.0-flash
-    # was dropped — its free tier is now limit:0.)
+    # Which Gemini model the free-tier provider pins when rotation is OFF. One of
+    # the four offered free-tier models (2.5/3.1 × flash/flash-lite). flash-lite is
+    # the cheapest tier (no "thinking" overhead); the 3.1 tiers are newer/stronger.
     gemini_model: Mapped[str] = mapped_column(default="gemini-2.5-flash-lite")
+    # Master switch for the whole Gemini tier. Turn off to force Ollama/Claude (e.g.
+    # to test a local model's note quality). Default on.
+    gemini_enabled: Mapped[bool] = mapped_column(default=True)
+    # Model rotation. ON → cycle the four free-tier Gemini models, switching on each
+    # model's per-model RPD limit (the shared token budget still falls through to
+    # Ollama). OFF → use the single pinned ``gemini_model``. Default off (static).
+    gemini_rotation: Mapped[bool] = mapped_column(default=False)
     # Hard "never spend" switch; false = free-only waterfall.
     allow_paid: Mapped[bool] = mapped_column(default=False)
     # Overrides the default cheapest-first order; null = default order.
     provider_order: Mapped[list[str] | None] = mapped_column(JSON, default=None)
     ollama_enabled: Mapped[bool] = mapped_column(default=False)
+    # The local Ollama model name (e.g. "llama3.1"); null until the user picks one.
+    # Ollama only serves when enabled *and* a model is set.
+    ollama_model: Mapped[str | None] = mapped_column(default=None)
     # Per-document token ceiling (defense-in-depth against a runaway document).
     # 0 = automatic budget (estimate × overspend factor); a positive value is a
     # flat ceiling. See services/queue.py.

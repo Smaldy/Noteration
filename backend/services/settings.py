@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 
 from backend.models.settings import SINGLETON_ID, Settings
 
-# API-key fields where an empty string means "clear the stored key".
-_KEY_FIELDS = {"api_key_gemini", "api_key_claude"}
+# Fields where an empty string means "clear the stored value" (store NULL): the
+# API keys, plus the optional Ollama model name (empty = no model → Ollama off).
+_KEY_FIELDS = {"api_key_gemini", "api_key_claude", "ollama_model"}
 
 
 def get_settings(session: Session) -> Settings:

@@ -35,7 +35,6 @@ from backend.services import history
 from backend.services.pipeline.formula import NO_OP_PROVIDER
 from backend.services.pipeline.processors import make_pipeline_processor
 from backend.services.providers.factory import build_waterfall_from_settings
-from backend.services.providers.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
 from backend.services.providers.waterfall import Waterfall
 from backend.services.queue import JobOutcome, QueueService
 from backend.services.settings import get_settings
@@ -50,12 +49,10 @@ POLL_INTERVAL_SECONDS = 5.0
 # work so a long queue can't pin a single waterfall/config snapshot.
 MAX_JOBS_PER_TICK = 50
 
-# Gemini free-tier models we offer (Settings.gemini_model). When one of these is
-# the serving tier, the background worker spaces out generation calls so a long
-# queue can't burst past the rolling per-minute request quota.
-FREE_TIER_GEMINI_MODELS = frozenset({"gemini-2.5-flash-lite", "gemini-2.5-flash"})
-# Mandatory gap between consecutive free-tier model calls. 60s / 12s = 5 req/min,
-# comfortably under Gemini's 15 RPM ceiling even with vision/retry jitter.
+# Mandatory gap between consecutive free-tier Gemini calls. 60s / 12s = 5 req/min,
+# comfortably under Gemini's 15 RPM ceiling even with vision/retry jitter. All four
+# offered Gemini models are free-tier, so the throttle applies whenever Gemini is
+# the serving tier (single pinned model or rotation).
 FREE_TIER_THROTTLE_SECONDS = 12.0
 
 
@@ -66,15 +63,16 @@ def _no_sleep(_seconds: float) -> None:
 def _free_tier_throttle_seconds(settings: Settings) -> float:
     """Seconds to wait between model calls when Gemini's free tier is serving.
 
-    Throttle when a Gemini key is configured and the chosen model is a free-tier
-    model — that's the tier whose 60-second request window we must not breach in
-    automated drains. (If a paid/local tier is ordered ahead, the extra spacing is
-    harmless.) Returns 0 when no free-tier throttle applies.
+    Throttle when the Gemini tier is enabled and configured — every offered Gemini
+    model (single or rotation) is free-tier, so its 60-second request window must
+    not be breached in automated drains. (If a paid/local tier serves instead, the
+    extra spacing is harmless.) Returns 0 when Gemini can't serve.
     """
-    if not settings.api_key_gemini:
+    # ``gemini_enabled`` defaults True; a transient (un-flushed) Settings reads
+    # None, so treat "not explicitly False" as enabled.
+    if settings.gemini_enabled is False or not settings.api_key_gemini:
         return 0.0
-    model = settings.gemini_model or GEMINI_DEFAULT_MODEL
-    return FREE_TIER_THROTTLE_SECONDS if model in FREE_TIER_GEMINI_MODELS else 0.0
+    return FREE_TIER_THROTTLE_SECONDS
 
 
 def _is_billable_call(outcome: JobOutcome, assigned_provider: str | None) -> bool:
@@ -124,8 +122,11 @@ def _settings_fingerprint(settings: Settings) -> tuple:
         settings.api_key_gemini,
         settings.api_key_claude,
         settings.gemini_model,
+        bool(settings.gemini_enabled),
+        bool(settings.gemini_rotation),
         bool(settings.allow_paid),
         bool(settings.ollama_enabled),
+        settings.ollama_model,
         tuple(order) if order else (),
     )
 
@@ -160,15 +161,19 @@ class WaterfallCache:
 def _has_configured_provider(settings: Settings) -> bool:
     """True when at least one provider can actually serve a request.
 
-    Gemini needs its free-tier key; Claude needs ``allow_paid`` *and* a key (the
-    hard never-spend switch). Ollama is benchmark-gated (no model wired in the
-    live waterfall yet), so it can't serve on its own here. With nothing usable we
-    skip the drain so jobs stay ``pending`` rather than collecting a 5-minute
-    exhaustion defer.
+    Gemini needs to be enabled *and* hold its free-tier key; Claude needs
+    ``allow_paid`` *and* a key (the hard never-spend switch); Ollama needs to be
+    enabled *and* have a model set (so a user can run/test a local model). With
+    nothing usable we skip the drain so jobs stay ``pending`` rather than
+    collecting a 5-minute exhaustion defer.
     """
-    if settings.api_key_gemini:
+    # ``gemini_enabled`` defaults True; a transient Settings reads None, so treat
+    # "not explicitly False" as enabled.
+    if settings.gemini_enabled is not False and settings.api_key_gemini:
         return True
     if settings.allow_paid and settings.api_key_claude:
+        return True
+    if settings.ollama_enabled and settings.ollama_model:
         return True
     return False
 

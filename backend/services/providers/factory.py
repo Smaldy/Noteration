@@ -2,8 +2,13 @@
 
 Cheapest-first by default (gemini → ollama → claude); ``allow_paid`` gates the
 paid tier (the hard "never spend" switch), ``provider_order`` can override the
-order, and Ollama joins only when enabled with a chosen model (benchmark-gated).
-Pure construction — no network — so it is unit-testable.
+order, and Ollama joins only when enabled with a chosen model. Pure construction —
+no network — so it is unit-testable.
+
+Gemini holds one model (rotation OFF → ``gemini_model``) or all four (rotation ON →
+``ROTATION_ORDER``); the per-model RPD rotation and shared-token fall-through to
+Ollama live inside ``GeminiProvider``. ``gemini_enabled=False`` disables the whole
+Gemini tier (e.g. to test Ollama's note quality) so the waterfall skips it.
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ from typing import TYPE_CHECKING
 from backend.services.providers.base import Provider
 from backend.services.providers.claude import ClaudeProvider
 from backend.services.providers.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
-from backend.services.providers.gemini import GeminiProvider
+from backend.services.providers.gemini import ROTATION_ORDER, GeminiProvider
 from backend.services.providers.ollama import DEFAULT_HOST, OllamaProvider
 from backend.services.providers.waterfall import Waterfall
 
@@ -29,6 +34,8 @@ def build_waterfall(
     *,
     gemini_key: str | None = None,
     gemini_model: str | None = None,
+    gemini_enabled: bool = True,
+    gemini_rotation: bool = False,
     claude_key: str | None = None,
     allow_paid: bool = False,
     ollama_model: str | None = None,
@@ -39,12 +46,21 @@ def build_waterfall(
 ) -> Waterfall:
     """Build a configured ``Waterfall`` cheapest-first (or per ``provider_order``)."""
     clock_kwargs = {"clock": clock} if clock is not None else {}
+    # Rotation ON → hold every free-tier model in order; OFF → just the pinned one.
+    gemini_models = (
+        list(ROTATION_ORDER)
+        if gemini_rotation
+        else [gemini_model or GEMINI_DEFAULT_MODEL]
+    )
     # Coerce to bool: a transient (un-flushed) Settings row reads None for its
     # boolean columns (SQLAlchemy defaults apply only on flush), and None must
     # not leak into provider `enabled` flags.
     by_name: dict[str, Provider] = {
         "gemini_free": GeminiProvider(
-            gemini_key, model=gemini_model or GEMINI_DEFAULT_MODEL, **clock_kwargs
+            gemini_key,
+            models=gemini_models,
+            enabled=bool(gemini_enabled),
+            **clock_kwargs,
         ),
         "ollama": OllamaProvider(
             model=ollama_model,
@@ -74,9 +90,13 @@ def build_waterfall_from_settings(
     return build_waterfall(
         gemini_key=settings.api_key_gemini,
         gemini_model=settings.gemini_model,
+        # gemini_enabled defaults True; a transient Settings reads None for it.
+        gemini_enabled=settings.gemini_enabled is not False,
+        gemini_rotation=bool(settings.gemini_rotation),
         claude_key=settings.api_key_claude,
         allow_paid=settings.allow_paid,
-        ollama_model=ollama_model,  # model TBD by benchmark; gated by ollama_enabled
+        # An explicit arg wins; otherwise use the persisted Ollama model.
+        ollama_model=ollama_model or settings.ollama_model,
         ollama_enabled=settings.ollama_enabled,
         provider_order=settings.provider_order,
         clock=clock,

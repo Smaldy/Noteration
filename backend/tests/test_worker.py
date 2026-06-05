@@ -89,20 +89,30 @@ def test_has_configured_provider_truth_table() -> None:
     # Claude key without allow_paid is the hard never-spend case → not usable.
     assert _has_configured_provider(Settings(api_key_claude="k")) is False
     assert _has_configured_provider(Settings()) is False
+    # Gemini explicitly disabled → its key doesn't count.
+    assert _has_configured_provider(
+        Settings(api_key_gemini="k", gemini_enabled=False)
+    ) is False
+    # Ollama enabled *with a model* is now a usable provider (test local models).
+    assert _has_configured_provider(
+        Settings(ollama_enabled=True, ollama_model="llama3.1")
+    ) is True
+    # Enabled but no model → not usable.
+    assert _has_configured_provider(Settings(ollama_enabled=True)) is False
 
 
 def test_free_tier_throttle_seconds() -> None:
-    # A Gemini key + a free-tier model (default flash-lite) → throttle.
+    # Gemini key + enabled → throttle (every offered model is free-tier).
     assert _free_tier_throttle_seconds(
         Settings(api_key_gemini="k")
     ) == FREE_TIER_THROTTLE_SECONDS
     assert _free_tier_throttle_seconds(
-        Settings(api_key_gemini="k", gemini_model="gemini-2.5-flash")
+        Settings(api_key_gemini="k", gemini_model="gemini-3.1-flash")
     ) == FREE_TIER_THROTTLE_SECONDS
-    # No key → nothing to throttle; a non-free model → no free-tier throttle.
+    # No key → nothing to throttle; Gemini disabled → no Gemini throttle.
     assert _free_tier_throttle_seconds(Settings()) == 0.0
     assert _free_tier_throttle_seconds(
-        Settings(api_key_gemini="k", gemini_model="some-paid-model")
+        Settings(api_key_gemini="k", gemini_enabled=False)
     ) == 0.0
 
 

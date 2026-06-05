@@ -1887,6 +1887,52 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   no rebuild. Exam mode (no notes) keeps the fixed source window so its assessment
   cost is unaffected.
 
+## AUDIO TRANSCRIBER + GEMINI ROTATION (user-requested, in waves)
+
+New feature set: an audio→notes transcriber, the four Gemini models (2.5/3.1 ×
+flash/flash-lite) with optional rotation, a Gemini master toggle, a usable Ollama
+model, and manual audio/image attachments in notes. Built in waves; each ends
+green + committed.
+
+- **Wave 1 — Model expansion + rotation (reliability core, backend) (DONE).**
+  Gemini now offers four free-tier models (`gemini-2.5-flash-lite`,
+  `gemini-2.5-flash`, `gemini-3.1-flash-lite`, `gemini-3.1-flash`; exact API ids
+  confirmed against Google's docs, kept as constants in `providers/gemini.py`).
+  **Rotation lives inside `GeminiProvider`**, not the waterfall: it can hold one
+  model (rotation OFF → the pinned `Settings.gemini_model`) or all four (rotation
+  ON → `ROTATION_ORDER`, best-first), each with its own per-model RPD/RPM
+  `FreeTierLimiter`. On a per-model 429 it cools that model and rotates to the
+  next; only when *every* held model is limited (the shared daily token budget
+  429s them all) does it raise `ProviderLimitError`, so the waterfall falls
+  through to Ollama — making the user's rule ("RPD → switch model, shared token →
+  switch to Ollama") fall out of real 429s with no separate token tracker. Keeps
+  `name="gemini_free"`, so the factory/queue/`provider_order`/`ProviderState`
+  layers are untouched. **Decoupled cooldown vs. job-defer** (review finding): a
+  429 with no parsed reset cools the model for ~1h (no hammering) but the *raised*
+  error carries `reset_at=None`, so the queue defers the affected job only briefly
+  and re-routes it to Ollama next cycle instead of stranding it until Gemini's
+  window reopens (the worker dispatches each job on a single-provider sub-waterfall
+  + `_eligible_lane_candidates` skips future `resume_after`). New `Settings`:
+  `gemini_enabled` (master switch — turn Gemini off to test Ollama note quality;
+  default on), `gemini_rotation` (default off/static), `ollama_model` (the local
+  model name; Ollama serves only when enabled *and* a model is set). Migration
+  `f6a7b8c9d0e1` (`server_default` backfills the singleton; `alembic check` clean,
+  applied to live DB). Schema `GeminiModel` widened to the four ids; `SettingsOut`/
+  `SettingsUpdate` carry the new fields (empty `ollama_model` clears it). Worker:
+  `_settings_fingerprint` includes the new fields (cache rebuilds on toggle),
+  `_free_tier_throttle_seconds` throttles whenever Gemini is enabled+keyed (all
+  four are free-tier), `_has_configured_provider` now also true for
+  enabled-Ollama-with-a-model. Factory: `build_waterfall` gained
+  `gemini_enabled`/`gemini_rotation`; `_from_settings` wires the persisted Ollama
+  model and treats `gemini_enabled is not False` as on (transient-None gotcha).
+  +14 tests (rotation: per-model rotate, all-limited→limit-error, cooled-skip,
+  hard-error-no-rotation, decoupled defer; factory: rotation holds 4 /
+  single-when-off / disabled-skips-tier / Ollama-needs-model; settings: 3.1 models,
+  toggles, ollama set/clear/defaults). Tree green: full suite **474 passed**.
+  **Next:** Wave 2 — Settings UI redo (rotation toggle + 4-model picker + Gemini/
+  Ollama controls); Wave 3 — audio transcriber backend (3.1-flash only, export
+  markdown); Wave 4 — transcriber frontend; Wave 5 — note attachments.
+
 ## BLOCKED
 
 - _(none)_

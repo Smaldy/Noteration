@@ -15,9 +15,14 @@ from backend.models.settings import Settings
 Theme = Literal["system", "light", "dark"]
 # Allowed slot gaps (minutes) for the calendar's hourly Day view.
 CalendarSlot = Literal[15, 30, 60, 90, 120]
-# The free-tier Gemini models the user may pick between (gemini-2.0-flash is gone:
-# its free tier is now limit:0). flash-lite is cheapest; flash is more capable.
-GeminiModel = Literal["gemini-2.5-flash-lite", "gemini-2.5-flash"]
+# The free-tier Gemini models the user may pin when rotation is OFF. flash-lite is
+# cheapest; flash is more capable; the 3.1 generation is newer/stronger than 2.5.
+GeminiModel = Literal[
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash",
+]
 # UI + AI-content language. "en" is the default; the AI is asked to generate new
 # notes/MCQs/flashcards in the chosen language (see services/pipeline/generation.py).
 Language = Literal["en", "it", "es"]
@@ -29,7 +34,10 @@ class SettingsOut(BaseModel):
     allow_paid: bool
     provider_order: list[str] | None
     ollama_enabled: bool
+    ollama_model: str | None
     gemini_model: str
+    gemini_enabled: bool
+    gemini_rotation: bool
     per_document_token_budget: int
     note_length: int
     pomodoro_work_min: int
@@ -52,7 +60,10 @@ class SettingsOut(BaseModel):
             allow_paid=settings.allow_paid,
             provider_order=settings.provider_order,
             ollama_enabled=settings.ollama_enabled,
+            ollama_model=settings.ollama_model,
             gemini_model=settings.gemini_model,
+            gemini_enabled=settings.gemini_enabled,
+            gemini_rotation=settings.gemini_rotation,
             per_document_token_budget=settings.per_document_token_budget,
             note_length=settings.note_length,
             pomodoro_work_min=settings.pomodoro_work_min,
@@ -82,7 +93,11 @@ class SettingsUpdate(BaseModel):
     allow_paid: bool | None = None
     provider_order: list[str] | None = None
     ollama_enabled: bool | None = None
+    # Empty string clears the stored Ollama model name; a non-empty string sets it.
+    ollama_model: str | None = None
     gemini_model: GeminiModel | None = None
+    gemini_enabled: bool | None = None
+    gemini_rotation: bool | None = None
     # 0 = automatic ceiling (estimate × factor); a positive value is a flat cap.
     per_document_token_budget: int | None = Field(default=None, ge=0)
     # Notes length in "pages" (units of content) per topic; 1-10.

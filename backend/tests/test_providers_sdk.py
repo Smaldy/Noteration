@@ -147,6 +147,93 @@ def test_gemini_generate_engages_structured_output() -> None:
     assert "response_schema" not in captured["config"]
 
 
+# --- Gemini model rotation --------------------------------------------------
+
+
+def _gemini_per_model_client(behavior):
+    """A client whose ``generate_content`` dispatches on the ``model`` kwarg.
+
+    ``behavior`` maps model name → either an exception to raise or a response to
+    return. Each call is appended to the returned ``calls`` list.
+    """
+    calls: list[str] = []
+
+    def generate_content(*, model, **_kwargs):
+        calls.append(model)
+        outcome = behavior[model]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    client = SimpleNamespace(
+        models=SimpleNamespace(generate_content=generate_content)
+    )
+    return client, calls
+
+
+def test_gemini_rotates_to_next_model_on_per_model_limit() -> None:
+    ok = SimpleNamespace(text="ok", usage_metadata=None)
+    client, calls = _gemini_per_model_client(
+        {"m1": Exception("429 RESOURCE_EXHAUSTED"), "m2": ok}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    result = provider.generate("p", max_tokens=10)
+    assert result.text == "ok"
+    # m1 hit its per-model RPD limit → rotated to m2 within the one provider.
+    assert calls == ["m1", "m2"]
+
+
+def test_gemini_all_models_limited_raises_limit_error() -> None:
+    # When every model 429s (the shared token budget), the provider reports a
+    # limit so the waterfall falls through to the next tier (Ollama).
+    client, _ = _gemini_per_model_client(
+        {"m1": Exception("429 quota"), "m2": Exception("429 quota")}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    with pytest.raises(ProviderLimitError):
+        provider.generate("p", max_tokens=10)
+
+
+def test_gemini_unknown_limit_defers_briefly_but_cools_model() -> None:
+    # A 429 with no parsed reset must NOT strand the job on Gemini's window: the
+    # raised error carries reset_at=None (queue defers briefly → re-routes to
+    # Ollama), while the model itself stays cooled so it isn't hammered.
+    client, _ = _gemini_per_model_client(
+        {"m1": Exception("429 RESOURCE_EXHAUSTED")}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1"])
+    with pytest.raises(ProviderLimitError) as excinfo:
+        provider.generate("p", max_tokens=10)
+    assert excinfo.value.reset_at is None  # job won't be stranded for an hour
+    # …but the model is cooled, so the provider reports unavailable now.
+    assert provider.budget_probe().available is False
+
+
+def test_gemini_cooled_model_skipped_on_next_call() -> None:
+    ok = SimpleNamespace(text="ok", usage_metadata=None)
+    client, calls = _gemini_per_model_client(
+        {"m1": Exception("429"), "m2": ok}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    provider.generate("p", max_tokens=10)  # m1 limited → cooled, m2 serves
+    provider.generate("p", max_tokens=10)  # m1 still cooling → straight to m2
+    assert calls == ["m1", "m2", "m2"]
+    # A still-usable model keeps the provider available overall.
+    assert provider.budget_probe().available is True
+
+
+def test_gemini_hard_error_propagates_without_rotation() -> None:
+    # A non-limit (hard) error isn't model-specific — fail the provider so the
+    # waterfall backs it off instead of retrying the same fault on every model.
+    client, calls = _gemini_per_model_client(
+        {"m1": Exception("boom"), "m2": SimpleNamespace(text="x", usage_metadata=None)}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    with pytest.raises(ProviderUnavailableError):
+        provider.generate("p", max_tokens=10)
+    assert calls == ["m1"]  # did not rotate past the hard error
+
+
 # --- Claude -----------------------------------------------------------------
 
 
@@ -384,3 +471,41 @@ def test_factory_enables_paid_and_custom_order() -> None:
     assert names[0] == "claude_paid"
     assert "ollama" in names  # omitted tier still appended
     assert waterfall.providers[names.index("claude_paid")].enabled is True
+
+
+def test_factory_rotation_holds_all_four_models() -> None:
+    from backend.services.providers.gemini import ROTATION_ORDER
+
+    settings = Settings(api_key_gemini="g", gemini_rotation=True)
+    waterfall = build_waterfall_from_settings(settings)
+    gemini = next(p for p in waterfall.providers if p.name == "gemini_free")
+    assert gemini.models == list(ROTATION_ORDER)
+
+
+def test_factory_single_model_when_rotation_off() -> None:
+    settings = Settings(api_key_gemini="g", gemini_model="gemini-3.1-flash")
+    gemini = next(
+        p for p in build_waterfall_from_settings(settings).providers
+        if p.name == "gemini_free"
+    )
+    assert gemini.models == ["gemini-3.1-flash"]
+
+
+def test_factory_gemini_disabled_skips_tier() -> None:
+    # Disabling Gemini lets Ollama serve (test a local model's quality).
+    settings = Settings(
+        api_key_gemini="g",
+        gemini_enabled=False,
+        ollama_enabled=True,
+        ollama_model="llama3.1",
+    )
+    by_name = {p.name: p for p in build_waterfall_from_settings(settings).providers}
+    assert by_name["gemini_free"].enabled is False
+    assert by_name["ollama"].enabled is True
+    assert by_name["ollama"].model == "llama3.1"
+
+
+def test_factory_ollama_needs_a_model() -> None:
+    settings = Settings(ollama_enabled=True)  # enabled but no model
+    by_name = {p.name: p for p in build_waterfall_from_settings(settings).providers}
+    assert by_name["ollama"].enabled is False
