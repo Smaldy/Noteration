@@ -7,6 +7,7 @@ const VARIANTS: Record<
   DocumentStatus,
   "default" | "secondary" | "destructive" | "outline"
 > = {
+  transcribing: "secondary",
   uploaded: "outline",
   processing: "secondary",
   ready: "default",

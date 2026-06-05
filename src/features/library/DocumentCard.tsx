@@ -1,6 +1,15 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, FileText, GripVertical, Trash2 } from "lucide-react";
+import {
+  AudioLines,
+  CalendarDays,
+  Download,
+  FileText,
+  GripVertical,
+  Loader2,
+  RotateCw,
+  Trash2,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +22,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type { Transcript } from "@/types/document";
 import type { DocumentSummary } from "@/types/library";
 
 import { StatusBadge } from "./StatusBadge";
@@ -29,15 +40,24 @@ function formatExamDate(iso: string, locale: string): string {
   });
 }
 
+/** Strip the extension for a friendly download name. */
+function baseName(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  return dot > 0 ? filename.slice(0, dot) : filename;
+}
+
 export function DocumentCard({
   doc,
   onDelete,
   onToggleBookmark,
+  onRetryTranscription,
   actions,
 }: {
   doc: DocumentSummary;
   onDelete?: (doc: DocumentSummary) => void;
   onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
+  /** Re-queue a failed/rate-limited audio transcription. */
+  onRetryTranscription?: (doc: DocumentSummary) => void;
   /** Optional footer actions (e.g. Exam Prep deck Quiz/Flashcards buttons). */
   actions?: ReactNode;
 }) {
@@ -45,6 +65,13 @@ export function DocumentCard({
   const { t, i18n } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: doc.id });
+
+  const isAudio = doc.source_type === "audio";
+  const transcribing = doc.status === "transcribing";
+  const audioError = isAudio && doc.status === "error";
+  // A transcript exists once transcription has finished (any state past it).
+  const hasTranscript =
+    isAudio && (doc.status === "uploaded" || doc.status === "processing" || doc.status === "ready");
 
   const progress =
     doc.topics_total === 0
@@ -54,12 +81,36 @@ export function DocumentCard({
           total: doc.topics_total,
         });
 
-  // Not-yet-confirmed documents go to structure review; confirmed ones to study.
+  // Transcribing/failed-audio cards aren't navigable (no content yet). Otherwise
+  // not-yet-confirmed documents go to structure review; confirmed ones to study.
+  const clickable = !transcribing && !audioError;
   const destination =
     doc.status === "uploaded"
       ? `/documents/${doc.id}/review`
       : `/documents/${doc.id}/study`;
 
+  function go() {
+    if (clickable) navigate(destination);
+  }
+
+  async function exportTranscript() {
+    try {
+      const transcript = await api.get<Transcript>(
+        `/documents/${doc.id}/transcript`,
+      );
+      const blob = new Blob([transcript.markdown], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${baseName(doc.filename)}.md`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.alert(t("library.card.transcriptUnavailable"));
+    }
+  }
+
+  const Icon = isAudio ? AudioLines : FileText;
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -75,17 +126,20 @@ export function DocumentCard({
       )}
     >
       <Card
-        role="button"
-        tabIndex={0}
-        onClick={() => navigate(destination)}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onClick={go}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if (clickable && (e.key === "Enter" || e.key === " ")) {
             e.preventDefault();
-            navigate(destination);
+            go();
           }
         }}
         className={cn(
-          "h-full cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "h-full transition-all",
+          clickable
+            ? "cursor-pointer hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            : "cursor-default",
           isDragging && "shadow-xl ring-2 ring-primary/40",
         )}
       >
@@ -103,7 +157,7 @@ export function DocumentCard({
               >
                 <GripVertical className="size-4" />
               </button>
-              <FileText className="shrink-0 text-muted-foreground" />
+              <Icon className="shrink-0 text-muted-foreground" />
               <CardTitle className="truncate">{doc.subject_name}</CardTitle>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -137,23 +191,69 @@ export function DocumentCard({
           <p className="truncate" title={doc.filename}>
             {doc.filename}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <p>{progress}</p>
-            {doc.chapters_running > 0 && (
-              <span className="inline-flex items-center rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-foreground tabular-nums">
-                {t("library.card.chaptersProcessing", {
-                  running: doc.chapters_running,
-                  total: doc.chapters_total,
-                })}
-              </span>
-            )}
-          </div>
-          <p className="flex items-center gap-1.5">
-            <CalendarDays className="size-3.5" />
-            {doc.exam_date
-              ? formatExamDate(doc.exam_date, i18n.language)
-              : t("library.card.noExamDate")}
-          </p>
+
+          {transcribing ? (
+            <p className="flex items-center gap-2 text-primary">
+              <Loader2 className="size-3.5 animate-spin" />
+              {t("library.card.transcribing")}
+            </p>
+          ) : audioError ? (
+            <div
+              className="space-y-2"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              role="presentation"
+            >
+              <p className="text-destructive">
+                {doc.status_detail ?? t("library.card.transcriptionFailed")}
+              </p>
+              {onRetryTranscription && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onRetryTranscription(doc)}
+                >
+                  <RotateCw className="size-3.5" />
+                  {t("library.card.retryTranscription")}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <p>{progress}</p>
+                {doc.chapters_running > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-foreground tabular-nums">
+                    {t("library.card.chaptersProcessing", {
+                      running: doc.chapters_running,
+                      total: doc.chapters_total,
+                    })}
+                  </span>
+                )}
+              </div>
+              <p className="flex items-center gap-1.5">
+                <CalendarDays className="size-3.5" />
+                {doc.exam_date
+                  ? formatExamDate(doc.exam_date, i18n.language)
+                  : t("library.card.noExamDate")}
+              </p>
+            </>
+          )}
+
+          {hasTranscript && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void exportTranscript();
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Download className="size-3.5" />
+              {t("library.card.exportTranscript")}
+            </button>
+          )}
+
           {actions && (
             <div
               className="pt-1"

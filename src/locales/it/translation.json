@@ -10,7 +10,8 @@
     "calendar": "Calendario",
     "queue": "Coda",
     "settings": "Impostazioni",
-    "uploadPdf": "Carica PDF"
+    "uploadPdf": "Carica PDF",
+    "upload": "Carica"
   },
   "library": {
     "title": "Libreria",
@@ -30,13 +31,19 @@
       "chaptersProcessing": "{{running}}/{{total}} capitoli in elaborazione",
       "dragToReorder": "Trascina per riordinare",
       "deleteSubject": "Elimina materia",
-      "deleteSubjectAria": "Elimina {{name}}"
+      "deleteSubjectAria": "Elimina {{name}}",
+      "transcribing": "Trascrizione audio…",
+      "transcriptionFailed": "Trascrizione non riuscita.",
+      "retryTranscription": "Riprova trascrizione",
+      "exportTranscript": "Esporta trascrizione",
+      "transcriptUnavailable": "La trascrizione non è ancora pronta."
     },
     "status": {
       "uploaded": "Caricato",
       "processing": "In elaborazione",
       "ready": "Pronto",
-      "error": "Errore"
+      "error": "Errore",
+      "transcribing": "Trascrizione"
     }
   },
   "study": {
@@ -145,7 +152,9 @@
       "readExam_one": "Letta {{count}} pagina — pronto per creare la pratica.",
       "readExam_other": "Lette {{count}} pagine — pronto per creare la pratica.",
       "read_one": "Letta {{count}} pagina — pronto per la revisione.",
-      "read_other": "Lette {{count}} pagine — pronto per la revisione."
+      "read_other": "Lette {{count}} pagine — pronto per la revisione.",
+      "transcribing": "Caricato — trascrizione in corso…",
+      "transcribingHint": "Stiamo trascrivendo il tuo audio. Potrai rivederne la struttura al termine."
     },
     "review": {
       "loading": "Lettura del PDF e rilevamento della struttura…",
@@ -181,7 +190,9 @@
       "examCritical": "Cruciale per l'esame",
       "medium": "Media",
       "skip": "Salta"
-    }
+    },
+    "fileLabel": "File PDF o audio",
+    "fileHint": "Carica un PDF o una registrazione audio (es. una lezione) — l'audio viene trascritto automaticamente."
   },
   "search": {
     "placeholder": "Cerca argomenti e capitoli…",

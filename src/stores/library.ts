@@ -25,6 +25,8 @@ export interface LibraryStore {
   toggleSubjectBookmark: (subjectId: number, bookmarked: boolean) => Promise<void>;
   /** Persist a new manual order of the cards (optimistic). */
   reorderDocuments: (orderedIds: number[]) => Promise<void>;
+  /** Re-queue a failed/rate-limited audio document for transcription. */
+  retryTranscription: (documentId: number) => Promise<void>;
 }
 
 // One store per section (study = Library, exam = Exam Prep). The two never share
@@ -93,6 +95,18 @@ function createDocumentsStore(mode: DocumentMode) {
     } catch {
       set({ documents: previous }); // revert
     }
+  },
+  retryTranscription: async (documentId) => {
+    // Optimistically flip the card back to transcribing; refresh for truth.
+    set((state) => ({
+      documents: state.documents.map((d) =>
+        d.id === documentId
+          ? { ...d, status: "transcribing", status_detail: null }
+          : d,
+      ),
+    }));
+    await api.post(`/documents/${documentId}/transcribe/retry`, {});
+    await get().fetchDocuments();
   },
   }));
 }

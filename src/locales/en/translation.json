@@ -10,7 +10,8 @@
     "calendar": "Calendar",
     "queue": "Queue",
     "settings": "Settings",
-    "uploadPdf": "Upload PDF"
+    "uploadPdf": "Upload PDF",
+    "upload": "Upload"
   },
   "library": {
     "title": "Library",
@@ -30,13 +31,19 @@
       "chaptersProcessing": "{{running}}/{{total}} chapters processing",
       "dragToReorder": "Drag to reorder",
       "deleteSubject": "Delete subject",
-      "deleteSubjectAria": "Delete {{name}}"
+      "deleteSubjectAria": "Delete {{name}}",
+      "transcribing": "Transcribing audio…",
+      "transcriptionFailed": "Transcription failed.",
+      "retryTranscription": "Retry transcription",
+      "exportTranscript": "Export transcript",
+      "transcriptUnavailable": "Transcript isn't ready yet."
     },
     "status": {
       "uploaded": "Uploaded",
       "processing": "Processing",
       "ready": "Ready",
-      "error": "Error"
+      "error": "Error",
+      "transcribing": "Transcribing"
     }
   },
   "study": {
@@ -145,7 +152,9 @@
       "readExam_one": "Read {{count}} page — ready to build practice.",
       "readExam_other": "Read {{count}} pages — ready to build practice.",
       "read_one": "Read {{count}} page — ready to review.",
-      "read_other": "Read {{count}} pages — ready to review."
+      "read_other": "Read {{count}} pages — ready to review.",
+      "transcribing": "Uploaded — transcribing…",
+      "transcribingHint": "Your audio is being transcribed. You can review its structure once it's ready."
     },
     "review": {
       "loading": "Reading your PDF and detecting structure…",
@@ -181,7 +190,9 @@
       "examCritical": "Exam-critical",
       "medium": "Medium",
       "skip": "Skip"
-    }
+    },
+    "fileLabel": "PDF or audio file",
+    "fileHint": "Upload a PDF, or an audio recording (e.g. a lecture) — audio is transcribed automatically."
   },
   "search": {
     "placeholder": "Search topics and chapters…",

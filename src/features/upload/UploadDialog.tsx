@@ -104,11 +104,18 @@ export function UploadDialog({
       });
       setResult(uploaded);
       setPhase("ready");
-      // Briefly show the result, then route into structure review.
-      routeTimer.current = window.setTimeout(() => {
-        onOpenChange(false);
-        onUploaded?.(uploaded.document.id);
-      }, 1300);
+      // Audio is transcribed in the background first (no markdown to review yet),
+      // so just close back to the Library — its card shows the transcribing state
+      // and becomes reviewable once the transcript is ready. PDFs go straight to
+      // structure review.
+      const isAudio = uploaded.document.source_type === "audio";
+      routeTimer.current = window.setTimeout(
+        () => {
+          onOpenChange(false);
+          if (!isAudio) onUploaded?.(uploaded.document.id);
+        },
+        isAudio ? 1600 : 1300,
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("upload.failed"));
       setPhase("form");
@@ -182,14 +189,23 @@ export function UploadDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="file">{t("upload.pdfFile")}</Label>
+            <Label htmlFor="file">
+              {exam ? t("upload.pdfFile") : t("upload.fileLabel")}
+            </Label>
             <Input
               id="file"
               type="file"
-              accept="application/pdf,.pdf"
+              accept={
+                exam
+                  ? "application/pdf,.pdf"
+                  : "application/pdf,.pdf,audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus"
+              }
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               disabled={busy}
             />
+            {!exam && (
+              <p className="text-xs text-muted-foreground">{t("upload.fileHint")}</p>
+            )}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -265,7 +281,16 @@ function UploadProgress({
         </div>
       )}
 
-      {phase === "ready" && result && (
+      {phase === "ready" && result && result.document.source_type === "audio" && (
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{t("upload.progress.transcribing")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("upload.progress.transcribingHint")}
+          </p>
+        </div>
+      )}
+
+      {phase === "ready" && result && result.document.source_type !== "audio" && (
         <div className="space-y-1">
           <p className="text-sm font-medium">{t("upload.progress.ready")}</p>
           <p className="text-xs text-muted-foreground">

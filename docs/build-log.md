@@ -1963,6 +1963,25 @@ green + committed.
   Files-API call shape verified against the installed `google-genai`. Tree green:
   full suite **493 passed**.
 
+- **Wave 4 — Audio transcriber frontend (DONE).** The one upload button now accepts
+  audio too (study section only; Exam Prep stays PDF-only): the file `accept` allows
+  PDF + common audio formats, with a hint. On success an **audio** upload doesn't
+  route to structure review (no transcript yet) — it closes back to the Library
+  showing a "transcribing" card; a **PDF** still goes straight to review.
+  `DocumentCard` is now source-aware: an audio icon (`AudioLines`), a spinner +
+  "Transcribing audio…" while `transcribing` (card non-navigable), and on a failed
+  transcription the `status_detail` ("wait and try again") + a **Retry** button
+  (`POST …/transcribe/retry`). Once a transcript exists (uploaded/processing/ready)
+  an **Export transcript** button downloads the markdown (`GET …/transcript` → Blob
+  → `.md`). The Library **polls every 4s while anything is transcribing or
+  processing** so cards advance without a manual refresh. `StatusBadge` gained the
+  `transcribing` variant; types (`DocumentStatus`+`transcribing`, `SourceType`,
+  `status_detail`, `Transcript`) and the library store (`retryTranscription`)
+  updated; i18n keys added to en/it/es; the header button is now a generic "Upload".
+  Verified live end-to-end: upload → 201 audio/transcribing, Library row carries
+  source_type/status, transcript 409 until ready, retry 200. Tree green: `tsc -b` +
+  `npm run build` clean; backend unchanged (**493 passed**).
+
 - **Wave 2 — Settings UI redo for the provider model (DONE, frontend).** Redid the
   Settings → Providers section to drive the new model, reusing the page's existing
   primitives (no new aesthetic — consistency with the Jakarta/accent-palette system).

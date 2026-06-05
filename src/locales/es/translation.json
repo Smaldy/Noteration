@@ -10,7 +10,8 @@
     "calendar": "Calendario",
     "queue": "Cola",
     "settings": "Ajustes",
-    "uploadPdf": "Subir PDF"
+    "uploadPdf": "Subir PDF",
+    "upload": "Subir"
   },
   "library": {
     "title": "Biblioteca",
@@ -30,13 +31,19 @@
       "chaptersProcessing": "{{running}}/{{total}} capítulos en proceso",
       "dragToReorder": "Arrastra para reordenar",
       "deleteSubject": "Eliminar asignatura",
-      "deleteSubjectAria": "Eliminar {{name}}"
+      "deleteSubjectAria": "Eliminar {{name}}",
+      "transcribing": "Transcribiendo audio…",
+      "transcriptionFailed": "La transcripción falló.",
+      "retryTranscription": "Reintentar transcripción",
+      "exportTranscript": "Exportar transcripción",
+      "transcriptUnavailable": "La transcripción aún no está lista."
     },
     "status": {
       "uploaded": "Subido",
       "processing": "Procesando",
       "ready": "Listo",
-      "error": "Error"
+      "error": "Error",
+      "transcribing": "Transcribiendo"
     }
   },
   "study": {
@@ -145,7 +152,9 @@
       "readExam_one": "Se leyó {{count}} página — listo para crear la práctica.",
       "readExam_other": "Se leyeron {{count}} páginas — listo para crear la práctica.",
       "read_one": "Se leyó {{count}} página — listo para revisar.",
-      "read_other": "Se leyeron {{count}} páginas — listo para revisar."
+      "read_other": "Se leyeron {{count}} páginas — listo para revisar.",
+      "transcribing": "Subido — transcribiendo…",
+      "transcribingHint": "Estamos transcribiendo tu audio. Podrás revisar su estructura cuando esté listo."
     },
     "review": {
       "loading": "Leyendo tu PDF y detectando la estructura…",
@@ -181,7 +190,9 @@
       "examCritical": "Crucial para el examen",
       "medium": "Media",
       "skip": "Omitir"
-    }
+    },
+    "fileLabel": "Archivo PDF o de audio",
+    "fileHint": "Sube un PDF o una grabación de audio (p. ej. una clase) — el audio se transcribe automáticamente."
   },
   "search": {
     "placeholder": "Buscar temas y capítulos…",

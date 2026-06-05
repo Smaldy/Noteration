@@ -44,6 +44,7 @@ export function LibraryPage() {
     deleteSubject,
     reorderDocuments,
     toggleSubjectBookmark,
+    retryTranscription,
   } = useLibraryStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
@@ -57,6 +58,17 @@ export function LibraryPage() {
   useEffect(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
+
+  // While anything is mid-flight (audio transcribing or topics generating), poll
+  // so the cards update without a manual refresh. Stops once everything settles.
+  const inFlight = documents.some(
+    (d) => d.status === "transcribing" || d.status === "processing",
+  );
+  useEffect(() => {
+    if (!inFlight) return;
+    const id = window.setInterval(() => void fetchDocuments(), 4000);
+    return () => window.clearInterval(id);
+  }, [inFlight, fetchDocuments]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -116,7 +128,7 @@ export function LibraryPage() {
           </Button>
           <Button onClick={() => setUploadOpen(true)}>
             <Plus />
-            {t("nav.uploadPdf")}
+            {t("nav.upload")}
           </Button>
         </div>
       </header>
@@ -181,6 +193,9 @@ export function LibraryPage() {
                   onDelete={handleDelete}
                   onToggleBookmark={(subjectId, bookmarked) =>
                     void toggleSubjectBookmark(subjectId, bookmarked)
+                  }
+                  onRetryTranscription={(d) =>
+                    void retryTranscription(d.id)
                   }
                 />
               ))}
