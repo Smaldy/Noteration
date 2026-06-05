@@ -1,7 +1,9 @@
 @echo off
 setlocal enableextensions enabledelayedexpansion
-cd /d "%~dp0"
-set "PY=%~dp0.venv\Scripts\python.exe"
+rem This script lives in WindowsRun\, so the project root is one level up.
+cd /d "%~dp0.."
+set "ROOT=%CD%"
+set "PY=%ROOT%\.venv\Scripts\python.exe"
 set "PORT=8000"
 set "URL=http://localhost:%PORT%"
 
@@ -21,7 +23,7 @@ if not exist "%PY%" (
   exit /b 1
 )
 
-if not exist "%~dp0dist\index.html" (
+if not exist "%ROOT%\dist\index.html" (
   echo.
   echo No built frontend found ^(dist\index.html^).
   echo Run build.bat once before using start.bat.
@@ -41,7 +43,7 @@ if defined RUNNING (
 
 echo Starting the Noteration server in a new window...
 rem cmd /k keeps the window open if uvicorn errors, so you can read the message.
-start "Noteration server" cmd /k "%PY% -m uvicorn backend.main:app --port %PORT%"
+start "Noteration server" cmd /k "cd /d "%ROOT%" ^&^& "%PY%" -m uvicorn backend.main:app --port %PORT%"
 
 echo Waiting for the server to be ready ^(up to 30s on a cold start^)...
 set /a tries=0

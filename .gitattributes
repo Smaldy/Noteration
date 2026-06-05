@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# macOS run scripts must stay LF or the shebang breaks on Unix
+*.command text eol=lf
+*.sh      text eol=lf
+
+# Windows run scripts keep CRLF
+*.bat text eol=crlf

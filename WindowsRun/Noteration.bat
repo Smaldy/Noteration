@@ -1,13 +1,20 @@
 @echo off
 setlocal enableextensions
-cd /d "%~dp0"
-set "PY=%~dp0.venv\Scripts\python.exe"
+rem This script lives in WindowsRun\, so the project root is one level up.
+cd /d "%~dp0.."
+set "ROOT=%CD%"
+set "PY=%ROOT%\.venv\Scripts\python.exe"
+
+rem ============================================================
+rem  Noteration.bat - one-click build + run. Builds the frontend,
+rem  applies migrations, then starts the server and opens the app.
+rem ============================================================
 
 if not exist "%PY%" (
   echo.
   echo Python virtual environment not found at:
   echo   %PY%
-  echo Create it first from this folder:  python -m venv .venv
+  echo Create it first from the project root:  python -m venv .venv
   echo.
   pause
   exit /b 1
@@ -29,7 +36,7 @@ if errorlevel 1 (
 
 echo.
 echo [2/3] Applying database migrations...
-pushd "%~dp0backend"
+pushd "%ROOT%\backend"
 "%PY%" -m alembic upgrade head
 popd
 
