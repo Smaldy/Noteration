@@ -1,4 +1,5 @@
 import { Bookmark } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -17,12 +18,17 @@ export function BookmarkButton({
   className?: string;
   size?: "sm" | "md";
 }) {
+  const { t } = useTranslation();
   const icon = size === "sm" ? "size-3.5" : "size-4";
   return (
     <button
       type="button"
-      title={bookmarked ? "Remove bookmark" : "Bookmark"}
-      aria-label={`${bookmarked ? "Remove bookmark from" : "Bookmark"} ${label}`}
+      title={bookmarked ? t("bookmarks.remove") : t("bookmarks.add")}
+      aria-label={
+        bookmarked
+          ? t("bookmarks.removeFrom", { label })
+          : t("bookmarks.addLabel", { label })
+      }
       aria-pressed={bookmarked}
       onClick={(e) => {
         e.stopPropagation();

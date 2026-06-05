@@ -122,6 +122,89 @@
       "generateMoreError": "Impossibile generare altre flashcard."
     }
   },
+  "upload": {
+    "titleExam": "Aggiungi un PDF d'esame",
+    "title": "Carica un PDF",
+    "descExam": "Leggeremo il PDF e proporremo una struttura da rivedere. I documenti di preparazione all'esame generano solo quiz a risposta multipla (con spiegazioni) e flashcard — niente appunti.",
+    "desc": "Leggeremo il PDF e proporremo una struttura di capitoli/argomenti da rivedere prima di generare qualsiasi cosa.",
+    "subject": "Materia",
+    "newSubjectOption": "+ Nuova materia…",
+    "newSubjectName": "Nome della nuova materia",
+    "newSubjectPlaceholder": "es. Termodinamica",
+    "pdfFile": "File PDF",
+    "cancel": "Annulla",
+    "upload": "Carica",
+    "failed": "Caricamento non riuscito. Riprova.",
+    "progress": {
+      "uploading": "Caricamento…",
+      "analysing": "Analisi della struttura…",
+      "analysingHint": "Lettura della struttura del PDF e rilevamento dei capitoli.",
+      "ready": "Pronto",
+      "openingReview": "Apertura revisione…",
+      "book": "Libro di {{count}} pagine — i capitoli vengono convertiti man mano che li elabori.",
+      "readExam_one": "Letta {{count}} pagina — pronto per creare la pratica.",
+      "readExam_other": "Lette {{count}} pagine — pronto per creare la pratica.",
+      "read_one": "Letta {{count}} pagina — pronto per la revisione.",
+      "read_other": "Lette {{count}} pagine — pronto per la revisione."
+    },
+    "review": {
+      "loading": "Lettura del PDF e rilevamento della struttura…",
+      "invalidDocument": "Documento non valido.",
+      "loadFailed": "Impossibile caricare la struttura.",
+      "confirmFailed": "Conferma non riuscita. Riprova.",
+      "title": "Rivedi la struttura",
+      "intro": "Rinomina, aggiungi o rimuovi capitoli e argomenti e imposta la priorità di ogni argomento. Attiva Elabora sui capitoli che vuoi generare ora — gli altri restano in pausa e non costano nulla finché non li riprendi. Niente viene generato finché non confermi.",
+      "needsManual": "Non siamo riusciti a rilevare automaticamente una struttura. Aggiungi capitoli e argomenti qui sotto per crearne una.",
+      "noHeadings": "Questo PDF non ha intestazioni rilevate, quindi gli appunti sono delimitati per ogni argomento in base alla sua posizione nel documento. Mantieni gli argomenti nell'ordine in cui appaiono e dividi le sezioni lunghe in argomenti separati per appunti più pertinenti.",
+      "chapterTitlePlaceholder": "Titolo del capitolo",
+      "topicTitlePlaceholder": "Titolo dell'argomento",
+      "pages": "pp. {{start}}–{{end}}",
+      "autoSkipped": "saltato automaticamente",
+      "process": "Elabora",
+      "paused": "In pausa",
+      "processChapterAria": "Elabora questo capitolo",
+      "removeChapter": "Rimuovi capitolo",
+      "removeTopic": "Rimuovi argomento",
+      "addTopic": "Aggiungi argomento",
+      "addChapter": "Aggiungi capitolo",
+      "examDate": "Data dell'esame (facoltativa)",
+      "examDateHint": "Impostare una data d'esame anticipa i ripassi così nulla cade dopo di essa.",
+      "estimate_one": "~{{count}} argomento da generare · ~{{tokens}} · piano gratuito ($0) · a pagamento solo se lo abiliti.",
+      "estimate_other": "~{{count}} argomenti da generare · ~{{tokens}} · piano gratuito ($0) · a pagamento solo se lo abiliti.",
+      "tokens": "{{count}}k token",
+      "confirming": "Conferma…",
+      "confirm": "Conferma e avvia",
+      "backToExam": "Torna alla preparazione esame",
+      "backToLibrary": "Torna alla libreria"
+    },
+    "priority": {
+      "examCritical": "Cruciale per l'esame",
+      "medium": "Media",
+      "skip": "Salta"
+    }
+  },
+  "search": {
+    "placeholder": "Cerca argomenti e capitoli…",
+    "allSubjects": "Tutte le materie",
+    "clear": "Cancella",
+    "noMatches": "Nessun risultato per “{{query}}”.",
+    "kind": {
+      "topic": "argomento",
+      "chapter": "capitolo"
+    }
+  },
+  "bookmarks": {
+    "title": "Preferiti",
+    "subtitle": "Le tue materie e i tuoi argomenti salvati, pronti per riprendere.",
+    "emptyTitle": "Ancora nessun preferito",
+    "emptyDesc": "Tocca l'icona del segnalibro su una materia nella libreria o su un argomento nella vista di studio per aggiungerlo qui.",
+    "subjects": "Materie",
+    "topics": "Argomenti",
+    "remove": "Rimuovi dai preferiti",
+    "add": "Aggiungi ai preferiti",
+    "removeFrom": "Rimuovi {{label}} dai preferiti",
+    "addLabel": "Aggiungi {{label}} ai preferiti"
+  },
   "calendar": {
     "title": "Calendario",
     "aiPlan": "Piano di studio IA",

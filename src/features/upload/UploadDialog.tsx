@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ export function UploadDialog({
   store = useLibraryStore,
   exam = false,
 }: UploadDialogProps) {
+  const { t } = useTranslation();
   const { subjects, fetchSubjects } = useSubjectsStore();
   const createSubject = useSubjectsStore((s) => s.createSubject);
   const uploadDocument = store((s) => s.uploadDocument);
@@ -108,9 +110,7 @@ export function UploadDialog({
         onUploaded?.(uploaded.document.id);
       }, 1300);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Upload failed. Please try again.",
-      );
+      setError(err instanceof ApiError ? err.message : t("upload.failed"));
       setPhase("form");
     }
   }
@@ -126,14 +126,9 @@ export function UploadDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{exam ? "Add an exam PDF" : "Upload a PDF"}</DialogTitle>
+          <DialogTitle>{exam ? t("upload.titleExam") : t("upload.title")}</DialogTitle>
           <DialogDescription>
-            {exam
-              ? "We'll read the PDF and propose a structure to review. Exam-prep " +
-                "documents generate only MCQs (with explanations) and flashcards — " +
-                "no notes."
-              : "We'll read the PDF and propose a chapter/topic structure for you " +
-                "to review before anything is generated."}
+            {exam ? t("upload.descExam") : t("upload.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,7 +151,7 @@ export function UploadDialog({
             >
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="subject">Subject</Label>
+            <Label htmlFor="subject">{t("upload.subject")}</Label>
             <select
               id="subject"
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -164,7 +159,7 @@ export function UploadDialog({
               onChange={(e) => setSubjectChoice(e.target.value)}
               disabled={busy}
             >
-              <option value={NEW_SUBJECT}>+ New subject…</option>
+              <option value={NEW_SUBJECT}>{t("upload.newSubjectOption")}</option>
               {subjects.map((s) => (
                 <option key={s.id} value={String(s.id)}>
                   {s.name}
@@ -175,10 +170,10 @@ export function UploadDialog({
 
           {creatingNew && (
             <div className="space-y-2">
-              <Label htmlFor="subject-name">New subject name</Label>
+              <Label htmlFor="subject-name">{t("upload.newSubjectName")}</Label>
               <Input
                 id="subject-name"
-                placeholder="e.g. Thermodynamics"
+                placeholder={t("upload.newSubjectPlaceholder")}
                 value={newSubjectName}
                 onChange={(e) => setNewSubjectName(e.target.value)}
                 disabled={busy}
@@ -187,7 +182,7 @@ export function UploadDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="file">PDF file</Label>
+            <Label htmlFor="file">{t("upload.pdfFile")}</Label>
             <Input
               id="file"
               type="file"
@@ -202,10 +197,10 @@ export function UploadDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("upload.cancel")}
           </Button>
           <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
-            Upload
+            {t("upload.upload")}
           </Button>
         </DialogFooter>
             </motion.div>
@@ -227,6 +222,7 @@ function UploadProgress({
   result: UploadResult | null;
   exam: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
       <div className="grid size-14 place-items-center rounded-2xl bg-primary-soft text-primary-soft-foreground">
@@ -247,7 +243,7 @@ function UploadProgress({
 
       {phase === "uploading" && (
         <div className="w-full max-w-xs space-y-2">
-          <p className="text-sm font-medium">Uploading…</p>
+          <p className="text-sm font-medium">{t("upload.progress.uploading")}</p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <motion.div
               className="h-full rounded-full bg-primary"
@@ -262,24 +258,26 @@ function UploadProgress({
 
       {phase === "analysing" && (
         <div className="space-y-1">
-          <p className="text-sm font-medium">Analysing structure…</p>
+          <p className="text-sm font-medium">{t("upload.progress.analysing")}</p>
           <p className="text-xs text-muted-foreground">
-            Reading the PDF outline and detecting chapters.
+            {t("upload.progress.analysingHint")}
           </p>
         </div>
       )}
 
       {phase === "ready" && result && (
         <div className="space-y-1">
-          <p className="text-sm font-medium">Ready</p>
+          <p className="text-sm font-medium">{t("upload.progress.ready")}</p>
           <p className="text-xs text-muted-foreground">
             {result.book_mode
-              ? `${result.page_count}-page book — chapters are converted as you process them.`
+              ? t("upload.progress.book", { count: result.page_count })
               : exam
-                ? `Read ${result.page_count} ${result.page_count === 1 ? "page" : "pages"} — ready to build practice.`
-                : `Read ${result.page_count} ${result.page_count === 1 ? "page" : "pages"} — ready to review.`}
+                ? t("upload.progress.readExam", { count: result.page_count })
+                : t("upload.progress.read", { count: result.page_count })}
           </p>
-          <p className="text-xs text-muted-foreground">Opening review…</p>
+          <p className="text-xs text-muted-foreground">
+            {t("upload.progress.openingReview")}
+          </p>
         </div>
       )}
     </div>

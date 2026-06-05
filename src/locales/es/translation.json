@@ -122,6 +122,89 @@
       "generateMoreError": "No se pudieron generar más tarjetas."
     }
   },
+  "upload": {
+    "titleExam": "Añadir un PDF de examen",
+    "title": "Subir un PDF",
+    "descExam": "Leeremos el PDF y propondremos una estructura para revisar. Los documentos de preparación de examen generan solo preguntas tipo test (con explicaciones) y tarjetas — sin apuntes.",
+    "desc": "Leeremos el PDF y propondremos una estructura de capítulos/temas para que la revises antes de generar nada.",
+    "subject": "Asignatura",
+    "newSubjectOption": "+ Nueva asignatura…",
+    "newSubjectName": "Nombre de la nueva asignatura",
+    "newSubjectPlaceholder": "p. ej. Termodinámica",
+    "pdfFile": "Archivo PDF",
+    "cancel": "Cancelar",
+    "upload": "Subir",
+    "failed": "La subida falló. Inténtalo de nuevo.",
+    "progress": {
+      "uploading": "Subiendo…",
+      "analysing": "Analizando la estructura…",
+      "analysingHint": "Leyendo el esquema del PDF y detectando capítulos.",
+      "ready": "Listo",
+      "openingReview": "Abriendo la revisión…",
+      "book": "Libro de {{count}} páginas — los capítulos se convierten a medida que los procesas.",
+      "readExam_one": "Se leyó {{count}} página — listo para crear la práctica.",
+      "readExam_other": "Se leyeron {{count}} páginas — listo para crear la práctica.",
+      "read_one": "Se leyó {{count}} página — listo para revisar.",
+      "read_other": "Se leyeron {{count}} páginas — listo para revisar."
+    },
+    "review": {
+      "loading": "Leyendo tu PDF y detectando la estructura…",
+      "invalidDocument": "Documento no válido.",
+      "loadFailed": "No se pudo cargar la estructura.",
+      "confirmFailed": "No se pudo confirmar. Inténtalo de nuevo.",
+      "title": "Revisar la estructura",
+      "intro": "Renombra, añade o elimina capítulos y temas, y establece la prioridad de cada tema. Activa Procesar en los capítulos que quieras generar ahora — el resto permanece en pausa y no cuesta nada hasta que los reanudes. No se genera nada hasta que confirmes.",
+      "needsManual": "No pudimos detectar una estructura automáticamente. Añade capítulos y temas abajo para crear una.",
+      "noHeadings": "Este PDF no tiene encabezados detectados, así que los apuntes se delimitan para cada tema según su posición en el documento. Mantén los temas en el orden en que aparecen y divide las secciones largas en temas separados para obtener los apuntes más relevantes.",
+      "chapterTitlePlaceholder": "Título del capítulo",
+      "topicTitlePlaceholder": "Título del tema",
+      "pages": "pp. {{start}}–{{end}}",
+      "autoSkipped": "omitido automáticamente",
+      "process": "Procesar",
+      "paused": "En pausa",
+      "processChapterAria": "Procesar este capítulo",
+      "removeChapter": "Eliminar capítulo",
+      "removeTopic": "Eliminar tema",
+      "addTopic": "Añadir tema",
+      "addChapter": "Añadir capítulo",
+      "examDate": "Fecha del examen (opcional)",
+      "examDateHint": "Establecer una fecha de examen adelanta los repasos para que nada caiga después de ella.",
+      "estimate_one": "~{{count}} tema para generar · ~{{tokens}} · plan gratuito ($0) · de pago solo si lo activas.",
+      "estimate_other": "~{{count}} temas para generar · ~{{tokens}} · plan gratuito ($0) · de pago solo si lo activas.",
+      "tokens": "{{count}}k tokens",
+      "confirming": "Confirmando…",
+      "confirm": "Confirmar e iniciar",
+      "backToExam": "Volver a preparación de examen",
+      "backToLibrary": "Volver a la biblioteca"
+    },
+    "priority": {
+      "examCritical": "Crucial para el examen",
+      "medium": "Media",
+      "skip": "Omitir"
+    }
+  },
+  "search": {
+    "placeholder": "Buscar temas y capítulos…",
+    "allSubjects": "Todas las asignaturas",
+    "clear": "Borrar",
+    "noMatches": "Sin resultados para “{{query}}”.",
+    "kind": {
+      "topic": "tema",
+      "chapter": "capítulo"
+    }
+  },
+  "bookmarks": {
+    "title": "Favoritos",
+    "subtitle": "Tus asignaturas y temas guardados, listos para retomar.",
+    "emptyTitle": "Aún no hay favoritos",
+    "emptyDesc": "Toca el icono de favorito en una asignatura de tu biblioteca o en un tema de la vista de estudio para fijarlo aquí.",
+    "subjects": "Asignaturas",
+    "topics": "Temas",
+    "remove": "Quitar de favoritos",
+    "add": "Añadir a favoritos",
+    "removeFrom": "Quitar {{label}} de favoritos",
+    "addLabel": "Añadir {{label}} a favoritos"
+  },
   "calendar": {
     "title": "Calendario",
     "aiPlan": "Plan de estudio con IA",

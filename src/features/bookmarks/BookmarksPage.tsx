@@ -1,5 +1,6 @@
 import { ArrowLeft, Bookmark, FileText, Layers } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "@/lib/api";
@@ -9,6 +10,7 @@ import { BookmarkButton } from "./BookmarkButton";
 
 export function BookmarksPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { data, status, error, fetchBookmarks } = useBookmarksStore();
 
   useEffect(() => {
@@ -39,31 +41,30 @@ export function BookmarksPage() {
         className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Library
+        {t("common.library")}
       </button>
 
       <div className="mb-8">
         <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
           <Bookmark className="size-7 fill-primary text-primary" />
-          Bookmarks
+          {t("bookmarks.title")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your saved subjects and topics, ready to jump back into.
+          {t("bookmarks.subtitle")}
         </p>
       </div>
 
       {status === "loading" && (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
       )}
       {status === "error" && <p className="text-sm text-destructive">{error}</p>}
 
       {empty && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
           <Bookmark className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">No bookmarks yet</h2>
+          <h2 className="text-lg font-medium">{t("bookmarks.emptyTitle")}</h2>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Tap the bookmark icon on a subject in your library or a topic in the
-            study view to pin it here.
+            {t("bookmarks.emptyDesc")}
           </p>
         </div>
       )}
@@ -71,7 +72,7 @@ export function BookmarksPage() {
       {data && data.subjects.length > 0 && (
         <section className="mb-8">
           <h2 className="font-display mb-3 text-xs font-bold uppercase tracking-[0.12em] text-primary">
-            Subjects
+            {t("bookmarks.subjects")}
           </h2>
           <div className="flex flex-wrap gap-2">
             {data.subjects.map((s) => (
@@ -95,7 +96,7 @@ export function BookmarksPage() {
       {data && data.topics.length > 0 && (
         <section>
           <h2 className="font-display mb-3 text-xs font-bold uppercase tracking-[0.12em] text-primary">
-            Topics
+            {t("bookmarks.topics")}
           </h2>
           <ul className="space-y-2">
             {data.topics.map((t) => (

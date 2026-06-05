@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const STATUS_DOT: Record<TopicStatus, string> = {
 
 export function SearchBar() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { subjects, fetchSubjects } = useSubjectsStore();
   const { results, loading, error, search, reset } = useSearchStore();
 
@@ -81,7 +83,7 @@ export function SearchBar() {
           <input
             type="text"
             value={query}
-            placeholder="Search topics and chapters…"
+            placeholder={t("search.placeholder")}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setOpen(true)}
             onKeyDown={(e) => {
@@ -100,7 +102,7 @@ export function SearchBar() {
                 type="button"
                 onClick={clear}
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-                title="Clear"
+                title={t("search.clear")}
               >
                 <X className="size-4" />
               </button>
@@ -117,7 +119,7 @@ export function SearchBar() {
             }
             className="h-11 w-full appearance-none rounded-xl border bg-card/70 pl-3.5 pr-9 text-sm shadow-sm outline-none transition-all hover:border-ring/40 focus:border-primary focus:ring-2 focus:ring-ring/40 sm:w-52"
           >
-            <option value="">All subjects</option>
+            <option value="">{t("search.allSubjects")}</option>
             {subjects.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -142,7 +144,7 @@ export function SearchBar() {
               <p className="px-3 py-6 text-center text-sm text-destructive">{error}</p>
             ) : results.length === 0 && !loading ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                No matches for “{query.trim()}”.
+                {t("search.noMatches", { query: query.trim() })}
               </p>
             ) : (
               <ul className="space-y-0.5">
@@ -179,7 +181,7 @@ export function SearchBar() {
                         </span>
                       </span>
                       <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary-foreground">
-                        {r.kind}
+                        {t(`search.kind.${r.kind}`, { defaultValue: r.kind })}
                       </span>
                     </button>
                   </li>

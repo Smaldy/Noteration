@@ -122,6 +122,89 @@
       "generateMoreError": "Couldn't generate more flashcards."
     }
   },
+  "upload": {
+    "titleExam": "Add an exam PDF",
+    "title": "Upload a PDF",
+    "descExam": "We'll read the PDF and propose a structure to review. Exam-prep documents generate only MCQs (with explanations) and flashcards — no notes.",
+    "desc": "We'll read the PDF and propose a chapter/topic structure for you to review before anything is generated.",
+    "subject": "Subject",
+    "newSubjectOption": "+ New subject…",
+    "newSubjectName": "New subject name",
+    "newSubjectPlaceholder": "e.g. Thermodynamics",
+    "pdfFile": "PDF file",
+    "cancel": "Cancel",
+    "upload": "Upload",
+    "failed": "Upload failed. Please try again.",
+    "progress": {
+      "uploading": "Uploading…",
+      "analysing": "Analysing structure…",
+      "analysingHint": "Reading the PDF outline and detecting chapters.",
+      "ready": "Ready",
+      "openingReview": "Opening review…",
+      "book": "{{count}}-page book — chapters are converted as you process them.",
+      "readExam_one": "Read {{count}} page — ready to build practice.",
+      "readExam_other": "Read {{count}} pages — ready to build practice.",
+      "read_one": "Read {{count}} page — ready to review.",
+      "read_other": "Read {{count}} pages — ready to review."
+    },
+    "review": {
+      "loading": "Reading your PDF and detecting structure…",
+      "invalidDocument": "Invalid document.",
+      "loadFailed": "Failed to load the structure.",
+      "confirmFailed": "Could not confirm. Try again.",
+      "title": "Review structure",
+      "intro": "Rename, add, or remove chapters and topics, and set each topic's priority. Toggle Process on the chapters you want to generate now — the rest stay paused and cost nothing until you resume them. Nothing is generated until you confirm.",
+      "needsManual": "We couldn't detect a structure automatically. Add chapters and topics below to build one.",
+      "noHeadings": "This PDF has no detected headings, so notes are scoped to each topic by its position in the document. Keep topics in the order they appear, and split long sections into separate topics for the most relevant notes.",
+      "chapterTitlePlaceholder": "Chapter title",
+      "topicTitlePlaceholder": "Topic title",
+      "pages": "pp. {{start}}–{{end}}",
+      "autoSkipped": "auto-skipped",
+      "process": "Process",
+      "paused": "Paused",
+      "processChapterAria": "Process this chapter",
+      "removeChapter": "Remove chapter",
+      "removeTopic": "Remove topic",
+      "addTopic": "Add topic",
+      "addChapter": "Add chapter",
+      "examDate": "Exam date (optional)",
+      "examDateHint": "Setting an exam date pulls reviews forward so nothing lands after it.",
+      "estimate_one": "~{{count}} topic to generate · ~{{tokens}} · free tier ($0) · paid only if you enable it.",
+      "estimate_other": "~{{count}} topics to generate · ~{{tokens}} · free tier ($0) · paid only if you enable it.",
+      "tokens": "{{count}}k tokens",
+      "confirming": "Confirming…",
+      "confirm": "Confirm & start",
+      "backToExam": "Back to exam prep",
+      "backToLibrary": "Back to library"
+    },
+    "priority": {
+      "examCritical": "Exam-critical",
+      "medium": "Medium",
+      "skip": "Skip"
+    }
+  },
+  "search": {
+    "placeholder": "Search topics and chapters…",
+    "allSubjects": "All subjects",
+    "clear": "Clear",
+    "noMatches": "No matches for “{{query}}”.",
+    "kind": {
+      "topic": "topic",
+      "chapter": "chapter"
+    }
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "subtitle": "Your saved subjects and topics, ready to jump back into.",
+    "emptyTitle": "No bookmarks yet",
+    "emptyDesc": "Tap the bookmark icon on a subject in your library or a topic in the study view to pin it here.",
+    "subjects": "Subjects",
+    "topics": "Topics",
+    "remove": "Remove bookmark",
+    "add": "Bookmark",
+    "removeFrom": "Remove bookmark from {{label}}",
+    "addLabel": "Bookmark {{label}}"
+  },
   "calendar": {
     "title": "Calendar",
     "aiPlan": "AI study plan",
