@@ -363,9 +363,18 @@
       "button": "Borrar",
       "heading": "Borrar historial",
       "confirm": "Haz clic de nuevo para confirmar",
-      "hour": { "label": "Última hora", "hint": "Eventos de los últimos 60 minutos" },
-      "day": { "label": "Últimas 24 horas", "hint": "Todo desde ayer" },
-      "all": { "label": "Todo", "hint": "Borrar todo el historial" }
+      "hour": {
+        "label": "Última hora",
+        "hint": "Eventos de los últimos 60 minutos"
+      },
+      "day": {
+        "label": "Últimas 24 horas",
+        "hint": "Todo desde ayer"
+      },
+      "all": {
+        "label": "Todo",
+        "hint": "Borrar todo el historial"
+      }
     }
   },
   "exam": {
@@ -493,7 +502,18 @@
     "providers": {
       "title": "Cascada de proveedores",
       "description": "Los proveedores gratuitos van primero. El orden es automático (los más baratos primero).",
-      "geminiModel": "Modelo de Gemini",
+      "gemini": {
+        "label": "Usar Gemini",
+        "hint": "El plan gratuito de Google va primero. Desactívalo para generar con Ollama.",
+        "rotation": {
+          "label": "Rotar modelos automáticamente",
+          "hint": "Cuando un modelo alcanza su límite diario de solicitudes, cambia al siguiente. Cuando se agota el presupuesto de tokens compartido, recurre a Ollama."
+        },
+        "pick": "Modelo",
+        "rotationOrder": "Orden de rotación",
+        "rotationOrderHint": "Se prueban en este orden; cada uno cambia al alcanzar su propio límite diario de solicitudes.",
+        "disabledNote": "Gemini está desactivado — las notas se generarán con Ollama (o Claude, si se permite)."
+      },
       "models": {
         "flashLiteHint": "El más barato y rápido — recomendado para generación masiva.",
         "flashHint": "Más capaz, usa más cuota por tema."
@@ -504,7 +524,10 @@
       },
       "ollama": {
         "label": "Usar Ollama local",
-        "hint": "Incluye un modelo local de $0 en la cascada (debe estar instalado)."
+        "hint": "Incluye un modelo local de $0 en la cascada (debe estar instalado).",
+        "modelLabel": "Modelo de Ollama",
+        "modelPlaceholder": "p. ej. llama3.1",
+        "modelHint": "El nombre del modelo local, como lo muestra `ollama list`."
       },
       "budget": {
         "label": "Presupuesto de tokens por documento",

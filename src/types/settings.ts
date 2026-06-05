@@ -1,7 +1,11 @@
 /** Mirrors `backend/schemas/settings.py`. */
 
 export type Theme = "system" | "light" | "dark";
-export type GeminiModel = "gemini-2.5-flash-lite" | "gemini-2.5-flash";
+export type GeminiModel =
+  | "gemini-2.5-flash-lite"
+  | "gemini-2.5-flash"
+  | "gemini-3.1-flash-lite"
+  | "gemini-3.1-flash";
 export type CalendarSlot = 15 | 30 | 60 | 90 | 120;
 export type Language = "en" | "it" | "es";
 
@@ -9,7 +13,10 @@ export interface Settings {
   allow_paid: boolean;
   provider_order: string[] | null;
   ollama_enabled: boolean;
+  ollama_model: string | null;
   gemini_model: string;
+  gemini_enabled: boolean;
+  gemini_rotation: boolean;
   /** Per-document token ceiling. 0 = automatic (estimate × factor). */
   per_document_token_budget: number;
   /** Notes length per topic, in "pages" (units of content). 1-10. */
@@ -35,7 +42,11 @@ export interface SettingsUpdate {
   allow_paid?: boolean;
   provider_order?: string[] | null;
   ollama_enabled?: boolean;
+  /** Empty string clears the stored model name. */
+  ollama_model?: string;
   gemini_model?: GeminiModel;
+  gemini_enabled?: boolean;
+  gemini_rotation?: boolean;
   per_document_token_budget?: number;
   note_length?: number;
   pomodoro_work_min?: number;

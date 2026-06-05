@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   Check,
   FileText,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   type ComponentType,
+  Fragment,
   type ReactNode,
   useEffect,
   useMemo,
@@ -40,6 +42,9 @@ import type { CalendarSlot, GeminiModel, Settings, Theme } from "@/types/setting
 interface FormState {
   allow_paid: boolean;
   ollama_enabled: boolean;
+  ollama_model: string;
+  gemini_enabled: boolean;
+  gemini_rotation: boolean;
   gemini_model: GeminiModel;
   per_document_token_budget: number;
   note_length: number;
@@ -79,19 +84,42 @@ function hourLabel(h: number): string {
   return `${h}:00`;
 }
 
-// Model tier names stay as-is (proper names); the hint is translated via key.
+// The four selectable Gemini models. Names stay as-is (proper names); the per-tier
+// hint is translated via key. ROTATION_ORDER mirrors the backend's best-first order.
 const GEMINI_MODELS: { value: GeminiModel; label: string; hintKey: string }[] = [
   {
     value: "gemini-2.5-flash-lite",
-    label: "Flash Lite",
+    label: "2.5 Flash Lite",
     hintKey: "settings.providers.models.flashLiteHint",
   },
   {
     value: "gemini-2.5-flash",
-    label: "Flash",
+    label: "2.5 Flash",
+    hintKey: "settings.providers.models.flashHint",
+  },
+  {
+    value: "gemini-3.1-flash-lite",
+    label: "3.1 Flash Lite",
+    hintKey: "settings.providers.models.flashLiteHint",
+  },
+  {
+    value: "gemini-3.1-flash",
+    label: "3.1 Flash",
     hintKey: "settings.providers.models.flashHint",
   },
 ];
+
+// Best-first order tried when rotation is on (mirrors backend ROTATION_ORDER).
+const ROTATION_ORDER: GeminiModel[] = [
+  "gemini-3.1-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+];
+
+function modelLabel(value: GeminiModel): string {
+  return GEMINI_MODELS.find((m) => m.value === value)?.label ?? value;
+}
 
 // Curated accent palette (hex drives the whole derived palette live). `key`
 // indexes the localized color name under settings.appearance.colors.
@@ -145,6 +173,9 @@ function toForm(s: Settings): FormState {
   return {
     allow_paid: s.allow_paid,
     ollama_enabled: s.ollama_enabled,
+    ollama_model: s.ollama_model ?? "",
+    gemini_enabled: s.gemini_enabled,
+    gemini_rotation: s.gemini_rotation,
     gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",
     per_document_token_budget: s.per_document_token_budget,
     note_length: s.note_length ?? 3,
@@ -275,6 +306,9 @@ export function SettingsPage() {
       await updateSettings({
         allow_paid: form.allow_paid,
         ollama_enabled: form.ollama_enabled,
+        ollama_model: form.ollama_model.trim(),
+        gemini_enabled: form.gemini_enabled,
+        gemini_rotation: form.gemini_rotation,
         gemini_model: form.gemini_model,
         per_document_token_budget: form.per_document_token_budget,
         note_length: form.note_length,
@@ -372,20 +406,71 @@ export function SettingsPage() {
             description={t("settings.providers.description")}
             delay={100}
           >
-            <Field label={t("settings.providers.geminiModel")}>
-              <Segmented
-                group="gemini"
-                value={form.gemini_model}
-                onChange={(v) => set("gemini_model", v)}
-                options={GEMINI_MODELS.map((m) => ({ value: m.value, label: m.label }))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  GEMINI_MODELS.find((m) => m.value === form.gemini_model)?.hintKey ??
-                    "settings.providers.models.flashLiteHint",
-                )}
-              </p>
-            </Field>
+            <Toggle
+              label={t("settings.providers.gemini.label")}
+              hint={t("settings.providers.gemini.hint")}
+              checked={form.gemini_enabled}
+              onChange={(v) => set("gemini_enabled", v)}
+            />
+
+            <AnimatePresence initial={false}>
+              {form.gemini_enabled ? (
+                <motion.div
+                  key="gemini-config"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-5 rounded-xl border border-border/60 bg-secondary/20 p-4">
+                    <Toggle
+                      label={t("settings.providers.gemini.rotation.label")}
+                      hint={t("settings.providers.gemini.rotation.hint")}
+                      checked={form.gemini_rotation}
+                      onChange={(v) => set("gemini_rotation", v)}
+                    />
+                    {form.gemini_rotation ? (
+                      <Field label={t("settings.providers.gemini.rotationOrder")}>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {ROTATION_ORDER.map((value, i) => (
+                            <Fragment key={value}>
+                              {i > 0 && (
+                                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
+                              )}
+                              <span className="rounded-lg border bg-card px-2.5 py-1 text-xs font-medium tabular-nums">
+                                {modelLabel(value)}
+                              </span>
+                            </Fragment>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {t("settings.providers.gemini.rotationOrderHint")}
+                        </p>
+                      </Field>
+                    ) : (
+                      <Field label={t("settings.providers.gemini.pick")}>
+                        <ModelGrid
+                          value={form.gemini_model}
+                          onChange={(v) => set("gemini_model", v)}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.p
+                  key="gemini-off"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-xs text-muted-foreground"
+                >
+                  {t("settings.providers.gemini.disabledNote")}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
             <Toggle
               label={t("settings.providers.allowPaid.label")}
               hint={t("settings.providers.allowPaid.hint")}
@@ -398,6 +483,19 @@ export function SettingsPage() {
               checked={form.ollama_enabled}
               onChange={(v) => set("ollama_enabled", v)}
             />
+            {form.ollama_enabled && (
+              <Field label={t("settings.providers.ollama.modelLabel")}>
+                <Input
+                  value={form.ollama_model}
+                  onChange={(e) => set("ollama_model", e.target.value)}
+                  placeholder={t("settings.providers.ollama.modelPlaceholder")}
+                  className="max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.providers.ollama.modelHint")}
+                </p>
+              </Field>
+            )}
             <Field label={t("settings.providers.budget.label")}>
               <NumberField
                 min={0}
@@ -886,6 +984,41 @@ function Segmented<T extends string>({
               />
             )}
             <span className="relative z-10">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 2×2 grid of selectable Gemini model cards (shown when rotation is off). Each
+ *  card carries the model name and its tier hint, styled like the font picker. */
+function ModelGrid({
+  value,
+  onChange,
+}: {
+  value: GeminiModel;
+  onChange: (v: GeminiModel) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:max-w-md">
+      {GEMINI_MODELS.map((m) => {
+        const active = m.value === value;
+        return (
+          <button
+            key={m.value}
+            type="button"
+            onClick={() => onChange(m.value)}
+            className={cn(
+              "rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 active:scale-[0.98]",
+              active
+                ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
+                : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+            )}
+          >
+            <span className="block text-sm font-medium">{m.label}</span>
+            <span className="mt-0.5 block text-xs opacity-70">{t(m.hintKey)}</span>
           </button>
         );
       })}

@@ -1933,6 +1933,23 @@ green + committed.
   Ollama controls); Wave 3 — audio transcriber backend (3.1-flash only, export
   markdown); Wave 4 — transcriber frontend; Wave 5 — note attachments.
 
+- **Wave 2 — Settings UI redo for the provider model (DONE, frontend).** Redid the
+  Settings → Providers section to drive the new model, reusing the page's existing
+  primitives (no new aesthetic — consistency with the Jakarta/accent-palette system).
+  A **Use Gemini** master `Toggle` (off → an inline note that Ollama/Claude will
+  serve); when on, a framed sub-panel with an **Auto-rotate models** toggle —
+  rotation ON shows the read-only best-first rotation order as arrow-linked chips
+  (3.1 Flash → 3.1 Flash Lite → 2.5 Flash → 2.5 Flash Lite), rotation OFF shows a new
+  **2×2 ModelGrid** to pin one of the four models (each card: name + tier hint).
+  Ollama gained an **enabled-gated model name `Input`** (`ollama_model`, e.g.
+  "llama3.1") so a local model is actually usable. `FormState`/`toForm`/`handleSave`
+  carry `gemini_enabled`/`gemini_rotation`/`ollama_model` (empty model trimmed →
+  clears server-side); `types/settings.ts` widened `GeminiModel` to the four ids and
+  added the fields. i18n: `settings.providers.gemini.*` + `ollama.model*` keys added
+  to en/it/es (the obsolete `geminiModel` key removed). Tree green: `tsc -b` +
+  `npm run build` clean; backend settings round-trip already covered (Wave 1, 474
+  passed).
+
 ## BLOCKED
 
 - _(none)_

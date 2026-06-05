@@ -363,9 +363,18 @@
       "button": "Clear",
       "heading": "Clear history",
       "confirm": "Click again to confirm",
-      "hour": { "label": "Last hour", "hint": "Events from the past 60 minutes" },
-      "day": { "label": "Last 24 hours", "hint": "Everything since yesterday" },
-      "all": { "label": "Everything", "hint": "Wipe the entire log" }
+      "hour": {
+        "label": "Last hour",
+        "hint": "Events from the past 60 minutes"
+      },
+      "day": {
+        "label": "Last 24 hours",
+        "hint": "Everything since yesterday"
+      },
+      "all": {
+        "label": "Everything",
+        "hint": "Wipe the entire log"
+      }
     }
   },
   "exam": {
@@ -493,7 +502,18 @@
     "providers": {
       "title": "Provider waterfall",
       "description": "Free providers run first. Order is automatic (cheapest-first).",
-      "geminiModel": "Gemini model",
+      "gemini": {
+        "label": "Use Gemini",
+        "hint": "Google's free tier runs first. Turn off to generate with Ollama instead.",
+        "rotation": {
+          "label": "Auto-rotate models",
+          "hint": "When a model hits its daily request limit, switch to the next. When the shared daily token budget runs out, fall back to Ollama."
+        },
+        "pick": "Model",
+        "rotationOrder": "Rotation order",
+        "rotationOrderHint": "Tried in this order; each switches on its own daily request limit.",
+        "disabledNote": "Gemini is off — notes will be generated with Ollama (or Claude, if allowed)."
+      },
       "models": {
         "flashLiteHint": "Cheapest, fastest — recommended for bulk generation.",
         "flashHint": "More capable, uses more quota per topic."
@@ -504,7 +524,10 @@
       },
       "ollama": {
         "label": "Use local Ollama",
-        "hint": "Include a local $0 model in the waterfall (must be installed)."
+        "hint": "Include a local $0 model in the waterfall (must be installed).",
+        "modelLabel": "Ollama model",
+        "modelPlaceholder": "e.g. llama3.1",
+        "modelHint": "The local model name, as shown by `ollama list`."
       },
       "budget": {
         "label": "Per-document token budget",
