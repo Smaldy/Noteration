@@ -1610,6 +1610,22 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   AI notes/MCQs/flashcards generate in the chosen language. Italian/Spanish strings are
   first-pass author translations open to refinement.
 
+- **Bundle code-splitting (DONE, user-requested).** Cleared Vite's ">500 kB chunk"
+  warning — the app shipped as one ~2 MB JS chunk because every route was statically
+  imported. Two changes: (1) `App.tsx` now lazy-loads each route page via
+  `React.lazy`/dynamic `import()` (a small `named()` helper adapts our named exports;
+  a quiet `<Suspense>` spinner covers the load, which is instant on localhost); the
+  always-mounted `ProviderBadge`/`PomodoroWidget` stay eager. (2) `vite.config.ts`
+  `rollupOptions.output.manualChunks` groups vendors into cacheable chunks
+  (fullcalendar · katex · editor[tiptap/prosemirror] · markdown[react-markdown+remark/
+  rehype stack] · motion · dndkit · i18n · react-vendor · vendor). Also lazy-loaded
+  the heavy TipTap `NoteEditor` *inside* `NotesTab` (only fetched when the user clicks
+  Edit/Add note), so it's out of the study-page chunk too. Result: largest chunk is
+  now **vendor 400 kB** (was a single 2 MB entry); the entry is **81 kB**, and
+  FullCalendar (246 kB, /calendar), the editor (323 kB, on edit), and KaTeX (256 kB,
+  Study notes) only download with the page that needs them. Tree green: `tsc -b` +
+  `npm run build` clean, **no chunk-size warning**; backend untouched.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

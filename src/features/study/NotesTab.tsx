@@ -1,15 +1,20 @@
 import { Lock, LockOpen, Pencil, Plus, Trash2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Suspense, lazy, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MarkdownView } from "@/components/MarkdownView";
-import { NoteEditor } from "@/components/editor/NoteEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
 import { useStudyStore } from "@/stores/study";
 import type { Note } from "@/types/study";
+
+// TipTap is heavy and only needed when the user actually edits a note, so it's
+// split out and loaded on demand (keeps it out of the study-page chunk).
+const NoteEditor = lazy(() =>
+  import("@/components/editor/NoteEditor").then((m) => ({ default: m.NoteEditor })),
+);
 
 interface NotesTabProps {
   topicId: number;
@@ -113,12 +118,20 @@ function NoteBlock({
 
   if (editing) {
     return (
-      <NoteEditor
-        initialMarkdown={note.content_md}
-        onSave={save}
-        onCancel={() => setEditing(false)}
-        saving={saving}
-      />
+      <Suspense
+        fallback={
+          <div className="flex min-h-48 items-center justify-center rounded-lg border bg-card">
+            <span className="size-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          </div>
+        }
+      >
+        <NoteEditor
+          initialMarkdown={note.content_md}
+          onSave={save}
+          onCancel={() => setEditing(false)}
+          saving={saving}
+        />
+      </Suspense>
     );
   }
 
