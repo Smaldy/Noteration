@@ -1933,6 +1933,36 @@ green + committed.
   Ollama controls); Wave 3 — audio transcriber backend (3.1-flash only, export
   markdown); Wave 4 — transcriber frontend; Wave 5 — note attachments.
 
+- **Wave 3 — Audio transcriber backend (DONE).** Upload an audio lecture → it's
+  transcribed to markdown → the same structure-review → queue → notes flow as a
+  PDF (minus the formula stage; there's no page to crop). New `Document.source_type`
+  ("pdf"|"audio") + `Document.status_detail`, and a `DocumentStatus.transcribing`
+  value (migration `b9c0d1e2f3a4`, `server_default 'pdf'`, widens the non-native
+  `status` VARCHAR for the new value; `alembic check` clean, applied to live DB).
+  `GeminiProvider.transcribe_audio` (Files-API upload — lecture files exceed the
+  inline cap — waits for the file to leave PROCESSING, then `generate_content`;
+  single fixed model, no rotation). `services/transcription.py`: audio
+  extension/mime table, a language-aware transcription prompt (faithful transcript,
+  `##` topic headings so detection finds structure), and
+  `transcribe_pending_document` (oldest `transcribing` audio doc → injected
+  transcriber → writes `uploads/<hash>.transcript.md`, flips to `uploaded`; on a
+  **rate limit** → `error` + a "wait and try again" detail per the product decision,
+  on other failure → `error` + detail). `services/transcription_worker.py`: a small
+  daemon (sibling of the queue worker) that transcribes one pending doc per poll
+  with Gemini 3.1 Flash; needs only a Gemini key (independent of the `gemini_enabled`
+  generation toggle — transcription always uses Gemini); restart-safe (a stuck
+  `transcribing` doc is just re-picked). `documents.create_audio_document` /
+  `retrigger_transcription`; `confirm_structure` + `_stages_for_chapter` route audio
+  to the no-formula stage set. Router: `POST /api/documents` detects audio by
+  filename and starts transcription (else PDF as before); `GET …/transcript` exports
+  the markdown; `POST …/transcribe/retry` re-queues a failed one. `UploadResult`
+  fields made optional + source-aware; `DocumentOut`/`DocumentSummaryOut` carry
+  `source_type`/`status_detail`. Both workers start in the app lifespan. +19 tests
+  (helpers, create/persist, success/rate-limit/unavailable/empty/missing-file,
+  retrigger, audio-confirm-skips-formula, HTTP upload/reject/transcript/retry).
+  Files-API call shape verified against the installed `google-genai`. Tree green:
+  full suite **493 passed**.
+
 - **Wave 2 — Settings UI redo for the provider model (DONE, frontend).** Redid the
   Settings → Providers section to drive the new model, reusing the page's existing
   primitives (no new aesthetic — consistency with the Jakarta/accent-palette system).

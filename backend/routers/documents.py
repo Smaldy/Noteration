@@ -15,10 +15,12 @@ from backend.schemas.structure import (
     ConfirmStructureResult,
     DocumentOut,
     ProposedStructureOut,
+    TranscriptOut,
     UploadResult,
 )
 from backend.schemas.topic import DocumentTreeOut
 from backend.services import documents as docsvc
+from backend.services.transcription import is_audio_filename
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -53,17 +55,33 @@ async def upload_document(
     mode: DocumentMode = Form(DocumentMode.study),
     session: Session = Depends(get_session),
 ) -> UploadResult:
-    """Ingest an uploaded PDF and create its Document (structure not yet built).
+    """Ingest an uploaded PDF, or accept an audio file for transcription.
 
-    ``mode`` (form field) selects the section: ``study`` (Library, default) or
-    ``exam`` (Exam Prep — assessment-only).
+    The same upload button handles both: an audio filename is stored and queued for
+    background transcription (the document starts ``transcribing``); anything else
+    is treated as a PDF and ingested. ``mode`` (form field) selects the PDF section:
+    ``study`` (Library, default) or ``exam`` (Exam Prep — assessment-only); audio is
+    always study mode.
     """
+    filename = file.filename or "upload"
     data = await file.read()
+
+    if is_audio_filename(filename):
+        try:
+            document = docsvc.create_audio_document(
+                session, subject_id=subject_id, filename=filename, data=data
+            )
+        except docsvc.InvalidAudioError:
+            raise HTTPException(status_code=400, detail="Unsupported audio file")
+        except docsvc.SubjectNotFoundError:
+            raise HTTPException(status_code=404, detail="Subject not found")
+        return UploadResult(document=DocumentOut.model_validate(document))
+
     try:
         document, result = docsvc.create_document(
             session,
             subject_id=subject_id,
-            filename=file.filename or "upload.pdf",
+            filename=filename,
             data=data,
             mode=mode,
         )
@@ -78,6 +96,41 @@ async def upload_document(
         is_scanned=result.is_scanned,
         book_mode=result.book_mode,
     )
+
+
+@router.get("/{document_id}/transcript", response_model=TranscriptOut)
+def document_transcript(
+    document_id: int,
+    session: Session = Depends(get_session),
+) -> TranscriptOut:
+    """Return an audio document's transcript markdown (export button)."""
+    from pathlib import Path
+
+    from backend.models import Document
+    from backend.services.transcription import SOURCE_TYPE_AUDIO
+
+    document = session.get(Document, document_id)
+    if document is None or document.source_type != SOURCE_TYPE_AUDIO:
+        raise HTTPException(status_code=404, detail="Audio document not found")
+    if not document.markdown_path or not Path(document.markdown_path).is_file():
+        raise HTTPException(status_code=409, detail="Transcript not ready yet")
+    markdown = Path(document.markdown_path).read_text(encoding="utf-8")
+    return TranscriptOut(
+        document_id=document.id, filename=document.filename, markdown=markdown
+    )
+
+
+@router.post("/{document_id}/transcribe/retry", response_model=DocumentOut)
+def retry_transcription(
+    document_id: int,
+    session: Session = Depends(get_session),
+) -> DocumentOut:
+    """Re-queue a failed/rate-limited audio document for transcription."""
+    try:
+        document = docsvc.retrigger_transcription(session, document_id)
+    except docsvc.DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="Audio document not found")
+    return DocumentOut.model_validate(document)
 
 
 @router.get("/{document_id}/structure", response_model=ProposedStructureOut)

@@ -8,6 +8,11 @@ import enum
 
 
 class DocumentStatus(enum.StrEnum):
+    # Audio documents are transcribed before structure review; until the transcript
+    # is ready they sit in ``transcribing`` (or ``error`` if transcription failed /
+    # was rate-limited — see Document.status_detail). PDFs skip straight to
+    # ``uploaded``.
+    transcribing = "transcribing"
     uploaded = "uploaded"
     processing = "processing"
     ready = "ready"

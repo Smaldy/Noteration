@@ -69,9 +69,17 @@ class Document(Base):
     filename: Mapped[str]
     file_hash: Mapped[str]  # cache key for markdown + page renders
     markdown_path: Mapped[str | None] = mapped_column(default=None)
+    # "pdf" (default) or "audio". Audio documents store their uploaded file under
+    # uploads/<hash>.<ext>, are transcribed to markdown (the transcript path lands
+    # in markdown_path), then follow the same structure-review → queue → notes flow.
+    # PDF-only stages (formula vision) are skipped for audio (no page to crop).
+    source_type: Mapped[str] = mapped_column(default="pdf", server_default="pdf")
     status: Mapped[DocumentStatus] = mapped_column(
         SAEnum(DocumentStatus, native_enum=False), default=DocumentStatus.uploaded
     )
+    # Human-readable detail for the current status (e.g. a transcription rate-limit
+    # "try again later" message). Null when there's nothing to say.
+    status_detail: Mapped[str | None] = mapped_column(default=None)
     # study = full pipeline (notes + assessment); exam = assessment-only (the
     # dedicated Exam Prep section). Drives stage enqueue + generation prompt.
     mode: Mapped[DocumentMode] = mapped_column(

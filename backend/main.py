@@ -26,28 +26,33 @@ from backend.routers import (
     subjects,
     topics,
 )
+from backend.services.transcription_worker import TranscriptionWorker
 from backend.services.worker import QueueWorker
 
 # Built Vite bundle. Produced by `npm run build`; gitignored.
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "dist"
 
-# Background worker that drains the generation queue for the app's lifetime.
-# Disabled in tests (which drive the queue directly) via NOTERATION_DISABLE_WORKER=1.
+# Background workers that run for the app's lifetime: one drains the generation
+# queue, the other transcribes uploaded audio. Both are disabled in tests (which
+# drive their logic directly) via NOTERATION_DISABLE_WORKER=1.
 worker = QueueWorker()
+transcription_worker = TranscriptionWorker()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Start/stop the queue worker alongside the app (unless disabled by env)."""
+    """Start/stop the background workers alongside the app (unless disabled)."""
     started = False
     if os.environ.get("NOTERATION_DISABLE_WORKER") != "1":
         worker.start()
+        transcription_worker.start()
         started = True
     try:
         yield
     finally:
         if started:
             worker.stop()
+            transcription_worker.stop()
 
 
 app = FastAPI(title="Noteration", version="0.1.0", lifespan=lifespan)

@@ -61,8 +61,12 @@ ROTATION_ORDER: tuple[str, ...] = (
     GEMINI_2_5_FLASH_LITE,
 )
 # Audio transcription uses this one model only (no rotation, no Ollama fallback —
-# Ollama can't transcribe audio). See services/pipeline/transcription.py (Wave 3).
+# Ollama can't transcribe audio). See services/transcription.py (Wave 3).
 TRANSCRIBE_MODEL = GEMINI_3_1_FLASH
+# Generous output cap for a full lecture transcript (a ~1h lecture is ~12k tokens).
+TRANSCRIBE_MAX_TOKENS = 32768
+# Seconds to wait for an uploaded audio file to leave PROCESSING before giving up.
+_FILE_ACTIVE_TIMEOUT = 120.0
 
 # Default single model (rotation OFF). flash-lite is the cheapest 2.5 tier and,
 # unlike gemini-2.5-flash, spends no output-token budget on "thinking".
@@ -82,6 +86,14 @@ _VISION_PROMPT = (
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _file_state(file: Any) -> str:
+    """Normalize a Files-API file's state to its enum NAME (e.g. 'ACTIVE')."""
+    state = getattr(file, "state", None)
+    if state is None:
+        return "ACTIVE"  # no state field → treat as ready
+    return str(getattr(state, "name", state)).upper()
 
 
 @dataclass
@@ -186,6 +198,53 @@ class GeminiProvider(Provider):
                 model=model, contents=contents, config=config
             )
         )
+
+    def transcribe_audio(
+        self,
+        audio_path: str,
+        *,
+        mime_type: str,
+        prompt: str,
+        max_tokens: int = TRANSCRIBE_MAX_TOKENS,
+    ) -> ProviderResult:
+        """Transcribe an audio file to text via the Files API (no rotation).
+
+        Built for a single fixed model (``TRANSCRIBE_MODEL``) — transcription does
+        not rotate and has no Ollama fallback (Ollama can't hear audio), so on a
+        limit this raises ``ProviderLimitError`` and the caller surfaces a
+        "try again later" message. Large lecture files exceed the inline request
+        cap, so the audio is uploaded via the Files API and referenced by handle.
+        """
+        import time as _time
+
+        from google.genai import types  # lazy
+
+        client = self._get_client()
+        slot = self._slots[0]
+        try:
+            uploaded = client.files.upload(
+                file=audio_path,
+                config=types.UploadFileConfig(mime_type=mime_type),
+            )
+            # Audio is processed server-side before it can be referenced; wait for
+            # it to leave PROCESSING (usually quick).
+            deadline = _time.monotonic() + _FILE_ACTIVE_TIMEOUT
+            while _file_state(uploaded) == "PROCESSING":
+                if _time.monotonic() > deadline:
+                    raise ProviderUnavailableError("audio file processing timed out")
+                _time.sleep(1.0)
+                uploaded = client.files.get(name=uploaded.name)
+            if _file_state(uploaded) == "FAILED":
+                raise ProviderUnavailableError("audio file processing failed")
+            response = client.models.generate_content(
+                model=slot.model,
+                contents=[uploaded, prompt],
+                config=self._config(max_tokens),
+            )
+        except Exception as exc:  # noqa: BLE001 - mapped to typed provider errors
+            raise self._map_error(exc) from exc
+        slot.limiter.record(self.clock())
+        return self._to_result(response)
 
     # -- internals -----------------------------------------------------------
 

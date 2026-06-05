@@ -93,6 +93,8 @@ class DocumentSummary:
     subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
+    status_detail: str | None
+    source_type: str
     mode: DocumentMode
     uploaded_at: datetime
     topics_total: int
@@ -166,6 +168,8 @@ def list_documents(
                 subject_bookmarked=bookmarked,
                 exam_date=exam_date,
                 status=document.status,
+                status_detail=document.status_detail,
+                source_type=document.source_type,
                 mode=document.mode,
                 uploaded_at=document.uploaded_at,
                 topics_total=total,
@@ -234,6 +238,67 @@ def create_document(
     session.add(document)
     session.commit()
     return document, result
+
+
+class InvalidAudioError(ValueError):
+    """Uploaded file is not an accepted audio format."""
+
+
+def create_audio_document(
+    session: Session,
+    *,
+    subject_id: int,
+    filename: str,
+    data: bytes,
+    uploads_dir: str | Path = UPLOADS_DIR,
+) -> Document:
+    """Persist an uploaded audio file and create its (untranscribed) Document.
+
+    The file is stored under ``uploads/<hash><ext>``; the Document starts in
+    ``transcribing`` with ``source_type="audio"`` and no markdown yet — the
+    transcription worker fills in the transcript and flips it to ``uploaded``,
+    after which it follows the same structure-review → queue → notes flow as a PDF
+    (minus the formula stage; there's no page to crop). Audio is always study mode.
+    """
+    from backend.services.transcription import SOURCE_TYPE_AUDIO, is_audio_filename
+
+    if not is_audio_filename(filename):
+        raise InvalidAudioError(filename)
+    if not data:
+        raise InvalidAudioError("empty audio file")
+    if session.get(Subject, subject_id) is None:
+        raise SubjectNotFoundError(subject_id)
+
+    file_hash = _persist_audio(data, filename, Path(uploads_dir))
+    min_order = session.execute(select(func.min(Document.order_index))).scalar()
+    document = Document(
+        subject_id=subject_id,
+        filename=filename,
+        file_hash=file_hash,
+        markdown_path=None,
+        source_type=SOURCE_TYPE_AUDIO,
+        status=DocumentStatus.transcribing,
+        mode=DocumentMode.study,
+        order_index=(min_order if min_order is not None else 0) - 1,
+    )
+    session.add(document)
+    session.commit()
+    return document
+
+
+def retrigger_transcription(session: Session, document_id: int) -> Document:
+    """Flip a failed/errored audio document back to ``transcribing`` to retry."""
+    document = session.get(Document, document_id)
+    if document is None:
+        raise DocumentNotFoundError(document_id)
+    from backend.services.transcription import SOURCE_TYPE_AUDIO
+
+    if document.source_type != SOURCE_TYPE_AUDIO:
+        raise DocumentNotFoundError(document_id)
+    document.status = DocumentStatus.transcribing
+    document.status_detail = None
+    session.commit()
+    return document
 
 
 def detect_for_document(
@@ -413,9 +478,14 @@ def confirm_structure(
     # paused — a paused chapter's topics exist in the tree but stay un-enqueued
     # until the user resumes the chapter (the focus-only-what-you-study control).
     queue = QueueService(session)
-    # Exam docs run the generation stage only (no formula stage — there's no Note
-    # to attach equations to). Study docs use the default formula→generation order.
-    stages = EXAM_STAGES if document.mode is DocumentMode.exam else None
+    # The generation-only stage set (no formula) is used when there's no PDF page to
+    # crop equations from: exam docs (no notes) and audio docs (transcript only).
+    # Study PDFs use the default formula→generation order.
+    no_formula = (
+        document.mode is DocumentMode.exam
+        or document.source_type == "audio"
+    )
+    stages = EXAM_STAGES if no_formula else None
     enqueued = 0
     for topic, chapter in created:
         if topic.priority is TopicPriority.skip:
@@ -692,3 +762,16 @@ def _persist_upload(data: bytes, uploads_dir: Path) -> Path:
         tmp.write_bytes(data)
         os.replace(tmp, pdf_path)
     return pdf_path
+
+
+def _persist_audio(data: bytes, filename: str, uploads_dir: Path) -> str:
+    """Write audio under uploads/<hash><ext> (idempotent, atomic); return hash."""
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    file_hash = hashlib.sha256(data).hexdigest()
+    ext = Path(filename).suffix.lower()
+    audio_path = uploads_dir / f"{file_hash}{ext}"
+    if not audio_path.exists():
+        tmp = uploads_dir / f".{file_hash}.{os.getpid()}.tmp"
+        tmp.write_bytes(data)
+        os.replace(tmp, audio_path)
+    return file_hash

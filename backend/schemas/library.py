@@ -21,6 +21,8 @@ class DocumentSummaryOut(BaseModel):
     subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
+    status_detail: str | None
+    source_type: str  # "pdf" | "audio"
     mode: DocumentMode
     uploaded_at: datetime
     topics_total: int

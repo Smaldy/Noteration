@@ -19,17 +19,32 @@ class DocumentOut(BaseModel):
     filename: str
     file_hash: str
     status: DocumentStatus
+    status_detail: str | None = None
+    source_type: str = "pdf"
 
 
 class UploadResult(BaseModel):
-    """Result of uploading + ingesting a PDF, before structure review."""
+    """Result of uploading a document, before structure review.
+
+    For a PDF, ``page_count``/``is_scanned``/``book_mode`` describe the ingest. For
+    audio there is no ingest yet (it is transcribed in the background), so those
+    stay at their defaults and ``document.status`` is ``transcribing``.
+    """
 
     document: DocumentOut
-    page_count: int
-    is_scanned: bool  # no text layer → the client should offer manual structure
+    page_count: int = 0
+    is_scanned: bool = False  # no text layer → the client should offer manual structure
     # True when this is a large outline-backed book whose whole-document markdown
     # was skipped (converted lazily per chapter). The upload UI frames it as a book.
     book_mode: bool = False
+
+
+class TranscriptOut(BaseModel):
+    """An audio document's transcript markdown (for the export button)."""
+
+    document_id: int
+    filename: str
+    markdown: str
 
 
 # --- proposed structure (detection output, read-only) -----------------------

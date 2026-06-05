@@ -453,9 +453,15 @@ class QueueService:
 
     @staticmethod
     def _stages_for_chapter(chapter: Chapter) -> tuple[QueueStage, ...]:
-        """Generation stages for a chapter's topics, per the document mode."""
+        """Generation stages for a chapter's topics, per the document.
+
+        The formula stage crops equations from a PDF page; exam docs (no notes) and
+        audio docs (transcript only, no PDF) skip it and run generation only.
+        """
         document = chapter.document
-        if document is not None and document.mode is DocumentMode.exam:
+        if document is not None and (
+            document.mode is DocumentMode.exam or document.source_type == "audio"
+        ):
             return EXAM_STAGES
         return DEFAULT_STAGES
 
