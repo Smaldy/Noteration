@@ -1561,6 +1561,27 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   (backend untouched, **460 passed**). **Next:** 3d Calendar + Queue, 3e Upload/
   Exam/Pomodoro/Bookmarks/Search.
 
+- **Multilingual support — Wave 3d (DONE, user-requested): Calendar page + Queue.**
+  Added `calendar` and `queue` locale namespaces (en/it/es). **Calendar**
+  (`CalendarPage`): header/help text, AI-plan + Add buttons, the colour legend,
+  event-chip controls (mark studied/not, remove + confirm), and the toolbar — plus
+  **FullCalendar's own locale** (`@fullcalendar/core/locales/{it,es}` via
+  `locale={i18n.language}`) so month/day names localize; custom `buttonText`
+  (Month/Week/Day/Today) and `noEventsText` go through `t`; the module-level
+  `renderChip` takes `t` as a param. **Queue** (`QueuePage` + sub-components):
+  title/subtitle, Lanes/History tabs, ready/queued summary (plural), resume/cooling
+  banners (`{{time}}`/`{{minutes}}`), token-budget banners, needs-attention + Retry,
+  history count (plural); `LaneCard` and `ChapterStatusList` resolve their state
+  pills/counts/labels via `t` (state styles kept in a const, labels keyed by state);
+  `ProviderStrip` (Waterfall/cooling), `HistoryView` (empty/switch/topic + locale-
+  formatted dates), `ClearHistoryMenu` (scopes/confirm), and `ProviderBadge`
+  (title + the one "Idle" status word — provider proper names stay). `TFunction`
+  imported from `i18next` (not `react-i18next`). **Deferred to 3e:** the calendar
+  dialogs (Add-to-calendar / AI-plan / Edit-event / TimeField). Tree green:
+  `tsc -b` + `npm run build` clean (backend untouched, **460 passed**). **Next:**
+  3e Upload/Structure-review + Exam + Pomodoro + Bookmarks + Search + the calendar
+  dialogs.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

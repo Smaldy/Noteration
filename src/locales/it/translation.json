@@ -122,6 +122,108 @@
       "generateMoreError": "Impossibile generare altre flashcard."
     }
   },
+  "calendar": {
+    "title": "Calendario",
+    "aiPlan": "Piano di studio IA",
+    "aiPlanTitle": "Lascia che l'IA pianifichi il programma di studio di una materia",
+    "add": "Aggiungi al calendario",
+    "help": "Clicca su un giorno per aggiungere un evento, trascina una sessione per riprogrammarla o spuntala quando l'hai studiata. Clicca su un argomento per aprirlo.",
+    "helpDayToggle": "Fai doppio clic sul pulsante Giorno per passare tra griglia oraria ed elenco.",
+    "noEvents": "Nessuna sessione programmata per questo giorno.",
+    "buttons": {
+      "month": "Mese",
+      "week": "Settimana",
+      "day": "Giorno",
+      "today": "Oggi"
+    },
+    "markStudied": "Segna come studiato",
+    "markNotStudied": "Segna come non studiato",
+    "removeFromCalendar": "Rimuovi dal calendario",
+    "removeConfirm": "Rimuovere \"{{title}}\" dal calendario?",
+    "legend": {
+      "examDeadline": "Esame / scadenza",
+      "reviewSm2": "Ripasso (SM-2)",
+      "aiPlan": "Piano IA",
+      "topicMoved": "Argomento / spostato",
+      "customEvent": "Evento personalizzato",
+      "revisionBuffer": "Margine di ripasso"
+    }
+  },
+  "queue": {
+    "title": "Coda di elaborazione",
+    "subtitle": "Ogni materia ha la sua corsia — mettine in pausa una per cedere il suo modello a un'altra. Studia ciò che è pronto ora; il resto continua sui piani gratuiti.",
+    "idle": "Inattivo",
+    "waterfall": "Cascata",
+    "cooling": "in raffreddamento",
+    "tabs": {
+      "lanes": "Corsie",
+      "history": "Cronologia"
+    },
+    "ready": "{{count}} pronti",
+    "queued": "{{count}} in coda",
+    "providerSaid": "Il provider ha detto: {{reason}}",
+    "resumeShortly": "Ripresa a breve (intorno alle {{time}}).",
+    "resumeCooling": "La quota di un provider si sta raffreddando — ripresa intorno alle {{time}} (~{{minutes}} min).",
+    "resumeSummary": "ripresa ~{{time}}",
+    "budgetPaused": "Un documento ha raggiunto il suo budget di token ed è in pausa per proteggere la tua quota.",
+    "budgetPausedWithTokens": "Un documento ha raggiunto il suo budget di token (~{{spent}} / {{budget}} token) ed è in pausa per proteggere la tua quota.",
+    "budgetRaise": "Aumenta il budget di token per documento nelle Impostazioni per continuare.",
+    "empty": "Ancora niente in coda. Carica un documento per iniziare.",
+    "needsAttention": "Richiede attenzione",
+    "retry": "Riprova",
+    "events_one": "{{count}} evento",
+    "events_other": "{{count}} eventi",
+    "providerBadgeTitle": "Provider IA attivo — apri la coda di elaborazione",
+    "lane": {
+      "states": {
+        "running": "In esecuzione",
+        "overnight": "Notturno",
+        "waiting": "In attesa",
+        "paused": "In pausa"
+      },
+      "waitingFor": "In attesa di {{provider}}",
+      "resumeShort": "ripresa ~{{time}}",
+      "resumeShortMin": "ripresa ~{{time}} ({{minutes}}m)",
+      "overnight": "Notturno",
+      "resume": "Riprendi",
+      "pause": "Pausa",
+      "counts": {
+        "ready": "Pronti",
+        "processing": "In elaborazione",
+        "queued": "In coda",
+        "errored": "In errore"
+      }
+    },
+    "chapters": {
+      "title": "Capitoli",
+      "description": "Riprendi un capitolo in pausa per iniziare a generare i suoi argomenti; mettine uno in pausa per fermarlo.",
+      "states": {
+        "running": "In elaborazione",
+        "overnight": "Notturno",
+        "paused": "In pausa"
+      },
+      "pages": "pp. {{start}}–{{end}}",
+      "ready": "{{ready}}/{{total}} pronti",
+      "processing": "{{count}} in elaborazione",
+      "errored": "{{count}} in errore",
+      "overnight": "Notturno",
+      "resumeChapter": "Riprendi capitolo",
+      "pause": "Pausa"
+    },
+    "history": {
+      "empty": "Ancora nessuna cronologia di generazione. Man mano che gli argomenti vengono generati, ciò che li ha prodotti — e ogni cambio di provider — comparirà qui.",
+      "switchedProvider": "Provider cambiato",
+      "topicGenerated": "Argomento generato"
+    },
+    "clear": {
+      "button": "Cancella",
+      "heading": "Cancella cronologia",
+      "confirm": "Clicca di nuovo per confermare",
+      "hour": { "label": "Ultima ora", "hint": "Eventi degli ultimi 60 minuti" },
+      "day": { "label": "Ultime 24 ore", "hint": "Tutto da ieri" },
+      "all": { "label": "Tutto", "hint": "Cancella l'intera cronologia" }
+    }
+  },
   "settings": {
     "title": "Impostazioni",
     "subtitle": "Configura i provider, il ritmo di studio e l'aspetto di Noteration.",

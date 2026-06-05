@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
 import type { ProviderLaneState } from "@/types/lanes";
@@ -13,10 +15,13 @@ export function ProviderStrip({
   providers: ProviderLaneState[];
   active: string | null;
 }) {
+  const { t } = useTranslation();
   if (providers.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium text-muted-foreground">Waterfall</span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {t("queue.waterfall")}
+      </span>
       {providers.map((p, i) => {
         const info = providerInfo(p.provider);
         const isActive = p.provider === active;
@@ -44,7 +49,9 @@ export function ProviderStrip({
               />
               {info.label}
               {p.state === "cooling" && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400">cooling</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                  {t("queue.cooling")}
+                </span>
               )}
             </span>
           </div>

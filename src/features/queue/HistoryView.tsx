@@ -1,4 +1,5 @@
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
@@ -10,11 +11,11 @@ import type { HistoryEvent } from "@/types/lanes";
  * which provider, how long it took).
  */
 export function HistoryView({ events }: { events: HistoryEvent[] }) {
+  const { t } = useTranslation();
   if (events.length === 0) {
     return (
       <p className="mt-10 text-center text-sm text-muted-foreground">
-        No generation history yet. As topics are generated, what produced them — and
-        every provider switch — shows up here.
+        {t("queue.history.empty")}
       </p>
     );
   }
@@ -45,7 +46,8 @@ function Rail({ event }: { event: HistoryEvent }) {
 }
 
 function Row({ event }: { event: HistoryEvent }) {
-  const time = new Date(event.created_at).toLocaleString(undefined, {
+  const { t, i18n } = useTranslation();
+  const time = new Date(event.created_at).toLocaleString(i18n.language, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -57,7 +59,9 @@ function Row({ event }: { event: HistoryEvent }) {
     const to = providerInfo(event.provider_to);
     return (
       <div className="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1 pb-4 text-sm">
-        <span className="font-medium text-muted-foreground">Switched provider</span>
+        <span className="font-medium text-muted-foreground">
+          {t("queue.history.switchedProvider")}
+        </span>
         <span className={cn("inline-flex items-center gap-1", from.text)}>
           <span className={cn("size-1.5 rounded-full", from.dot)} />
           {from.label}
@@ -76,7 +80,9 @@ function Row({ event }: { event: HistoryEvent }) {
   return (
     <div className="flex flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 pb-4 text-sm">
       <Sparkles className="size-3.5 shrink-0 translate-y-0.5 text-primary/70" />
-      <span className="font-medium">{event.topic_title ?? "Topic generated"}</span>
+      <span className="font-medium">
+        {event.topic_title ?? t("queue.history.topicGenerated")}
+      </span>
       {event.subject_name && (
         <span className="text-xs text-muted-foreground">· {event.subject_name}</span>
       )}

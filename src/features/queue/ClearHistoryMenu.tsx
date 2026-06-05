@@ -1,29 +1,23 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, Clock3, Loader2, Sun, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { useLanesStore, type HistoryClearScope } from "@/stores/lanes";
 
 interface ScopeOption {
   scope: HistoryClearScope;
-  label: string;
-  hint: string;
   icon: typeof Clock3;
   /** "all" wipes the whole log, so it gets a destructive look + a confirm step. */
   destructive?: boolean;
 }
 
+// Labels/hints are resolved via i18n at render (queue.clear.<scope>.*).
 const OPTIONS: ScopeOption[] = [
-  { scope: "hour", label: "Last hour", hint: "Events from the past 60 minutes", icon: Clock3 },
-  { scope: "day", label: "Last 24 hours", hint: "Everything since yesterday", icon: Sun },
-  {
-    scope: "all",
-    label: "Everything",
-    hint: "Wipe the entire log",
-    icon: Trash2,
-    destructive: true,
-  },
+  { scope: "hour", icon: Clock3 },
+  { scope: "day", icon: Sun },
+  { scope: "all", icon: Trash2, destructive: true },
 ];
 
 /**
@@ -32,6 +26,7 @@ const OPTIONS: ScopeOption[] = [
  * wipe asks for a second click to confirm; the timed scopes act immediately.
  */
 export function ClearHistoryMenu() {
+  const { t } = useTranslation();
   const clearHistory = useLanesStore((s) => s.clearHistory);
   const clearing = useLanesStore((s) => s.clearing);
 
@@ -90,7 +85,7 @@ export function ClearHistoryMenu() {
         ) : (
           <Trash2 className="size-3.5" />
         )}
-        Clear
+        {t("queue.clear.button")}
         <ChevronDown
           className={cn("size-3.5 transition-transform duration-200", open && "rotate-180")}
         />
@@ -110,7 +105,7 @@ export function ClearHistoryMenu() {
             )}
           >
             <p className="px-2.5 pb-1 pt-1.5 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              Clear history
+              {t("queue.clear.heading")}
             </p>
             {OPTIONS.map((option) => {
               const Icon = option.icon;
@@ -148,10 +143,12 @@ export function ClearHistoryMenu() {
                         option.destructive ? "text-destructive" : "text-foreground",
                       )}
                     >
-                      {isArmed ? "Click again to confirm" : option.label}
+                      {isArmed
+                        ? t("queue.clear.confirm")
+                        : t(`queue.clear.${option.scope}.label`)}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {option.hint}
+                      {t(`queue.clear.${option.scope}.hint`)}
                     </span>
                   </span>
                 </button>

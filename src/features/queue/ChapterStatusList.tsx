@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { BookOpen, Moon, Pause, Play } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,22 +10,17 @@ import type {
   DocumentChapters,
 } from "@/types/chapter";
 
-const STATE_STYLE: Record<
-  ChapterQueueState,
-  { label: string; accent: string; pill: string }
-> = {
+// Visual style per chapter state; the label is resolved via i18n at render.
+const STATE_STYLE: Record<ChapterQueueState, { accent: string; pill: string }> = {
   running: {
-    label: "Processing",
     accent: "bg-primary",
     pill: "bg-primary-soft text-primary-soft-foreground",
   },
   overnight: {
-    label: "Overnight",
     accent: "bg-indigo-500",
     pill: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300",
   },
   paused: {
-    label: "Paused",
     accent: "bg-muted-foreground/40",
     pill: "bg-muted text-muted-foreground",
   },
@@ -42,13 +38,16 @@ export function ChapterStatusList({
   busy,
   onSetState,
 }: ChapterStatusListProps) {
+  const { t } = useTranslation();
   if (groups.length === 0) return null;
   return (
     <section className="space-y-5">
       <div>
-        <h2 className="text-sm font-semibold tracking-tight">Chapters</h2>
+        <h2 className="text-sm font-semibold tracking-tight">
+          {t("queue.chapters.title")}
+        </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Resume a paused chapter to start generating its topics; pause one to stop.
+          {t("queue.chapters.description")}
         </p>
       </div>
       {groups.map((group) => (
@@ -86,13 +85,17 @@ function ChapterRow({
   busy: boolean;
   onSetState: (chapterId: number, state: ChapterQueueState) => void;
 }) {
+  const { t } = useTranslation();
   const style = STATE_STYLE[chapter.queue_state];
   const paused = chapter.queue_state === "paused";
   const total = chapter.topics_total;
   const pct = total > 0 ? Math.round((chapter.topics_ready / total) * 100) : 0;
   const range =
     chapter.page_start != null && chapter.page_end != null
-      ? `pp. ${chapter.page_start}–${chapter.page_end}`
+      ? t("queue.chapters.pages", {
+          start: chapter.page_start,
+          end: chapter.page_end,
+        })
       : null;
 
   return (
@@ -119,14 +122,18 @@ function ChapterRow({
                 style.pill,
               )}
             >
-              {style.label}
+              {t(`queue.chapters.states.${chapter.queue_state}`)}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-            {chapter.topics_ready}/{total} ready
-            {chapter.topics_processing > 0 && ` · ${chapter.topics_processing} processing`}
+            {t("queue.chapters.ready", { ready: chapter.topics_ready, total })}
+            {chapter.topics_processing > 0 &&
+              ` · ${t("queue.chapters.processing", { count: chapter.topics_processing })}`}
             {chapter.topics_error > 0 && (
-              <span className="text-destructive"> · {chapter.topics_error} errored</span>
+              <span className="text-destructive">
+                {" · "}
+                {t("queue.chapters.errored", { count: chapter.topics_error })}
+              </span>
             )}
           </p>
         </div>
@@ -135,7 +142,7 @@ function ChapterRow({
           {chapter.queue_state === "overnight" ? (
             <span className="inline-flex items-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-300">
               <Moon className="size-3.5" />
-              Overnight
+              {t("queue.chapters.overnight")}
             </span>
           ) : (
             <Button
@@ -145,7 +152,7 @@ function ChapterRow({
               onClick={() => onSetState(chapter.id, paused ? "running" : "paused")}
             >
               {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
-              {paused ? "Resume chapter" : "Pause"}
+              {paused ? t("queue.chapters.resumeChapter") : t("queue.chapters.pause")}
             </Button>
           )}
         </div>

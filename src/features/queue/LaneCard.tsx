@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Clock, Moon, Pause, Play } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -7,24 +8,21 @@ import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
 import type { LaneState, LaneStatus } from "@/types/lanes";
 
-const STATE_STYLE: Record<LaneState, { label: string; accent: string; pill: string }> = {
+// Visual style per lane state; the label is resolved via i18n at render.
+const STATE_STYLE: Record<LaneState, { accent: string; pill: string }> = {
   running: {
-    label: "Running",
     accent: "bg-primary",
     pill: "bg-primary-soft text-primary-soft-foreground",
   },
   overnight: {
-    label: "Overnight",
     accent: "bg-indigo-500",
     pill: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300",
   },
   waiting: {
-    label: "Waiting",
     accent: "bg-amber-500",
     pill: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
   },
   paused: {
-    label: "Paused",
     accent: "bg-muted-foreground/50",
     pill: "bg-muted text-muted-foreground",
   },
@@ -38,6 +36,7 @@ interface LaneCardProps {
 }
 
 export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneCardProps) {
+  const { t } = useTranslation();
   const style = STATE_STYLE[lane.state];
   const paused = lane.queue_state === "paused";
   const provider = providerInfo(lane.active_provider);
@@ -60,7 +59,7 @@ export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneC
               {lane.subject_name}
             </h3>
             <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", style.pill)}>
-              {style.label}
+              {t(`queue.lane.states.${lane.state}`)}
             </span>
           </div>
 
@@ -74,7 +73,9 @@ export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneC
             ) : lane.state === "waiting" && lane.waiting_for ? (
               <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
                 <Clock className="size-3.5" />
-                Waiting for {providerInfo(lane.waiting_for).label}
+                {t("queue.lane.waitingFor", {
+                  provider: providerInfo(lane.waiting_for).label,
+                })}
               </span>
             ) : null}
             {lane.resume_at && <ResumeCountdown iso={lane.resume_at} />}
@@ -84,7 +85,7 @@ export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneC
         <div className="flex shrink-0 items-center gap-3">
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
             <Moon className="size-3.5" />
-            <span className="hidden sm:inline">Overnight</span>
+            <span className="hidden sm:inline">{t("queue.lane.overnight")}</span>
             <Switch
               checked={lane.queue_state === "overnight"}
               disabled={busy || paused}
@@ -98,17 +99,17 @@ export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneC
             onClick={onPauseToggle}
           >
             {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
-            {paused ? "Resume" : "Pause"}
+            {paused ? t("queue.lane.resume") : t("queue.lane.pause")}
           </Button>
         </div>
       </div>
 
       {/* Counts. */}
       <div className="grid grid-cols-4 divide-x border-t text-center">
-        <Count label="Ready" value={lane.ready} tone="text-emerald-600" />
-        <Count label="Processing" value={lane.processing} tone="text-sky-600" />
-        <Count label="Queued" value={lane.queued} tone="text-muted-foreground" />
-        <Count label="Errored" value={lane.error} tone="text-destructive" />
+        <Count label={t("queue.lane.counts.ready")} value={lane.ready} tone="text-emerald-600" />
+        <Count label={t("queue.lane.counts.processing")} value={lane.processing} tone="text-sky-600" />
+        <Count label={t("queue.lane.counts.queued")} value={lane.queued} tone="text-muted-foreground" />
+        <Count label={t("queue.lane.counts.errored")} value={lane.error} tone="text-destructive" />
       </div>
     </motion.li>
   );
@@ -126,13 +127,16 @@ function Count({ label, value, tone }: { label: string; value: number; tone: str
 }
 
 function ResumeCountdown({ iso }: { iso: string }) {
+  const { t } = useTranslation();
   const when = new Date(iso);
   const minutes = Math.max(0, Math.round((when.getTime() - Date.now()) / 60000));
   const time = when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   return (
     <span className="inline-flex items-center gap-1.5">
       <Clock className="size-3.5" />
-      {minutes <= 0 ? `resuming ~${time}` : `resuming ~${time} (${minutes}m)`}
+      {minutes <= 0
+        ? t("queue.lane.resumeShort", { time })
+        : t("queue.lane.resumeShortMin", { time, minutes })}
     </span>
   );
 }

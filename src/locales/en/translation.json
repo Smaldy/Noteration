@@ -122,6 +122,108 @@
       "generateMoreError": "Couldn't generate more flashcards."
     }
   },
+  "calendar": {
+    "title": "Calendar",
+    "aiPlan": "AI study plan",
+    "aiPlanTitle": "Let AI plan a subject's study schedule",
+    "add": "Add to calendar",
+    "help": "Click a day to add an event, drag a session to reschedule, or check one off when you've studied it. Click a topic to open it.",
+    "helpDayToggle": "Double-click the Day button to switch it between an hourly grid and a list.",
+    "noEvents": "No sessions scheduled for this day.",
+    "buttons": {
+      "month": "Month",
+      "week": "Week",
+      "day": "Day",
+      "today": "Today"
+    },
+    "markStudied": "Mark as studied",
+    "markNotStudied": "Mark as not studied",
+    "removeFromCalendar": "Remove from calendar",
+    "removeConfirm": "Remove \"{{title}}\" from the calendar?",
+    "legend": {
+      "examDeadline": "Exam / deadline",
+      "reviewSm2": "Review (SM-2)",
+      "aiPlan": "AI plan",
+      "topicMoved": "Topic / moved",
+      "customEvent": "Custom event",
+      "revisionBuffer": "Revision buffer"
+    }
+  },
+  "queue": {
+    "title": "Processing queue",
+    "subtitle": "Each subject runs its own lane — pause one to hand its model to another. Study what's ready now; the rest keeps going on free tiers.",
+    "idle": "Idle",
+    "waterfall": "Waterfall",
+    "cooling": "cooling",
+    "tabs": {
+      "lanes": "Lanes",
+      "history": "History"
+    },
+    "ready": "{{count}} ready",
+    "queued": "{{count}} queued",
+    "providerSaid": "Provider said: {{reason}}",
+    "resumeShortly": "Resuming shortly (around {{time}}).",
+    "resumeCooling": "A provider quota is cooling — resuming around {{time}} (~{{minutes}} min).",
+    "resumeSummary": "resuming ~{{time}}",
+    "budgetPaused": "A document hit its token budget and is paused to protect your quota.",
+    "budgetPausedWithTokens": "A document hit its token budget (~{{spent}} / {{budget}} tokens) and is paused to protect your quota.",
+    "budgetRaise": "Raise the per-document token budget in Settings to continue.",
+    "empty": "Nothing in the queue yet. Upload a document to get started.",
+    "needsAttention": "Needs attention",
+    "retry": "Retry",
+    "events_one": "{{count}} event",
+    "events_other": "{{count}} events",
+    "providerBadgeTitle": "Active AI provider — open the processing queue",
+    "lane": {
+      "states": {
+        "running": "Running",
+        "overnight": "Overnight",
+        "waiting": "Waiting",
+        "paused": "Paused"
+      },
+      "waitingFor": "Waiting for {{provider}}",
+      "resumeShort": "resuming ~{{time}}",
+      "resumeShortMin": "resuming ~{{time}} ({{minutes}}m)",
+      "overnight": "Overnight",
+      "resume": "Resume",
+      "pause": "Pause",
+      "counts": {
+        "ready": "Ready",
+        "processing": "Processing",
+        "queued": "Queued",
+        "errored": "Errored"
+      }
+    },
+    "chapters": {
+      "title": "Chapters",
+      "description": "Resume a paused chapter to start generating its topics; pause one to stop.",
+      "states": {
+        "running": "Processing",
+        "overnight": "Overnight",
+        "paused": "Paused"
+      },
+      "pages": "pp. {{start}}–{{end}}",
+      "ready": "{{ready}}/{{total}} ready",
+      "processing": "{{count}} processing",
+      "errored": "{{count}} errored",
+      "overnight": "Overnight",
+      "resumeChapter": "Resume chapter",
+      "pause": "Pause"
+    },
+    "history": {
+      "empty": "No generation history yet. As topics are generated, what produced them — and every provider switch — shows up here.",
+      "switchedProvider": "Switched provider",
+      "topicGenerated": "Topic generated"
+    },
+    "clear": {
+      "button": "Clear",
+      "heading": "Clear history",
+      "confirm": "Click again to confirm",
+      "hour": { "label": "Last hour", "hint": "Events from the past 60 minutes" },
+      "day": { "label": "Last 24 hours", "hint": "Everything since yesterday" },
+      "all": { "label": "Everything", "hint": "Wipe the entire log" }
+    }
+  },
   "settings": {
     "title": "Settings",
     "subtitle": "Tune the providers, study rhythm, and how Noteration looks.",

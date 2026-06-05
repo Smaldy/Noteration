@@ -122,6 +122,108 @@
       "generateMoreError": "No se pudieron generar más tarjetas."
     }
   },
+  "calendar": {
+    "title": "Calendario",
+    "aiPlan": "Plan de estudio con IA",
+    "aiPlanTitle": "Deja que la IA planifique el calendario de estudio de una asignatura",
+    "add": "Añadir al calendario",
+    "help": "Haz clic en un día para añadir un evento, arrastra una sesión para reprogramarla o márcala cuando la hayas estudiado. Haz clic en un tema para abrirlo.",
+    "helpDayToggle": "Haz doble clic en el botón Día para cambiar entre cuadrícula por horas y lista.",
+    "noEvents": "No hay sesiones programadas para este día.",
+    "buttons": {
+      "month": "Mes",
+      "week": "Semana",
+      "day": "Día",
+      "today": "Hoy"
+    },
+    "markStudied": "Marcar como estudiado",
+    "markNotStudied": "Marcar como no estudiado",
+    "removeFromCalendar": "Quitar del calendario",
+    "removeConfirm": "¿Quitar \"{{title}}\" del calendario?",
+    "legend": {
+      "examDeadline": "Examen / fecha límite",
+      "reviewSm2": "Repaso (SM-2)",
+      "aiPlan": "Plan de IA",
+      "topicMoved": "Tema / movido",
+      "customEvent": "Evento personalizado",
+      "revisionBuffer": "Margen de repaso"
+    }
+  },
+  "queue": {
+    "title": "Cola de procesamiento",
+    "subtitle": "Cada asignatura tiene su propio carril — pausa uno para ceder su modelo a otro. Estudia lo que ya está listo; el resto continúa en los planes gratuitos.",
+    "idle": "Inactivo",
+    "waterfall": "Cascada",
+    "cooling": "enfriando",
+    "tabs": {
+      "lanes": "Carriles",
+      "history": "Historial"
+    },
+    "ready": "{{count}} listos",
+    "queued": "{{count}} en cola",
+    "providerSaid": "El proveedor dijo: {{reason}}",
+    "resumeShortly": "Se reanuda en breve (alrededor de las {{time}}).",
+    "resumeCooling": "La cuota de un proveedor se está enfriando — se reanuda alrededor de las {{time}} (~{{minutes}} min).",
+    "resumeSummary": "se reanuda ~{{time}}",
+    "budgetPaused": "Un documento alcanzó su presupuesto de tokens y está en pausa para proteger tu cuota.",
+    "budgetPausedWithTokens": "Un documento alcanzó su presupuesto de tokens (~{{spent}} / {{budget}} tokens) y está en pausa para proteger tu cuota.",
+    "budgetRaise": "Aumenta el presupuesto de tokens por documento en Ajustes para continuar.",
+    "empty": "Aún no hay nada en la cola. Sube un documento para empezar.",
+    "needsAttention": "Requiere atención",
+    "retry": "Reintentar",
+    "events_one": "{{count}} evento",
+    "events_other": "{{count}} eventos",
+    "providerBadgeTitle": "Proveedor de IA activo — abre la cola de procesamiento",
+    "lane": {
+      "states": {
+        "running": "En ejecución",
+        "overnight": "Nocturno",
+        "waiting": "Esperando",
+        "paused": "En pausa"
+      },
+      "waitingFor": "Esperando a {{provider}}",
+      "resumeShort": "se reanuda ~{{time}}",
+      "resumeShortMin": "se reanuda ~{{time}} ({{minutes}}m)",
+      "overnight": "Nocturno",
+      "resume": "Reanudar",
+      "pause": "Pausar",
+      "counts": {
+        "ready": "Listos",
+        "processing": "Procesando",
+        "queued": "En cola",
+        "errored": "Con error"
+      }
+    },
+    "chapters": {
+      "title": "Capítulos",
+      "description": "Reanuda un capítulo en pausa para empezar a generar sus temas; pausa uno para detenerlo.",
+      "states": {
+        "running": "Procesando",
+        "overnight": "Nocturno",
+        "paused": "En pausa"
+      },
+      "pages": "pp. {{start}}–{{end}}",
+      "ready": "{{ready}}/{{total}} listos",
+      "processing": "{{count}} procesando",
+      "errored": "{{count}} con error",
+      "overnight": "Nocturno",
+      "resumeChapter": "Reanudar capítulo",
+      "pause": "Pausar"
+    },
+    "history": {
+      "empty": "Aún no hay historial de generación. A medida que se generan los temas, lo que los produjo — y cada cambio de proveedor — aparecerá aquí.",
+      "switchedProvider": "Proveedor cambiado",
+      "topicGenerated": "Tema generado"
+    },
+    "clear": {
+      "button": "Borrar",
+      "heading": "Borrar historial",
+      "confirm": "Haz clic de nuevo para confirmar",
+      "hour": { "label": "Última hora", "hint": "Eventos de los últimos 60 minutos" },
+      "day": { "label": "Últimas 24 horas", "hint": "Todo desde ayer" },
+      "all": { "label": "Todo", "hint": "Borrar todo el historial" }
+    }
+  },
   "settings": {
     "title": "Ajustes",
     "subtitle": "Configura los proveedores, el ritmo de estudio y el aspecto de Noteration.",

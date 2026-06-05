@@ -8,13 +8,17 @@ import type {
   EventDropArg,
   EventInput,
 } from "@fullcalendar/core";
+import esLocale from "@fullcalendar/core/locales/es";
+import itLocale from "@fullcalendar/core/locales/it";
 import daygridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { ArrowLeft, CalendarDays, Check, Plus, Sparkles, X } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -58,6 +62,7 @@ function pad2(n: number): string {
 
 export function CalendarPage() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const { entries, error, fetchRange, reschedule, toggleCompleted, deleteEntry } =
     useCalendarStore();
   const settings = useSettingsStore((s) => s.settings);
@@ -194,7 +199,7 @@ export function CalendarPage() {
         className="mb-3 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Library
+        {t("common.library")}
       </button>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -202,16 +207,16 @@ export function CalendarPage() {
           <span className="grid size-9 place-items-center rounded-xl bg-primary-soft text-primary-soft-foreground">
             <CalendarDays className="size-5" />
           </span>
-          Calendar
+          {t("calendar.title")}
         </h1>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={() => setPlanOpen(true)}
-            title="Let AI plan a subject's study schedule"
+            title={t("calendar.aiPlanTitle")}
           >
             <Sparkles className="size-4" />
-            AI study plan
+            {t("calendar.aiPlan")}
           </Button>
           <Button
             onClick={() => {
@@ -221,18 +226,14 @@ export function CalendarPage() {
             }}
           >
             <Plus className="size-4" />
-            Add to calendar
+            {t("calendar.add")}
           </Button>
         </div>
       </div>
 
       <p className="mb-3 text-sm text-muted-foreground">
-        Click a day to add an event, drag a session to reschedule, or check one
-        off when you've studied it. Click a topic to open it.{" "}
-        <span className="text-muted-foreground/80">
-          Double-click the <span className="font-medium">Day</span> button to
-          switch it between an hourly grid and a list.
-        </span>
+        {t("calendar.help")}{" "}
+        <span className="text-muted-foreground/80">{t("calendar.helpDayToggle")}</span>
       </p>
 
       {error && (
@@ -254,6 +255,8 @@ export function CalendarPage() {
               listPlugin,
             ]}
             initialView="dayGridMonth"
+            locales={[itLocale, esLocale]}
+            locale={i18n.language}
             height="100%"
             expandRows
             editable
@@ -268,38 +271,38 @@ export function CalendarPage() {
             )}:00`}
             scrollTime={`${pad2(startHour)}:00:00`}
             views={{
-              dayGridMonth: { dayMaxEvents: true, buttonText: "Month" },
-              dayGridWeek: { dayMaxEvents: true, buttonText: "Week" },
-              listDay: { buttonText: "Day" },
-              timeGridDay: { buttonText: "Day", allDaySlot: true },
+              dayGridMonth: { dayMaxEvents: true, buttonText: t("calendar.buttons.month") },
+              dayGridWeek: { dayMaxEvents: true, buttonText: t("calendar.buttons.week") },
+              listDay: { buttonText: t("calendar.buttons.day") },
+              timeGridDay: { buttonText: t("calendar.buttons.day"), allDaySlot: true },
             }}
             events={events}
-            eventContent={(arg) => renderChip(arg, toggleCompleted, deleteEntry)}
+            eventContent={(arg) => renderChip(arg, t, toggleCompleted, deleteEntry)}
             datesSet={onDatesSet}
             dateClick={onDateClick}
             eventClick={onEventClick}
             eventDrop={onEventDrop}
-            noEventsText="No sessions scheduled for this day."
+            noEventsText={t("calendar.noEvents")}
             headerToolbar={{
               left: "title",
               center: `dayGridMonth,dayGridWeek,${dayViewName}`,
               right: "prev,next today",
             }}
-            buttonText={{ today: "Today" }}
+            buttonText={{ today: t("calendar.buttons.today") }}
           />
         </div>
 
         <div className="mt-4 flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t pt-3.5">
           {LEGEND.map((l) => (
             <span
-              key={l.label}
+              key={l.key}
               className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground"
             >
               <span
                 className="size-2.5 rounded-full"
                 style={{ backgroundColor: l.color }}
               />
-              {l.label}
+              {t(`calendar.legend.${l.key}`)}
             </span>
           ))}
         </div>
@@ -322,6 +325,7 @@ export function CalendarPage() {
 // deadline). In the agenda list the row supplies its own dot/layout.
 function renderChip(
   arg: EventContentArg,
+  t: TFunction,
   toggle: (id: number, completed: boolean) => Promise<void>,
   remove: (id: number) => Promise<void>,
 ) {
@@ -345,8 +349,10 @@ function renderChip(
         e.stopPropagation();
         void toggle(entry.id, !entry.completed);
       }}
-      title={entry.completed ? "Mark as not studied" : "Mark as studied"}
-      aria-label={entry.completed ? "Mark as not studied" : "Mark as studied"}
+      title={entry.completed ? t("calendar.markNotStudied") : t("calendar.markStudied")}
+      aria-label={
+        entry.completed ? t("calendar.markNotStudied") : t("calendar.markStudied")
+      }
       className={cn(
         "grid size-4 shrink-0 place-items-center rounded border transition-colors",
         entry.completed
@@ -365,14 +371,12 @@ function renderChip(
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        if (
-          window.confirm(`Remove "${entry.title}" from the calendar?`)
-        ) {
+        if (window.confirm(t("calendar.removeConfirm", { title: entry.title }))) {
           void remove(entry.id);
         }
       }}
-      title="Remove from calendar"
-      aria-label="Remove from calendar"
+      title={t("calendar.removeFromCalendar")}
+      aria-label={t("calendar.removeFromCalendar")}
       className="grid size-4 shrink-0 place-items-center rounded opacity-0 transition-opacity hover:bg-black/10 group-hover/chip:opacity-70 hover:!opacity-100"
     >
       <X className="size-3" strokeWidth={2.5} />
@@ -414,11 +418,12 @@ function renderChip(
 }
 
 // Mirrors `classFor` / the CSS `--cal-*` tokens so the legend explains each colour.
-const LEGEND: { label: string; color: string }[] = [
-  { label: "Exam / deadline", color: "var(--cal-exam)" },
-  { label: "Review (SM-2)", color: "var(--cal-sm2)" },
-  { label: "AI plan", color: "var(--cal-ai)" },
-  { label: "Topic / moved", color: "var(--cal-manual)" },
-  { label: "Custom event", color: "var(--cal-custom)" },
-  { label: "Revision buffer", color: "var(--cal-buffer)" },
+// `key` indexes the localized label under calendar.legend.*.
+const LEGEND: { key: string; color: string }[] = [
+  { key: "examDeadline", color: "var(--cal-exam)" },
+  { key: "reviewSm2", color: "var(--cal-sm2)" },
+  { key: "aiPlan", color: "var(--cal-ai)" },
+  { key: "topicMoved", color: "var(--cal-manual)" },
+  { key: "customEvent", color: "var(--cal-custom)" },
+  { key: "revisionBuffer", color: "var(--cal-buffer)" },
 ];

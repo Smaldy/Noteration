@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ const POLL_MS = 10_000;
  */
 export function ProviderBadge() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const status = useLanesStore((s) => s.status);
   const fetchLanes = useLanesStore((s) => s.fetchLanes);
 
@@ -27,6 +29,8 @@ export function ProviderBadge() {
 
   const active = status?.active_provider ?? null;
   const info = providerInfo(active);
+  // "Idle" is the only provider label that is UI copy (not a proper name).
+  const label = active ? info.label : t("queue.idle");
 
   // Pulse when the active provider actually changes (a failover/switch).
   // `undefined` = not yet seen, so the very first load doesn't pulse.
@@ -45,7 +49,7 @@ export function ProviderBadge() {
     <motion.button
       type="button"
       onClick={() => navigate("/queue")}
-      title="Active AI provider — open the processing queue"
+      title={t("queue.providerBadgeTitle")}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -70,14 +74,14 @@ export function ProviderBadge() {
       </span>
       <AnimatePresence mode="wait">
         <motion.span
-          key={info.label}
+          key={label}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.18 }}
           className={cn("tracking-tight", info.text)}
         >
-          {info.label}
+          {label}
         </motion.span>
       </AnimatePresence>
     </motion.button>
