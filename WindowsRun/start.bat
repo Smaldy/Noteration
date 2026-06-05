@@ -1,5 +1,11 @@
 @echo off
 setlocal enableextensions enabledelayedexpansion
+rem Re-assert the core Windows directories on PATH. Some installers (e.g. a
+rem Python setup that overwrote PATH instead of appending) drop System32, which
+rem breaks the built-in tools this script relies on: timeout, netstat, findstr.
+rem %SystemRoot% is always set by the OS even when PATH is broken, so this is a
+rem safe self-repair and a no-op when PATH is already healthy.
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0;%PATH%"
 rem This script lives in WindowsRun\, so the project root is one level up.
 cd /d "%~dp0.."
 set "ROOT=%CD%"

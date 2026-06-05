@@ -1,5 +1,8 @@
 @echo off
 setlocal enableextensions
+rem Re-assert core Windows dirs on PATH; some installs drop System32, which can
+rem break npm and other tools invoked below. %SystemRoot% is always set.
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0;%PATH%"
 rem This script lives in WindowsRun\, so the project root is one level up.
 cd /d "%~dp0.."
 set "ROOT=%CD%"

@@ -1,5 +1,8 @@
 @echo off
 setlocal enableextensions
+rem Re-assert core Windows dirs on PATH; some installs drop System32, which
+rem breaks the netstat/findstr/taskkill used below. %SystemRoot% is always set.
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0;%PATH%"
 set "PORT=8000"
 
 rem ============================================================
