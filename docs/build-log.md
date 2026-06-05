@@ -1982,6 +1982,31 @@ green + committed.
   source_type/status, transcript 409 until ready, retry 200. Tree green: `tsc -b` +
   `npm run build` clean; backend unchanged (**493 passed**).
 
+- **Wave 5 — Manual image/audio attachments in notes (DONE).** User-only
+  enrichment (never AI): attach your own images/audio to a topic's notes.
+  `NoteAttachment` model (topic_id CASCADE, kind "image"|"audio", filename,
+  content_type, file_hash; migration `bc391d5c04ef`, `alembic check` clean) +
+  `Topic.attachments`. `services/attachments.py`: content-addressed storage under
+  `cache/attachments/<hash><ext>` (re-uploading the same file is a no-op; 25 MB cap;
+  only image/* and audio/*), `add_attachment` / `get_attachment` /
+  `delete_attachment` (removes the file only when no row still references the hash).
+  `get_topic_content` eager-loads attachments and stamps each one's serve URL;
+  `TopicContentOut` carries `attachments: [AttachmentOut]`. Router:
+  `POST /api/topics/{id}/attachments` (multipart), and a new attachments router —
+  `GET /api/attachments/{id}/file` (served with its real mime) +
+  `DELETE /api/attachments/{id}`. Frontend: a "Attachments" section in the Notes tab
+  (`AttachmentsSection`) with an image/audio picker, an inline gallery (images as
+  thumbnails opening full-size, audio as `<audio controls>`), and a hover remove
+  button; `study` store `addAttachment`/`removeAttachment`; types + i18n (en/it/es).
+  +13 tests (kind detection, reject non-media/empty, topic-content inclusion,
+  delete-removes-file vs shared-file-kept, cascade-with-topic, HTTP roundtrip
+  upload→serve→delete). Tree green: full suite **506 passed**; `tsc -b` +
+  `npm run build` clean.
+
+  **The audio-transcriber + Gemini-rotation feature is now complete across all five
+  waves** (model rotation, Settings UI, transcriber backend + frontend, note
+  attachments).
+
 - **Wave 2 — Settings UI redo for the provider model (DONE, frontend).** Redid the
   Settings → Providers section to drive the new model, reusing the page's existing
   primitives (no new aesthetic — consistency with the Jakarta/accent-palette system).

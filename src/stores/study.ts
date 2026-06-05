@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { ApiError, api } from "@/lib/api";
-import type { DocumentTree, Note, TopicContent } from "@/types/study";
+import type { Attachment, DocumentTree, Note, TopicContent } from "@/types/study";
 
 type Load = "idle" | "loading" | "loaded" | "error";
 
@@ -28,6 +28,10 @@ interface StudyStore {
   addNote: (topicId: number, content_md?: string) => Promise<void>;
   /** Delete a note block from the open topic. */
   removeNote: (noteId: number) => Promise<void>;
+  /** Attach a manual image/audio file to the open topic. */
+  addAttachment: (topicId: number, file: File) => Promise<void>;
+  /** Remove an attachment from the open topic. */
+  removeAttachment: (attachmentId: number) => Promise<void>;
   /** Delete a topic (and its content), then refresh the document's tree. */
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
@@ -138,6 +142,41 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
             content: {
               ...state.content,
               notes: state.content.notes.filter((n) => n.id !== noteId),
+            },
+          }
+        : state,
+    );
+  },
+
+  addAttachment: async (topicId, file) => {
+    const form = new FormData();
+    form.append("file", file);
+    const created = await api.upload<Attachment>(
+      `/topics/${topicId}/attachments`,
+      form,
+    );
+    set((state) =>
+      state.content && state.content.id === topicId
+        ? {
+            content: {
+              ...state.content,
+              attachments: [...state.content.attachments, created],
+            },
+          }
+        : state,
+    );
+  },
+
+  removeAttachment: async (attachmentId) => {
+    await api.del(`/attachments/${attachmentId}`);
+    set((state) =>
+      state.content
+        ? {
+            content: {
+              ...state.content,
+              attachments: state.content.attachments.filter(
+                (a) => a.id !== attachmentId,
+              ),
             },
           }
         : state,

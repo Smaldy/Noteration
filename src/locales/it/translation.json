@@ -127,6 +127,15 @@
       "generateMore": "Genera altre flashcard",
       "generating": "Generazione…",
       "generateMoreError": "Impossibile generare altre flashcard."
+    },
+    "attachments": {
+      "title": "Allegati",
+      "add": "Aggiungi immagine / audio",
+      "adding": "Caricamento…",
+      "empty": "Nessun allegato. Aggiungi le tue immagini o clip audio.",
+      "remove": "Rimuovi allegato",
+      "removeConfirm": "Rimuovere questo allegato?",
+      "failed": "Impossibile aggiungere il file. Sono accettati immagini e audio fino a 25 MB."
     }
   },
   "upload": {

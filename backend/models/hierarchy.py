@@ -25,7 +25,7 @@ from backend.models.enums import (
 )
 
 if TYPE_CHECKING:
-    from backend.models.content import MCQ, Flashcard, Note, SourcePage
+    from backend.models.content import MCQ, Flashcard, Note, NoteAttachment, SourcePage
     from backend.models.processing import QueueJob
     from backend.models.schedule import ScheduleEntry
 
@@ -150,6 +150,9 @@ class Topic(Base):
 
     chapter: Mapped[Chapter] = relationship(back_populates="topics")
     notes: Mapped[list[Note]] = relationship(
+        back_populates="topic", cascade="all, delete-orphan"
+    )
+    attachments: Mapped[list["NoteAttachment"]] = relationship(
         back_populates="topic", cascade="all, delete-orphan"
     )
     mcqs: Mapped[list[MCQ]] = relationship(

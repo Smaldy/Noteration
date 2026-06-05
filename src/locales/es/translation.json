@@ -127,6 +127,15 @@
       "generateMore": "Generar más tarjetas",
       "generating": "Generando…",
       "generateMoreError": "No se pudieron generar más tarjetas."
+    },
+    "attachments": {
+      "title": "Adjuntos",
+      "add": "Añadir imagen / audio",
+      "adding": "Subiendo…",
+      "empty": "Aún no hay adjuntos. Añade tus propias imágenes o clips de audio.",
+      "remove": "Quitar adjunto",
+      "removeConfirm": "¿Quitar este adjunto?",
+      "failed": "No se pudo añadir el archivo. Se aceptan imágenes y audio de hasta 25 MB."
     }
   },
   "upload": {

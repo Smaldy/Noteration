@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from backend.models import Flashcard, Formula, MCQ, Note, QueueJob, Topic
 from backend.models.enums import QueueStage
+from backend.services.attachments import attachment_url
 from backend.services.pipeline.formula import NO_OP_PROVIDER, transcribe_pending_formulas
 from backend.services.pipeline.generation import (
     GENERATE_MORE_MAX_TOKENS,
@@ -63,12 +64,16 @@ def get_topic_content(session: Session, topic_id: int) -> Topic:
             selectinload(Topic.notes).selectinload(Note.formulas),
             selectinload(Topic.mcqs),
             selectinload(Topic.flashcards),
+            selectinload(Topic.attachments),
         )
     ).scalar_one_or_none()
     if topic is None:
         raise TopicNotFoundError(topic_id)
     # Transient provenance stamp (point 14): which provider generated this topic.
     topic.generated_by = _generating_provider(session, topic_id)
+    # Stamp each attachment's serve URL (derived, not stored) for the schema.
+    for attachment in topic.attachments:
+        attachment.url = attachment_url(attachment)
     return topic
 
 

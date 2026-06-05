@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models import Topic
 from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
 from backend.schemas.reorder import ReorderRequest
-from backend.schemas.topic import GenerateMoreRequest, TopicContentOut
+from backend.schemas.topic import AttachmentOut, GenerateMoreRequest, TopicContentOut
+from backend.services import attachments as attachsvc
 from backend.services import topics as topicsvc
 from backend.services.pipeline.generation import (
     GenerationParseError,
@@ -97,6 +106,34 @@ def generate_more(
             detail="The model returned unusable output. Please try again.",
         )
     return topicsvc.get_topic_content(session, topic_id)
+
+
+@router.post(
+    "/{topic_id}/attachments", response_model=AttachmentOut, status_code=201
+)
+async def add_attachment(
+    topic_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> attachsvc.NoteAttachment:
+    """Attach a user-provided image or audio file to a topic's notes."""
+    data = await file.read()
+    try:
+        attachment = attachsvc.add_attachment(
+            session,
+            topic_id,
+            filename=file.filename or "attachment",
+            content_type=file.content_type or "application/octet-stream",
+            data=data,
+        )
+    except attachsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    except attachsvc.UnsupportedAttachmentError:
+        raise HTTPException(
+            status_code=400, detail="Only images and audio (up to 25 MB) are accepted"
+        )
+    attachment.url = attachsvc.attachment_url(attachment)
+    return attachment
 
 
 @router.put("/{topic_id}/bookmark", response_model=TopicBookmarkOut)

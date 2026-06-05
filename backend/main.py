@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.routers import (
     assessment,
+    attachments,
     bookmarks,
     chapters,
     documents,
@@ -77,6 +78,7 @@ api.include_router(settings.router)
 api.include_router(search.router)
 api.include_router(bookmarks.router)
 api.include_router(assessment.router)
+api.include_router(attachments.router)
 
 # API routes are registered before the SPA catch-all so they always win.
 app.include_router(api)

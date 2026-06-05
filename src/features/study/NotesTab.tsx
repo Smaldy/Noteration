@@ -1,5 +1,14 @@
-import { Lock, LockOpen, Pencil, Plus, Trash2 } from "lucide-react";
-import { Suspense, lazy, useState, type ReactNode } from "react";
+import {
+  ImagePlus,
+  Lock,
+  LockOpen,
+  Paperclip,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { Suspense, lazy, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MarkdownView } from "@/components/MarkdownView";
@@ -8,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
 import { useStudyStore } from "@/stores/study";
-import type { Note } from "@/types/study";
+import type { Attachment, Note } from "@/types/study";
 
 // TipTap is heavy and only needed when the user actually edits a note, so it's
 // split out and loaded on demand (keeps it out of the study-page chunk).
@@ -19,11 +28,12 @@ const NoteEditor = lazy(() =>
 interface NotesTabProps {
   topicId: number;
   notes: Note[];
+  attachments: Attachment[];
   /** Provider that generated this topic's AI content, for the in-view stamp. */
   generatedBy?: string | null;
 }
 
-export function NotesTab({ topicId, notes, generatedBy }: NotesTabProps) {
+export function NotesTab({ topicId, notes, attachments, generatedBy }: NotesTabProps) {
   const { t } = useTranslation();
   const transcribeFormulas = useStudyStore((s) => s.transcribeFormulas);
   const addNote = useStudyStore((s) => s.addNote);
@@ -82,7 +92,116 @@ export function NotesTab({ topicId, notes, generatedBy }: NotesTabProps) {
         )}
         {error && <span className="text-sm text-destructive">{error}</span>}
       </div>
+
+      <AttachmentsSection topicId={topicId} attachments={attachments} />
     </div>
+  );
+}
+
+/** Manual image/audio attachments for a topic — user-only enrichment. */
+function AttachmentsSection({
+  topicId,
+  attachments,
+}: {
+  topicId: number;
+  attachments: Attachment[];
+}) {
+  const { t } = useTranslation();
+  const addAttachment = useStudyStore((s) => s.addAttachment);
+  const removeAttachment = useStudyStore((s) => s.removeAttachment);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      await addAttachment(topicId, file);
+    } catch {
+      setError(t("study.attachments.failed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async (attachment: Attachment) => {
+    if (!window.confirm(t("study.attachments.removeConfirm"))) return;
+    await removeAttachment(attachment.id);
+  };
+
+  return (
+    <section className="space-y-3 border-t pt-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <Paperclip className="size-3.5" />
+          {t("study.attachments.title")}
+        </h4>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+        >
+          <ImagePlus className="mr-1.5 size-4" />
+          {uploading ? t("study.attachments.adding") : t("study.attachments.add")}
+        </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,audio/*"
+          className="hidden"
+          onChange={(e) => void onPick(e)}
+        />
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {attachments.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {t("study.attachments.empty")}
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {attachments.map((attachment) => (
+            <figure
+              key={attachment.id}
+              className="group relative overflow-hidden rounded-lg border bg-card"
+            >
+              <button
+                type="button"
+                title={t("study.attachments.remove")}
+                aria-label={t("study.attachments.remove")}
+                onClick={() => void remove(attachment)}
+                className="absolute right-1.5 top-1.5 z-10 inline-flex size-6 items-center justify-center rounded-md bg-background/80 text-foreground/70 opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100 hover:text-destructive"
+              >
+                <X className="size-3.5" />
+              </button>
+              {attachment.kind === "image" ? (
+                <a href={attachment.url} target="_blank" rel="noreferrer">
+                  <img
+                    src={attachment.url}
+                    alt={attachment.filename}
+                    className="aspect-video w-full object-cover"
+                    loading="lazy"
+                  />
+                </a>
+              ) : (
+                <div className="space-y-2 p-3">
+                  <audio controls src={attachment.url} className="w-full" />
+                </div>
+              )}
+              <figcaption className="truncate px-2.5 py-1.5 text-xs text-muted-foreground">
+                {attachment.filename}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

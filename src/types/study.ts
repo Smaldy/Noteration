@@ -71,6 +71,16 @@ export interface FlashcardContent {
   is_manual: boolean;
 }
 
+/** A user-attached image/audio file shown in the Notes tab (manual, not AI). */
+export interface Attachment {
+  id: number;
+  kind: "image" | "audio";
+  filename: string;
+  content_type: string;
+  /** API path that serves the file. */
+  url: string;
+}
+
 export interface TopicContent {
   id: number;
   title: string;
@@ -82,4 +92,5 @@ export interface TopicContent {
   notes: Note[];
   mcqs: MCQ[];
   flashcards: FlashcardContent[];
+  attachments: Attachment[];
 }

@@ -109,6 +109,7 @@ export function TopicContentPanel({
             <NotesTab
               topicId={content.id}
               notes={content.notes}
+              attachments={content.attachments}
               generatedBy={content.generated_by}
             />
           </TabsContent>

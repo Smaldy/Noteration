@@ -92,6 +92,17 @@ class FlashcardOut(BaseModel):
     is_manual: bool
 
 
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str  # "image" | "audio"
+    filename: str
+    content_type: str
+    # API path that serves the file (stamped in the service layer).
+    url: str
+
+
 class TopicContentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -106,6 +117,7 @@ class TopicContentOut(BaseModel):
     notes: list[NoteOut]
     mcqs: list[MCQOut]
     flashcards: list[FlashcardOut]
+    attachments: list[AttachmentOut] = []
 
 
 class GenerateMoreRequest(BaseModel):

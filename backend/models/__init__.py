@@ -4,7 +4,14 @@ Importing this package registers every model on ``Base.metadata`` so Alembic
 autogenerate and ``create_all`` see the full schema.
 """
 
-from backend.models.content import MCQ, Flashcard, Formula, Note, SourcePage
+from backend.models.content import (
+    MCQ,
+    Flashcard,
+    Formula,
+    Note,
+    NoteAttachment,
+    SourcePage,
+)
 from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
@@ -28,6 +35,7 @@ __all__ = [
     "Chapter",
     "Topic",
     "Note",
+    "NoteAttachment",
     "Formula",
     "MCQ",
     "Flashcard",

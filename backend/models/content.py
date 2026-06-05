@@ -37,6 +37,28 @@ class Note(Base):
     )
 
 
+class NoteAttachment(Base):
+    """A user-attached image or audio file shown alongside a topic's notes.
+
+    Manual enrichment only (the user attaches their own files) — never AI. The
+    bytes live under ``cache/attachments/<hash><ext>``; this row keeps the original
+    filename, kind ("image"|"audio"), and content type so the file can be served
+    with the right mime. Cascade-deleted with the topic.
+    """
+
+    __tablename__ = "note_attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"))
+    kind: Mapped[str]  # "image" | "audio"
+    filename: Mapped[str]  # original upload name (carries the extension)
+    content_type: Mapped[str]  # e.g. "image/png", "audio/mpeg"
+    file_hash: Mapped[str]  # cache/attachments/<hash><ext>
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+    topic: Mapped[Topic] = relationship(back_populates="attachments")
+
+
 class Formula(Base):
     __tablename__ = "formulas"
 
