@@ -83,6 +83,40 @@ SOURCE_OVERLAP_CHARS = 400
 
 SourceLoader = Callable[[Session, Topic], str]
 
+# --- output language --------------------------------------------------------
+# The user picks the app language in Settings (Settings.language); new generated
+# content (notes, MCQs, flashcards) is produced in that language. English is the
+# default and adds no directive (the prompts are already English). For Italian /
+# Spanish a directive is appended instructing the model to write all *content* in
+# that language — the JSON keys and LaTeX/math notation stay unchanged.
+DEFAULT_LANGUAGE = "en"
+LANGUAGE_NAMES: dict[str, str] = {"en": "English", "it": "Italian", "es": "Spanish"}
+
+
+def normalize_language(code: str | None) -> str:
+    """Coerce a language code to a supported one, defaulting to English."""
+    return code if code in LANGUAGE_NAMES else DEFAULT_LANGUAGE
+
+
+def language_directive(language: str) -> str:
+    """Prompt block instructing the output language, or "" for English.
+
+    Targets the *content* only: every human-readable value (notes, questions,
+    options, explanations, card fronts/backs) must be in the chosen language,
+    while the JSON object keys and LaTeX/math notation are left as-is.
+    """
+    language = normalize_language(language)
+    if language == DEFAULT_LANGUAGE:
+        return ""
+    name = LANGUAGE_NAMES[language]
+    return (
+        f"\n# Output language\nWrite ALL human-readable content — the notes, "
+        f"questions, answer options, explanations, and flashcard fronts and backs "
+        f"— in {name}. Translate naturally into {name}; do not answer in English. "
+        f"Keep the JSON field names exactly as specified (in English) and leave "
+        f"mathematical notation, LaTeX, formulas, symbols, and code unchanged.\n"
+    )
+
 
 def clamp_note_length(note_length: int) -> int:
     """Clamp a requested note length into the supported 1-10 page range."""
@@ -161,6 +195,7 @@ def build_generation_prompt(
     *,
     mode: DocumentMode = DocumentMode.study,
     note_length: int = DEFAULT_NOTE_LENGTH,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Prompt for the single generation call, grounded in the topic's source.
 
@@ -170,10 +205,12 @@ def build_generation_prompt(
     ``exam`` mode (the Exam Prep section) it drops notes entirely (``note_length``
     is ignored) and asks for a denser assessment. The shape is spelled out inline
     so providers without native JSON-schema support still return the right
-    structure.
+    structure. ``language`` (en|it|es) sets the language of the generated content;
+    English adds no directive.
     """
     pages = clamp_note_length(note_length)
     words = pages * WORDS_PER_PAGE
+    lang_rule = language_directive(language)
     length_rule = (
         f"  * Length: aim for about {pages} page{'s' if pages != 1 else ''} of "
         f"notes (~{words} words). If the source doesn't contain enough material "
@@ -194,7 +231,8 @@ def build_generation_prompt(
             "source; each with at least 2 options, a correct_index pointing to the "
             "right option, and a clear explanation of why it is correct.\n"
             "- flashcards: 10-15 flashcards grounded in the source.\n"
-            "- Do not invent material the source does not support.\n\n"
+            "- Do not invent material the source does not support.\n"
+            f"{lang_rule}\n"
             f"# Topic\n{topic_title}\n\n"
             f"# Source material\n{source_text}\n"
         )
@@ -223,7 +261,8 @@ def build_generation_prompt(
         "  * Do NOT wrap the notes in a code fence.\n"
         "- mcqs: 5-10 multiple-choice questions grounded in the notes; each with "
         "at least 2 options and a correct_index pointing to the right option.\n"
-        "- flashcards: 5-10 flashcards grounded in the notes.\n\n"
+        "- flashcards: 5-10 flashcards grounded in the notes.\n"
+        f"{lang_rule}\n"
         f"# Topic\n{topic_title}\n\n"
         f"# Source material\n{source_text}\n"
     )
@@ -501,7 +540,11 @@ def _existing_block(label: str, items: list[str]) -> str:
 
 
 def build_more_mcqs_prompt(
-    topic_title: str, source_text: str, existing_questions: list[str]
+    topic_title: str,
+    source_text: str,
+    existing_questions: list[str],
+    *,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Prompt for ADDITIONAL MCQs only, distinct from the existing ones."""
     return (
@@ -514,13 +557,18 @@ def build_more_mcqs_prompt(
         "- 8-12 NEW questions; each with at least 2 options, a correct_index "
         "pointing to the right option, and a clear explanation.\n"
         "- Do not invent material the source does not support.\n"
+        f"{language_directive(language)}"
         f"{_existing_block('questions', existing_questions)}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
     )
 
 
 def build_more_flashcards_prompt(
-    topic_title: str, source_text: str, existing_fronts: list[str]
+    topic_title: str,
+    source_text: str,
+    existing_fronts: list[str],
+    *,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Prompt for ADDITIONAL flashcards only, distinct from the existing ones."""
     return (
@@ -531,6 +579,7 @@ def build_more_flashcards_prompt(
         'fences):\n{"flashcards": [{"front": str, "back": str}]}\n'
         "- 8-12 NEW flashcards.\n"
         "- Do not invent material the source does not support.\n"
+        f"{language_directive(language)}"
         f"{_existing_block('flashcard fronts', existing_fronts)}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
     )
@@ -573,11 +622,17 @@ def _resolve_note_length(session: Session) -> int:
     return clamp_note_length(get_settings(session).note_length)
 
 
+def _resolve_language(session: Session) -> str:
+    """The user's configured output language (en|it|es), normalized."""
+    return normalize_language(get_settings(session).language)
+
+
 def make_generation_processor(
     waterfall: Waterfall,
     *,
     source_loader: SourceLoader = load_topic_source,
     note_length: int | None = None,
+    language: str | None = None,
     max_tokens: int | None = None,
     exam_max_tokens: int = EXAM_GENERATION_MAX_TOKENS,
 ) -> Callable[[QueueJob, Session], ProviderResult]:
@@ -593,8 +648,10 @@ def make_generation_processor(
     ``note_length`` (1-10 pages) sets how much notes content to generate and scales
     both the per-call source window and the output-token ceiling; ``None`` reads it
     from ``Settings`` per job so a change in Settings takes effect on the next job
-    without rebuilding the processor. ``max_tokens`` overrides the computed study
-    ceiling when given.
+    without rebuilding the processor. ``language`` (en|it|es) sets the generated
+    content's language; ``None`` reads it from ``Settings`` per job (same rationale
+    as ``note_length`` — not a provider-identity concern, so no cache rebuild).
+    ``max_tokens`` overrides the computed study ceiling when given.
     """
 
     def process(job: QueueJob, session: Session) -> ProviderResult:
@@ -602,6 +659,7 @@ def make_generation_processor(
         mode = topic_document_mode(session, topic)
         is_exam = mode is DocumentMode.exam
         length = note_length if note_length is not None else _resolve_note_length(session)
+        lang = language if language is not None else _resolve_language(session)
         # Exam mode has no notes, so its source window stays at the fixed default;
         # study mode scales the window with the requested note length.
         if source_loader is load_topic_source:
@@ -610,7 +668,7 @@ def make_generation_processor(
         else:
             source = source_loader(session, topic)
         prompt = build_generation_prompt(
-            topic.title, source, mode=mode, note_length=length
+            topic.title, source, mode=mode, note_length=length, language=lang
         )
         study_cap = max_tokens if max_tokens is not None else study_max_tokens(length)
         result = waterfall.generate(

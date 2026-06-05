@@ -11,13 +11,16 @@ from sqlalchemy.orm import Session
 from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Topic
 from backend.models.enums import QueueStage, QueueState
 from backend.models.processing import QueueJob
+from backend.models.enums import DocumentMode
 from backend.services.pipeline.generation import (
     GENERATION_SCHEMA,
     SOURCE_CHARS_PER_PAGE,
     TopicSourceUnavailableError,
     build_generation_prompt,
+    language_directive,
     load_topic_source,
     make_generation_processor,
+    normalize_language,
     slice_section,
     source_cap_for,
     study_max_tokens,
@@ -187,6 +190,50 @@ def test_build_generation_prompt_includes_title_and_source() -> None:
     assert "Velocity is rate of change." in prompt
     assert "JSON" in prompt  # asks for one combined JSON object
     assert "flashcards" in prompt
+
+
+# --- output language --------------------------------------------------------
+
+
+def test_normalize_language_defaults_unknown_to_english() -> None:
+    assert normalize_language("it") == "it"
+    assert normalize_language("es") == "es"
+    assert normalize_language("en") == "en"
+    assert normalize_language("fr") == "en"  # unsupported → default
+    assert normalize_language(None) == "en"
+
+
+def test_language_directive_empty_for_english() -> None:
+    assert language_directive("en") == ""
+    # English (the default) adds no language block to the prompt.
+    assert "Output language" not in build_generation_prompt("T", "s")
+
+
+def test_build_generation_prompt_includes_language_directive() -> None:
+    it = build_generation_prompt("T", "s", language="it")
+    assert "Italian" in it
+    assert "Output language" in it
+    es = build_generation_prompt("T", "s", language="es")
+    assert "Spanish" in es
+    # Exam mode carries the directive too.
+    exam_es = build_generation_prompt("T", "s", mode=DocumentMode.exam, language="es")
+    assert "Spanish" in exam_es
+
+
+def test_generation_processor_uses_configured_language(
+    session: Session, tmp_path: Path
+) -> None:
+    # The processor reads Settings.language per job and puts it in the prompt.
+    update_settings(session, {"language": "it"})
+    queue, job = _gen_job(session, tmp_path)
+    provider = MockProvider("gemini_free", text=_GEN_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    outcome = queue.process_job(job, processor)
+
+    assert outcome is JobOutcome.done
+    assert provider.last_prompt is not None
+    assert "Italian" in provider.last_prompt
 
 
 # --- notes length (pages of content per topic) ------------------------------

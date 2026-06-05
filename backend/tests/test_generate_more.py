@@ -87,6 +87,12 @@ def test_more_mcqs_prompt_lists_existing() -> None:
     assert "What is torque?" in prompt
 
 
+def test_more_mcqs_prompt_includes_language_directive() -> None:
+    assert "Output language" not in build_more_mcqs_prompt("Rolling", "src", [])
+    es = build_more_mcqs_prompt("Rolling", "src", [], language="es")
+    assert "Spanish" in es
+
+
 # --- service ----------------------------------------------------------------
 
 

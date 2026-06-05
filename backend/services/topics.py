@@ -17,6 +17,7 @@ from backend.services.pipeline.generation import (
     build_more_flashcards_prompt,
     build_more_mcqs_prompt,
     load_topic_source,
+    normalize_language,
     parse_more_flashcards,
     parse_more_mcqs,
 )
@@ -120,15 +121,17 @@ def generate_more(
     topic = session.get(Topic, topic_id)
     if topic is None:
         raise TopicNotFoundError(topic_id)
+    settings = get_settings(session)
     if waterfall is None:
-        waterfall = build_waterfall_from_settings(get_settings(session))
+        waterfall = build_waterfall_from_settings(settings)
+    language = normalize_language(settings.language)
 
     source = load_topic_source(session, topic)
     if kind == "mcqs":
         existing = list(
             session.scalars(select(MCQ.question).where(MCQ.topic_id == topic_id))
         )
-        prompt = build_more_mcqs_prompt(topic.title, source, existing)
+        prompt = build_more_mcqs_prompt(topic.title, source, existing, language=language)
         result = waterfall.generate(
             prompt, max_tokens=GENERATE_MORE_MAX_TOKENS, response_schema=MORE_MCQS_SCHEMA
         )
@@ -149,7 +152,9 @@ def generate_more(
         existing = list(
             session.scalars(select(Flashcard.front).where(Flashcard.topic_id == topic_id))
         )
-        prompt = build_more_flashcards_prompt(topic.title, source, existing)
+        prompt = build_more_flashcards_prompt(
+            topic.title, source, existing, language=language
+        )
         result = waterfall.generate(
             prompt,
             max_tokens=GENERATE_MORE_MAX_TOKENS,

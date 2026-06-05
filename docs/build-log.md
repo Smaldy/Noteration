@@ -1484,6 +1484,29 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   generation/exam/"more" prompts (resolved from Settings per job); Waves 3a-3e —
   extract the UI strings namespace by namespace.
 
+- **Multilingual support — Wave 2 of 3 (DONE, user-requested): AI content
+  language.** New AI-generated content is now produced in the configured language.
+  `services/pipeline/generation.py`: `LANGUAGE_NAMES` (en→English, it→Italian,
+  es→Spanish), `normalize_language` (unknown/None → "en"), and `language_directive`
+  — a prompt block (empty for English) instructing the model to write all *content*
+  (notes, questions, options, explanations, flashcard fronts/backs) in the chosen
+  language while leaving the JSON field names and LaTeX/math/code unchanged.
+  `build_generation_prompt` gained a `language=` param (directive injected into both
+  the study and exam branches); the on-demand `build_more_mcqs_prompt` /
+  `build_more_flashcards_prompt` likewise. `make_generation_processor` resolves the
+  language from `Settings` **per job** via `_resolve_language` (same rationale as
+  `note_length` — not a provider-identity concern, so no waterfall-cache rebuild; a
+  change takes effect on the next job), so the worker/dispatcher path
+  (`make_pipeline_processor`) needs no change. `services/topics.py::generate_more`
+  reads `Settings.language` and threads it into the "generate more" prompts.
+  `MockProvider` now records `last_prompt` (test seam). +5 tests (normalize default;
+  English adds no directive; study+exam prompts carry it/es; processor resolves it
+  from Settings per job; "generate more" prompt carries the directive). **Already-
+  generated content is untouched** (only new generations are affected). Tree green:
+  full suite **460 passed**. (Live verification needs a real API key — the prompt
+  directive is exercised; the model's adherence will be confirmed when generating
+  against a key.) **Next:** Waves 3a-3e — UI string extraction.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the
