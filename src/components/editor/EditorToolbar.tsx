@@ -19,37 +19,39 @@ import {
   Undo2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { FONT_STACKS } from "@/stores/settings";
 
 /** Word/Docs-style formatting bar driving the TipTap editor commands. */
 export function EditorToolbar({ editor }: { editor: Editor }) {
+  const { t } = useTranslation();
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 rounded-t-lg border-b bg-muted/60 px-2 py-1.5 backdrop-blur">
       <Btn
-        label="Bold"
+        label={t("editor.bold")}
         active={editor.isActive("bold")}
         onClick={() => editor.chain().focus().toggleBold().run()}
       >
         <Bold className="size-4" />
       </Btn>
       <Btn
-        label="Italic"
+        label={t("editor.italic")}
         active={editor.isActive("italic")}
         onClick={() => editor.chain().focus().toggleItalic().run()}
       >
         <Italic className="size-4" />
       </Btn>
       <Btn
-        label="Underline"
+        label={t("editor.underline")}
         active={editor.isActive("underline")}
         onClick={() => editor.chain().focus().toggleUnderline().run()}
       >
         <UnderlineIcon className="size-4" />
       </Btn>
       <Btn
-        label="Strikethrough"
+        label={t("editor.strikethrough")}
         active={editor.isActive("strike")}
         onClick={() => editor.chain().focus().toggleStrike().run()}
       >
@@ -59,21 +61,21 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
       <Divider />
 
       <Btn
-        label="Heading 1"
+        label={t("editor.heading1")}
         active={editor.isActive("heading", { level: 1 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
       >
         <Heading1 className="size-4" />
       </Btn>
       <Btn
-        label="Heading 2"
+        label={t("editor.heading2")}
         active={editor.isActive("heading", { level: 2 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
       >
         <Heading2 className="size-4" />
       </Btn>
       <Btn
-        label="Heading 3"
+        label={t("editor.heading3")}
         active={editor.isActive("heading", { level: 3 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
       >
@@ -83,28 +85,28 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
       <Divider />
 
       <Btn
-        label="Bullet list"
+        label={t("editor.bulletList")}
         active={editor.isActive("bulletList")}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       >
         <List className="size-4" />
       </Btn>
       <Btn
-        label="Numbered list"
+        label={t("editor.numberedList")}
         active={editor.isActive("orderedList")}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       >
         <ListOrdered className="size-4" />
       </Btn>
       <Btn
-        label="Quote"
+        label={t("editor.quote")}
         active={editor.isActive("blockquote")}
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
       >
         <Quote className="size-4" />
       </Btn>
       <Btn
-        label="Code block"
+        label={t("editor.codeBlock")}
         active={editor.isActive("codeBlock")}
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
       >
@@ -120,7 +122,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
       <Divider />
 
       <Btn
-        label="Insert math ($…$)"
+        label={t("editor.insertMath")}
         onClick={() => {
           editor.chain().focus().insertContent("$x$").run();
         }}
@@ -128,7 +130,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
         <Sigma className="size-4" />
       </Btn>
       <Btn
-        label="Clear formatting"
+        label={t("editor.clearFormatting")}
         onClick={() =>
           editor.chain().focus().unsetAllMarks().clearNodes().run()
         }
@@ -139,14 +141,14 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
       <Divider />
 
       <Btn
-        label="Undo"
+        label={t("editor.undo")}
         disabled={!editor.can().undo()}
         onClick={() => editor.chain().focus().undo().run()}
       >
         <Undo2 className="size-4" />
       </Btn>
       <Btn
-        label="Redo"
+        label={t("editor.redo")}
         disabled={!editor.can().redo()}
         onClick={() => editor.chain().focus().redo().run()}
       >
@@ -171,6 +173,7 @@ const FONT_OPTIONS: { label: string; value: string | null }[] = [
 /** Font-family control: apply one of the bundled faces to the selection, or
  *  reset to the user's default Settings font. */
 function FontControl({ editor }: { editor: Editor }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const current = (editor.getAttributes("textStyle").fontFamily as string) || "";
 
@@ -183,7 +186,7 @@ function FontControl({ editor }: { editor: Editor }) {
   return (
     <div className="relative">
       <Btn
-        label="Font"
+        label={t("editor.font")}
         active={!!current}
         onClick={() => setOpen((o) => !o)}
       >
@@ -210,7 +213,7 @@ function FontControl({ editor }: { editor: Editor }) {
                     active && "bg-muted text-primary",
                   )}
                 >
-                  {opt.label}
+                  {opt.value === null ? t("editor.fontDefault") : opt.label}
                 </button>
               );
             })}
@@ -304,6 +307,7 @@ function PanelFooter({
   resetLabel: string;
   onReset: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="my-2.5 h-px bg-border/70" />
@@ -320,7 +324,7 @@ function PanelFooter({
               className="absolute inset-0 size-full cursor-pointer opacity-0"
             />
           </span>
-          Custom
+          {t("editor.custom")}
         </label>
         <button
           type="button"
@@ -348,6 +352,7 @@ const SWATCHES = [
 
 /** Font-color control: a row of swatches, a native picker, and a reset. */
 function ColorControl({ editor }: { editor: Editor }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const active = (editor.getAttributes("textStyle").color as string) || "";
   const indicator = active || "currentColor";
@@ -359,7 +364,7 @@ function ColorControl({ editor }: { editor: Editor }) {
 
   return (
     <div className="relative">
-      <Btn label="Font color" active={!!active} onClick={() => setOpen((o) => !o)}>
+      <Btn label={t("editor.fontColor")} active={!!active} onClick={() => setOpen((o) => !o)}>
         <span className="flex flex-col items-center leading-none">
           <span className="text-[13px] font-semibold">A</span>
           <span
@@ -369,7 +374,7 @@ function ColorControl({ editor }: { editor: Editor }) {
         </span>
       </Btn>
       <Popover open={open} onClose={() => setOpen(false)}>
-        <PanelLabel>Text color</PanelLabel>
+        <PanelLabel>{t("editor.textColor")}</PanelLabel>
         <div className="grid grid-cols-8 gap-1.5">
           {SWATCHES.map((c) => (
             <Swatch
@@ -384,7 +389,7 @@ function ColorControl({ editor }: { editor: Editor }) {
         <PanelFooter
           color={active || "#6366f1"}
           onPick={(hex) => editor.chain().focus().setColor(hex).run()}
-          resetLabel="Reset"
+          resetLabel={t("editor.reset")}
           onReset={() => {
             editor.chain().focus().unsetColor().run();
             setOpen(false);
@@ -421,6 +426,7 @@ function hexToRgba(hex: string, alpha: number): string {
 /** Highlight control: pick a color and an opacity (default 80%), with a live
  *  preview of the resulting marker. Applies the blended color as the mark's color. */
 function HighlightControl({ editor }: { editor: Editor }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   // Default 80% per spec; remembered across openings within the editing session.
   const [opacity, setOpacity] = useState(0.8);
@@ -443,7 +449,7 @@ function HighlightControl({ editor }: { editor: Editor }) {
   return (
     <div className="relative">
       <Btn
-        label="Highlight"
+        label={t("editor.highlight")}
         active={editor.isActive("highlight")}
         onClick={() => setOpen((o) => !o)}
       >
@@ -456,7 +462,7 @@ function HighlightControl({ editor }: { editor: Editor }) {
         </span>
       </Btn>
       <Popover open={open} onClose={() => setOpen(false)}>
-        <PanelLabel>Highlight color</PanelLabel>
+        <PanelLabel>{t("editor.highlightColor")}</PanelLabel>
         <div className="grid grid-cols-8 gap-1.5">
           {HIGHLIGHT_SWATCHES.map((c) => (
             <Swatch
@@ -470,7 +476,7 @@ function HighlightControl({ editor }: { editor: Editor }) {
         </div>
 
         <div className="mt-3 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-          <span className="font-display uppercase tracking-[0.14em]">Opacity</span>
+          <span className="font-display uppercase tracking-[0.14em]">{t("editor.opacity")}</span>
           <span className="tabular-nums text-foreground/80">
             {Math.round(opacity * 100)}%
           </span>
@@ -494,14 +500,14 @@ function HighlightControl({ editor }: { editor: Editor }) {
             className="rounded px-1.5 py-0.5"
             style={{ backgroundColor: blended }}
           >
-            Highlighted text
+            {t("editor.highlightedText")}
           </span>
         </div>
 
         <PanelFooter
           color={color}
           onPick={apply}
-          resetLabel="Remove"
+          resetLabel={t("editor.removeHighlight")}
           onReset={() => {
             editor.chain().focus().unsetHighlight().run();
             setOpen(false);

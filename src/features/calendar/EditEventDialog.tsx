@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function EditEventDialog({ entry, onClose }: Props) {
+  const { t } = useTranslation();
   const { updateEntry, deleteEntry } = useCalendarStore();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -61,7 +63,7 @@ export function EditEventDialog({ entry, onClose }: Props) {
 
   async function handleDelete() {
     if (!entry) return;
-    if (!window.confirm("Remove this event from the calendar?")) return;
+    if (!window.confirm(t("calendar.dialog.removeEventConfirm"))) return;
     setBusy(true);
     try {
       await deleteEntry(entry.id);
@@ -76,10 +78,10 @@ export function EditEventDialog({ entry, onClose }: Props) {
   const editableTitle = entry.kind === "custom" || entry.kind === "deadline";
   const heading =
     entry.kind === "subject"
-      ? "Subject session"
+      ? t("calendar.dialog.subjectSession")
       : entry.kind === "deadline"
-        ? "Exam / deadline"
-        : "Edit event";
+        ? t("calendar.dialog.examDeadline")
+        : t("calendar.dialog.editEvent");
 
   return (
     <Dialog open={entry !== null} onOpenChange={(o) => !o && onClose()}>
@@ -90,15 +92,14 @@ export function EditEventDialog({ entry, onClose }: Props) {
 
         {entry.kind === "deadline" && (
           <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-muted-foreground">
-            Moving or deleting this updates the subject's exam date used by the AI
-            study plan.
+            {t("calendar.dialog.deadlineEditHint")}
           </p>
         )}
 
         <div className="space-y-4 py-2">
           {editableTitle ? (
             <div className="space-y-2">
-              <Label htmlFor="edit-title">Name</Label>
+              <Label htmlFor="edit-title">{t("calendar.dialog.name")}</Label>
               <Input
                 id="edit-title"
                 value={title}
@@ -113,7 +114,7 @@ export function EditEventDialog({ entry, onClose }: Props) {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="edit-date">Date</Label>
+            <Label htmlFor="edit-date">{t("calendar.dialog.date")}</Label>
             <Input
               id="edit-date"
               type="date"
@@ -133,7 +134,10 @@ export function EditEventDialog({ entry, onClose }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="edit-desc">
-              Notes <span className="text-muted-foreground">(optional)</span>
+              {t("calendar.dialog.notes")}{" "}
+              <span className="text-muted-foreground">
+                {t("calendar.dialog.optional")}
+              </span>
             </Label>
             <textarea
               id="edit-desc"
@@ -154,14 +158,14 @@ export function EditEventDialog({ entry, onClose }: Props) {
             disabled={busy}
           >
             <Trash2 className="size-4" />
-            Delete
+            {t("calendar.dialog.delete")}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} disabled={busy}>
-              Cancel
+              {t("calendar.dialog.cancel")}
             </Button>
             <Button onClick={() => void handleSave()} disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("calendar.dialog.saving") : t("calendar.dialog.save")}
             </Button>
           </div>
         </DialogFooter>

@@ -6,6 +6,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Underline } from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { Trans, useTranslation } from "react-i18next";
 import { Markdown } from "tiptap-markdown";
 
 import { EditorToolbar } from "./EditorToolbar";
@@ -50,6 +51,7 @@ export function NoteEditor({
   onCancel: () => void;
   saving?: boolean;
 }) {
+  const { t } = useTranslation();
   const editor = useEditor({
     extensions,
     content: initialMarkdown,
@@ -72,8 +74,13 @@ export function NoteEditor({
       <EditorContent editor={editor} />
       <div className="flex items-center justify-between gap-3 border-t px-3 py-2">
         <p className="text-xs text-muted-foreground">
-          Type <code className="rounded bg-muted px-1">$E=mc^2$</code> for inline
-          math, <code className="rounded bg-muted px-1">$$…$$</code> for a block.
+          <Trans
+            i18nKey="editor.mathHint"
+            components={[
+              <code className="rounded bg-muted px-1" />,
+              <code className="rounded bg-muted px-1" />,
+            ]}
+          />
         </p>
         <div className="flex gap-2">
           <button
@@ -82,7 +89,7 @@ export function NoteEditor({
             disabled={saving}
             className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-muted disabled:opacity-50"
           >
-            Cancel
+            {t("editor.cancel")}
           </button>
           <button
             type="button"
@@ -90,7 +97,7 @@ export function NoteEditor({
             disabled={saving}
             className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("editor.saving") : t("editor.save")}
           </button>
         </div>
       </div>

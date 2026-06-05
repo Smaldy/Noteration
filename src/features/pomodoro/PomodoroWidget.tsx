@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ function fmt(total: number): string {
 }
 
 export function PomodoroWidget() {
+  const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
   const {
     phase,
@@ -145,13 +147,13 @@ export function PomodoroWidget() {
                 style={{ color: accent }}
               >
                 {isWork ? <Brain className="size-4" /> : <Coffee className="size-4" />}
-                {isWork ? "Focus" : "Break"}
+                {isWork ? t("pomodoro.focus") : t("pomodoro.break")}
               </span>
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
                 className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-                title="Minimize"
+                title={t("pomodoro.minimize")}
               >
                 <ChevronDown className="size-4" />
               </button>
@@ -164,7 +166,7 @@ export function PomodoroWidget() {
             </Ring>
 
             <div className="mt-5 flex items-center justify-center gap-3">
-              <IconBtn label="Reset" onClick={reset}>
+              <IconBtn label={t("pomodoro.reset")} onClick={reset}>
                 <RotateCcw className="size-4" />
               </IconBtn>
               <button
@@ -172,7 +174,7 @@ export function PomodoroWidget() {
                 onClick={handleToggle}
                 className="flex size-12 items-center justify-center rounded-full text-white shadow-md transition-transform active:scale-95"
                 style={{ backgroundColor: accent }}
-                title={running ? "Pause" : "Start"}
+                title={running ? t("pomodoro.pause") : t("pomodoro.start")}
               >
                 {running ? (
                   <Pause className="size-5 fill-current" />
@@ -180,26 +182,26 @@ export function PomodoroWidget() {
                   <Play className="size-5 translate-x-0.5 fill-current" />
                 )}
               </button>
-              <IconBtn label="Skip to next phase" onClick={skip}>
+              <IconBtn label={t("pomodoro.skip")} onClick={skip}>
                 <SkipForward className="size-4" />
               </IconBtn>
             </div>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              {workSessions} focus {workSessions === 1 ? "session" : "sessions"} done
+              {t("pomodoro.sessionsDone", { count: workSessions })}
             </p>
 
             {/* Ambient sound */}
             <div className="mt-4 border-t pt-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Sound
+                  {t("pomodoro.sound")}
                 </span>
                 <button
                   type="button"
                   onClick={sound.toggleMuted}
-                  title={sound.muted ? "Unmute" : "Mute"}
-                  aria-label={sound.muted ? "Unmute" : "Mute"}
+                  title={sound.muted ? t("pomodoro.unmute") : t("pomodoro.mute")}
+                  aria-label={sound.muted ? t("pomodoro.unmute") : t("pomodoro.mute")}
                   className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {sound.muted ? (
@@ -211,22 +213,16 @@ export function PomodoroWidget() {
               </div>
 
               <div className="flex flex-wrap gap-1.5">
-                {(
-                  [
-                    ["none", "None"],
-                    ["rain", "Rain"],
-                    ["sea", "Sea"],
-                  ] as [SoundKind, string][]
-                ).map(([k, label]) => (
+                {(["none", "rain", "sea"] as SoundKind[]).map((k) => (
                   <SoundChip
                     key={k}
-                    label={label}
+                    label={t(`pomodoro.${k}`)}
                     active={sound.kind === k}
                     onClick={() => onPick(k)}
                   />
                 ))}
                 <SoundChip
-                  label={sound.customLoaded ? "Custom" : "Upload"}
+                  label={sound.customLoaded ? t("pomodoro.custom") : t("pomodoro.upload")}
                   icon={sound.customLoaded ? <Music /> : <Upload />}
                   active={sound.kind === "custom"}
                   onClick={() => onPick("custom")}
@@ -243,16 +239,16 @@ export function PomodoroWidget() {
                     type="button"
                     onClick={() => fileInput.current?.click()}
                     className="shrink-0 rounded px-1 hover:text-foreground"
-                    title="Replace"
+                    title={t("pomodoro.replace")}
                   >
-                    Replace
+                    {t("pomodoro.replace")}
                   </button>
                   <button
                     type="button"
                     onClick={() => void sound.clearCustom()}
                     className="shrink-0 rounded p-0.5 hover:text-destructive"
-                    title="Remove"
-                    aria-label="Remove custom sound"
+                    title={t("pomodoro.remove")}
+                    aria-label={t("pomodoro.removeCustom")}
                   >
                     <X className="size-3.5" />
                   </button>
@@ -280,7 +276,7 @@ export function PomodoroWidget() {
                 disabled={sound.muted || sound.kind === "none"}
                 onChange={(e) => sound.setVolume(Number(e.target.value))}
                 className="mt-3 w-full accent-[var(--primary)] disabled:opacity-40"
-                aria-label="Volume"
+                aria-label={t("pomodoro.volume")}
               />
             </div>
           </motion.div>
@@ -294,7 +290,7 @@ export function PomodoroWidget() {
             exit={{ opacity: 0, y: 12, scale: 0.96 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="glass flex items-center gap-2.5 rounded-full border py-2 pl-3 pr-2 shadow-lg transition-shadow hover:shadow-xl"
-            title="Open Pomodoro timer"
+            title={t("pomodoro.openTimer")}
           >
             <span
               className={cn("size-2 rounded-full", running && "animate-pulse")}
@@ -319,7 +315,7 @@ export function PomodoroWidget() {
               }}
               className="flex size-7 items-center justify-center rounded-full text-white"
               style={{ backgroundColor: accent }}
-              title={running ? "Pause" : "Start"}
+              title={running ? t("pomodoro.pause") : t("pomodoro.start")}
             >
               {running ? (
                 <Pause className="size-3.5 fill-current" />

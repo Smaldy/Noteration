@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { ArrowLeft, GraduationCap, Layers, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -64,21 +65,19 @@ export function ExamPrepPage() {
   } = useExamStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
 
   async function handleDelete(doc: DocumentSummary) {
-    const ok = window.confirm(
-      `Delete the subject "${doc.subject_name}" and all of its documents, ` +
-        `topics, and flashcards? This can't be undone.`,
-    );
+    const ok = window.confirm(t("exam.deleteConfirm", { name: doc.subject_name }));
     if (!ok) return;
     try {
       await deleteSubject(doc.subject_id);
     } catch {
-      window.alert("Couldn't delete that subject. Please try again.");
+      window.alert(t("exam.deleteFailed"));
     }
   }
 
@@ -94,20 +93,17 @@ export function ExamPrepPage() {
             className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Library
+            {t("common.library")}
           </button>
           <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
             <GraduationCap className="size-7 text-primary" />
-            Exam Prep
+            {t("exam.title")}
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Drilled practice — every PDF here becomes MCQs (with explanations) and
-            flashcards. No notes.
-          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{t("exam.subtitle")}</p>
         </div>
         <Button onClick={() => setUploadOpen(true)}>
           <Plus />
-          Add exam PDF
+          {t("exam.addPdf")}
         </Button>
       </header>
 
@@ -122,7 +118,7 @@ export function ExamPrepPage() {
       />
 
       {status === "loading" && (
-        <p className="text-sm text-muted-foreground">Loading your exam prep…</p>
+        <p className="text-sm text-muted-foreground">{t("exam.loading")}</p>
       )}
 
       {status === "error" && (
@@ -134,7 +130,7 @@ export function ExamPrepPage() {
             className="mt-3"
             onClick={() => void fetchDocuments()}
           >
-            Retry
+            {t("common.retry")}
           </Button>
         </div>
       )}
@@ -142,14 +138,13 @@ export function ExamPrepPage() {
       {status === "loaded" && documents.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
           <GraduationCap className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">No exam decks yet</h2>
+          <h2 className="text-lg font-medium">{t("exam.emptyTitle")}</h2>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Add a PDF to generate exam-style MCQs and flashcards, scheduled with
-            spaced repetition.
+            {t("exam.emptyDesc")}
           </p>
           <Button className="mt-5" onClick={() => setUploadOpen(true)}>
             <Plus />
-            Add exam PDF
+            {t("exam.addPdf")}
           </Button>
         </div>
       )}
@@ -185,6 +180,7 @@ function SubjectSection({
   onReorder: (ids: number[]) => void;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -207,7 +203,7 @@ function SubjectSection({
           {group.subjectName}
         </h2>
         <PracticeButtons
-          label="Whole subject"
+          label={t("exam.wholeSubject")}
           onQuiz={() => navigate(`/exam/practice/subjects/${group.subjectId}?tab=quiz`)}
           onCards={() =>
             navigate(`/exam/practice/subjects/${group.subjectId}?tab=flashcards`)
@@ -234,7 +230,7 @@ function SubjectSection({
                 actions={
                   doc.status === "ready" || doc.topics_ready > 0 ? (
                     <PracticeButtons
-                      label="This deck"
+                      label={t("exam.thisDeck")}
                       onQuiz={() =>
                         navigate(`/exam/practice/documents/${doc.id}?tab=quiz`)
                       }
@@ -262,15 +258,16 @@ function PracticeButtons({
   onQuiz: () => void;
   onCards: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex shrink-0 items-center gap-1.5 text-xs">
       <Layers className="size-3.5 text-muted-foreground" />
       <span className="mr-1 hidden text-muted-foreground sm:inline">{label}:</span>
       <Button variant="outline" size="sm" className="h-7 px-2" onClick={onQuiz}>
-        Quiz
+        {t("exam.quiz")}
       </Button>
       <Button variant="outline" size="sm" className="h-7 px-2" onClick={onCards}>
-        Flashcards
+        {t("exam.flashcards")}
       </Button>
     </div>
   );

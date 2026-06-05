@@ -1582,6 +1582,34 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
   3e Upload/Structure-review + Exam + Pomodoro + Bookmarks + Search + the calendar
   dialogs.
 
+- **Multilingual support — Wave 3e (DONE, user-requested): final UI sweep — feature
+  COMPLETE.** Two committed sub-waves added the last locale namespaces (en/it/es) and
+  routed every remaining screen through `useTranslation`:
+  - **3e-1** — `upload` (UploadDialog: titles/descriptions study-vs-exam, fields,
+    progress states with pluralized page counts; StructureReviewPage: errors, intro +
+    manual/no-headings banners, chapter/topic editing, process/paused, exam date, the
+    topics+tokens estimate with nested plural, confirm, back link; PriorityPills),
+    `search` (placeholder/all-subjects/clear/no-matches/kind), and `bookmarks` (page +
+    BookmarkButton a11y).
+  - **3e-2** — `exam` (ExamPrepPage + ExamPracticePage: headers, empty/loading,
+    practice scope label, pluralized question/flashcard/topic counts, delete confirm),
+    `pomodoro` (PomodoroWidget: focus/break, controls, pluralized session tally, the
+    sound section — None/Rain/Sea/Custom/Upload, mute, volume), `editor` (NoteEditor +
+    EditorToolbar: every toolbar tooltip, the colour/highlight/font popovers, and the
+    inline-math hint via `<Trans>` with `<0>/<1>` `<code>` components), and a
+    `calendar.dialog` block for the four calendar dialogs (Add-to-calendar, AI-plan,
+    Edit-event, TimeField). Provider proper names (Gemini/Ollama/Claude), font-family
+    names, and the "A" size glyphs stay as-is by design. Tree green each sub-wave:
+    `tsc -b` + `npm run build` clean (backend untouched, **460 passed**).
+
+  **The multilingual feature is now complete across all waves:** backend
+  `Settings.language` (Wave 1) → language-aware AI generation prompts (Wave 2) → full
+  UI string extraction in en/it/es (Waves 3a–3e). Switching the language in Settings
+  re-renders the whole interface live, persists across reloads (backend + localStorage
+  cache, `<html lang>` synced), localizes dates (FullCalendar + `Intl`), and makes new
+  AI notes/MCQs/flashcards generate in the chosen language. Italian/Spanish strings are
+  first-pass author translations open to refinement.
+
 ## DECISIONS
 
 - **Frontend language = TypeScript.** Locked stack says React + Vite; TS is the

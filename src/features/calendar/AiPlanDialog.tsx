@@ -1,5 +1,6 @@
 import { Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function AiPlanDialog({ open, onOpenChange }: Props) {
+  const { t } = useTranslation();
   const { catalog, fetchCatalog, generatePlan, deletePlan } = useCalendarStore();
   const [subjectId, setSubjectId] = useState("");
   const [studied, setStudied] = useState<Set<number>>(new Set());
@@ -71,9 +73,7 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
       setDone(entries.length);
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Couldn't build a plan. Please try again.",
+        err instanceof ApiError ? err.message : t("calendar.dialog.planFailed"),
       );
     } finally {
       setBusy(false);
@@ -82,17 +82,15 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
 
   async function handleDeletePlan() {
     if (!subjectId) return;
-    if (!window.confirm("Remove this subject's AI-generated plan?")) return;
+    if (!window.confirm(t("calendar.dialog.removePlanConfirm"))) return;
     setBusy(true);
     setError(null);
     try {
       const removed = await deletePlan(Number(subjectId));
       setDone(null);
-      setError(
-        removed > 0 ? null : "There was no AI plan to remove for this subject.",
-      );
+      setError(removed > 0 ? null : t("calendar.dialog.noPlanToRemove"));
     } catch {
-      setError("Couldn't remove the plan. Please try again.");
+      setError(t("calendar.dialog.removePlanFailed"));
     } finally {
       setBusy(false);
     }
@@ -106,19 +104,14 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-primary" />
-            AI study plan
+            {t("calendar.dialog.aiPlanTitle")}
           </DialogTitle>
-          <DialogDescription>
-            Pick a subject and we'll spread its topics across your calendar up to
-            the exam date, prioritising exam-critical topics and leaving a revision
-            buffer. This replaces any previous AI plan for that subject; your own
-            events stay put.
-          </DialogDescription>
+          <DialogDescription>{t("calendar.dialog.aiPlanDesc")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="plan-subject">Subject</Label>
+            <Label htmlFor="plan-subject">{t("calendar.dialog.subject")}</Label>
             <select
               id="plan-subject"
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -126,7 +119,7 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
               onChange={(e) => selectSubject(e.target.value)}
               disabled={busy}
             >
-              <option value="">Select a subject…</option>
+              <option value="">{t("calendar.dialog.selectSubject")}</option>
               {catalog.map((s) => (
                 <option key={s.id} value={String(s.id)}>
                   {s.name}
@@ -138,9 +131,9 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
           {subjectId && topics.length > 0 && (
             <div className="space-y-2">
               <Label>
-                Already studied{" "}
+                {t("calendar.dialog.alreadyStudied")}{" "}
                 <span className="text-muted-foreground">
-                  (checked topics are skipped — {remaining} to plan)
+                  {t("calendar.dialog.alreadyStudiedHint", { count: remaining })}
                 </span>
               </Label>
               <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-lg border p-2">
@@ -171,14 +164,13 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
 
           {subjectId && topics.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              This subject has no topics yet.
+              {t("calendar.dialog.noTopicsSubject")}
             </p>
           )}
 
           {done !== null && (
             <p className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
-              Planned {done} study session{done === 1 ? "" : "s"}. They're on your
-              calendar now.
+              {t("calendar.dialog.planned", { count: done })}
             </p>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -190,20 +182,24 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
             className="text-destructive hover:text-destructive"
             onClick={() => void handleDeletePlan()}
             disabled={busy || !subjectId}
-            title="Delete this subject's AI plan"
+            title={t("calendar.dialog.removePlanTitle")}
           >
             <Trash2 className="size-4" />
-            Remove plan
+            {t("calendar.dialog.removePlan")}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-              {done !== null ? "Done" : "Cancel"}
+              {done !== null ? t("calendar.dialog.done") : t("calendar.dialog.cancel")}
             </Button>
             <Button
               onClick={() => void handleGenerate()}
               disabled={busy || !subjectId || remaining <= 0}
             >
-              {busy ? "Planning…" : done !== null ? "Re-plan" : "Generate plan"}
+              {busy
+                ? t("calendar.dialog.planning")
+                : done !== null
+                  ? t("calendar.dialog.rePlan")
+                  : t("calendar.dialog.generatePlan")}
             </Button>
           </div>
         </DialogFooter>

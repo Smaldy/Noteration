@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { TimeWheel } from "@/components/TimeWheel";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +26,7 @@ function pretty(t: string): string {
  * a specific time. The header doubles as a live readout of the chosen time.
  */
 export function TimeField({ enabled, onToggle, time, onTime, disabled }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border bg-muted/30">
       <div className="flex items-center justify-between gap-3 px-3.5 py-3">
@@ -39,10 +41,14 @@ export function TimeField({ enabled, onToggle, time, onTime, disabled }: Props) 
           </span>
           <span>
             <span className="block text-sm font-medium leading-none">
-              {enabled ? "At a specific time" : "All day"}
+              {enabled
+                ? t("calendar.dialog.atSpecificTime")
+                : t("calendar.dialog.allDay")}
             </span>
             <span className="mt-1 block text-xs text-muted-foreground">
-              {enabled ? `Scheduled for ${pretty(time)}` : "No set time"}
+              {enabled
+                ? t("calendar.dialog.scheduledFor", { time: pretty(time) })
+                : t("calendar.dialog.noSetTime")}
             </span>
           </span>
         </button>

@@ -1,5 +1,6 @@
 import { Check, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,7 @@ export function AddToCalendarDialog({
   presetTopic,
   onCreated,
 }: Props) {
+  const { t } = useTranslation();
   const { catalog, fetchCatalog, createEntry } = useCalendarStore();
 
   const [mode, setMode] = useState<Mode>(presetTopic ? "topic" : "custom");
@@ -124,7 +126,7 @@ export function AddToCalendarDialog({
       onCreated?.();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Couldn't add it. Please try again.",
+        err instanceof ApiError ? err.message : t("calendar.dialog.addFailed"),
       );
       setBusy(false);
     }
@@ -136,11 +138,11 @@ export function AddToCalendarDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add to calendar</DialogTitle>
+          <DialogTitle>{t("calendar.dialog.title")}</DialogTitle>
           <DialogDescription>
             {locked
-              ? "Schedule a study session for this topic."
-              : "Schedule a custom event, a topic or subject to study, or an exam deadline."}
+              ? t("calendar.dialog.descLocked")
+              : t("calendar.dialog.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -153,13 +155,13 @@ export function AddToCalendarDialog({
                   type="button"
                   onClick={() => setMode(m)}
                   className={cn(
-                    "rounded-md px-2 py-1.5 text-sm font-medium capitalize transition-colors",
+                    "rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
                     mode === m
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {m === "custom" ? "Event" : m}
+                  {t(`calendar.dialog.modes.${m}`)}
                 </button>
               ))}
             </div>
@@ -167,7 +169,7 @@ export function AddToCalendarDialog({
 
           {locked && (
             <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-              Topic: <span className="font-medium">{presetTopic.title}</span>
+              {t("calendar.dialog.lockedTopic", { title: presetTopic.title })}
             </p>
           )}
 
@@ -176,19 +178,21 @@ export function AddToCalendarDialog({
               <Label htmlFor="ev-title">
                 {mode === "deadline" ? (
                   <>
-                    Exam name{" "}
-                    <span className="text-muted-foreground">(optional)</span>
+                    {t("calendar.dialog.examName")}{" "}
+                    <span className="text-muted-foreground">
+                      {t("calendar.dialog.optional")}
+                    </span>
                   </>
                 ) : (
-                  "Event name"
+                  t("calendar.dialog.eventName")
                 )}
               </Label>
               <Input
                 id="ev-title"
                 placeholder={
                   mode === "deadline"
-                    ? "e.g. Final exam"
-                    : "e.g. Revise the whole unit"
+                    ? t("calendar.dialog.examPlaceholder")
+                    : t("calendar.dialog.eventPlaceholder")
                 }
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -199,12 +203,12 @@ export function AddToCalendarDialog({
 
           {mode === "topic" && !locked && (
             <div className="space-y-2">
-              <Label>Topic</Label>
+              <Label>{t("calendar.dialog.topic")}</Label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search topics…"
+                  placeholder={t("calendar.dialog.searchTopics")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   disabled={busy}
@@ -213,7 +217,7 @@ export function AddToCalendarDialog({
               <div className="max-h-56 space-y-3 overflow-y-auto rounded-lg border p-2">
                 {filteredSubjects.length === 0 && (
                   <p className="px-1 py-2 text-sm text-muted-foreground">
-                    No topics found.
+                    {t("calendar.dialog.noTopics")}
                   </p>
                 )}
                 {filteredSubjects.map((s) => (
@@ -239,7 +243,7 @@ export function AddToCalendarDialog({
                       ))}
                       {s.topics.length === 0 && (
                         <li className="px-2 py-1 text-xs italic text-muted-foreground">
-                          No topics yet
+                          {t("calendar.dialog.noTopicsYet")}
                         </li>
                       )}
                     </ul>
@@ -251,7 +255,7 @@ export function AddToCalendarDialog({
 
           {needsSubject && (
             <div className="space-y-2">
-              <Label htmlFor="ev-subject">Subject</Label>
+              <Label htmlFor="ev-subject">{t("calendar.dialog.subject")}</Label>
               <select
                 id="ev-subject"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -259,7 +263,7 @@ export function AddToCalendarDialog({
                 onChange={(e) => setSubjectId(e.target.value)}
                 disabled={busy}
               >
-                <option value="">Select a subject…</option>
+                <option value="">{t("calendar.dialog.selectSubject")}</option>
                 {catalog.map((s) => (
                   <option key={s.id} value={String(s.id)}>
                     {s.name}
@@ -268,14 +272,14 @@ export function AddToCalendarDialog({
               </select>
               {mode === "deadline" && (
                 <p className="text-xs text-muted-foreground">
-                  Sets this subject's exam date so the AI study plan works toward it.
+                  {t("calendar.dialog.deadlineHint")}
                 </p>
               )}
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="ev-date">Date</Label>
+            <Label htmlFor="ev-date">{t("calendar.dialog.date")}</Label>
             <Input
               id="ev-date"
               type="date"
@@ -295,13 +299,16 @@ export function AddToCalendarDialog({
 
           <div className="space-y-2">
             <Label htmlFor="ev-desc">
-              Notes <span className="text-muted-foreground">(optional)</span>
+              {t("calendar.dialog.notes")}{" "}
+              <span className="text-muted-foreground">
+                {t("calendar.dialog.optional")}
+              </span>
             </Label>
             <textarea
               id="ev-desc"
               rows={2}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="What to focus on…"
+              placeholder={t("calendar.dialog.notesPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={busy}
@@ -313,10 +320,10 @@ export function AddToCalendarDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Cancel
+            {t("calendar.dialog.cancel")}
           </Button>
           <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
-            {busy ? "Adding…" : "Add to calendar"}
+            {busy ? t("calendar.dialog.adding") : t("calendar.dialog.add")}
           </Button>
         </DialogFooter>
       </DialogContent>
