@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.models.enums import (
     DocumentMode,
@@ -124,3 +124,13 @@ class GenerateMoreRequest(BaseModel):
     """Ask for more of one assessment kind for a topic (on-demand)."""
 
     kind: Literal["mcqs", "flashcards"]
+
+
+class RegenerateNotesRequest(BaseModel):
+    """Regenerate a topic's AI notes, optionally guided by reader feedback.
+
+    ``instructions`` is the (optional) free-text "what to change" the reader gives
+    when the current notes don't satisfy them; bounded so it can't blow the prompt.
+    """
+
+    instructions: str | None = Field(default=None, max_length=2000)

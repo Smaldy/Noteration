@@ -17,7 +17,12 @@ from backend.db.database import get_session
 from backend.models import Topic
 from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
 from backend.schemas.reorder import ReorderRequest
-from backend.schemas.topic import AttachmentOut, GenerateMoreRequest, TopicContentOut
+from backend.schemas.topic import (
+    AttachmentOut,
+    GenerateMoreRequest,
+    RegenerateNotesRequest,
+    TopicContentOut,
+)
 from backend.services import attachments as attachsvc
 from backend.services import topics as topicsvc
 from backend.services.pipeline.generation import (
@@ -91,6 +96,49 @@ def generate_more(
         topicsvc.generate_more(session, topic_id, payload.kind)
     except topicsvc.TopicNotFoundError:
         raise HTTPException(status_code=404, detail="Topic not found")
+    except TopicSourceUnavailableError:
+        raise HTTPException(
+            status_code=409, detail="Document source unavailable; re-ingest needed"
+        )
+    except AllProvidersExhausted as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=exc.reason or "No provider available right now",
+        )
+    except GenerationParseError:
+        raise HTTPException(
+            status_code=502,
+            detail="The model returned unusable output. Please try again.",
+        )
+    return topicsvc.get_topic_content(session, topic_id)
+
+
+@router.post("/{topic_id}/notes/regenerate", response_model=TopicContentOut)
+def regenerate_notes(
+    topic_id: int,
+    payload: RegenerateNotesRequest,
+    session: Session = Depends(get_session),
+) -> Topic:
+    """Regenerate a topic's AI notes on demand, then return its refreshed content.
+
+    Synchronous (like generate-more) — one model call rewrites only the notes,
+    leaving the quiz and flashcards (and SM-2 state) intact. 404 unknown topic;
+    409 if the document is exam-only, the note is locked, or the source markdown is
+    missing; 502 if the model's output is unusable; 503 when no provider has
+    headroom right now.
+    """
+    try:
+        topicsvc.regenerate_notes(session, topic_id, instructions=payload.instructions)
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    except topicsvc.NotesNotSupportedError:
+        raise HTTPException(
+            status_code=409, detail="Exam-prep documents have no notes to regenerate"
+        )
+    except topicsvc.NoteLockedError:
+        raise HTTPException(
+            status_code=409, detail="This note is locked; unlock it to regenerate"
+        )
     except TopicSourceUnavailableError:
         raise HTTPException(
             status_code=409, detail="Document source unavailable; re-ingest needed"

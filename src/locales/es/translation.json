@@ -98,6 +98,18 @@
         "pending": "pendiente",
         "verified": "verificada",
         "reconstructed": "reconstruida"
+      },
+      "regenerate": "Regenerar apuntes",
+      "regenerating": "Regenerando…",
+      "regenerateLocked": "Desbloquea el apunte para regenerarlo",
+      "regenerateError": "No se pudieron regenerar los apuntes — puede que un proveedor esté ocupado.",
+      "regenerateDialog": {
+        "title": "Regenerar apuntes",
+        "desc": "Reescribe los apuntes de este tema a partir del material de origen. El cuestionario y las tarjetas — y su progreso de repaso — se conservan.",
+        "feedbackLabel": "¿Qué debería cambiar? (opcional)",
+        "feedbackPlaceholder": "p. ej. Demasiado breve — amplía la sección sobre el par y añade un ejemplo resuelto.",
+        "cancel": "Cancelar",
+        "confirm": "Regenerar"
       }
     },
     "quiz": {

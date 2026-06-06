@@ -98,6 +98,18 @@
         "pending": "in attesa",
         "verified": "verificata",
         "reconstructed": "ricostruita"
+      },
+      "regenerate": "Rigenera appunti",
+      "regenerating": "Rigenerazione…",
+      "regenerateLocked": "Sblocca l'appunto per rigenerarlo",
+      "regenerateError": "Impossibile rigenerare gli appunti — un provider potrebbe essere occupato.",
+      "regenerateDialog": {
+        "title": "Rigenera appunti",
+        "desc": "Riscrive gli appunti di questo argomento dal materiale di origine. Il quiz e le flashcard — e i relativi progressi di ripasso — vengono mantenuti.",
+        "feedbackLabel": "Cosa vuoi cambiare? (facoltativo)",
+        "feedbackPlaceholder": "es. Troppo breve — espandi la sezione sul momento torcente e aggiungi un esempio svolto.",
+        "cancel": "Annulla",
+        "confirm": "Rigenera"
       }
     },
     "quiz": {

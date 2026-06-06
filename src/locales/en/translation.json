@@ -98,6 +98,18 @@
         "pending": "pending",
         "verified": "verified",
         "reconstructed": "reconstructed"
+      },
+      "regenerate": "Regenerate notes",
+      "regenerating": "Regenerating…",
+      "regenerateLocked": "Unlock the note to regenerate it",
+      "regenerateError": "Couldn't regenerate the notes — a provider may be busy.",
+      "regenerateDialog": {
+        "title": "Regenerate notes",
+        "desc": "Rewrite this topic's notes from the source material. Your quiz and flashcards — and their review progress — are kept.",
+        "feedbackLabel": "What should change? (optional)",
+        "feedbackPlaceholder": "e.g. Too brief — expand the torque section and add a worked example.",
+        "cancel": "Cancel",
+        "confirm": "Regenerate"
       }
     },
     "quiz": {

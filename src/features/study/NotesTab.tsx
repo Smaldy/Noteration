@@ -5,6 +5,7 @@ import {
   Paperclip,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
   X,
 } from "lucide-react";
@@ -18,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
 import { useStudyStore } from "@/stores/study";
 import type { Attachment, Note } from "@/types/study";
+
+import { RegenerateNotesDialog } from "./RegenerateNotesDialog";
 
 // TipTap is heavy and only needed when the user actually edits a note, so it's
 // split out and loaded on demand (keeps it out of the study-page chunk).
@@ -40,6 +43,11 @@ export function NotesTab({ topicId, notes, attachments, generatedBy }: NotesTabP
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [regenOpen, setRegenOpen] = useState(false);
+
+  // Regeneration rewrites the AI note; a locked one is protected from it.
+  const aiNote = notes.find((note) => !note.is_manual);
+  const regenerateLocked = aiNote?.locked ?? false;
 
   const pendingCount = notes.reduce(
     (n, note) => n + note.formulas.filter((f) => f.state === "pending").length,
@@ -83,6 +91,21 @@ export function NotesTab({ topicId, notes, attachments, generatedBy }: NotesTabP
           {adding ? t("study.notes.adding") : t("study.notes.add")}
         </Button>
 
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setRegenOpen(true)}
+          disabled={regenerateLocked}
+          title={
+            regenerateLocked
+              ? t("study.notes.regenerateLocked")
+              : t("study.notes.regenerate")
+          }
+        >
+          <RefreshCw className="mr-1.5 size-4" />
+          {t("study.notes.regenerate")}
+        </Button>
+
         {pendingCount > 0 && (
           <Button size="sm" onClick={reconstruct} disabled={busy}>
             {busy
@@ -94,6 +117,12 @@ export function NotesTab({ topicId, notes, attachments, generatedBy }: NotesTabP
       </div>
 
       <AttachmentsSection topicId={topicId} attachments={attachments} />
+
+      <RegenerateNotesDialog
+        topicId={topicId}
+        open={regenOpen}
+        onOpenChange={setRegenOpen}
+      />
     </div>
   );
 }

@@ -22,6 +22,8 @@ interface StudyStore {
   transcribeFormulas: (topicId: number) => Promise<void>;
   /** Generate more MCQs or flashcards for a topic, then refresh its content. */
   generateMore: (topicId: number, kind: "mcqs" | "flashcards") => Promise<void>;
+  /** Regenerate a topic's AI notes (optionally guided), then refresh its content. */
+  regenerateNotes: (topicId: number, instructions?: string) => Promise<void>;
   /** Save an edited note's markdown (and optionally its lock), updating in place. */
   saveNote: (noteId: number, content_md: string, locked?: boolean) => Promise<void>;
   /** Add a manual note block under the open topic. */
@@ -99,6 +101,21 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
     const content = await api.post<TopicContent>(`/topics/${topicId}/generate`, {
       kind,
     });
+    set((state) =>
+      state.content && state.content.id === topicId
+        ? { content, contentStatus: "loaded" }
+        : state,
+    );
+  },
+
+  regenerateNotes: async (topicId, instructions) => {
+    // Returns the refreshed topic content with the rewritten AI note (quiz and
+    // flashcards untouched). Only apply if this topic is still open. Errors
+    // propagate to the caller (the dialog shows them) — e.g. 503/502/409.
+    const content = await api.post<TopicContent>(
+      `/topics/${topicId}/notes/regenerate`,
+      { instructions: instructions?.trim() ? instructions.trim() : null },
+    );
     set((state) =>
       state.content && state.content.id === topicId
         ? { content, contentStatus: "loaded" }

@@ -189,6 +189,34 @@ EXAM_GENERATION_SCHEMA: dict = {
 }
 
 
+# Static Markdown formatting rules for generated notes, shared by the full
+# generation call and the on-demand notes regeneration so they can't drift apart.
+# The (variable) length rule is prepended separately by ``_notes_length_rule``.
+_NOTES_FORMAT_RULES = (
+    "  * Organise with `##` and `###` headings and short paragraphs; separate "
+    "every heading, paragraph, and list with a blank line.\n"
+    "  * Use `-` bullet lists for enumerations and key points; use numbered "
+    "lists only for ordered steps.\n"
+    "  * Write normal prose. Use `**bold**` ONLY to emphasise a key term or "
+    "definition (a few words) — never bold whole sentences, lines, or the "
+    "entire note. Use `*italics*` sparingly.\n"
+    "  * Put math in LaTeX: `$inline$` and `$$display$$`.\n"
+    "  * Do NOT wrap the notes in a code fence.\n"
+)
+
+
+def _notes_length_rule(note_length: int) -> str:
+    """The 'aim for N pages' length directive for the notes formatting block."""
+    pages = clamp_note_length(note_length)
+    words = pages * WORDS_PER_PAGE
+    return (
+        f"  * Length: aim for about {pages} page{'s' if pages != 1 else ''} of "
+        f"notes (~{words} words). If the source doesn't contain enough material "
+        "for that, write only what the source genuinely supports — never pad, "
+        "repeat, or invent content to reach the target.\n"
+    )
+
+
 def build_generation_prompt(
     topic_title: str,
     source_text: str,
@@ -208,15 +236,8 @@ def build_generation_prompt(
     structure. ``language`` (en|it|es) sets the language of the generated content;
     English adds no directive.
     """
-    pages = clamp_note_length(note_length)
-    words = pages * WORDS_PER_PAGE
     lang_rule = language_directive(language)
-    length_rule = (
-        f"  * Length: aim for about {pages} page{'s' if pages != 1 else ''} of "
-        f"notes (~{words} words). If the source doesn't contain enough material "
-        "for that, write only what the source genuinely supports — never pad, "
-        "repeat, or invent content to reach the target.\n"
-    )
+    length_rule = _notes_length_rule(note_length)
     if mode is DocumentMode.exam:
         return (
             "You are an expert engineering tutor preparing a student for an exam. "
@@ -250,15 +271,7 @@ def build_generation_prompt(
         "definitions, and formulas; concise but complete; do not invent material "
         "the source does not support. Formatting rules (follow exactly):\n"
         f"{length_rule}"
-        "  * Organise with `##` and `###` headings and short paragraphs; separate "
-        "every heading, paragraph, and list with a blank line.\n"
-        "  * Use `-` bullet lists for enumerations and key points; use numbered "
-        "lists only for ordered steps.\n"
-        "  * Write normal prose. Use `**bold**` ONLY to emphasise a key term or "
-        "definition (a few words) — never bold whole sentences, lines, or the "
-        "entire note. Use `*italics*` sparingly.\n"
-        "  * Put math in LaTeX: `$inline$` and `$$display$$`.\n"
-        "  * Do NOT wrap the notes in a code fence.\n"
+        f"{_NOTES_FORMAT_RULES}"
         "- mcqs: 5-10 multiple-choice questions grounded in the notes; each with "
         "at least 2 options and a correct_index pointing to the right option.\n"
         "- flashcards: 5-10 flashcards grounded in the notes.\n"
@@ -583,6 +596,76 @@ def build_more_flashcards_prompt(
         f"{_existing_block('flashcard fronts', existing_fronts)}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
     )
+
+
+# --- on-demand notes regeneration (user-triggered, notes only) --------------
+
+# Schema for the notes-only regeneration call: just the rewritten Markdown. The
+# assessment (MCQs/flashcards) is deliberately NOT regenerated so the user's quiz
+# and SM-2 flashcard review state survive a notes rewrite.
+NOTES_ONLY_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"notes_md": {"type": "string"}},
+    "required": ["notes_md"],
+}
+
+
+def notes_only_max_tokens(note_length: int) -> int:
+    """Output-token ceiling for a notes-only regeneration at this note length.
+
+    Cheaper than a full generation call — no assessment tokens, just the notes
+    half of ``study_max_tokens``.
+    """
+    return clamp_note_length(note_length) * NOTES_OUTPUT_TOKENS_PER_PAGE
+
+
+def build_regenerate_notes_prompt(
+    topic_title: str,
+    source_text: str,
+    *,
+    note_length: int = DEFAULT_NOTE_LENGTH,
+    language: str = DEFAULT_LANGUAGE,
+    instructions: str | None = None,
+) -> str:
+    """Prompt to rewrite ONE topic's notes from its source, optionally guided.
+
+    Returns a single ``{"notes_md": str}`` object (no assessment). When the reader
+    gives ``instructions`` (what they didn't like / want changed), they're added as
+    a steering block so a regeneration actually differs from the first pass —
+    still grounded in the source, never inventing material.
+    """
+    feedback_block = ""
+    if instructions and instructions.strip():
+        feedback_block = (
+            "\n# What to improve\nThe previous notes did not satisfy the reader. "
+            "Apply this feedback when rewriting, while staying grounded in the "
+            "source and never inventing material the source does not support:\n"
+            f"{instructions.strip()}\n"
+        )
+    return (
+        "You are an expert engineering tutor. Rewrite the study notes for ONE "
+        "topic from the source material as a fresh, improved version, returned as "
+        "a single JSON object.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        'fences):\n{"notes_md": str}\n'
+        "- notes_md: Well-structured Markdown notes covering the key concepts, "
+        "definitions, and formulas; concise but complete; do not invent material "
+        "the source does not support. Formatting rules (follow exactly):\n"
+        f"{_notes_length_rule(note_length)}"
+        f"{_NOTES_FORMAT_RULES}"
+        f"{language_directive(language)}"
+        f"{feedback_block}"
+        f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
+    )
+
+
+def parse_notes_only(text: str) -> str:
+    """Parse a notes-only regeneration response → the notes markdown.
+
+    Raises ``GenerationParseError`` if ``notes_md`` is missing or empty.
+    """
+    data = _load_object(text)
+    return _require_str(data.get("notes_md"), "notes_md")
 
 
 def _load_object(text: str) -> dict:
