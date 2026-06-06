@@ -47,26 +47,28 @@ export function StudySidebar(props: StudySidebarProps) {
   return (
     <nav className="space-y-4">
       {onPractice && (
-        <div className="space-y-2 rounded-lg border bg-card/50 p-2.5">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+        <div className="space-y-3 rounded-xl border bg-card/60 p-3 shadow-sm">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
             <Layers className="size-3.5" />
             {t("study.sidebar.combinedPractice")}
           </p>
-          <PracticeRow
-            label={t("study.sidebar.wholeSubject")}
-            onQuiz={() => onPractice("subjects", tree.subject_id, "quiz")}
-            onCards={() => onPractice("subjects", tree.subject_id, "flashcards")}
-          />
-          <PracticeRow
-            label={t("study.sidebar.wholeDeck")}
-            onQuiz={() => onPractice("documents", tree.document_id, "quiz")}
-            onCards={() => onPractice("documents", tree.document_id, "flashcards")}
-          />
+          <div className="space-y-1">
+            <PracticeRow
+              label={t("study.sidebar.subject")}
+              onQuiz={() => onPractice("subjects", tree.subject_id, "quiz")}
+              onCards={() => onPractice("subjects", tree.subject_id, "flashcards")}
+            />
+            <PracticeRow
+              label={t("study.sidebar.deck")}
+              onQuiz={() => onPractice("documents", tree.document_id, "quiz")}
+              onCards={() => onPractice("documents", tree.document_id, "flashcards")}
+            />
+          </div>
           {onChooseTopics && (
             <button
               type="button"
               onClick={onChooseTopics}
-              className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary/60 hover:bg-primary/10"
             >
               <ListChecks className="size-3.5" />
               {t("study.sidebar.chooseTopics")}
@@ -92,21 +94,20 @@ function PracticeRow({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="truncate text-sm">{label}</span>
-      <span className="flex shrink-0 items-center gap-1 text-xs">
+    <div className="flex items-center justify-between gap-2 rounded-md px-1 py-0.5">
+      <span className="truncate text-sm font-medium">{label}</span>
+      <span className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={onQuiz}
-          className="rounded px-1.5 py-0.5 font-medium text-primary hover:bg-primary/10"
+          className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
         >
           {t("study.sidebar.quiz")}
         </button>
-        <span className="text-muted-foreground/50">·</span>
         <button
           type="button"
           onClick={onCards}
-          className="rounded px-1.5 py-0.5 font-medium text-primary hover:bg-primary/10"
+          className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
         >
           {t("study.sidebar.cards")}
         </button>
@@ -122,9 +123,7 @@ function ChapterGroup({
   onDeleteTopic,
   onToggleBookmark,
   onReorderTopics,
-  onPractice,
 }: { chapter: ChapterNode } & Omit<StudySidebarProps, "tree">) {
-  const { t } = useTranslation();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -146,27 +145,6 @@ function ChapterGroup({
         <h3 className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {chapter.title}
         </h3>
-        {onPractice && (
-          <span className="flex shrink-0 items-center gap-1 text-[11px]">
-            <button
-              type="button"
-              title={t("study.sidebar.quizChapter")}
-              onClick={() => onPractice("chapters", chapter.id, "quiz")}
-              className="rounded px-1 py-0.5 font-medium text-primary hover:bg-primary/10"
-            >
-              {t("study.sidebar.quiz")}
-            </button>
-            <span className="text-muted-foreground/50">·</span>
-            <button
-              type="button"
-              title={t("study.sidebar.flashcardsChapter")}
-              onClick={() => onPractice("chapters", chapter.id, "flashcards")}
-              className="rounded px-1 py-0.5 font-medium text-primary hover:bg-primary/10"
-            >
-              {t("study.sidebar.cards")}
-            </button>
-          </span>
-        )}
       </div>
       <DndContext
         sensors={sensors}

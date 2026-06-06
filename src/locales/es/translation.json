@@ -56,8 +56,8 @@
     "deleteTopicFailed": "No se pudo eliminar el tema. Inténtalo de nuevo.",
     "sidebar": {
       "combinedPractice": "Práctica combinada",
-      "wholeSubject": "Asignatura completa",
-      "wholeDeck": "Documento completo",
+      "subject": "Asignatura",
+      "deck": "Documento",
       "chooseTopics": "Elegir temas…",
       "quiz": "Cuestionario",
       "cards": "Tarjetas",

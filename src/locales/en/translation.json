@@ -56,8 +56,8 @@
     "deleteTopicFailed": "Couldn't delete that topic. Please try again.",
     "sidebar": {
       "combinedPractice": "Combined practice",
-      "wholeSubject": "Whole subject",
-      "wholeDeck": "Whole deck",
+      "subject": "Subject",
+      "deck": "Deck",
       "chooseTopics": "Choose topics…",
       "quiz": "Quiz",
       "cards": "Cards",
