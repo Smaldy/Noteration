@@ -17,6 +17,9 @@
     "title": "Biblioteca",
     "subtitle": "Tus documentos subidos y su progreso de estudio.",
     "loading": "Cargando tu biblioteca…",
+    "filterBookmarkedAria": "Mostrar solo las asignaturas marcadas",
+    "noBookmarked": "No hay asignaturas marcadas",
+    "noBookmarkedDesc": "Toca el icono de marcador en una asignatura para fijarla aquí.",
     "empty": {
       "title": "Aún no hay documentos",
       "description": "Sube un PDF de ingeniería para generar apuntes, preguntas tipo test, tarjetas y un plan de estudio.",

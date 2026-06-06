@@ -67,6 +67,8 @@ def test_list_bookmarks_returns_marked_only(session: Session) -> None:
 
     result = bookmarks_service.list_bookmarks(session)
     assert [s.id for s in result.subjects] == [ids["subject"]]
+    # Bookmarked subject carries its primary document for deep-linking.
+    assert result.subjects[0].document_id == ids["doc"]
     assert len(result.topics) == 1
     hit = result.topics[0]
     assert hit.id == ids["topic"]
@@ -129,6 +131,7 @@ def test_http_bookmark_subject_and_aggregate(
 
     bm = client.get("/api/bookmarks").json()
     assert [s["id"] for s in bm["subjects"]] == [ids["subject"]]
+    assert bm["subjects"][0]["document_id"] == ids["doc"]
     assert [t["id"] for t in bm["topics"]] == [ids["topic"]]
 
     # The library row reflects the subject bookmark.

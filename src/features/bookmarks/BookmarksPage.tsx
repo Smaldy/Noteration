@@ -78,9 +78,19 @@ export function BookmarksPage() {
             {data.subjects.map((s) => (
               <span
                 key={s.id}
-                className="inline-flex items-center gap-2 rounded-full border bg-card/70 py-1.5 pl-4 pr-2 text-sm font-medium shadow-sm"
+                className="inline-flex items-center gap-2 rounded-full border bg-card/70 py-1.5 pl-4 pr-2 text-sm font-medium shadow-sm transition-colors hover:border-ring/40"
               >
-                {s.name}
+                {s.document_id != null ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/documents/${s.document_id}/study`)}
+                    className="transition-colors hover:text-primary"
+                  >
+                    {s.name}
+                  </button>
+                ) : (
+                  s.name
+                )}
                 <BookmarkButton
                   bookmarked
                   label={s.name}

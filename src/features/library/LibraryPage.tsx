@@ -47,6 +47,7 @@ export function LibraryPage() {
     retryTranscription,
   } = useLibraryStore();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -91,6 +92,23 @@ export function LibraryPage() {
       window.alert(t("library.deleteFailed"));
     }
   }
+
+  // When the bookmarked-only filter is on, show just the bookmarked subjects.
+  const visible = bookmarkedOnly
+    ? documents.filter((d) => d.subject_bookmarked)
+    : documents;
+
+  const renderCard = (doc: DocumentSummary) => (
+    <DocumentCard
+      key={doc.id}
+      doc={doc}
+      onDelete={handleDelete}
+      onToggleBookmark={(subjectId, bookmarked) =>
+        void toggleSubjectBookmark(subjectId, bookmarked)
+      }
+      onRetryTranscription={(d) => void retryTranscription(d.id)}
+    />
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
@@ -139,8 +157,21 @@ export function LibraryPage() {
         onUploaded={(documentId) => navigate(`/documents/${documentId}/review`)}
       />
 
-      <div className="mb-8 animate-rise">
-        <SearchBar />
+      <div className="mb-8 flex flex-col gap-2 animate-rise sm:flex-row sm:items-start">
+        <div className="flex-1">
+          <SearchBar />
+        </div>
+        <Button
+          variant={bookmarkedOnly ? "default" : "outline"}
+          size="icon"
+          aria-pressed={bookmarkedOnly}
+          aria-label={t("library.filterBookmarkedAria")}
+          title={t("library.filterBookmarkedAria")}
+          onClick={() => setBookmarkedOnly((v) => !v)}
+          className="size-11 shrink-0"
+        >
+          <Bookmark className={bookmarkedOnly ? "fill-current" : undefined} />
+        </Button>
       </div>
 
       {status === "loading" && (
@@ -175,30 +206,40 @@ export function LibraryPage() {
         </div>
       )}
 
-      {status === "loaded" && documents.length > 0 && (
+      {/* Filter is on but nothing is bookmarked yet. */}
+      {status === "loaded" &&
+        documents.length > 0 &&
+        bookmarkedOnly &&
+        visible.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
+            <Bookmark className="mb-4 size-10 text-muted-foreground" />
+            <h2 className="text-lg font-medium">{t("library.noBookmarked")}</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              {t("library.noBookmarkedDesc")}
+            </p>
+          </div>
+        )}
+
+      {/* Drag-reorder only in the full view; the filtered view is a plain grid
+          so a partial order can't clobber the saved global order. */}
+      {status === "loaded" && visible.length > 0 && bookmarkedOnly && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map(renderCard)}
+        </div>
+      )}
+
+      {status === "loaded" && visible.length > 0 && !bookmarkedOnly && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={documents.map((d) => d.id)}
+            items={visible.map((d) => d.id)}
             strategy={rectSortingStrategy}
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {documents.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  onDelete={handleDelete}
-                  onToggleBookmark={(subjectId, bookmarked) =>
-                    void toggleSubjectBookmark(subjectId, bookmarked)
-                  }
-                  onRetryTranscription={(d) =>
-                    void retryTranscription(d.id)
-                  }
-                />
-              ))}
+              {visible.map(renderCard)}
             </div>
           </SortableContext>
         </DndContext>

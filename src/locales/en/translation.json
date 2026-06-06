@@ -17,6 +17,9 @@
     "title": "Library",
     "subtitle": "Your uploaded documents and their study progress.",
     "loading": "Loading your library…",
+    "filterBookmarkedAria": "Show only bookmarked subjects",
+    "noBookmarked": "No bookmarked subjects",
+    "noBookmarkedDesc": "Tap the bookmark icon on a subject to pin it here.",
     "empty": {
       "title": "No documents yet",
       "description": "Upload an engineering PDF to generate notes, MCQs, flashcards, and a study schedule.",

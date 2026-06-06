@@ -2,16 +2,32 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from backend.models.enums import TopicPriority, TopicStatus
-from backend.schemas.subject import SubjectOut
 
 
 class BookmarkUpdate(BaseModel):
     """Set a subject's or topic's bookmark flag (idempotent; not a toggle)."""
 
     bookmarked: bool
+
+
+class BookmarkSubjectOut(BaseModel):
+    """A bookmarked subject, with the primary document to deep-link into."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    accent_color: str | None
+    exam_date: date | None
+    bookmarked: bool
+    created_at: datetime
+    # ``None`` when the subject has no documents yet (chip non-navigable).
+    document_id: int | None
 
 
 class TopicBookmarkOut(BaseModel):
@@ -41,5 +57,5 @@ class BookmarkTopicOut(BaseModel):
 class BookmarksOut(BaseModel):
     """Everything the Bookmarks view needs in one read."""
 
-    subjects: list[SubjectOut]
+    subjects: list[BookmarkSubjectOut]
     topics: list[BookmarkTopicOut]

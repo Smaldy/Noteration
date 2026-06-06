@@ -17,6 +17,9 @@
     "title": "Libreria",
     "subtitle": "I tuoi documenti caricati e i progressi di studio.",
     "loading": "Caricamento della libreria…",
+    "filterBookmarkedAria": "Mostra solo le materie nei preferiti",
+    "noBookmarked": "Nessuna materia nei preferiti",
+    "noBookmarkedDesc": "Tocca l'icona del segnalibro su una materia per fissarla qui.",
     "empty": {
       "title": "Ancora nessun documento",
       "description": "Carica un PDF tecnico per generare appunti, quiz a risposta multipla, flashcard e un piano di studio.",
