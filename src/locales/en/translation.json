@@ -632,5 +632,14 @@
         "slate": "Slate"
       }
     }
+  },
+  "credits": {
+    "brand": "✦ Noteration ✦",
+    "madeWith": "Made with",
+    "by": "by Ayman",
+    "tagline": "You found the secret. Thanks for studying with us — now go ace it. 🎓",
+    "supercharge": "Click here to supercharge the app",
+    "close": "Close credits",
+    "ariaLabel": "Credits"
   }
 }

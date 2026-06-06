@@ -632,5 +632,14 @@
         "slate": "Pizarra"
       }
     }
+  },
+  "credits": {
+    "brand": "✦ Noteration ✦",
+    "madeWith": "Hecho con",
+    "by": "por Ayman",
+    "tagline": "Has encontrado el secreto. Gracias por estudiar con nosotros: ¡ahora ve a por ello! 🎓",
+    "supercharge": "Haz clic aquí para potenciar la app",
+    "close": "Cerrar créditos",
+    "ariaLabel": "Créditos"
   }
 }
