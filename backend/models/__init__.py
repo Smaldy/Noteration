@@ -12,9 +12,18 @@ from backend.models.content import (
     NoteAttachment,
     SourcePage,
 )
+from backend.models.duplicator import (
+    CalibrationSample,
+    DuplicateResult,
+    ExerciseSession,
+    ExtractedExercise,
+)
 from backend.models.enums import (
+    CalibrationSource,
     DocumentMode,
     DocumentStatus,
+    ExerciseSessionStatus,
+    ExerciseStatus,
     FormulaState,
     HistoryEventType,
     QueueLaneState,
@@ -45,6 +54,10 @@ __all__ = [
     "ProviderState",
     "HistoryEvent",
     "Settings",
+    "ExerciseSession",
+    "ExtractedExercise",
+    "DuplicateResult",
+    "CalibrationSample",
     "DocumentStatus",
     "DocumentMode",
     "TopicPriority",
@@ -55,4 +68,7 @@ __all__ = [
     "FormulaState",
     "HistoryEventType",
     "ScheduleSource",
+    "ExerciseSessionStatus",
+    "ExerciseStatus",
+    "CalibrationSource",
 ]
