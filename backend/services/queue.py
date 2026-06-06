@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.models.enums import (
@@ -229,11 +229,42 @@ class QueueService:
         return created
 
     def pending_in_priority_order(self) -> list[QueueJob]:
-        """All pending jobs, ordered exam-critical-first then by position/stage."""
+        """Pending generation jobs, exam-critical-first then by position/stage.
+
+        Excludes ``duplicate_search`` jobs — those are topic-less and drained by a
+        separate search loop (``claim_next_search``), never the lane/topic path, so
+        they must not reach ``_sort_key`` (which dereferences ``job.topic``).
+        """
         jobs = self.session.scalars(
-            select(QueueJob).where(QueueJob.state == QueueState.pending)
+            select(QueueJob).where(
+                QueueJob.state == QueueState.pending,
+                QueueJob.stage != QueueStage.duplicate_search,
+            )
         ).all()
         return sorted(jobs, key=self._sort_key)
+
+    def claim_next_search(self) -> QueueJob | None:
+        """Atomically claim the next due pending ``duplicate_search`` job.
+
+        The Exercise Duplicator's Stage-2 lane, fully independent of the generation
+        queue: oldest-first, honours ``resume_after``, no priority/lane arbitration
+        and no stage prerequisites. Returns the claimed job (now ``running``) or None.
+        """
+        now = self.clock()
+        job = self.session.scalars(
+            select(QueueJob)
+            .where(
+                QueueJob.state == QueueState.pending,
+                QueueJob.stage == QueueStage.duplicate_search,
+                or_(QueueJob.resume_after.is_(None), QueueJob.resume_after <= now),
+            )
+            .order_by(QueueJob.created_at.asc(), QueueJob.id.asc())
+        ).first()
+        if job is None:
+            return None
+        job.state = QueueState.running
+        self.session.commit()
+        return job
 
     def claim_next(self) -> QueueJob | None:
         """Atomically move the next eligible pending job to ``running``.
@@ -748,14 +779,19 @@ class QueueService:
             if STAGE_RANK[sibling.stage] < rank
         )
 
-    def _sync_topic_status(self, topic_id: int) -> None:
+    def _sync_topic_status(self, topic_id: int | None) -> None:
         """Derive the topic's status from its jobs (the queue owns this lifecycle).
 
         error if any stage failed terminally · ready once every stage is done ·
         processing while any stage is running or already done (partial progress) ·
         queued otherwise. Topics with no jobs (``skip``) are left untouched.
         Mutates in the caller's open transaction — never commits on its own.
+
+        ``topic_id`` is None for ``duplicate_search`` jobs (no topic lifecycle) —
+        a no-op then.
         """
+        if topic_id is None:
+            return
         # Flush so the just-set job states are visible to this SELECT even when
         # the session has autoflush off (production SessionLocal does).
         self.session.flush()

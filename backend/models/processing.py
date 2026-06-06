@@ -28,12 +28,22 @@ class QueueJob(Base):
     __tablename__ = "queue_jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"))
+    # Nullable because Exercise Duplicator ``duplicate_search`` jobs have no topic
+    # (they carry ``exercise_id`` instead). Generation jobs always set both.
+    topic_id: Mapped[int | None] = mapped_column(
+        ForeignKey("topics.id", ondelete="CASCADE"), default=None
+    )
     # Denormalized lane key (Wave B): the job's subject, via Topic→Chapter→Subject.
     # Set on enqueue and kept consistent on write so per-subject lane queries
-    # (claim/arbitrate/pause) don't join the whole hierarchy each time.
-    subject_id: Mapped[int] = mapped_column(
-        ForeignKey("subjects.id", ondelete="CASCADE")
+    # (claim/arbitrate/pause) don't join the whole hierarchy each time. Null for
+    # topic-less ``duplicate_search`` jobs (they never enter the lane path).
+    subject_id: Mapped[int | None] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE"), default=None
+    )
+    # Set ONLY on ``duplicate_search`` jobs: the exercise to find variants for.
+    # CASCADE so deleting the exercise/session cleans up its pending search job.
+    exercise_id: Mapped[int | None] = mapped_column(
+        ForeignKey("extracted_exercises.id", ondelete="CASCADE"), default=None
     )
     stage: Mapped[QueueStage] = mapped_column(SAEnum(QueueStage, native_enum=False))
     state: Mapped[QueueState] = mapped_column(

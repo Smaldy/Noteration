@@ -32,6 +32,7 @@ from backend.models.hierarchy import utcnow
 from backend.models.processing import QueueJob
 from backend.models.settings import Settings
 from backend.services import history
+from backend.services.duplicator.search import drain_search_once
 from backend.services.pipeline.formula import NO_OP_PROVIDER
 from backend.services.pipeline.processors import make_pipeline_processor
 from backend.services.providers.factory import build_waterfall_from_settings
@@ -48,6 +49,9 @@ POLL_INTERVAL_SECONDS = 5.0
 # Jobs per drain before the loop re-reads settings and yields. Bounds one tick's
 # work so a long queue can't pin a single waterfall/config snapshot.
 MAX_JOBS_PER_TICK = 50
+# Duplicate-search jobs processed per tick. Small so the lower-priority Stage-2
+# search lane never starves topic generation (which is drained first each cycle).
+SEARCH_JOBS_PER_TICK = 3
 
 # Mandatory gap between consecutive free-tier Gemini calls. 60s / 12s = 5 req/min,
 # comfortably under Gemini's 15 RPM ceiling even with vision/retry jitter. All four
@@ -243,6 +247,18 @@ def drain_once(
                 outcome, job.assigned_provider
             ):
                 sleep(throttle_seconds)
+
+    # Drain the independent Stage-2 duplicate-search lane with the remaining budget.
+    remaining = max_jobs - processed
+    if remaining > 0:
+
+        def _search_throttle(job: QueueJob, outcome: JobOutcome) -> None:
+            if throttle_seconds > 0 and _is_billable_call(outcome, job.assigned_provider):
+                sleep(throttle_seconds)
+
+        processed += drain_search_once(
+            session, queue, waterfall, max_jobs=remaining, throttle=_search_throttle
+        )
     return processed
 
 
@@ -308,6 +324,7 @@ class QueueWorker:
         while not self._stop.is_set():
             try:
                 self._tick()
+                self._drain_search()
             except Exception:  # noqa: BLE001 - a bad tick must not kill the thread
                 logger.exception("Queue worker tick failed; continuing")
             self._stop.wait(self._poll_interval)
@@ -343,6 +360,42 @@ class QueueWorker:
                     thread.start()
                 for thread in threads:
                     thread.join()
+
+    def _drain_search(self) -> None:
+        """Drain a few Exercise-Duplicator search jobs (independent of generation).
+
+        Sequential in its own short-lived session, after the generation dispatch for
+        this cycle. Capped at ``SEARCH_JOBS_PER_TICK`` so it never starves topic
+        generation; the free-tier pacing applies to its billable model calls too.
+        """
+        session = self._session_factory()
+        try:
+            settings = get_settings(session)
+            if not _has_configured_provider(settings):
+                return
+            queue = QueueService(
+                session, per_doc_token_budget=settings.per_document_token_budget
+            )
+            waterfall = self._waterfall_cache.for_settings(settings)
+            throttle_seconds = _free_tier_throttle_seconds(settings)
+
+            def _throttle(job: QueueJob, outcome: JobOutcome) -> None:
+                if throttle_seconds > 0 and _is_billable_call(
+                    outcome, job.assigned_provider
+                ):
+                    time.sleep(throttle_seconds)
+
+            drain_search_once(
+                session,
+                queue,
+                waterfall,
+                max_jobs=SEARCH_JOBS_PER_TICK,
+                throttle=_throttle,
+            )
+        except Exception:  # noqa: BLE001 - a bad search drain must not kill the worker
+            logger.exception("Queue worker: search drain failed; continuing")
+        finally:
+            session.close()
 
     def _plan_and_claim(self):
         """Plan + claim one dispatch cycle in a short-lived session.

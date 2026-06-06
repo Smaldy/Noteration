@@ -2181,7 +2181,45 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   cross-page dedup, create→GET round-trip, non-PDF rejected, HTTP 422×2 + 404 +
   GET shape). Tree green: full suite **555 passed** (+9).
 
+- **Wave ED-3 — Stage 2: duplicate_search queue lane (DONE).** Variant search as
+  a background queue job, integrated via the **separate-search-drain** approach
+  (user-chosen) — keeps the topic/lane generation hot path untouched.
+  `QueueStage.duplicate_search` appended (rank unused — these jobs never enter
+  priority sort / prerequisites). `QueueJob` made `topic_id`/`subject_id` nullable
+  and gained `exercise_id` (FK → extracted_exercises, CASCADE) instead of a generic
+  `metadata` JSON (typed, integrity, and dodges SQLAlchemy's reserved `metadata`
+  name); migration `2295db6ff51b` (also widens `stage` VARCHAR(10)→ enough for
+  "duplicate_search"); `alembic check` clean, round-trips. **Queue isolation:**
+  `pending_in_priority_order` excludes `duplicate_search`, a dedicated
+  `claim_next_search` (oldest-first, honours resume_after, no lane/prereq logic)
+  drains them, and `_sync_topic_status` no-ops on a null topic — so a topic-less
+  job can never reach `_sort_key`/lane arbitration. `services/duplicator/search.py`:
+  `build_search_prompt` (grounds with ≤5 topic+year calibration samples, omits the
+  section on cold start; demands proof/multi-step university problems, prefers
+  known sources), tolerant `parse_variants` (clamps difficulty 0–1), the
+  `make_duplicate_search_processor` (same `StageProcessor` shape — queue owns the
+  atomic commit/stamp), and `drain_search_once` (marks exercise searching→done, or
+  error on terminal failure; stops on exhaustion leaving it searching to retry).
+  `calibration.py` `recent_samples` (read side). `create_session` now enqueues one
+  search job per exercise in the same transaction. Worker drains both lanes each
+  cycle (generation first via `claim_dispatch`, then `_drain_search`/`drain_once`
+  add a capped `SEARCH_JOBS_PER_TICK=3` pass with the same free-tier pacing). 12
+  tests (results+done, malformed tolerance, cold start, samples feed prompt,
+  exhaustion-keeps-searching, terminal→error, null-exercise no-op, **excluded from
+  generation path**, cascade cleanup, score clamp, via process_job, and full
+  create→drain→results e2e). Tree green: full suite **567 passed** (+12).
+
 ## DECISIONS (Exercise Duplicator)
+
+- **ED-3 queue integration = separate search drain (user-chosen).** The lane queue
+  assumes every job has a topic+subject; `duplicate_search` jobs have neither.
+  Rather than thread topic-less jobs through `claim_dispatch`/`_sort_key`/lanes
+  (broad reliability-core surgery), they live in `QueueJob` but are excluded from
+  the generation path and drained by their own `claim_next_search` loop. Minimal
+  blast radius; the generation hot path is untouched.
+- **`QueueJob.exercise_id` FK instead of the spec's `metadata` JSON.** Typed, gives
+  FK integrity + CASCADE cleanup of a search job when its exercise is deleted, and
+  avoids SQLAlchemy's reserved `metadata` declarative attribute.
 
 - **`transcribe_image` gained an optional `prompt` (provider layer).** The spec
   says extraction reuses the formula-transcription vision path *and* feeds it a

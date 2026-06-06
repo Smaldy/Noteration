@@ -49,6 +49,12 @@ class QueueStage(enum.StrEnum):
     formula = "formula"
     notes = "notes"
     assessment = "assessment"
+    # Exercise Duplicator Stage 2 (independent of formula/notes/assessment). These
+    # jobs carry an exercise reference instead of a topic and are drained by a
+    # dedicated search loop, NOT the topic/lane generation path. Appended last so
+    # existing STAGE_RANK values are unchanged (rank is unused for these jobs —
+    # they never enter priority sort or stage-prerequisite checks).
+    duplicate_search = "duplicate_search"
 
 
 class QueueState(enum.StrEnum):

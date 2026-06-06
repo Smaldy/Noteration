@@ -20,7 +20,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from backend.models.duplicator import ExerciseSession, ExtractedExercise
-from backend.models.enums import ExerciseSessionStatus
+from backend.models.enums import ExerciseSessionStatus, QueueStage
+from backend.models.processing import QueueJob
 from backend.services.documents import PDF_MAGIC, InvalidPDFError, _persist_upload
 from backend.services.duplicator.extraction import (
     PageLoader,
@@ -75,12 +76,17 @@ def create_session(
     if waterfall is None:
         waterfall = build_waterfall_from_settings(get_settings(session))
 
-    extract_exercises(session, exercise_session, waterfall, load_pages=load_pages)
+    exercises = extract_exercises(
+        session, exercise_session, waterfall, load_pages=load_pages
+    )
 
-    # ED-3 will enqueue one duplicate_search QueueJob per exercise here, and ED-4
-    # will record each exercise as an `own` CalibrationSample — both inside this
-    # same transaction. Left as seams until those waves so this stage stays
-    # self-contained and queue-independent.
+    # One topic-less duplicate_search job per exercise (drained by the dedicated
+    # search loop, never the generation lane). ED-4 will also record each exercise
+    # as an `own` CalibrationSample here, in this same transaction.
+    for exercise in exercises:
+        session.add(
+            QueueJob(stage=QueueStage.duplicate_search, exercise_id=exercise.id)
+        )
 
     session.commit()
     session.refresh(exercise_session)
