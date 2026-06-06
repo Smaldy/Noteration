@@ -2209,6 +2209,20 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   generation path**, cascade cleanup, score clamp, via process_job, and full
   create→drain→results e2e). Tree green: full suite **567 passed** (+12).
 
+- **Wave ED-4 — Calibration export/import (DONE).** `calibration.py` gained
+  `add_sample` (`commit=False` to batch into a caller txn — `create_session` now
+  records each exercise as an `own` sample in its one transaction), `export_calibration`
+  (all rows + `schema_version: 1`), and `import_calibration` →`(imported, skipped)`
+  (skips exact topic+subtopic+year+text duplicates and malformed rows, tags
+  imports `source=imported`). Router: `GET /api/duplicator/calibration/export`
+  (JSON download, `Content-Disposition: attachment`), `POST …/calibration/import`
+  (multipart JSON; 422 on invalid JSON), `POST …/calibration/samples` (the
+  variant-card "Save to calibration" button; 422 on bad year_level). 11 tests
+  (add default own, export shape, import dedupe+tag, malformed/garbage handling,
+  create_session records own samples, HTTP export header/import round-trip/bad-JSON
+  422/add 201/bad-year 422). Tree green: full suite **578 passed** (+11). Backend
+  feature complete; ED-5 (frontend) + ED-6 (integration) remain.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

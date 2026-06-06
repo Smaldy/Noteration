@@ -23,6 +23,7 @@ from backend.models.duplicator import ExerciseSession, ExtractedExercise
 from backend.models.enums import ExerciseSessionStatus, QueueStage
 from backend.models.processing import QueueJob
 from backend.services.documents import PDF_MAGIC, InvalidPDFError, _persist_upload
+from backend.services.duplicator.calibration import add_sample
 from backend.services.duplicator.extraction import (
     PageLoader,
     extract_exercises,
@@ -80,12 +81,20 @@ def create_session(
         session, exercise_session, waterfall, load_pages=load_pages
     )
 
-    # One topic-less duplicate_search job per exercise (drained by the dedicated
-    # search loop, never the generation lane). ED-4 will also record each exercise
-    # as an `own` CalibrationSample here, in this same transaction.
+    # Per exercise: a topic-less duplicate_search job (drained by the dedicated
+    # search loop, never the generation lane) and an `own` calibration sample —
+    # all inside this one transaction.
     for exercise in exercises:
         session.add(
             QueueJob(stage=QueueStage.duplicate_search, exercise_id=exercise.id)
+        )
+        add_sample(
+            session,
+            topic=exercise.topic,
+            subtopic=exercise.subtopic,
+            year_level=exercise_session.year_level,
+            source_text=exercise.raw_text,
+            commit=False,
         )
 
     session.commit()

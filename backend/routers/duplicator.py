@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
-from backend.schemas.duplicator import ExerciseSessionOut
+from backend.schemas.duplicator import (
+    CalibrationImportResult,
+    CalibrationSampleIn,
+    ExerciseSessionOut,
+)
 from backend.services.documents import InvalidPDFError
+from backend.services.duplicator import calibration as calibrationsvc
 from backend.services.duplicator import sessions as sessionsvc
 from backend.services.providers.base import AllProvidersExhausted
 
@@ -43,6 +51,49 @@ async def create_session(
             detail=exc.reason or "No AI provider has headroom right now",
         )
     return ExerciseSessionOut.model_validate(exercise_session)
+
+
+@router.get("/calibration/export")
+def export_calibration(session: Session = Depends(get_session)) -> JSONResponse:
+    """Download the calibration corpus as a JSON file."""
+    payload = calibrationsvc.export_calibration(session)
+    return JSONResponse(
+        content=payload,
+        headers={
+            "Content-Disposition": "attachment; filename=noteration-calibration.json"
+        },
+    )
+
+
+@router.post("/calibration/import", response_model=CalibrationImportResult)
+async def import_calibration(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> CalibrationImportResult:
+    """Import a calibration JSON file. 422 when the file isn't valid JSON."""
+    raw = await file.read()
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=422, detail="File is not valid JSON")
+    imported, skipped = calibrationsvc.import_calibration(session, data)
+    return CalibrationImportResult(imported=imported, skipped=skipped)
+
+
+@router.post("/calibration/samples", status_code=201)
+def add_calibration_sample(
+    payload: CalibrationSampleIn,
+    session: Session = Depends(get_session),
+) -> dict[str, int]:
+    """Save one variant as a calibration sample (the variant-card button)."""
+    sample = calibrationsvc.add_sample(
+        session,
+        topic=payload.topic,
+        subtopic=payload.subtopic,
+        year_level=payload.year_level,
+        source_text=payload.source_text,
+    )
+    return {"id": sample.id}
 
 
 @router.get("/sessions/{session_id}", response_model=ExerciseSessionOut)

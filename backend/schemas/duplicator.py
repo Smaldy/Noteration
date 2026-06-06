@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.models.enums import ExerciseSessionStatus, ExerciseStatus
 
@@ -48,3 +48,17 @@ class ExerciseSessionOut(BaseModel):
     subject_hint: str | None
     status: ExerciseSessionStatus
     exercises: list[ExtractedExerciseOut] = []
+
+
+class CalibrationSampleIn(BaseModel):
+    """Body for the "Save to calibration" button on a variant card."""
+
+    topic: str = Field(min_length=1)
+    subtopic: str | None = None
+    year_level: int = Field(ge=1, le=5)
+    source_text: str = Field(min_length=1)
+
+
+class CalibrationImportResult(BaseModel):
+    imported: int
+    skipped: int
