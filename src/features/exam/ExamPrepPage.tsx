@@ -13,13 +13,14 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { ArrowLeft, GraduationCap, Layers, Plus } from "lucide-react";
+import { ArrowLeft, GraduationCap, Layers, ListChecks, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { DocumentCard } from "@/features/library/DocumentCard";
+import { TopicSelectDialog } from "@/features/practice/TopicSelectDialog";
 import { UploadDialog } from "@/features/upload/UploadDialog";
 import { useExamStore } from "@/stores/library";
 
@@ -181,6 +182,7 @@ function SubjectSection({
 }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -198,18 +200,39 @@ function SubjectSection({
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between gap-3 border-b pb-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b pb-2">
         <h2 className="truncate text-lg font-semibold tracking-tight">
           {group.subjectName}
         </h2>
-        <PracticeButtons
-          label={t("exam.wholeSubject")}
-          onQuiz={() => navigate(`/exam/practice/subjects/${group.subjectId}?tab=quiz`)}
-          onCards={() =>
-            navigate(`/exam/practice/subjects/${group.subjectId}?tab=flashcards`)
-          }
-        />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setSelectorOpen(true)}
+            className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            <ListChecks className="size-3.5" />
+            {t("exam.chooseTopics")}
+          </button>
+          <PracticeButtons
+            label={t("exam.wholeSubject")}
+            onQuiz={() =>
+              navigate(`/exam/practice/subjects/${group.subjectId}?tab=quiz&mode=exam`)
+            }
+            onCards={() =>
+              navigate(
+                `/exam/practice/subjects/${group.subjectId}?tab=flashcards&mode=exam`,
+              )
+            }
+          />
+        </div>
       </div>
+
+      <TopicSelectDialog
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+        subjectId={group.subjectId}
+        mode="exam"
+      />
 
       <DndContext
         sensors={sensors}

@@ -14,8 +14,8 @@ from sqlalchemy.pool import StaticPool
 import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.db.database import Base, get_session
 from backend.main import app
-from backend.models import Chapter, Document, Note, Subject, Topic
-from backend.models.enums import QueueStage
+from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Topic
+from backend.models.enums import DocumentMode, QueueStage
 from backend.models.processing import QueueJob
 from backend.services import subjects as subjectsvc
 
@@ -85,6 +85,84 @@ def test_delete_subject_cascades_whole_hierarchy(session: Session) -> None:
 def test_delete_subject_unknown_raises(session: Session) -> None:
     with pytest.raises(subjectsvc.SubjectNotFoundError):
         subjectsvc.delete_subject(session, 999)
+
+
+# --- subject topic tree (custom practice selector) --------------------------
+
+
+def _seed_tree(session: Session) -> int:
+    """One subject, a study doc + an exam doc, with per-topic counts + trash."""
+    subject = Subject(name="Physics")
+    session.add(subject)
+    session.flush()
+
+    study = Document(subject=subject, filename="notes.pdf", file_hash="s1", mode=DocumentMode.study)
+    exam = Document(subject=subject, filename="quiz.pdf", file_hash="e1", mode=DocumentMode.exam)
+    session.add_all([study, exam])
+    session.flush()
+
+    ch_s = Chapter(document=study, subject=subject, title="Mechanics", order_index=0)
+    ch_e = Chapter(document=exam, subject=subject, title="Waves", order_index=0)
+    session.add_all([ch_s, ch_e])
+    session.flush()
+
+    kin = Topic(chapter=ch_s, title="Kinematics", order_index=0)
+    dyn = Topic(chapter=ch_s, title="Dynamics", order_index=1)
+    trash = Topic(chapter=ch_s, title="Copyright", order_index=2)  # filtered
+    snd = Topic(chapter=ch_e, title="Sound", order_index=0)
+    session.add_all([kin, dyn, trash, snd])
+    session.flush()
+    session.add_all(
+        [
+            MCQ(topic_id=kin.id, question="q", options=["a", "b"]),
+            MCQ(topic_id=kin.id, question="q2", options=["a", "b"]),
+            Flashcard(topic_id=kin.id, front="f", back="b"),
+            Flashcard(topic_id=snd.id, front="f", back="b"),
+        ]
+    )
+    session.commit()
+    return subject.id
+
+
+def test_subject_topic_tree_groups_and_counts(session: Session) -> None:
+    subject_id = _seed_tree(session)
+    tree = subjectsvc.get_subject_topic_tree(session, subject_id)
+    assert tree.subject_name == "Physics"
+    assert [d.filename for d in tree.documents] == ["notes.pdf", "quiz.pdf"]
+    mechanics = tree.documents[0].chapters[0]
+    titles = [t.title for t in mechanics.topics]
+    assert titles == ["Kinematics", "Dynamics"]  # "Copyright" trash filtered
+    kin = mechanics.topics[0]
+    assert kin.mcq_count == 2 and kin.flashcard_count == 1
+
+
+def test_subject_topic_tree_mode_filter(session: Session) -> None:
+    subject_id = _seed_tree(session)
+    tree = subjectsvc.get_subject_topic_tree(
+        session, subject_id, mode=DocumentMode.exam
+    )
+    assert [d.filename for d in tree.documents] == ["quiz.pdf"]
+
+
+def test_subject_topic_tree_unknown_raises(session: Session) -> None:
+    with pytest.raises(subjectsvc.SubjectNotFoundError):
+        subjectsvc.get_subject_topic_tree(session, 999)
+
+
+def test_http_subject_topic_tree(client: TestClient, db_factory: sessionmaker) -> None:
+    with db_factory() as db:
+        subject_id = _seed_tree(db)
+    resp = client.get(f"/api/subjects/{subject_id}/topics")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["subject_name"] == "Physics"
+    assert len(body["documents"]) == 2
+    first_topic = body["documents"][0]["chapters"][0]["topics"][0]
+    assert first_topic["mcq_count"] == 2 and first_topic["flashcard_count"] == 1
+
+
+def test_http_subject_topic_tree_404(client: TestClient) -> None:
+    assert client.get("/api/subjects/999/topics").status_code == 404
 
 
 # --- HTTP tests (shared in-memory DB via StaticPool) ------------------------

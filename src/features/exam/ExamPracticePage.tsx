@@ -1,5 +1,5 @@
 import { ArrowLeft, GraduationCap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -9,11 +9,16 @@ import { QuizTab } from "@/features/study/QuizTab";
 import { ApiError, api } from "@/lib/api";
 import type { AggregateAssessment, AssessmentScope } from "@/types/assessment";
 
-const VALID_SCOPES: AssessmentScope[] = ["chapters", "documents", "subjects"];
+const VALID_SCOPES: AssessmentScope[] = [
+  "chapters",
+  "documents",
+  "subjects",
+  "topics",
+];
 
-// Combined practice for a whole chapter, deck (document), or subject — the pooled
-// quiz + flashcards across all its topics. Reuses the study tabs (without
-// per-topic "Generate more", which doesn't apply to a pooled deck).
+// Combined practice for a whole chapter, deck (document), subject, or an explicit
+// set of chosen topics — the pooled quiz + flashcards across them. Reuses the
+// study tabs (without per-topic "Generate more", which doesn't apply to a pool).
 export function ExamPracticePage() {
   const { scope, id } = useParams<{ scope: string; id: string }>();
   const [searchParams] = useSearchParams();
@@ -26,19 +31,39 @@ export function ExamPracticePage() {
 
   const numericId = Number(id);
   const validScope = VALID_SCOPES.includes(scope as AssessmentScope);
-  // Pool only exam material for a whole subject (study docs live in the Library).
-  const query = scope === "subjects" ? "?mode=exam" : "";
+  // A custom selection carries its topic ids in `?ids=1,2,3`; whole-subject pools
+  // are scoped to a section via `?mode=study|exam` (study docs live in the Library,
+  // exam decks in Exam Prep). Chapter/document scopes need neither.
+  const idsParam = searchParams.get("ids") ?? "";
+  const modeParam = searchParams.get("mode");
+
+  // The assessment endpoint to call for this scope.
+  const requestPath = useMemo<string | null>(() => {
+    if (!validScope) return null;
+    if (scope === "topics") {
+      const ids = idsParam
+        .split(",")
+        .map((part) => Number(part))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      if (ids.length === 0) return null;
+      const qs = ids.map((value) => `topic_id=${value}`).join("&");
+      return `/assessment/topics?${qs}`;
+    }
+    if (!Number.isFinite(numericId)) return null;
+    const query = scope === "subjects" && modeParam ? `?mode=${modeParam}` : "";
+    return `/assessment/${scope}/${numericId}${query}`;
+  }, [validScope, scope, idsParam, numericId, modeParam]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!validScope || !Number.isFinite(numericId)) {
+    if (requestPath === null) {
       setStatus("error");
       setError(t("exam.practice.invalidLink"));
       return;
     }
     setStatus("loading");
     api
-      .get<AggregateAssessment>(`/assessment/${scope}/${numericId}${query}`)
+      .get<AggregateAssessment>(requestPath)
       .then((res) => {
         if (cancelled) return;
         setData(res);
@@ -52,7 +77,7 @@ export function ExamPracticePage() {
     return () => {
       cancelled = true;
     };
-  }, [scope, numericId, query, validScope]);
+  }, [requestPath, t]);
 
   const initialTab = searchParams.get("tab") === "flashcards" ? "flashcards" : "quiz";
 
@@ -87,7 +112,9 @@ export function ExamPracticePage() {
               scope: t(`exam.practice.scope.${data.scope}`),
             })}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">{data.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {data.title || t("exam.practice.customTitle")}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {t("exam.practice.questions", { count: data.mcqs.length })} ·{" "}
             {t("exam.practice.cards", { count: data.flashcards.length })} ·{" "}

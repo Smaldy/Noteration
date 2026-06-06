@@ -82,6 +82,34 @@ def _pool(
     return mcqs, cards, topic_count
 
 
+def topics_assessment(
+    session: Session, topic_ids: list[int]
+) -> AggregateAssessment:
+    """Pool the quiz + flashcards across an explicit set of topics.
+
+    Powers the custom topic selector (pick any subset, or "select all"). The title
+    is the common subject's name when every chosen topic shares one subject, else
+    empty (the UI shows a generic "Selected topics" label). ``id`` is 0 — a custom
+    set has no single owning row. Order matches the other scopes (chapter→topic).
+    """
+    if not topic_ids:
+        return AggregateAssessment("topics", 0, "", 0, [], [])
+    mcqs, cards, count = _pool(session, [Topic.id.in_(topic_ids)])
+    subject_ids = set(
+        session.scalars(
+            select(Chapter.subject_id)
+            .join(Topic, Topic.chapter_id == Chapter.id)
+            .where(Topic.id.in_(topic_ids))
+            .distinct()
+        )
+    )
+    title = ""
+    if len(subject_ids) == 1:
+        subject = session.get(Subject, next(iter(subject_ids)))
+        title = subject.name if subject is not None else ""
+    return AggregateAssessment("topics", 0, title, count, mcqs, cards)
+
+
 def chapter_assessment(session: Session, chapter_id: int) -> AggregateAssessment:
     """Pool the quiz + flashcards across all topics in one chapter (argument)."""
     chapter = session.get(Chapter, chapter_id)

@@ -6,7 +6,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -108,6 +108,29 @@ def test_subject_assessment_exam_mode_excludes_study(session: Session) -> None:
     assert agg.topic_count == 3
 
 
+def _topic_id(session: Session, title: str) -> int:
+    return session.scalars(select(Topic.id).where(Topic.title == title)).one()
+
+
+def test_topics_assessment_pools_selected(session: Session) -> None:
+    _seed(session)
+    # Pick two topics from different documents of the same subject.
+    chosen = [_topic_id(session, "Kinematics"), _topic_id(session, "Sound")]
+    agg = asmt.topics_assessment(session, chosen)
+    assert agg.scope == "topics"
+    assert agg.id == 0
+    assert agg.title == "Physics"  # single shared subject → its name
+    assert agg.topic_count == 2
+    assert len(agg.mcqs) == 2 + 4
+    assert len(agg.flashcards) == 3 + 2
+
+
+def test_topics_assessment_empty_is_empty(session: Session) -> None:
+    _seed(session)
+    agg = asmt.topics_assessment(session, [])
+    assert agg.topic_count == 0 and agg.mcqs == [] and agg.flashcards == []
+
+
 def test_unknown_scopes_raise(session: Session) -> None:
     with pytest.raises(asmt.ChapterNotFoundError):
         asmt.chapter_assessment(session, 999)
@@ -175,3 +198,19 @@ def test_http_assessment_404s(client: TestClient) -> None:
     assert client.get("/api/assessment/chapters/999").status_code == 404
     assert client.get("/api/assessment/documents/999").status_code == 404
     assert client.get("/api/assessment/subjects/999").status_code == 404
+
+
+def test_http_topics_assessment(client: TestClient, db_factory: sessionmaker) -> None:
+    with db_factory() as db:
+        _seed(db)
+        chosen = [_topic_id(db, "Kinematics"), _topic_id(db, "Sound")]
+    resp = client.get("/api/assessment/topics", params={"topic_id": chosen})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["scope"] == "topics"
+    assert body["topic_count"] == 2
+    assert len(body["mcqs"]) == 6 and len(body["flashcards"]) == 5
+
+
+def test_http_topics_assessment_requires_one(client: TestClient) -> None:
+    assert client.get("/api/assessment/topics").status_code == 422

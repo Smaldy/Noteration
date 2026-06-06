@@ -850,6 +850,34 @@ key, nothing happened"), (2) no way to delete subjects/topics. Both fixed with
       "Combined practice" block (Whole subject · Whole deck) and a per-chapter
       Quiz/Cards link (argument), wired via an `onPractice` callback (exam only).
       Tree green: backend **310 passed**, `tsc -b` + `npm run build` clean.
+  - **E8b (done, user-requested) — custom topic selector + combined practice in
+    the Study view.** Two gaps the user hit: (1) combined subject/deck practice
+    only existed in Exam Prep, not the regular Study view, and (2) you could only
+    pool a *whole* chapter/deck/subject — no way to pick which topics. Both
+    decisions user-confirmed: surface in **both** Study + Exam Prep; the selector
+    pools across **all of a subject's PDFs** (scoped to the section's mode).
+    - **Backend** — `assessment.topics_assessment(session, topic_ids)` pools by
+      `Topic.id.in_(ids)` through the existing N+1-free `_pool` (no special-case
+      query); scope `"topics"`, title = the shared subject's name.
+      `GET /api/assessment/topics?topic_id=1&topic_id=2…` (422 if none). For the
+      selector UI, `subjects.get_subject_topic_tree(subject_id, mode?)` returns the
+      subject's topics grouped document→chapter with per-topic MCQ/flashcard counts
+      (two grouped count queries; `is_trash` filtered like the sidebar) →
+      `GET /api/subjects/{id}/topics?mode=study|exam` (`SubjectTopicTreeOut`).
+      +9 tests (pool selected/empty, tree groups+counts+trash, mode filter, 404,
+      HTTP). Suite **540 passed**.
+    - **Frontend** — new `features/practice/TopicSelectDialog`: checkbox tree
+      (document→chapter→topic with count chips, disabled when empty), a master
+      **Select all** + per-document select, live "{n} selected" + pooled totals,
+      and Start-quiz / Start-flashcards → `/exam/practice/topics/set?ids=…&tab=`.
+      `ExamPracticePage` learned the `topics` scope (ids from the query) and now
+      reads `?mode=` from the URL instead of hardcoding `mode=exam` for subjects —
+      so the Study view's "Whole subject" pools **study** docs while Exam Prep
+      pools **exam** docs (every subject-scope caller updated to pass `&mode=`).
+      The Study sidebar's "Combined practice" block (Whole subject · Whole deck ·
+      per-chapter) is now shown in **all** modes, plus a **Choose topics…** entry;
+      Exam Prep gained a "Choose topics…" per subject. i18n (en/it/es). Tree green:
+      `tsc -b` + `vite build` clean (dialog code-split, ~5.9 kB).
 
 - **Notes editing + toolbar + native LaTeX (DONE, user-requested).** Implements
   the two locked-but-deferred Notes-tab features (TipTap inline editing + KaTeX).

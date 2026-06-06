@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Layers, Trash2 } from "lucide-react";
+import { GripVertical, Layers, ListChecks, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
@@ -35,12 +35,14 @@ interface StudySidebarProps {
   onDeleteTopic: (topicId: number, title: string) => void;
   onToggleBookmark: (topicId: number, bookmarked: boolean) => void;
   onReorderTopics: (chapterId: number, orderedIds: number[]) => void;
-  /** Exam-prep only: open a pooled quiz/flashcards deck for a scope. */
+  /** Open a pooled quiz/flashcards deck for a scope (whole subject/deck/chapter). */
   onPractice?: OnPractice;
+  /** Open the custom topic selector (pick any subset of the subject's topics). */
+  onChooseTopics?: () => void;
 }
 
 export function StudySidebar(props: StudySidebarProps) {
-  const { tree, onPractice } = props;
+  const { tree, onPractice, onChooseTopics } = props;
   const { t } = useTranslation();
   return (
     <nav className="space-y-4">
@@ -60,6 +62,16 @@ export function StudySidebar(props: StudySidebarProps) {
             onQuiz={() => onPractice("documents", tree.document_id, "quiz")}
             onCards={() => onPractice("documents", tree.document_id, "flashcards")}
           />
+          {onChooseTopics && (
+            <button
+              type="button"
+              onClick={onChooseTopics}
+              className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              <ListChecks className="size-3.5" />
+              {t("study.sidebar.chooseTopics")}
+            </button>
+          )}
         </div>
       )}
       {tree.chapters.map((chapter) => (

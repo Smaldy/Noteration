@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models import Subject
+from backend.models.enums import DocumentMode
 from backend.schemas.bookmarks import BookmarkUpdate
-from backend.schemas.subject import SubjectCreate, SubjectOut
+from backend.schemas.subject import SubjectCreate, SubjectOut, SubjectTopicTreeOut
 from backend.services import subjects as subjectsvc
 
 router = APIRouter(prefix="/subjects", tags=["subjects"])
@@ -36,6 +37,23 @@ def create_subject(
         accent_color=payload.accent_color,
         exam_date=payload.exam_date,
     )
+
+
+@router.get("/{subject_id}/topics", response_model=SubjectTopicTreeOut)
+def subject_topic_tree(
+    subject_id: int,
+    mode: DocumentMode | None = None,
+    session: Session = Depends(get_session),
+) -> subjectsvc.SubjectTopicTree:
+    """Every selectable topic in a subject (grouped document→chapter).
+
+    Powers the custom topic selector. ``?mode=study`` / ``?mode=exam`` scopes to
+    one section's documents so the Study and Exam-Prep selectors stay coherent.
+    """
+    try:
+        return subjectsvc.get_subject_topic_tree(session, subject_id, mode=mode)
+    except subjectsvc.SubjectNotFoundError:
+        raise HTTPException(status_code=404, detail="Subject not found")
 
 
 @router.put("/{subject_id}/bookmark", response_model=SubjectOut)

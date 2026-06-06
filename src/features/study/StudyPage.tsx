@@ -1,8 +1,9 @@
 import { ArrowLeft } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { TopicSelectDialog } from "@/features/practice/TopicSelectDialog";
 import { useStudyStore } from "@/stores/study";
 
 import { StudySidebar } from "./StudySidebar";
@@ -14,6 +15,7 @@ export function StudyPage() {
   const { t } = useTranslation();
   const documentId = Number(id);
   const selectedTopicId = topicId ? Number(topicId) : null;
+  const [selectorOpen, setSelectorOpen] = useState(false);
 
   const {
     tree,
@@ -83,15 +85,24 @@ export function StudyPage() {
             onDeleteTopic={handleDeleteTopic}
             onToggleBookmark={(tId, b) => void toggleTopicBookmark(tId, b)}
             onReorderTopics={(chapterId, ids) => void reorderTopics(chapterId, ids)}
-            onPractice={
-              tree.mode === "exam"
-                ? (scope, practiceId, tab) =>
-                    navigate(`/exam/practice/${scope}/${practiceId}?tab=${tab}`)
-                : undefined
+            onPractice={(scope, practiceId, tab) =>
+              navigate(
+                `/exam/practice/${scope}/${practiceId}?tab=${tab}&mode=${tree.mode}`,
+              )
             }
+            onChooseTopics={() => setSelectorOpen(true)}
           />
         )}
       </aside>
+
+      {treeStatus === "loaded" && tree && (
+        <TopicSelectDialog
+          open={selectorOpen}
+          onOpenChange={setSelectorOpen}
+          subjectId={tree.subject_id}
+          mode={tree.mode}
+        />
+      )}
 
       <main className="min-w-0 flex-1">
         {selectedTopicId === null && (
