@@ -13,7 +13,14 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { ArrowLeft, GraduationCap, Layers, ListChecks, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  GraduationCap,
+  Layers,
+  ListChecks,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -102,10 +109,16 @@ export function ExamPrepPage() {
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{t("exam.subtitle")}</p>
         </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Plus />
-          {t("exam.addPdf")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/duplicator")}>
+            <Sparkles />
+            Exercise Duplicator
+          </Button>
+          <Button onClick={() => setUploadOpen(true)}>
+            <Plus />
+            {t("exam.addPdf")}
+          </Button>
+        </div>
       </header>
 
       <UploadDialog

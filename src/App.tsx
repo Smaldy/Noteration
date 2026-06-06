@@ -28,6 +28,7 @@ const QueuePage = named(() => import("@/features/queue/QueuePage"), "QueuePage")
 const SettingsPage = named(() => import("@/features/settings/SettingsPage"), "SettingsPage");
 const StructureReviewPage = named(() => import("@/features/upload/StructureReviewPage"), "StructureReviewPage");
 const StudyPage = named(() => import("@/features/study/StudyPage"), "StudyPage");
+const DuplicatorPage = named(() => import("@/features/duplicator/DuplicatorPage"), "DuplicatorPage");
 
 // App shell + routing. Library is the home screen (Phase 9b); structure review
 // is the upload gate (Phase 9c); study view is Phase 9d; queue is Phase 9e;
@@ -55,6 +56,7 @@ export default function App() {
             <Routes location={location}>
               <Route path="/" element={<LibraryPage />} />
               <Route path="/exam" element={<ExamPrepPage />} />
+              <Route path="/duplicator" element={<DuplicatorPage />} />
               <Route path="/exam/practice/:scope/:id" element={<ExamPracticePage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/calendar" element={<CalendarPage />} />

@@ -2223,6 +2223,32 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   422/add 201/bad-year 422). Tree green: full suite **578 passed** (+11). Backend
   feature complete; ED-5 (frontend) + ED-6 (integration) remain.
 
+- **Wave ED-5 — Frontend (DONE).** Installed mafs, react-plotly.js,
+  plotly.js-dist-min, matter-js, mathjs (+ `@types/matter-js`). Renderers in
+  `src/features/duplicator/renderers/`: `VizRouter` (reads `viz.type`, routes,
+  wraps each in an error boundary → fallback on a bad expression), `MafsRenderer`
+  (function/parametric via mathjs `compile`), `PlotlyRenderer` (lazy via
+  react-plotly.js factory + dist-min; 3D surface + complex Argand scatter),
+  `MatterRenderer` (raw engine + canvas ref, projectile/pendulum/inclined_plane/
+  collision, full teardown on unmount), `ForceDiagramRenderer` (pure SVG arrows).
+  `DuplicatorPage` (drop/browse PDF, year segmented control persisted to
+  `localStorage[duplicator_year_level]`, subject hint, Find-variants; skeletons →
+  exercise cards → empty state), `ExtractedExerciseCard` (KaTeX via the existing
+  `MarkdownView`, topic/subtopic badges, signal chips, viz, variants),
+  `VariantsPanel` (per-exercise searching state), `DuplicateResultCard`
+  (KaTeX problem, source link, difficulty bar, viz, Save-to-calibration). Store
+  `stores/duplicator.ts` (upload + 4 s poll until every exercise is terminal,
+  auto-stop), `types/duplicator.ts` (+`VizBlock`), `types/plotly-shims.d.ts`
+  (ambient decls for the untyped Plotly packages). Routed `/duplicator` in
+  `App.tsx` (lazy) + an "Exercise Duplicator" button in the Exam Prep header.
+  **manualChunks fix:** the catch-all forced the dynamically-imported Plotly into
+  the eager `vendor` chunk (→ 6.4 MB); split viz libs to async-only chunks (`viz`
+  686 KB, `plotly` 4.8 MB), restoring `vendor` to 891 KB. Verified `viz`/`plotly`
+  aren't in the boot preload and React stays eager in `vendor` (no init-order
+  blank-app hazard — same async-only pattern as katex/fullcalendar). `tsc -b` +
+  `npm run build` clean. (i18n for the duplicator deferred — English-only, like
+  other deferred UI polish.)
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

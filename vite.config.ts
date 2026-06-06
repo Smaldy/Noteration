@@ -55,6 +55,12 @@ export default defineConfig({
             return "markdown";
           }
           if (id.includes("@dnd-kit")) return "dndkit";
+          // Exercise Duplicator viz libs — imported ONLY by the lazy /duplicator
+          // route (same async-only safety as the chunks above). Plotly is huge and
+          // additionally dynamic-imported inside PlotlyRenderer, so it gets its own
+          // chunk and stays out of vendor (which it would otherwise bloat ~4.5 MB).
+          if (id.includes("plotly")) return "plotly";
+          if (/[\\/](mafs|matter-js|mathjs)[\\/]/.test(id)) return "viz";
           return "vendor";
         },
       },
