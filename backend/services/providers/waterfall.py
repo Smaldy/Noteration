@@ -61,9 +61,12 @@ class Waterfall:
             need_vision=False,
         )
 
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
+    def transcribe_image(
+        self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None
+    ) -> ProviderResult:
         return self._dispatch(
-            lambda p: p.transcribe_image(image, max_tokens=max_tokens), need_vision=True
+            lambda p: p.transcribe_image(image, max_tokens=max_tokens, prompt=prompt),
+            need_vision=True,
         )
 
     # -- internals -----------------------------------------------------------

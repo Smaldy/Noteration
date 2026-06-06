@@ -129,11 +129,14 @@ class OllamaProvider(Provider):
         # object for the consolidated generation stage.
         return self._call(prompt, max_tokens, images=None, fmt=response_schema)
 
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
+    def transcribe_image(
+        self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None
+    ) -> ProviderResult:
         if not self.supports_vision:
             raise VisionNotSupportedError("ollama model is not vision-capable")
         return self._call(
-            "Transcribe the equation in this image to LaTeX. Output only LaTeX.",
+            prompt
+            or "Transcribe the equation in this image to LaTeX. Output only LaTeX.",
             max_tokens,
             images=[image],
         )

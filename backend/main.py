@@ -19,6 +19,7 @@ from backend.routers import (
     bookmarks,
     chapters,
     documents,
+    duplicator,
     notes,
     queue,
     search,
@@ -79,6 +80,7 @@ api.include_router(search.router)
 api.include_router(bookmarks.router)
 api.include_router(assessment.router)
 api.include_router(attachments.router)
+api.include_router(duplicator.router)
 
 # API routes are registered before the SPA catch-all so they always win.
 app.include_router(api)

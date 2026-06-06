@@ -2158,7 +2158,42 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   results cascade, queue-job SET NULL link, FK enforcement). Tree green: full suite
   **546 passed** (+9), modulo 3 pre-existing env failures (see DECISIONS).
 
+- **Wave ED-2 — Stage 1: extraction service + API (DONE).** Synchronous
+  per-page vision extraction, modelled on the planner (sync single-call) pattern.
+  `services/duplicator/extraction.py`: `build_extraction_prompt(year_level,
+  subject_hint)` (asks the vision model for ONLY a JSON array per page —
+  order_index/raw_text/dot-notation topic/subtopic/difficulty_signals/viz, viz
+  only when it aids solving), tolerant `parse_exercises` (`_extract_json_array` +
+  skip malformed items), cross-page dedup (`SequenceMatcher` ≥ 0.90 drops a
+  continuation), injectable `load_page_images` (reads `cache/<hash>/pages/*.png`),
+  and `extract_exercises` (persists rows uncommitted, flips session → ready).
+  `services/duplicator/sessions.py`: `create_session` (persist upload + ingest
+  (cache-reuse) → ExerciseSession → extract → commit atomically; ED-3 enqueue +
+  ED-4 calibration left as in-transaction seams) and `get_exercise_session`
+  (exercises + results eager-loaded). `routers/duplicator.py`:
+  `POST /api/duplicator/sessions` (multipart; 422 bad year_level/non-PDF, 503 on
+  provider exhaustion) + `GET /api/duplicator/sessions/{id}` (404 unknown), wired
+  into `main.py` before the SPA catch-all. **Provider-layer change:**
+  `transcribe_image` gained an optional keyword `prompt` (default keeps the
+  built-in LaTeX instruction) across base/waterfall/gemini/claude/ollama/mock, so
+  the same vision path serves exercise extraction — additive, backward-compatible
+  (all callers use kwargs). 9 tests (rows+fields persisted, malformed tolerance,
+  cross-page dedup, create→GET round-trip, non-PDF rejected, HTTP 422×2 + 404 +
+  GET shape). Tree green: full suite **555 passed** (+9).
+
 ## DECISIONS (Exercise Duplicator)
+
+- **`transcribe_image` gained an optional `prompt` (provider layer).** The spec
+  says extraction reuses the formula-transcription vision path *and* feeds it a
+  custom `build_extraction_prompt`, but `transcribe_image` had a hardcoded LaTeX
+  prompt and no override. Added a keyword-only `prompt: str | None = None`
+  (defaults to each provider's existing prompt) — minimal, backward-compatible.
+- **`extract_exercises(session, exercise_session, waterfall)` / service-owned
+  txn.** The spec's `(session, waterfall, pdf_hash, year_level, subject_hint)`
+  duplicates fields already on the `ExerciseSession`; passing the row instead
+  keeps one source of truth and lets `create_session` own the atomic commit. The
+  GET helper is `get_exercise_session` (not the spec's `get_session`) to avoid
+  shadowing the FastAPI `get_session` DB dependency.
 
 - **3 pre-existing test failures are environmental, not regressions.**
   `test_study_api`/`test_calendar_events` review-date tests compare local

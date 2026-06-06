@@ -57,6 +57,7 @@ class MockProvider(Provider):
         self.last_response_schema: dict[str, Any] | None = None
         self.last_max_tokens: int | None = None
         self.last_prompt: str | None = None
+        self.last_vision_prompt: str | None = None
 
     def budget_probe(self) -> BudgetProbe:
         return BudgetProbe(
@@ -82,8 +83,12 @@ class MockProvider(Provider):
             raise self.raises
         return self._result()
 
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
+    def transcribe_image(
+        self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None
+    ) -> ProviderResult:
         self.transcribe_calls += 1
+        self.last_vision_prompt = prompt
+        self.last_max_tokens = max_tokens
         if self.raises is not None:
             raise self.raises
         return self._result()

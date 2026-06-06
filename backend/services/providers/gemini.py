@@ -188,12 +188,14 @@ class GeminiProvider(Provider):
             )
         )
 
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
+    def transcribe_image(
+        self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None
+    ) -> ProviderResult:
         from google.genai import types  # lazy
 
         contents = [
             types.Part.from_bytes(data=image, mime_type="image/png"),
-            _VISION_PROMPT,
+            prompt or _VISION_PROMPT,
         ]
         config = self._config(max_tokens)
         return self._dispatch(

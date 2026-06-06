@@ -89,7 +89,9 @@ class ClaudeProvider(Provider):
         content = [{"type": "text", "text": prompt}]
         return self._call(content, max_tokens)
 
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
+    def transcribe_image(
+        self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None
+    ) -> ProviderResult:
         content = [
             {
                 "type": "image",
@@ -99,7 +101,7 @@ class ClaudeProvider(Provider):
                     "data": base64.b64encode(image).decode("ascii"),
                 },
             },
-            {"type": "text", "text": _VISION_PROMPT},
+            {"type": "text", "text": prompt or _VISION_PROMPT},
         ]
         return self._call(content, max_tokens)
 

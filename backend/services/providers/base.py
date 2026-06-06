@@ -129,8 +129,15 @@ class Provider(ABC):
         """
 
     @abstractmethod
-    def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:
-        """Transcribe an image (e.g. a cropped equation) to text/LaTeX."""
+    def transcribe_image(
+        self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None
+    ) -> ProviderResult:
+        """Transcribe/analyze an image and return its text output.
+
+        Defaults to the provider's built-in equation→LaTeX instruction. ``prompt``
+        overrides it so the same vision path can serve other structured tasks (the
+        Exercise Duplicator's per-page exercise extraction asks for a JSON array).
+        """
 
     @abstractmethod
     def budget_probe(self) -> BudgetProbe:
