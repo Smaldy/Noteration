@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApiError, api } from "@/lib/api";
-import { useStudyStore } from "@/stores/study";
 import type { FlashcardContent } from "@/types/study";
+
+import { GenerateMore } from "./GenerateMore";
 
 type Grade = "correct" | "incorrect" | "skip";
 
@@ -47,7 +47,7 @@ export function FlashcardsTab({
         </p>
         {topicId != null && (
           <div className="mt-4 flex justify-center">
-            <GenerateMoreFlashcards topicId={topicId} />
+            <GenerateMore topicId={topicId} kind="flashcards" />
           </div>
         )}
       </div>
@@ -68,7 +68,7 @@ export function FlashcardsTab({
           >
             {t("study.flashcards.reviewAgain")}
           </Button>
-          {topicId != null && <GenerateMoreFlashcards topicId={topicId} />}
+          {topicId != null && <GenerateMore topicId={topicId} kind="flashcards" />}
         </div>
       </div>
     );
@@ -169,44 +169,9 @@ export function FlashcardsTab({
 
       {topicId != null && (
         <div className="mt-6">
-          <GenerateMoreFlashcards topicId={topicId} />
+          <GenerateMore topicId={topicId} kind="flashcards" />
         </div>
       )}
-    </div>
-  );
-}
-
-function GenerateMoreFlashcards({ topicId }: { topicId: number }) {
-  const { t } = useTranslation();
-  const generateMore = useStudyStore((s) => s.generateMore);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function run() {
-    setBusy(true);
-    setError(null);
-    try {
-      await generateMore(topicId, "flashcards");
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : t("study.flashcards.generateMoreError"),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <Button variant="ghost" size="sm" onClick={() => void run()} disabled={busy}>
-        <Sparkles />
-        {busy
-          ? t("study.flashcards.generating")
-          : t("study.flashcards.generateMore")}
-      </Button>
-      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

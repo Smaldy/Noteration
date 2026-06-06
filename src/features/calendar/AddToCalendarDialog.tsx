@@ -35,7 +35,12 @@ interface Props {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local calendar date (not UTC) so the default matches the day the user sees —
+  // `toISOString()` would roll to tomorrow in negative-UTC zones late in the day.
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
 export function AddToCalendarDialog({

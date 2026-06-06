@@ -39,16 +39,26 @@ export function QueuePage() {
   const setChapterState = useChaptersStore((s) => s.setQueueState);
 
   useEffect(() => {
+    // Skip polling while the tab is hidden (no one's looking), and only fetch the
+    // history feed when its tab is open — the lanes view never reads it.
     const tick = () => {
+      if (document.hidden) return;
       void fetchStatus();
       void fetchLanes();
-      void fetchHistory();
       void fetchChapters();
+      if (tab === "history") void fetchHistory();
     };
     tick();
     const timer = setInterval(tick, POLL_MS);
-    return () => clearInterval(timer);
-  }, [fetchStatus, fetchLanes, fetchHistory, fetchChapters]);
+    const onVisible = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [tab, fetchStatus, fetchLanes, fetchHistory, fetchChapters]);
 
   const totalReady = status?.ready ?? 0;
   const totalQueued = status?.queued ?? 0;

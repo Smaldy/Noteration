@@ -16,6 +16,7 @@ import {
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 
 import { cn } from "@/lib/utils";
 import * as audio from "@/features/pomodoro/audio";
@@ -33,14 +34,13 @@ function fmt(total: number): string {
 export function PomodoroWidget() {
   const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
+  // `remaining` ticks 4×/sec; it's subscribed to separately inside <TimerFace>
+  // and <PillTime> so the panel chrome and sound controls don't re-render on it.
   const {
     phase,
     running,
-    remaining,
     workSessions,
     expanded,
-    workMin,
-    breakMin,
     completedTick,
     configure,
     toggle,
@@ -48,7 +48,21 @@ export function PomodoroWidget() {
     skip,
     tick,
     setExpanded,
-  } = usePomodoroStore();
+  } = usePomodoroStore(
+    useShallow((s) => ({
+      phase: s.phase,
+      running: s.running,
+      workSessions: s.workSessions,
+      expanded: s.expanded,
+      completedTick: s.completedTick,
+      configure: s.configure,
+      toggle: s.toggle,
+      reset: s.reset,
+      skip: s.skip,
+      tick: s.tick,
+      setExpanded: s.setExpanded,
+    })),
+  );
 
   const sound = useSoundStore();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -117,8 +131,6 @@ export function PomodoroWidget() {
   }
 
   const isWork = phase === "work";
-  const total = (isWork ? workMin : breakMin) * 60;
-  const fraction = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
   const accent = isWork ? "var(--primary)" : "#10b981"; // focus vs break
 
   // Lift above the Settings page's sticky bottom save bar.
@@ -159,11 +171,7 @@ export function PomodoroWidget() {
               </button>
             </div>
 
-            <Ring fraction={fraction} accent={accent}>
-              <span className="font-display text-3xl font-bold tabular-nums tracking-tight">
-                {fmt(remaining)}
-              </span>
-            </Ring>
+            <TimerFace accent={accent} isWork={isWork} />
 
             <div className="mt-5 flex items-center justify-center gap-3">
               <IconBtn label={t("pomodoro.reset")} onClick={reset}>
@@ -296,9 +304,7 @@ export function PomodoroWidget() {
               className={cn("size-2 rounded-full", running && "animate-pulse")}
               style={{ backgroundColor: accent }}
             />
-            <span className="font-display text-sm font-bold tabular-nums">
-              {fmt(remaining)}
-            </span>
+            <PillTime />
             <span
               role="button"
               tabIndex={0}
@@ -327,6 +333,33 @@ export function PomodoroWidget() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Subscribes to the fast-ticking `remaining` in isolation so the expanded panel
+// (sound controls, buttons, chips) doesn't re-render on every countdown frame.
+function TimerFace({ accent, isWork }: { accent: string; isWork: boolean }) {
+  const remaining = usePomodoroStore((s) => s.remaining);
+  const workMin = usePomodoroStore((s) => s.workMin);
+  const breakMin = usePomodoroStore((s) => s.breakMin);
+  const total = (isWork ? workMin : breakMin) * 60;
+  const fraction = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
+  return (
+    <Ring fraction={fraction} accent={accent}>
+      <span className="font-display text-3xl font-bold tabular-nums tracking-tight">
+        {fmt(remaining)}
+      </span>
+    </Ring>
+  );
+}
+
+// The collapsed pill's live clock — isolated for the same reason as TimerFace.
+function PillTime() {
+  const remaining = usePomodoroStore((s) => s.remaining);
+  return (
+    <span className="font-display text-sm font-bold tabular-nums">
+      {fmt(remaining)}
+    </span>
   );
 }
 

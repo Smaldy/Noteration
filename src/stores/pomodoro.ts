@@ -102,20 +102,31 @@ export const usePomodoroStore = create<PomodoroStore>((set, get) => ({
   tick: () => {
     const s = get();
     if (!s.running || s.endsAt === null) return;
-    const remaining = Math.max(0, Math.round((s.endsAt - Date.now()) / 1000));
-    if (remaining > 0) {
-      set({ remaining });
+    const now = Date.now();
+    if (s.endsAt - now > 0) {
+      set({ remaining: Math.round((s.endsAt - now) / 1000) });
       return;
     }
-    // Phase finished → roll to the next phase and keep running (auto-continue).
-    const next: PomodoroPhase = s.phase === "work" ? "break" : "work";
-    const nextSeconds = minToSec(next === "work" ? s.workMin : s.breakMin);
+    // One or more phases have elapsed. Background tabs throttle `setInterval`, so
+    // when the tab regains focus several phases may be due at once — fast-forward
+    // through each so the phase, session count, and completed-tick stay accurate
+    // (the widget rings once on the net completedTick change, not per phase).
+    let phase = s.phase;
+    let endsAt = s.endsAt;
+    let workSessions = s.workSessions;
+    let completedTick = s.completedTick;
+    while (endsAt <= now) {
+      if (phase === "work") workSessions += 1;
+      completedTick += 1;
+      phase = phase === "work" ? "break" : "work";
+      endsAt += minToSec(phase === "work" ? s.workMin : s.breakMin) * 1000;
+    }
     set({
-      phase: next,
-      remaining: nextSeconds,
-      endsAt: Date.now() + nextSeconds * 1000,
-      workSessions: s.phase === "work" ? s.workSessions + 1 : s.workSessions,
-      completedTick: s.completedTick + 1,
+      phase,
+      endsAt,
+      workSessions,
+      completedTick,
+      remaining: Math.max(0, Math.round((endsAt - now) / 1000)),
     });
   },
 

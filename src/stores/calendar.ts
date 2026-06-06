@@ -70,8 +70,10 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
       range &&
       range.start === start &&
       range.end === end &&
-      loadState === "loaded"
+      (loadState === "loaded" || loadState === "loading")
     ) {
+      // Already have this range, or a fetch for it is already in flight — skip the
+      // refetch (and the duplicate concurrent GET). "error"/"idle" still retry.
       return;
     }
     if (get().entries.length === 0) set({ loadState: "loading" });

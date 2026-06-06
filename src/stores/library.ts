@@ -36,20 +36,31 @@ function createDocumentsStore(mode: DocumentMode) {
     mode === "exam"
       ? "Failed to load your exam prep."
       : "Failed to load your library.";
+  // True while a drag-reorder is mid-persist, so a background poll landing in the
+  // window between the optimistic update and the PUT can't overwrite the new order.
+  let reordering = false;
   return create<LibraryStore>((set, get) => ({
     documents: [],
     status: "idle",
     error: null,
     fetchDocuments: async () => {
-      set({ status: "loading", error: null });
+      // Only show the spinner on the first load; background polls (in-flight
+      // transcription/generation) refresh silently rather than flashing "loading".
+      const first = get().documents.length === 0;
+      if (first) set({ status: "loading", error: null });
       try {
         const documents = await api.get<DocumentSummary[]>(
           `/documents?mode=${mode}`,
         );
+        if (reordering) return; // don't clobber an optimistic reorder mid-persist
         set({ documents, status: "loaded" });
       } catch (err) {
-        const error = err instanceof ApiError ? err.message : failMessage;
-        set({ status: "error", error });
+        // A failed background poll keeps the last good list; only surface errors
+        // when we have nothing to show.
+        if (first) {
+          const error = err instanceof ApiError ? err.message : failMessage;
+          set({ status: "error", error });
+        }
       }
     },
     uploadDocument: async (subjectId, file, onProgress) => {
@@ -89,11 +100,14 @@ function createDocumentsStore(mode: DocumentMode) {
     const next = orderedIds
       .map((id) => byId.get(id))
       .filter((d): d is DocumentSummary => d !== undefined);
+    reordering = true;
     set({ documents: next }); // optimistic
     try {
       await api.put("/documents/reorder", { ids: orderedIds });
     } catch {
       set({ documents: previous }); // revert
+    } finally {
+      reordering = false;
     }
   },
   retryTranscription: async (documentId) => {

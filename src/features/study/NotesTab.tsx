@@ -217,6 +217,8 @@ function NoteBlock({
   const removeNote = useStudyStore((s) => s.removeNote);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Resolve the provider's styling once rather than on every badge fragment.
+  const provider = generatedBy ? providerInfo(generatedBy) : null;
 
   const save = async (markdown: string) => {
     setSaving(true);
@@ -260,16 +262,14 @@ function NoteBlock({
         {note.is_manual ? (
           <Badge variant="outline">{t("study.notes.manual")}</Badge>
         ) : (
-          generatedBy && (
+          provider && (
             <Badge
               variant="outline"
-              className={cn("gap-1", providerInfo(generatedBy).text)}
-              title={t("study.notes.generatedBy", {
-                provider: providerInfo(generatedBy).label,
-              })}
+              className={cn("gap-1", provider.text)}
+              title={t("study.notes.generatedBy", { provider: provider.label })}
             >
-              <span className={cn("size-1.5 rounded-full", providerInfo(generatedBy).dot)} />
-              {providerInfo(generatedBy).short}
+              <span className={cn("size-1.5 rounded-full", provider.dot)} />
+              {provider.short}
             </Badge>
           )
         )}

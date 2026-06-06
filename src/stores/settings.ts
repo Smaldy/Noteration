@@ -122,9 +122,27 @@ export interface Appearance {
   font_family: string | null;
 }
 
+// The appearance currently on the document, so the OS-scheme listener can
+// re-derive the palette when theme is "system" and the user flips dark/light.
+let activeAppearance: Appearance | null = null;
+let osSchemeBound = false;
+
+function bindOsSchemeListener(): void {
+  if (osSchemeBound || typeof window.matchMedia !== "function") return;
+  osSchemeBound = true;
+  const mql = window.matchMedia("(prefers-color-scheme: dark)");
+  const reapply = () => {
+    if (activeAppearance?.theme === "system") applyAppearance(activeAppearance);
+  };
+  if (typeof mql.addEventListener === "function") mql.addEventListener("change", reapply);
+  else mql.addListener(reapply); // older Safari
+}
+
 /** Apply appearance to the document: theme, accent, font, size. Exported so the
  *  Settings page can preview changes live before they're saved. */
 export function applyAppearance(a: Appearance): void {
+  activeAppearance = a;
+  bindOsSchemeListener();
   const root = document.documentElement;
   const prefersDark =
     typeof window.matchMedia === "function" &&

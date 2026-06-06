@@ -90,7 +90,15 @@ export const api = {
       };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(xhr.responseText ? (JSON.parse(xhr.responseText) as T) : (undefined as T));
+          try {
+            resolve(
+              xhr.responseText
+                ? (JSON.parse(xhr.responseText) as T)
+                : (undefined as T),
+            );
+          } catch {
+            reject(new ApiError(xhr.status, "Malformed response from the server."));
+          }
           return;
         }
         let detail = `Request failed (${xhr.status})`;

@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useStudyStore } from "@/stores/study";
 import type { MCQ } from "@/types/study";
+
+import { GenerateMore } from "./GenerateMore";
 
 interface QuizTabProps {
   /** Present for a single topic (enables "Generate more"); omitted for pooled decks. */
@@ -35,7 +35,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
         </p>
         {topicId != null && (
           <div className="mt-4 flex justify-center">
-            <GenerateMoreQuestions topicId={topicId} />
+            <GenerateMore topicId={topicId} kind="mcqs" align="start" />
           </div>
         )}
       </div>
@@ -65,7 +65,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
           <Button variant="outline" onClick={restart}>
             {t("study.quiz.tryAgain")}
           </Button>
-          {topicId != null && <GenerateMoreQuestions topicId={topicId} />}
+          {topicId != null && <GenerateMore topicId={topicId} kind="mcqs" align="start" />}
         </div>
       </div>
     );
@@ -164,7 +164,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
       )}
 
       <div className="mt-6 flex items-center justify-between gap-2">
-        {topicId != null ? <GenerateMoreQuestions topicId={topicId} /> : <span />}
+        {topicId != null ? <GenerateMore topicId={topicId} kind="mcqs" align="start" /> : <span />}
         <Button onClick={next} disabled={!revealed}>
           {index === mcqs.length - 1 ? t("study.quiz.finish") : t("study.quiz.next")}
         </Button>
@@ -173,33 +173,3 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
   );
 }
 
-function GenerateMoreQuestions({ topicId }: { topicId: number }) {
-  const { t } = useTranslation();
-  const generateMore = useStudyStore((s) => s.generateMore);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function run() {
-    setBusy(true);
-    setError(null);
-    try {
-      await generateMore(topicId, "mcqs");
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t("study.quiz.generateMoreError"),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <Button variant="ghost" size="sm" onClick={() => void run()} disabled={busy}>
-        <Sparkles />
-        {busy ? t("study.quiz.generating") : t("study.quiz.generateMore")}
-      </Button>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
-  );
-}
