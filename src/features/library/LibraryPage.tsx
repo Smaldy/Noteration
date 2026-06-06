@@ -29,6 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/features/search/SearchBar";
 import { UploadDialog } from "@/features/upload/UploadDialog";
+import { useEasterEggStore } from "@/stores/easterEgg";
 import { useLibraryStore } from "@/stores/library";
 
 import type { DocumentSummary } from "@/types/library";
@@ -50,6 +51,7 @@ export function LibraryPage() {
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const registerLibraryTap = useEasterEggStore((s) => s.registerLibraryTap);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -114,7 +116,14 @@ export function LibraryPage() {
     <div className="mx-auto max-w-5xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("library.title")}</h1>
+          {/* Looks like a plain heading, but tapping it 4× quickly is the secret
+              door to the credits (handled by the easter-egg store). */}
+          <h1
+            className="cursor-default text-3xl font-bold tracking-tight select-none"
+            onClick={registerLibraryTap}
+          >
+            {t("library.title")}
+          </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {t("library.subtitle")}
           </p>

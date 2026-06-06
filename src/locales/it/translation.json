@@ -632,5 +632,14 @@
         "slate": "Ardesia"
       }
     }
+  },
+  "credits": {
+    "brand": "✦ Noteration ✦",
+    "madeWith": "Fatto con",
+    "by": "da Ayman",
+    "tagline": "Hai trovato il segreto. Grazie per aver studiato con noi: ora vai e spaccate! 🎓",
+    "supercharge": "Clicca qui per potenziare l'app",
+    "close": "Chiudi i crediti",
+    "ariaLabel": "Crediti"
   }
 }

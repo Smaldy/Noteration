@@ -3,6 +3,7 @@ import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 // Always-mounted (visible on every route), so they stay in the main bundle.
+import { CreditsOverlay } from "@/features/credits/CreditsOverlay";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
 import { ProviderBadge } from "@/features/queue/ProviderBadge";
 import { useSettingsStore } from "@/stores/settings";
@@ -70,6 +71,8 @@ export default function App() {
       {/* Persistent across routes — always-visible status + the running timer. */}
       <ProviderBadge />
       <PomodoroWidget />
+      {/* Hidden easter egg: tap the Library title 4× quickly to summon the credits. */}
+      <CreditsOverlay />
     </>
   );
 }
