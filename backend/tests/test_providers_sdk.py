@@ -483,12 +483,12 @@ def test_factory_rotation_holds_all_four_models() -> None:
 
 
 def test_factory_single_model_when_rotation_off() -> None:
-    settings = Settings(api_key_gemini="g", gemini_model="gemini-3.1-flash")
+    settings = Settings(api_key_gemini="g", gemini_model="gemini-3.5-flash")
     gemini = next(
         p for p in build_waterfall_from_settings(settings).providers
         if p.name == "gemini_free"
     )
-    assert gemini.models == ["gemini-3.1-flash"]
+    assert gemini.models == ["gemini-3.5-flash"]
 
 
 def test_factory_gemini_disabled_skips_tier() -> None:

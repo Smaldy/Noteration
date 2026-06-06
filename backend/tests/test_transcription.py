@@ -7,6 +7,7 @@ HTTP routing without any network.
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -47,6 +48,21 @@ def _audio_doc(session: Session, tmp_path: Path, name: str = "lecture.mp3") -> D
         data=b"fake-audio-bytes",
         uploads_dir=tmp_path,
     )
+
+
+def _fake_preparer(n_chunks: int) -> tx.PreparerFn:
+    """A preparer that fabricates ``n_chunks`` chunk files without ffmpeg."""
+
+    def _prep(audio_path: Path, work_dir: Path, *, ext: str, trim: bool = True) -> list[Path]:
+        work_dir.mkdir(parents=True, exist_ok=True)
+        paths: list[Path] = []
+        for i in range(n_chunks):
+            chunk = work_dir / f"chunk-{i:03d}{ext}"
+            chunk.write_bytes(b"audio")
+            paths.append(chunk)
+        return paths
+
+    return _prep
 
 
 # --- helpers ----------------------------------------------------------------
@@ -100,7 +116,10 @@ def test_transcribe_pending_success(session: Session, tmp_path: Path) -> None:
     doc = _audio_doc(session, tmp_path)
     markdown = "## Kinematics\n\nVelocity is dx/dt."
     acted = tx.transcribe_pending_document(
-        session, transcriber=lambda _p, _m: markdown, uploads_dir=tmp_path
+        session,
+        transcriber=lambda _p, _m: markdown,
+        uploads_dir=tmp_path,
+        preparer=_fake_preparer(1),
     )
     assert acted == doc.id
     session.refresh(doc)
@@ -108,9 +127,29 @@ def test_transcribe_pending_success(session: Session, tmp_path: Path) -> None:
     assert doc.status_detail is None
     assert doc.markdown_path is not None
     assert Path(doc.markdown_path).read_text(encoding="utf-8") == markdown
+    # The chunk workspace is cleaned up once the transcript is assembled.
+    assert not tx.chunks_dir_for(doc, tmp_path).exists()
 
 
-def test_transcribe_pending_rate_limited_sets_wait(
+def test_transcribe_pending_concatenates_chunks(
+    session: Session, tmp_path: Path
+) -> None:
+    doc = _audio_doc(session, tmp_path)
+    acted = tx.transcribe_pending_document(
+        session,
+        transcriber=lambda p, _m: f"text {Path(p).stem}",
+        uploads_dir=tmp_path,
+        preparer=_fake_preparer(3),
+    )
+    assert acted == doc.id
+    session.refresh(doc)
+    assert doc.status == DocumentStatus.uploaded
+    text = Path(doc.markdown_path).read_text(encoding="utf-8")
+    # All three chunks, in order, joined into one transcript.
+    assert text == "text chunk-000\n\ntext chunk-001\n\ntext chunk-002"
+
+
+def test_transcribe_pending_rate_limited_keeps_progress(
     session: Session, tmp_path: Path
 ) -> None:
     doc = _audio_doc(session, tmp_path)
@@ -118,10 +157,75 @@ def test_transcribe_pending_rate_limited_sets_wait(
     def _limited(_p: str, _m: str) -> str:
         raise ProviderLimitError("429 RESOURCE_EXHAUSTED")
 
-    tx.transcribe_pending_document(session, transcriber=_limited, uploads_dir=tmp_path)
+    acted = tx.transcribe_pending_document(
+        session,
+        transcriber=_limited,
+        uploads_dir=tmp_path,
+        preparer=_fake_preparer(2),
+    )
+    assert acted == doc.id
     session.refresh(doc)
-    assert doc.status == DocumentStatus.error
-    assert "try again" in (doc.status_detail or "").lower()
+    # A rate limit no longer fails the document — it stays resumable.
+    assert doc.status == DocumentStatus.transcribing
+    assert "resuming" in (doc.status_detail or "").lower()
+    work = tx.chunks_dir_for(doc, tmp_path)
+    assert (work / "progress.json").is_file()
+    assert not (work / "chunk-000.md").exists()
+
+
+def test_resumes_after_rate_limit(session: Session, tmp_path: Path) -> None:
+    doc = _audio_doc(session, tmp_path)
+    prep = _fake_preparer(3)
+    base = datetime(2026, 6, 6, tzinfo=timezone.utc)
+
+    def _fail_on_second(path: str, _m: str) -> str:
+        if "chunk-001" in path:
+            raise ProviderLimitError("429")
+        return f"text {Path(path).stem}"
+
+    # Pass 1: chunk-000 succeeds, chunk-001 is rate-limited → paused mid-way.
+    tx.transcribe_pending_document(
+        session,
+        transcriber=_fail_on_second,
+        uploads_dir=tmp_path,
+        preparer=prep,
+        clock=lambda: base,
+    )
+    session.refresh(doc)
+    assert doc.status == DocumentStatus.transcribing
+    work = tx.chunks_dir_for(doc, tmp_path)
+    assert (work / "chunk-000.md").is_file()
+    assert not (work / "chunk-001.md").exists()
+
+    # Still inside the backoff window → nothing is due yet.
+    assert (
+        tx.transcribe_pending_document(
+            session,
+            transcriber=_fail_on_second,
+            uploads_dir=tmp_path,
+            preparer=prep,
+            clock=lambda: base,
+        )
+        is None
+    )
+
+    # Pass 2: after the backoff, a healthy provider finishes the rest. The
+    # preparer is NOT re-run (chunks are cached); only the missing chunks transcribe.
+    later = base + timedelta(minutes=10)
+    acted = tx.transcribe_pending_document(
+        session,
+        transcriber=lambda p, _m: f"text {Path(p).stem}",
+        uploads_dir=tmp_path,
+        preparer=prep,
+        clock=lambda: later,
+    )
+    assert acted == doc.id
+    session.refresh(doc)
+    assert doc.status == DocumentStatus.uploaded
+    text = Path(doc.markdown_path).read_text(encoding="utf-8")
+    assert "text chunk-000" in text
+    assert "text chunk-001" in text
+    assert "text chunk-002" in text
 
 
 def test_transcribe_pending_unavailable_sets_error(
@@ -132,7 +236,9 @@ def test_transcribe_pending_unavailable_sets_error(
     def _down(_p: str, _m: str) -> str:
         raise ProviderUnavailableError("network down")
 
-    tx.transcribe_pending_document(session, transcriber=_down, uploads_dir=tmp_path)
+    tx.transcribe_pending_document(
+        session, transcriber=_down, uploads_dir=tmp_path, preparer=_fake_preparer(1)
+    )
     session.refresh(doc)
     assert doc.status == DocumentStatus.error
     assert "failed" in (doc.status_detail or "").lower()
@@ -143,7 +249,10 @@ def test_transcribe_pending_empty_text_sets_error(
 ) -> None:
     doc = _audio_doc(session, tmp_path)
     tx.transcribe_pending_document(
-        session, transcriber=lambda _p, _m: "   ", uploads_dir=tmp_path
+        session,
+        transcriber=lambda _p, _m: "   ",
+        uploads_dir=tmp_path,
+        preparer=_fake_preparer(1),
     )
     session.refresh(doc)
     assert doc.status == DocumentStatus.error

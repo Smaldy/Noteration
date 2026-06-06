@@ -107,7 +107,7 @@ def test_free_tier_throttle_seconds() -> None:
         Settings(api_key_gemini="k")
     ) == FREE_TIER_THROTTLE_SECONDS
     assert _free_tier_throttle_seconds(
-        Settings(api_key_gemini="k", gemini_model="gemini-3.1-flash")
+        Settings(api_key_gemini="k", gemini_model="gemini-3.5-flash")
     ) == FREE_TIER_THROTTLE_SECONDS
     # No key → nothing to throttle; Gemini disabled → no Gemini throttle.
     assert _free_tier_throttle_seconds(Settings()) == 0.0

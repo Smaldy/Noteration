@@ -171,8 +171,8 @@ def test_http_get_provider_defaults(client: TestClient) -> None:
     assert body["ollama_model"] is None
 
 
-def test_http_patch_accepts_3_1_models(client: TestClient) -> None:
-    for model in ("gemini-3.1-flash", "gemini-3.1-flash-lite"):
+def test_http_patch_accepts_3_x_models(client: TestClient) -> None:
+    for model in ("gemini-3.5-flash", "gemini-3.1-flash-lite"):
         response = client.patch("/api/settings", json={"gemini_model": model})
         assert response.status_code == 200, response.text
         assert response.json()["gemini_model"] == model

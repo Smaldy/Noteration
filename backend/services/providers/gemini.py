@@ -35,34 +35,37 @@ from backend.services.providers.budget import FreeTierLimiter
 DEFAULT_RPM = 15
 DEFAULT_RPD = 1500
 
-# The four free-tier Gemini models the app offers. flash-lite tiers are cheapest
-# and spend no output-token budget on "thinking"; the flash tiers are more
-# capable. The 3.1 generation is newer and stronger than 2.5. These are the exact
-# API model-id strings passed to ``generate_content`` (a wrong id 404s); keep them
-# here as the single source of truth.
+# The Gemini models the app offers. flash-lite tiers are cheapest and spend no
+# output-token budget on "thinking"; the full flash tiers are more capable, newer
+# generations stronger still. These are the exact API model-id strings passed to
+# ``generate_content`` — a wrong id 404s, so they're verified against ListModels
+# (the plain ``gemini-3.1-flash`` id is NOT served — only ``-flash-lite`` is, and
+# ``gemini-3.5-flash`` is the newest full flash). Single source of truth.
 GEMINI_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
 GEMINI_2_5_FLASH = "gemini-2.5-flash"
 GEMINI_3_1_FLASH_LITE = "gemini-3.1-flash-lite"
-GEMINI_3_1_FLASH = "gemini-3.1-flash"
+GEMINI_3_5_FLASH = "gemini-3.5-flash"
 
 # Models a user may pin when rotation is OFF (Settings.gemini_model).
 SELECTABLE_MODELS: tuple[str, ...] = (
     GEMINI_2_5_FLASH_LITE,
     GEMINI_2_5_FLASH,
     GEMINI_3_1_FLASH_LITE,
-    GEMINI_3_1_FLASH,
+    GEMINI_3_5_FLASH,
 )
 # Order tried when rotation is ON: best quality first, rotating to the next model
 # only when the current one hits its per-model RPD limit.
 ROTATION_ORDER: tuple[str, ...] = (
-    GEMINI_3_1_FLASH,
+    GEMINI_3_5_FLASH,
     GEMINI_3_1_FLASH_LITE,
     GEMINI_2_5_FLASH,
     GEMINI_2_5_FLASH_LITE,
 )
 # Audio transcription uses this one model only (no rotation, no Ollama fallback —
-# Ollama can't transcribe audio). See services/transcription.py (Wave 3).
-TRANSCRIBE_MODEL = GEMINI_3_1_FLASH
+# Ollama can't transcribe audio). See services/transcription.py. Uses the newest
+# full flash (gemini-3.5-flash), verified via ListModels to accept audio and return
+# a complete transcript.
+TRANSCRIBE_MODEL = GEMINI_3_5_FLASH
 # Generous output cap for a full lecture transcript (a ~1h lecture is ~12k tokens).
 TRANSCRIBE_MAX_TOKENS = 32768
 # Seconds to wait for an uploaded audio file to leave PROCESSING before giving up.
@@ -355,7 +358,8 @@ class GeminiProvider(Provider):
             "429" in message
             or "resource_exhausted" in lowered
             or "quota" in lowered
-            or "rate" in lowered
+            or "rate limit" in lowered
+            or "ratelimit" in lowered
         ):
             return ProviderLimitError(message)  # reset unknown → waterfall backoff
         return ProviderUnavailableError(message)

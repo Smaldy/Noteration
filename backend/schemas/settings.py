@@ -21,7 +21,7 @@ GeminiModel = Literal[
     "gemini-2.5-flash-lite",
     "gemini-2.5-flash",
     "gemini-3.1-flash-lite",
-    "gemini-3.1-flash",
+    "gemini-3.5-flash",
 ]
 # UI + AI-content language. "en" is the default; the AI is asked to generate new
 # notes/MCQs/flashcards in the chosen language (see services/pipeline/generation.py).

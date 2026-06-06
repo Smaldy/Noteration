@@ -5,7 +5,7 @@ export type GeminiModel =
   | "gemini-2.5-flash-lite"
   | "gemini-2.5-flash"
   | "gemini-3.1-flash-lite"
-  | "gemini-3.1-flash";
+  | "gemini-3.5-flash";
 export type CalendarSlot = 15 | 30 | 60 | 90 | 120;
 export type Language = "en" | "it" | "es";
 

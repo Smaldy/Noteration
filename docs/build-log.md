@@ -1982,6 +1982,63 @@ green + committed.
   source_type/status, transcript 409 until ready, retry 200. Tree green: `tsc -b` +
   `npm run build` clean; backend unchanged (**493 passed**).
 
+- **Fix — Hour-long audio no longer dies on rate limits (DONE, user-reported).**
+  Root cause: `GeminiProvider.transcribe_audio` sent the **whole file as one
+  request**. Gemini tokenizes audio at ~32 tokens/sec, so a 1-hour lecture is
+  ~115k input tokens in a single call — enough to blow the free-tier per-minute
+  budget — and on a 429 the whole document flipped to `error` (no progress kept),
+  so retrying re-sent the same 115k-token request and 429'd again. Effectively
+  unrecoverable. Fixed by giving transcription the same bounded-work + resumability
+  the queue already has, with both levers the user suggested (split + trim).
+  - **New `services/pipeline/audio_chunking.py`** (ffmpeg via the bundled
+    `imageio-ffmpeg` wheel — static binary, no system install, fully offline):
+    `probe_duration`/`detect_silences` (parse ffmpeg stderr), `trim_silence`
+    (`silenceremove` drops long dead air → fewer tokens), the **pure**
+    `plan_split_points` (cuts at the silence midpoint nearest each ~10-min target,
+    clamped to a [5,15]-min band; hard-cut fallback when no silence qualifies) +
+    `boundaries_from_cuts`, and `split_audio` (ffmpeg stream-copy per span). The
+    ffmpeg runner is injectable; pure planning is unit-tested and one integration
+    test drives the **real** binary on tone/silence audio it generates.
+  - **`services/transcription.py` reworked** to trim+split once (cached under
+    `uploads/<hash>.chunks/`), then transcribe chunks **one at a time, resumably**:
+    each chunk's transcript is written as it lands, and on a `ProviderLimitError`
+    the finished chunks are kept, the doc stays **`transcribing`** (not `error`),
+    and a backoff (`resume_at`, the limit's reset or +5min) is recorded in a
+    `progress.json` sidecar so the worker resumes at the first missing chunk later
+    — no DB migration, progress is on disk. When every chunk is done they're
+    concatenated into the same transcript markdown → `uploaded`, and the workspace
+    is removed. Only a hard provider/processing error still → `error`. The chunk
+    preparer is injected so the persistence/resume logic stays network- and
+    ffmpeg-free in tests. The worker (`transcribe_once`) is unchanged.
+  - **Frontend:** the Library card now shows `status_detail` while `transcribing`
+    (e.g. "Rate-limited — transcribed 2/6 segments so far; resuming automatically")
+    instead of an indefinite spinner label.
+  - `imageio-ffmpeg` added to `backend/requirements.txt`. +12 audio-chunking tests
+    (pure planning, stderr parsing, real-ffmpeg probe/detect/trim/split) and the
+    transcription tests updated for the new chunked/resumable behavior (concat,
+    rate-limit-keeps-progress, full resume-after-backoff). Tree green: full suite
+    **531 passed**, `npm run build` clean.
+  - **Real root cause found on live test (the actual reason "no fixes seen").**
+    Two things on top of the size problem: (1) the app was running `uvicorn …
+    --port 8000` **without `--reload`**, so on-disk changes weren't loaded until a
+    restart (the running worker was still old code). (2) The model id was wrong:
+    the lineup hardcoded **`gemini-3.1-flash`, which ListModels shows is NOT served**
+    for this key (the 3.1 family exists, but only `gemini-3.1-flash-lite` resolves;
+    the plain non-lite id 404s). Worse, the 404 text contains "gene**rate**Content",
+    so the provider's matcher flagged it as a rate limit (bare `"rate"`) and the
+    chunk resume-loop never terminated. Fixes: matcher now requires
+    `"rate limit"`/`"ratelimit"`; the invalid `gemini-3.1-flash` was replaced by
+    **`gemini-3.5-flash`** (newest full flash, verified via ListModels to accept
+    audio) across `gemini.py` (`TRANSCRIBE_MODEL`, `ROTATION_ORDER`,
+    `SELECTABLE_MODELS`), `schemas/settings.py` (`GeminiModel` Literal),
+    `types/settings.ts`, and the SettingsPage model picker — so generation no longer
+    offers/rotates a 404 id either. `gemini-3.1-flash-lite` (valid) is kept.
+    Verified **live end to end** on the user's real 91-min `CuturaEspanola.mp4`
+    (transcribed during diagnosis with 2.5-flash): trim → 7 silence-aligned
+    audio-only chunks → all transcribed → one 69k-char / 42-heading Spanish
+    transcript → doc `uploaded`, workspace cleaned. Tree: **531 passed**, build
+    clean. Lesson: confirm Gemini ids against ListModels, never guess.
+
 - **Wave 5 — Manual image/audio attachments in notes (DONE).** User-only
   enrichment (never AI): attach your own images/audio to a topic's notes.
   `NoteAttachment` model (topic_id CASCADE, kind "image"|"audio", filename,

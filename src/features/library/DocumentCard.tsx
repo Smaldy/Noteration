@@ -195,7 +195,7 @@ export function DocumentCard({
           {transcribing ? (
             <p className="flex items-center gap-2 text-primary">
               <Loader2 className="size-3.5 animate-spin" />
-              {t("library.card.transcribing")}
+              {doc.status_detail ?? t("library.card.transcribing")}
             </p>
           ) : audioError ? (
             <div

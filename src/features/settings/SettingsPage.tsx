@@ -103,15 +103,15 @@ const GEMINI_MODELS: { value: GeminiModel; label: string; hintKey: string }[] = 
     hintKey: "settings.providers.models.flashLiteHint",
   },
   {
-    value: "gemini-3.1-flash",
-    label: "3.1 Flash",
+    value: "gemini-3.5-flash",
+    label: "3.5 Flash",
     hintKey: "settings.providers.models.flashHint",
   },
 ];
 
 // Best-first order tried when rotation is on (mirrors backend ROTATION_ORDER).
 const ROTATION_ORDER: GeminiModel[] = [
-  "gemini-3.1-flash",
+  "gemini-3.5-flash",
   "gemini-3.1-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",

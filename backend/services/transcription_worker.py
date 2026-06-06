@@ -2,7 +2,7 @@
 
 A small sibling of the queue worker (``services/worker.py``): a single daemon
 thread that, every ``poll_interval``, transcribes the oldest ``transcribing``
-audio document with Gemini 3.1 Flash. One at a time, its own short-lived session
+audio document with Gemini Flash. One at a time, its own short-lived session
 per tick, never spins (skips entirely when Gemini isn't configured), and survives
 a bad tick. A document stuck mid-transcription across a restart is simply picked
 up again on the next poll (it's still ``transcribing``), so recovery is automatic.

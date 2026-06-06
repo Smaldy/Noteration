@@ -14,6 +14,10 @@ python-multipart  # multipart/form-data for PDF upload (Phase 6)
 markitdown[pdf]
 pymupdf
 
+# Audio transcription — silence trim + chunking (bundles a static ffmpeg binary,
+# no system install, fully offline). See services/pipeline/audio_chunking.py.
+imageio-ffmpeg
+
 # Phase 7 — provider SDKs (lazily imported; see services/providers/)
 google-genai
 anthropic
