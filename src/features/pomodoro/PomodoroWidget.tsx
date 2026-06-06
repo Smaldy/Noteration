@@ -16,7 +16,6 @@ import {
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
-import { useShallow } from "zustand/react/shallow";
 
 import { cn } from "@/lib/utils";
 import * as audio from "@/features/pomodoro/audio";
@@ -36,33 +35,19 @@ export function PomodoroWidget() {
   const settings = useSettingsStore((s) => s.settings);
   // `remaining` ticks 4×/sec; it's subscribed to separately inside <TimerFace>
   // and <PillTime> so the panel chrome and sound controls don't re-render on it.
-  const {
-    phase,
-    running,
-    workSessions,
-    expanded,
-    completedTick,
-    configure,
-    toggle,
-    reset,
-    skip,
-    tick,
-    setExpanded,
-  } = usePomodoroStore(
-    useShallow((s) => ({
-      phase: s.phase,
-      running: s.running,
-      workSessions: s.workSessions,
-      expanded: s.expanded,
-      completedTick: s.completedTick,
-      configure: s.configure,
-      toggle: s.toggle,
-      reset: s.reset,
-      skip: s.skip,
-      tick: s.tick,
-      setExpanded: s.setExpanded,
-    })),
-  );
+  // Each field is its own selector (not a combined object) so this component only
+  // re-renders when a slice it actually uses changes — and never on the tick.
+  const phase = usePomodoroStore((s) => s.phase);
+  const running = usePomodoroStore((s) => s.running);
+  const workSessions = usePomodoroStore((s) => s.workSessions);
+  const expanded = usePomodoroStore((s) => s.expanded);
+  const completedTick = usePomodoroStore((s) => s.completedTick);
+  const configure = usePomodoroStore((s) => s.configure);
+  const toggle = usePomodoroStore((s) => s.toggle);
+  const reset = usePomodoroStore((s) => s.reset);
+  const skip = usePomodoroStore((s) => s.skip);
+  const tick = usePomodoroStore((s) => s.tick);
+  const setExpanded = usePomodoroStore((s) => s.setExpanded);
 
   const sound = useSoundStore();
   const fileInput = useRef<HTMLInputElement>(null);
