@@ -2249,6 +2249,32 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   `npm run build` clean. (i18n for the duplicator deferred — English-only, like
   other deferred UI polish.)
 
+- **Wave ED-6 — Integration + polish (DONE).** `alembic check` = no drift. Full
+  suite **578 passed** (+41 across ED-1…4; the 3 reds are the pre-existing
+  UTC/local date-boundary tests, untouched by this feature). `tsc -b` +
+  `npm run build` clean (chunks healthy — vendor 891 KB, viz 686 KB, plotly 4.8 MB
+  lazy). Live smoke against a running backend: `GET …/sessions/999`→404,
+  `…/calibration/export`→200 `{schema_version:1,…}`, `POST …/sessions` year=9→422,
+  `POST …/calibration/samples`→201, `/duplicator` SPA→200 (smoke calibration row
+  cleaned up afterwards). Real ingestion-cache PDFs (with `pages/*.png`) are
+  present, so the extraction page-load path is satisfied.
+  **Definition of done:** ✅ pytest green (modulo 3 env tests) · ✅ `tsc -b` clean ·
+  ✅ `npm run build` clean · ✅ `alembic check` no drift · ✅ Duplicator reachable
+  from Exam Prep at `/duplicator` · ✅ calibration export/import verified · ✅
+  build-log updated. **One manual step left for the user:** a true model-driven
+  end-to-end (upload a real exercise PDF with a Gemini key configured) — not run
+  here to avoid spending the user's free-tier quota; everything up to the model
+  boundary is verified.
+  **Reconciliation of two spec ED-6 checks with the chosen separate-drain design:**
+  (a) "duplicate_search appears in the Queue **History** tab" — it does **not**:
+  the history logger (`record_generation_safe`) is topic-centric (needs
+  topic_id/subject_id), and search jobs have neither, so by design they don't emit
+  topic-generation history. (b) "token-budget guard covers duplicate_search via
+  `claim_next`" — search jobs are claimed by `claim_next_search` and aren't
+  document-scoped, so the per-document budget guard doesn't gate them; their
+  `tokens_used` **is** still recorded by `process_job` for accounting. Both follow
+  directly from keeping search out of the topic/lane hot path.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue
