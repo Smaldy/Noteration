@@ -16,6 +16,9 @@ build/
 .vite/
 *.local
 
+# ───── Packaging build artifacts (never commit; large) ─────
+packaging/installer_output/
+
 # ───── Noteration runtime data (never commit) ─────
 *.db
 *.sqlite

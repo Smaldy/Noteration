@@ -139,10 +139,42 @@ def _smoke_seconds() -> float | None:
     return None
 
 
+def _setup_logging() -> None:
+    """Route output to a log file in the data dir.
+
+    A windowed (no-console) build can leave ``sys.stdout``/``sys.stderr`` as
+    ``None``, so any ``print``/traceback would crash *and* vanish. Writing to
+    ``<data dir>/noteration.log`` gives a non-technical user something to send
+    when something goes wrong ("attach noteration.log").
+    """
+    from backend.paths import DATA_DIR
+
+    try:
+        log_file = open(DATA_DIR / "noteration.log", "a", buffering=1, encoding="utf-8")
+    except OSError:
+        return
+    if sys.stdout is None:
+        sys.stdout = log_file
+    if sys.stderr is None:
+        sys.stderr = log_file
+    print(f"\n--- Noteration launch {time.strftime('%Y-%m-%d %H:%M:%S')} (data: {DATA_DIR}) ---")
+
+
 def main() -> int:
     if "--selftest" in sys.argv:
         return _selftest()
 
+    _setup_logging()
+    try:
+        return _run()
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        return 1
+
+
+def _run() -> int:
     # Bring the database up to date before anything serves it.
     from backend.migrate import run_migrations
 

@@ -47,6 +47,25 @@
     `--selftest` green in the frozen exe; `--smoke` against a fresh data dir opens
     the window with no errors and creates the DB. Backend **585 passed**. **Next:**
     12-3 Inno Setup Windows installer.
+  - **12-3 (done) — Windows installer (Inno Setup) + windowed delivery build.**
+    Built the final **no-console** bundle (`console=False`, default) and hardened
+    the launcher for it: a windowed PyInstaller app can leave `sys.stdout/stderr`
+    as `None`, so `launcher._setup_logging()` now routes output to
+    `<data dir>/noteration.log` (the support lifeline — "attach noteration.log"),
+    and `main()` wraps the run in try/except so any startup failure is logged
+    instead of vanishing. `packaging/installer.iss`: per-user install (no admin /
+    UAC — `PrivilegesRequired=lowest`, `{autopf}` → `%LOCALAPPDATA%\Programs`),
+    Desktop (opt-in task) + Start-Menu shortcuts, uninstaller, x64. User data in
+    `%LOCALAPPDATA%\Noteration` is **preserved** on uninstall, with a Yes/No prompt
+    to wipe notes/DB. Compiled clean with ISCC →
+    `packaging/installer_output/Noteration-Setup-0.1.0.exe` (**96.9 MB**); the
+    WebView2 runtime DLLs are bundled. `packaging/installer_output/` gitignored.
+    **Caveat:** can't test-run the installer/app on this dev box — Smart App
+    Control (Enforce, irreversible to re-enable) blocks unsigned exes; the bundle
+    was fully verified (selftest + smoke) before SAC flagged the new hash.
+    **Decision:** ship unsigned + first-run docs (user choice; SmartScreen "More
+    info → Run anyway" / mac right-click → Open). **Next:** 12-4 macOS `.dmg` via
+    GitHub Actions; 12-5 end-user docs + icon.
 
 - **Phase 1 — Scaffold (Wave 1)** — Monorepo per `project-structure.md`:
   Vite + React + TS frontend (`src/`) built to `dist/`; FastAPI (`backend/`)
