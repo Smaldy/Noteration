@@ -2406,6 +2406,17 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
     sloppy (frontend) AND is produced well at the source (prompt).
   `tsc -b` clean; 21 prompt tests green; `npm run build` clean.
 
+- **Wave ED-14 - Strip past-exam metadata (DONE).** Reversed ED-13's "keep the
+  problem header": for practice, the source's "Problem 3"/"(6 points)" is noise.
+  `formatProblem` now calls `stripExamMeta` (replacing `boldHeader`): removes a
+  leading `Problem/Exercise/Esercizio/Question/Part N` header and bracketed
+  point/mark values (`(6 points)`, `[5 marks]`, `(8 punti)`) anywhere, then tidies
+  the leftover gap. A *bare* "8 points" is deliberately kept (may be real content,
+  "Given 8 points in the plane …"). Both prompts updated: omit problem/exercise
+  numbers + point values, keep only the statement. Node-verified incl. the
+  content-vs-metadata distinction; `tsc -b` clean, 21 prompt tests green,
+  `npm run build` clean.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

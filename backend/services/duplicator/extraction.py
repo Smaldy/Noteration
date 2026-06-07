@@ -114,9 +114,12 @@ def build_extraction_prompt(year_level: int, subject_hint: str | None) -> str:
         "`f(x)=…`, or `y'' + y = 0` without `$`/`$$`.\n"
         "  • For a system of equations or a Cauchy/piecewise problem, use a display "
         "cases block: `$$\\begin{cases} … \\\\ … \\end{cases}$$`.\n"
-        "  • Put each sub-question on its own line, labelled `(a)`, `(b)`, … Keep "
-        "any original problem number / points as a short bold first line (e.g. "
-        "`**Problem 3 (6 points)**`), then a blank line, then the statement.\n"
+        "  • Put each sub-question on its own line, labelled `(a)`, `(b)`, …\n"
+        "  • OMIT past-exam noise — drop problem/exercise numbers, point/mark "
+        "values (e.g. \"Problem 3\", \"(6 points)\", \"[5 marks]\"), and exam "
+        "headers/footers. Keep ONLY the actual problem statement to practice. (A "
+        "bare number that is part of the maths, like \"8 points in the plane\", "
+        "stays.)\n"
         "- If the page contains no exercises, return [].\n"
     )
 

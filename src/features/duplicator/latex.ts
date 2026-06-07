@@ -12,10 +12,11 @@
  *     Text already inside `$ … $` / `$$ … $$` is never touched.
  *
  *   formatProblem(src) — also impose *structure* so a mashed-together blob reads
- *     well even when the model is sloppy: bold a leading "Problem N (…)" header,
- *     break each sub-question `(a) (b) …` onto its own line, promote a line that is
- *     purely one formula to centered display math, and pad display blocks with
- *     blank lines so remark-math treats them as centered blocks.
+ *     well even when the model is sloppy: strip past-exam noise (a leading
+ *     "Problem N" header and "(N points)" annotations), break each sub-question
+ *     `(a) (b) …` onto its own line, promote a line that is purely one formula to
+ *     centered display math, and pad display blocks with blank lines so
+ *     remark-math treats them as centered blocks.
  *
  * The bare-wrap stays conservative so prose isn't mangled: subscripts only wrap
  * with a brace group or digits (prose `snake_case` / `x_i` untouched), function
@@ -139,12 +140,22 @@ function promoteDisplay(text: string): string {
     .join("\n");
 }
 
-/** Bold a leading "Problem 3 (6 points)" header onto its own line. */
-function boldHeader(text: string): string {
-  return text.replace(
-    /^\s*((?:problem|exercise|question|part)\s+\d+\s*(?:\([^)]*\))?)\s*[:.\-—]?\s*/i,
-    (_, head) => `**${head.trim()}**\n\n`,
-  );
+/**
+ * Strip past-exam metadata that's noise when practicing: a leading "Problem 3" /
+ * "Exercise 1." / "Esercizio 2" header, and bracketed point/mark values like
+ * "(6 points)" / "[5 pts]" / "(2 marks)" anywhere. A *bare* "8 points" is left
+ * alone — it may be real problem content ("Given 8 points in the plane …").
+ */
+function stripExamMeta(text: string): string {
+  return text
+    .replace(
+      /^\s*(?:problem|exercise|exercice|esercizio|aufgabe|question|part|ex)\.?\s*\d+\s*[.):\-—]?\s*/i,
+      "",
+    )
+    .replace(/[([]\s*\d+\s*(?:points?|pts?|marks?|pt|punti|punto)\s*[)\]]/gi, "")
+    .replace(/[ \t]+([.,;:])/g, "$1") // tidy the gap a removed bracket leaves
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/^[\s.;:\-—]+/, "");
 }
 
 /** Force each sub-question `(a) (b) …` / `a) b) …` onto its own line. */
@@ -170,7 +181,7 @@ export function formatProblem(src: string): string {
   if (!src) return src;
   let out = normalizeLatex(src);
   out = promoteDisplay(out);
-  out = boldHeader(out);
+  out = stripExamMeta(out);
   out = splitSubparts(out);
   out = padDisplay(out);
   return out;

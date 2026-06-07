@@ -110,7 +110,9 @@ def build_search_prompt(
         "`$ … $` (inline) or `$$ … $$` (a governing/standalone equation on its own "
         "line); use a `$$\\begin{cases} … \\\\ … \\end{cases}$$` block for systems / "
         "piecewise definitions; put each sub-question on its own line as `(a)`, "
-        "`(b)`, … Never leave bare math like `x^2` or `f(x)=…` without delimiters.\n"
+        "`(b)`, … Never leave bare math like `x^2` or `f(x)=…` without delimiters. "
+        "OMIT exam noise — no problem/exercise numbers or point/mark values "
+        "(\"Problem 3\", \"(6 points)\"); keep only the problem statement.\n"
     )
 
 
