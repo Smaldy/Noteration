@@ -1,6 +1,6 @@
 # Noteration 
 
-**Turn your study ugly ah PDFs into astonishing notes and much more**
+**Turn your study ugly ahh PDFs into astonishing notes and much more**
 
 Noteration is a local desktop app made by a student for students. Drop in a lecture, textbook chapter, or slide deck, and it generates clean notes, multiple-choice quizzes, and flashcards, then plans your revision with the SM-2 spaced-repetition algorithm. No accounts, your files never leave your machine (I don't know how to steal data .-. ) and it's built to stay **free to run** because i know you are a brokie like me.
 
