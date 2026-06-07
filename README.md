@@ -1,14 +1,14 @@
-# Noteration 📘
+# Noteration 
 
-**Turn your study PDFs into notes, quizzes, flashcards, and a spaced-repetition schedule — running entirely on your own computer.**
+**Turn your study ugly ah PDFs into astonishing notes and much more**
 
-Noteration is a local-first desktop app for students. Drop in a lecture, textbook chapter, or slide deck, and it generates clean notes, multiple-choice quizzes, and flashcards, then plans your revision with the SM-2 spaced-repetition algorithm. No accounts, no uploads — your files never leave your machine — and it's built to stay **free to run** by leaning on free-tier AI.
+Noteration is a local desktop app made by a student for students. Drop in a lecture, textbook chapter, or slide deck, and it generates clean notes, multiple-choice quizzes, and flashcards, then plans your revision with the SM-2 spaced-repetition algorithm. No accounts, your files never leave your machine (I don't know how to steal data .-. ) and it's built to stay **free to run** because i know you are a brokie like me.
 
 ![Library](scripts/shots/01-library.png)
 
 ---
 
-## ✨ Features
+## Features
 
 ### Study material, generated for you
 - **PDF → structured course.** Upload a PDF and Noteration detects its chapters and topics — from real headings, the PDF's embedded outline/bookmarks, or a font-size heuristic for heading-less slide decks. You review and tweak the structure before anything is generated.
@@ -40,7 +40,7 @@ Noteration is a local-first desktop app for students. Drop in a lecture, textboo
 
 ---
 
-## ⬇️ Download & install
+## Download & install
 
 Grab the latest installer from the [**Releases page**](https://github.com/Smaldy/Noteration/releases/latest):
 
@@ -55,7 +55,7 @@ Everything is bundled — the recipient installs nothing else. Full step-by-step
 
 ---
 
-## 🔧 How it works
+## How it works
 
 ```
 PDF ─▶ Ingestion ─▶ Structure ─▶ [ you review ] ─▶ Queue ─▶ Notes + Formulas + Quiz/Flashcards ─▶ SM-2 schedule
@@ -66,14 +66,17 @@ PDF ─▶ Ingestion ─▶ Structure ─▶ [ you review ] ─▶ Queue ─▶ 
 
 A Python backend (FastAPI) runs the pipeline, the budget-aware queue, and the AI calls, and serves the React frontend; everything persists to a local SQLite database (WAL mode). In the packaged app, a small launcher boots the server on a free localhost port and shows it in a native desktop window (no terminal, no browser chrome).
 
-## 🧰 Tech stack
+## Tech stack
 
 **Backend:** Python · FastAPI · SQLAlchemy · Alembic · SQLite (WAL) · PyMuPDF · markitdown
+
 **AI:** provider abstraction over Gemini (google-genai), Claude (anthropic), and Ollama
+
 **Frontend:** React · Vite · TypeScript · Tailwind · shadcn/ui · Zustand · Framer Motion · FullCalendar · KaTeX
+
 **Desktop:** PyInstaller + pywebview; Inno Setup (Windows) / `.dmg` via GitHub Actions (macOS)
 
-## 💻 Run from source (developers)
+## Run from source (developers)
 
 ```bash
 # Backend
@@ -91,15 +94,7 @@ uvicorn backend.main:app                             # open http://127.0.0.1:800
 
 For building the desktop installers, see [`packaging/README.md`](packaging/README.md).
 
-## 📁 Project layout
 
-```
-backend/      FastAPI app, AI pipeline, budget-aware queue, models, migrations
-src/          React frontend (features/, components/, stores/)
-packaging/    Desktop build: launcher, PyInstaller spec, installer, icon, docs
-docs/         Specification and build log
-```
-
-## 🔒 Privacy
+## Privacy
 
 Everything runs locally. Your PDFs, notes, and database stay on your machine (`%LOCALAPPDATA%\Noteration` on Windows, `~/Library/Application Support/Noteration` on macOS). The only outbound calls are the AI requests you enable, sent directly to your chosen provider with your own API key.
