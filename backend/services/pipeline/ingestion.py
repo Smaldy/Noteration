@@ -27,11 +27,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-# Cache root: backend/cache/ (gitignored). One subdirectory per file hash.
-CACHE_ROOT = Path(__file__).resolve().parents[2] / "cache"
-# Original uploaded PDFs (content-addressed) live here so a later phase can
-# re-derive page-range markdown without re-uploading. See documents.py.
-UPLOADS_DIR = CACHE_ROOT / "uploads"
+# Cache root (gitignored). One subdirectory per file hash. Resolved by
+# backend.paths so packaged builds write to a per-user, writable directory.
+# Original uploaded PDFs (content-addressed) live under uploads/ so a later
+# phase can re-derive page-range markdown without re-uploading. See documents.py.
+from backend.paths import CACHE_ROOT, UPLOADS_DIR  # noqa: E402  (re-exported)
 
 MANIFEST_NAME = "manifest.json"
 MARKDOWN_NAME = "document.md"

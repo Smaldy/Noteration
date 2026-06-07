@@ -23,6 +23,10 @@ google-genai
 anthropic
 ollama
 
+# Desktop delivery — native window for the packaged app (WebView2 on Windows,
+# WebKit on macOS). Only used by packaging/launcher.py, not the test suite.
+pywebview
+
 # Test/dev
 pytest
 httpx

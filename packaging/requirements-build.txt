@@ -1,0 +1,4 @@
+# Build-time only — tools to produce the desktop installers. Not needed to run
+# the app or the test suite. Install into the build venv alongside
+# backend/requirements.txt:  pip install -r packaging/requirements-build.txt
+pyinstaller

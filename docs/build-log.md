@@ -5,6 +5,29 @@
 
 ## DONE
 
+- **Phase 12 — Delivery packaging (in progress; native desktop app, no terminal).**
+  Goal: a double-click installer for non-technical users (Windows installer built
+  here; macOS `.dmg` via GitHub Actions). Branch `delivery-ready`.
+  - **12-1 (done) — Packageable app + cross-platform launcher.** New
+    `backend/paths.py` is the single source of truth for writable runtime data:
+    dev/test keep the historical `backend/` layout (585-test baseline unchanged),
+    but a frozen build (PyInstaller `sys.frozen`) writes the DB + cache +
+    attachments to a per-user dir (`%LOCALAPPDATA%\Noteration` /
+    `~/Library/Application Support/Noteration`); `NOTERATION_DATA_DIR` overrides.
+    `db/database.py`, `pipeline/ingestion.py` (re-exports), and
+    `services/attachments.py` now import their roots from it. `backend/migrate.py`
+    runs `alembic upgrade head` programmatically (env.py already resolves the
+    engine from `backend.paths`, so it targets the right DB in any mode; scripts
+    located relative to the module so it works inside a bundle) — verified it
+    builds a fresh 20-table DB from scratch. `packaging/launcher.py` (pywebview):
+    migrate → start uvicorn on a free port in a thread → poll `/api/health` →
+    open a native window (WebView2/WebKit) → clean shutdown on close. Verified
+    end-to-end with a timed auto-close run (health OK, dist index served, window
+    opened + closed cleanly). Deps: `pywebview` (runtime),
+    `pyinstaller` (build, `packaging/requirements-build.txt`). **Next:** 12-2
+    PyInstaller bundle + test the frozen app; 12-3 Inno Setup Windows installer;
+    12-4 macOS `.dmg` via GitHub Actions; 12-5 end-user docs + icon/version.
+
 - **Phase 1 — Scaffold (Wave 1)** — Monorepo per `project-structure.md`:
   Vite + React + TS frontend (`src/`) built to `dist/`; FastAPI (`backend/`)
   serving the API under `/api` and the built bundle with SPA fallback for

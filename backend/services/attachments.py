@@ -17,9 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.models import NoteAttachment, Topic
-
-# Sibling of uploads/ under the gitignored cache dir.
-ATTACHMENTS_DIR = Path(__file__).resolve().parent.parent / "cache" / "attachments"
+from backend.paths import ATTACHMENTS_DIR  # sibling of uploads/ under the cache dir
 
 # Cap an attachment at 25 MB — generous for a lecture photo or a short clip while
 # keeping a single local file from ballooning the cache.

@@ -5,14 +5,15 @@ concurrently — no writer-blocks-readers stalls. See docs/tech-stack.md.
 """
 
 from collections.abc import Generator
-from pathlib import Path
 
 from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from backend.paths import DB_PATH
+
 # Local database file (gitignored). One file per install, single writer (queue).
-DB_PATH = Path(__file__).resolve().parent.parent / "noteration.db"
+# Path resolved by backend.paths (writable per-user dir in packaged builds).
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
