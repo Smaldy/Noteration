@@ -243,6 +243,27 @@ class QueueService:
         ).all()
         return sorted(jobs, key=self._sort_key)
 
+    def has_pending_search(self) -> bool:
+        """Cheap existence check: is any ``duplicate_search`` job pending and due?
+
+        Lets the worker skip the settings/waterfall setup on idle ticks when the
+        Stage-2 lane is empty (the common case) instead of loading settings every
+        cycle. Mirrors ``claim_next_search``'s eligibility filter.
+        """
+        now = self.clock()
+        return (
+            self.session.scalar(
+                select(QueueJob.id)
+                .where(
+                    QueueJob.state == QueueState.pending,
+                    QueueJob.stage == QueueStage.duplicate_search,
+                    or_(QueueJob.resume_after.is_(None), QueueJob.resume_after <= now),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
     def claim_next_search(self) -> QueueJob | None:
         """Atomically claim the next due pending ``duplicate_search`` job.
 

@@ -370,6 +370,10 @@ class QueueWorker:
         """
         session = self._session_factory()
         try:
+            # Idle fast-path: skip the settings load + waterfall build entirely when
+            # the Stage-2 lane is empty (the common case on most ticks).
+            if not QueueService(session).has_pending_search():
+                return
             settings = get_settings(session)
             if not _has_configured_provider(settings):
                 return

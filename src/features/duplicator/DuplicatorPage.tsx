@@ -1,5 +1,5 @@
 import { ArrowLeft, FileText, Sparkles, Upload } from "lucide-react";
-import { type DragEvent, useRef, useState } from "react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,19 @@ export function DuplicatorPage() {
   const [hint, setHint] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // The store's poll is a module-level setInterval; without this it keeps hitting
+  // the API every 4s forever after you leave the page (and never stops if a job
+  // is stuck). Tear it down on unmount, and resume it on entry if a prior session
+  // is still in flight so returning to the page keeps results updating.
+  useEffect(() => {
+    const { session: current, poll } = useDuplicatorStore.getState();
+    const inFlight = current?.exercises.some(
+      (e) => e.status !== "done" && e.status !== "error",
+    );
+    if (current && inFlight) poll(current.id);
+    return () => useDuplicatorStore.getState().stopPolling();
+  }, []);
 
   const pickYear = (y: number) => {
     setYear(y);

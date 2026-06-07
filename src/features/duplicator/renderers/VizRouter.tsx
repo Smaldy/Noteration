@@ -1,11 +1,22 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ReactNode, Suspense, lazy } from "react";
 
 import type { VizBlock } from "@/types/duplicator";
 
-import { ForceDiagramRenderer } from "./ForceDiagramRenderer";
-import { MafsRenderer } from "./MafsRenderer";
-import { MatterRenderer } from "./MatterRenderer";
-import { PlotlyRenderer } from "./PlotlyRenderer";
+// Each renderer is lazy so its heavy library only downloads for the viz type that
+// actually appears: mafs (MafsRenderer), matter-js (MatterRenderer), and mathjs
+// (Plotly/Force) load on demand instead of all-at-once when the page first paints.
+const ForceDiagramRenderer = lazy(() =>
+  import("./ForceDiagramRenderer").then((m) => ({ default: m.ForceDiagramRenderer })),
+);
+const MafsRenderer = lazy(() =>
+  import("./MafsRenderer").then((m) => ({ default: m.MafsRenderer })),
+);
+const MatterRenderer = lazy(() =>
+  import("./MatterRenderer").then((m) => ({ default: m.MatterRenderer })),
+);
+const PlotlyRenderer = lazy(() =>
+  import("./PlotlyRenderer").then((m) => ({ default: m.PlotlyRenderer })),
+);
 
 /** Catches a renderer that throws (e.g. a malformed expression) → fallback. */
 class VizErrorBoundary extends Component<
@@ -54,7 +65,17 @@ export function VizRouter({ viz }: { viz: VizBlock | null | undefined }) {
   if (content === null) return null;
   return (
     <div className="mt-3">
-      <VizErrorBoundary>{content}</VizErrorBoundary>
+      <VizErrorBoundary>
+        <Suspense
+          fallback={
+            <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+              Loading visualization…
+            </div>
+          }
+        >
+          {content}
+        </Suspense>
+      </VizErrorBoundary>
     </div>
   );
 }
