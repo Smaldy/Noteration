@@ -2346,6 +2346,22 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
     logic extracted to a shared `useCalibrationSave` hook.
   `tsc -b` + `npm run build` clean.
 
+- **Wave ED-10 — Graph zoom + piecewise/system functions (DONE).**
+  - **In-graph zoom.** 2D Plotly graphs get a small +/−/reset control stack
+    (top-right, inside the box) that scales the axis ranges about their centre
+    (`scaleRange`, zoom 0.05–25×); resets when the viz changes. 3D keeps Plotly's
+    own camera.
+  - **Piecewise + systems.** `VizBlock` gains `pieces` (ordered
+    `{expression, domain}` branches) and `expressions` (several curves). The
+    `mafs_function` path renders each piece as its own trace over its sub-domain
+    (clean breaks between cases — e.g. f(x)=e^-x−e^-2 for x<2, (x−2)e^-x for x≥2),
+    and a system as distinct-coloured curves with a legend. Tolerant readers
+    accept the data at `viz.pieces`/`viz.expressions` or under `viz.params`. Both
+    extraction + search prompts updated to describe `pieces` and mandate mathjs
+    syntax (`exp(-x)`, `x^2`). viz JSON is passed through untouched, so no schema
+    change was needed. `tsc -b` + `npm run build` clean; 21 duplicator
+    extraction/search tests green; mathjs piecewise eval spot-checked.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

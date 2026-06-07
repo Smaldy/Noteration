@@ -89,7 +89,7 @@ def build_search_prompt(
         '  "source_url": str | null,       // a known source if you have one\n'
         '  "difficulty_score": float,      // 0.0 (easy) … 1.0 (hard)\n'
         '  "viz": null | {"type": "...", "expression": "...", "domain": [a, b], '
-        '"params": {}}\n'
+        '"pieces": [{"expression": "...", "domain": [a, b]}], "params": {}}\n'
         "}]\n\n"
         "Rules:\n"
         "- Problems MUST require proof, structural reasoning, or multi-step "
@@ -99,7 +99,10 @@ def build_search_prompt(
         "- Include a `viz` block ONLY when a visualization would directly aid "
         "solving the problem; otherwise null. Valid `viz.type`: mafs_function, "
         "mafs_parametric, plotly_3d, plotly_complex, matter_simulation, "
-        "force_diagram.\n"
+        "force_diagram. Use mathjs syntax (`exp(-x)`, `x^2`, `sin(x)`).\n"
+        "- For a piecewise function / system defined by cases, use mafs_function "
+        "with `pieces`: an ordered list of {expression, domain:[a,b]} branches "
+        "(one per case) instead of a single `expression`.\n"
     )
 
 

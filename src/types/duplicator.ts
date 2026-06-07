@@ -8,9 +8,19 @@ export type VizType =
   | "matter_simulation"
   | "force_diagram";
 
+/** One branch of a piecewise function: an expression valid over `domain`. */
+export interface VizPiece {
+  expression: string;
+  domain?: [number, number];
+}
+
 export interface VizBlock {
   type: VizType;
   expression?: string;
+  /** Multiple full-domain curves plotted together (a "system" of functions). */
+  expressions?: string[];
+  /** Piecewise branches — each rendered over its own sub-domain. */
+  pieces?: VizPiece[];
   domain?: [number, number];
   params?: Record<string, unknown>;
 }

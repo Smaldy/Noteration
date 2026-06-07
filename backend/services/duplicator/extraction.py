@@ -82,7 +82,7 @@ def build_extraction_prompt(year_level: int, subject_hint: str | None) -> str:
         '  "difficulty_signals": [str],   // short keywords, e.g. ["proof", '
         '"multi_step"]\n'
         '  "viz": null | {"type": "...", "expression": "...", "domain": [a, b], '
-        '"params": {}}\n'
+        '"pieces": [{"expression": "...", "domain": [a, b]}], "params": {}}\n'
         "}\n\n"
         "Rules:\n"
         f"{hint_line}"
@@ -94,6 +94,13 @@ def build_extraction_prompt(year_level: int, subject_hint: str | None) -> str:
         "(complex-valued function on the Argand plane), matter_simulation "
         "(dynamics over time: projectile/pendulum/collision/spring), force_diagram "
         "(static force/torque arrows).\n"
+        "- Use mathjs syntax for every expression: `exp(-x)`, `x^2`, `sin(x)`, "
+        "`log(x)` (variable `x`; `t` for parametric).\n"
+        "- For a PIECEWISE function or a system defined by cases (e.g. f(x) = "
+        "e^-x for x<2, (x-2)e^-x for x>=2), use type mafs_function with `pieces`: "
+        "an ordered list of {expression, domain:[a,b]} branches — one per case, "
+        "each domain being the x-interval where that branch applies — instead of a "
+        "single `expression`. Omit `pieces` for ordinary single-formula graphs.\n"
         "- A proof, algebra, or combinatorics problem usually has no useful "
         "visualization → `viz` is null.\n"
         "- If the page contains no exercises, return [].\n"
