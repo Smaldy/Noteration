@@ -52,7 +52,97 @@ def _wait_for_health(url: str, timeout: float = 30.0) -> bool:
     return False
 
 
+def _selftest() -> int:
+    """Headless check that the frozen bundle has every heavy dep + can migrate.
+
+    Run ``Noteration.exe --selftest`` after packaging: it imports the native/
+    optional libraries (which PyInstaller most often misses) and applies the
+    migrations to a throwaway DB, printing OK or the first failure — no window.
+    """
+    import importlib
+    import os
+    import tempfile
+
+    os.environ["NOTERATION_DATA_DIR"] = tempfile.mkdtemp(prefix="noteration_selftest_")
+    checks = [
+        "pymupdf",
+        "fitz",
+        "markitdown",
+        "imageio_ffmpeg",
+        "google.genai",
+        "anthropic",
+        "uvicorn",
+        "webview",
+        "backend.main",
+    ]
+    for name in checks:
+        importlib.import_module(name)
+        print(f"  import {name}: OK")
+
+    # The static ffmpeg binary (audio transcription) must be bundled, not just
+    # the wrapper package.
+    import imageio_ffmpeg
+
+    ffmpeg = Path(imageio_ffmpeg.get_ffmpeg_exe())
+    print(f"  ffmpeg -> {ffmpeg.name} ({'exists' if ffmpeg.is_file() else 'MISSING'})")
+
+    # The built frontend bundle must ship with the app.
+    from backend.main import FRONTEND_DIST
+
+    index = FRONTEND_DIST / "index.html"
+    print(f"  frontend -> {index} ({'exists' if index.is_file() else 'MISSING'})")
+
+    from backend.migrate import run_migrations
+
+    run_migrations()
+    from backend.paths import DB_PATH
+
+    print(f"  migrate -> {DB_PATH} ({'exists' if DB_PATH.is_file() else 'MISSING'})")
+
+    # Exercise the real native ingestion path (catches missing markitdown/PyMuPDF
+    # data files that a bare import wouldn't): make a 1-page PDF, render it, and
+    # convert it to markdown — the two operations every upload depends on.
+    import pymupdf
+    from markitdown import MarkItDown
+
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Noteration selftest page.")
+    pdf_path = Path(os.environ["NOTERATION_DATA_DIR"]) / "selftest.pdf"
+    doc.save(str(pdf_path))
+    doc.close()
+
+    rendered = pymupdf.open(str(pdf_path))
+    pix = rendered[0].get_pixmap(dpi=72)
+    rendered.close()
+    md = MarkItDown().convert(str(pdf_path)).text_content
+    pipeline_ok = pix.width > 0 and "selftest" in md.lower()
+    print(f"  ingest (render+markdown): {'OK' if pipeline_ok else 'FAILED'}")
+
+    if not (ffmpeg.is_file() and index.is_file() and DB_PATH.is_file() and pipeline_ok):
+        print("SELFTEST FAILED")
+        return 1
+    print("SELFTEST OK")
+    return 0
+
+
+def _smoke_seconds() -> float | None:
+    """Parse ``--smoke`` / ``--smoke=SECS`` (default 6s) from argv, else None."""
+    for arg in sys.argv:
+        if arg == "--smoke":
+            return 6.0
+        if arg.startswith("--smoke="):
+            try:
+                return float(arg.split("=", 1)[1])
+            except ValueError:
+                return 6.0
+    return None
+
+
 def main() -> int:
+    if "--selftest" in sys.argv:
+        return _selftest()
+
     # Bring the database up to date before anything serves it.
     from backend.migrate import run_migrations
 
@@ -79,9 +169,24 @@ def main() -> int:
 
     import webview
 
-    webview.create_window(WINDOW_TITLE, base_url, width=1280, height=860, min_size=(960, 640))
-    # Blocks until the window is closed.
-    webview.start()
+    window = webview.create_window(
+        WINDOW_TITLE, base_url, width=1280, height=860, min_size=(960, 640)
+    )
+
+    # `--smoke[=secs]` opens the real window then auto-closes it, so packaging
+    # can be verified without a human. Without the flag the window stays open.
+    smoke_secs = _smoke_seconds()
+    if smoke_secs is not None:
+        def _auto_close() -> None:
+            time.sleep(smoke_secs)
+            print(f"SMOKE: auto-closing window after {smoke_secs}s")
+            window.destroy()
+
+        webview.start(_auto_close)
+        print("SMOKE OK")
+    else:
+        # Blocks until the window is closed.
+        webview.start()
 
     # Window closed → stop the server and let the process exit.
     server.should_exit = True

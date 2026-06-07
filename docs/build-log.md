@@ -27,6 +27,26 @@
     `pyinstaller` (build, `packaging/requirements-build.txt`). **Next:** 12-2
     PyInstaller bundle + test the frozen app; 12-3 Inno Setup Windows installer;
     12-4 macOS `.dmg` via GitHub Actions; 12-5 end-user docs + icon/version.
+  - **12-2 (done) — PyInstaller bundle, verified in-frozen (~293 MB one-folder).**
+    `packaging/noteration.spec` (entry `launcher.py`): `collect_all` for
+    markitdown + **magika** (its ML model dir, loaded by markitdown on every
+    convert) + imageio_ffmpeg + pymupdf; `collect_submodules` for uvicorn/alembic/
+    backend (tests+benchmark excluded); certifi data; bundles `dist/` → `<root>/dist`
+    and the Alembic scripts → `<root>/backend/db/migrations` so the running code
+    finds them; `console` gated by `NOTERATION_BUILD_CONSOLE`; macOS `BUNDLE` →
+    `.app`. PyInstaller output kept under `packaging/{dist,build}` (gitignored) so
+    it never collides with the frontend `dist/`. Added `launcher.py --selftest`
+    (headless: imports every heavy dep, checks the bundled ffmpeg binary + frontend
+    index, migrates a throwaway DB, and **exercises the real ingest path** —
+    PyMuPDF render + markitdown→markdown) and `--smoke[=secs]` (full launch, window
+    auto-closes). The deeper selftest caught the missing magika model dir; fixed via
+    `collect_all("magika")`. Also fixed a **first-run race** surfaced by packaging:
+    `settings.get_settings` get-or-creates the singleton, and on a fresh DB the
+    frontend-boot calls + worker raced → `UNIQUE constraint failed: settings.id`;
+    now the loser catches `IntegrityError`, rolls back, and re-reads. Verified:
+    `--selftest` green in the frozen exe; `--smoke` against a fresh data dir opens
+    the window with no errors and creates the DB. Backend **585 passed**. **Next:**
+    12-3 Inno Setup Windows installer.
 
 - **Phase 1 — Scaffold (Wave 1)** — Monorepo per `project-structure.md`:
   Vite + React + TS frontend (`src/`) built to `dist/`; FastAPI (`backend/`)

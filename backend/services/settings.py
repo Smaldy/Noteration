@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.models.settings import SINGLETON_ID, Settings
@@ -14,13 +15,24 @@ _KEY_FIELDS = {"api_key_gemini", "api_key_claude", "ollama_model"}
 
 
 def get_settings(session: Session) -> Settings:
-    """Return the settings singleton, creating it with defaults if absent."""
+    """Return the settings singleton, creating it with defaults if absent.
+
+    On a fresh install the frontend boot calls and the background worker can all
+    try to create the singleton at once; the first INSERT wins and the others hit
+    a UNIQUE violation. We treat that as "someone else created it" and re-read,
+    so first launch never surfaces an error.
+    """
     settings = session.get(Settings, SINGLETON_ID)
-    if settings is None:
-        settings = Settings(id=SINGLETON_ID)
-        session.add(settings)
+    if settings is not None:
+        return settings
+    settings = Settings(id=SINGLETON_ID)
+    session.add(settings)
+    try:
         session.commit()
-        session.refresh(settings)
+    except IntegrityError:
+        session.rollback()
+        return session.get(Settings, SINGLETON_ID)
+    session.refresh(settings)
     return settings
 
 
