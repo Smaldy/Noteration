@@ -16,6 +16,12 @@ on:
 permissions:
   contents: write  # needed to attach the .dmg to a release on tag pushes
 
+# Run the (Node 20) JS actions on Node 24 — silences the deprecation warning and
+# future-proofs against the June 2026 forced switch, without pinning action
+# versions that may not exist yet. GitHub's documented opt-in.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: macos-latest
