@@ -1,13 +1,17 @@
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 import type { ExtractedExercise } from "@/types/duplicator";
 
 import { DuplicateResultCard } from "./DuplicateResultCard";
+import { VariantFocusDialog } from "./VariantFocusDialog";
 
 /**
  * Shows an exercise's variant results, with a per-exercise loading state while
  * its background search runs. Polling of the whole session is owned by the store
- * (it refreshes every 4s until every exercise reaches a terminal status).
+ * (it refreshes every 4s until every exercise reaches a terminal status). Owns the
+ * variant full-screen focus state so any variant can be opened large (with its
+ * graph) and paged through.
  */
 export function VariantsPanel({
   exercise,
@@ -17,6 +21,7 @@ export function VariantsPanel({
   yearLevel: number;
 }) {
   const { status, results } = exercise;
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
 
   return (
     <div className="mt-4 border-t border-border pt-3">
@@ -42,17 +47,30 @@ export function VariantsPanel({
         <p className="text-xs text-muted-foreground">No variants found.</p>
       )}
 
-      <div className="space-y-2">
-        {results.map((result) => (
+      <div className="grid gap-3 md:grid-cols-2">
+        {results.map((result, i) => (
           <DuplicateResultCard
             key={result.id}
             result={result}
             topic={exercise.topic}
             subtopic={exercise.subtopic}
             yearLevel={yearLevel}
+            onFocus={() => setFocusIdx(i)}
           />
         ))}
       </div>
+
+      {focusIdx !== null && results[focusIdx] && (
+        <VariantFocusDialog
+          results={results}
+          index={focusIdx}
+          topic={exercise.topic}
+          subtopic={exercise.subtopic}
+          yearLevel={yearLevel}
+          onNavigate={setFocusIdx}
+          onClose={() => setFocusIdx(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,12 +1,21 @@
-import { ArrowLeft, FileText, Sparkles, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
+  Upload,
+} from "lucide-react";
 import { type DragEvent, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { useDuplicatorStore } from "@/stores/duplicator";
 
+import { ExerciseFocusDialog } from "./ExerciseFocusDialog";
 import { ExtractedExerciseCard } from "./ExtractedExerciseCard";
 
 const YEAR_KEY = "duplicator_year_level";
@@ -20,11 +29,14 @@ function initialYear(): number {
 
 export function DuplicatorPage() {
   const navigate = useNavigate();
-  const { session, loading, error, upload } = useDuplicatorStore();
+  const { session, loading, error, upload, removeExercise, findMore } =
+    useDuplicatorStore();
   const [file, setFile] = useState<File | null>(null);
   const [year, setYear] = useState<number>(initialYear);
   const [hint, setHint] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // The store's poll is a module-level setInterval; without this it keeps hitting
@@ -53,135 +65,212 @@ export function DuplicatorPage() {
   };
 
   const submit = () => {
-    if (file) void upload(file, year, hint);
+    if (file) {
+      void upload(file, year, hint);
+      // Hand the screen over to results once a run starts.
+      setSidebarOpen(false);
+    }
   };
 
   const exercises = session?.exercises ?? [];
 
+  // Remove an exercise; if focus mode is open, keep the index in range (or close
+  // if the list is now empty). removeExercise updates the store optimistically
+  // and synchronously, so getState() already reflects the removal here.
+  const handleRemove = (id: number) => {
+    void removeExercise(id);
+    setFocusIndex((idx) => {
+      if (idx === null) return null;
+      const remaining = useDuplicatorStore.getState().session?.exercises ?? [];
+      return remaining.length === 0 ? null : Math.min(idx, remaining.length - 1);
+    });
+  };
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex items-center gap-3">
+    <div className="mx-auto max-w-7xl px-6 pb-10">
+      {/* Sticky page header — back / panel toggle stay reachable without scrolling up. */}
+      <div className="glass sticky top-0 z-20 -mx-6 mb-6 flex items-center gap-2 border-b border-border/60 px-6 py-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label={sidebarOpen ? "Hide upload panel" : "Show upload panel"}
+          title={sidebarOpen ? "Hide panel" : "Show panel"}
+        >
+          {sidebarOpen ? (
+            <PanelLeftClose className="h-5 w-5" />
+          ) : (
+            <PanelLeftOpen className="h-5 w-5" />
+          )}
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => navigate("/exam")}>
           <ArrowLeft className="h-4 w-4" /> Exam Prep
         </Button>
         <h1 className="font-display text-2xl font-semibold">Exercise Duplicator</h1>
+        {exercises.length > 0 && (
+          <span className="ml-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            {exercises.length} exercise{exercises.length === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[320px_1fr]">
-        {/* Left control panel */}
-        <aside className="space-y-5">
-          <div
-            onClick={() => inputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={onDrop}
-            className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
-              dragOver ? "border-primary bg-primary/5" : "border-border"
-            }`}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-            {file ? (
-              <>
-                <FileText className="mb-2 h-6 w-6 text-primary" />
-                <span className="text-sm font-medium">{file.name}</span>
-                <span className="mt-1 text-xs text-muted-foreground">
-                  Click to choose a different file
-                </span>
-              </>
-            ) : (
-              <>
-                <Upload className="mb-2 h-6 w-6 text-muted-foreground" />
-                <span className="text-sm font-medium">Drop a PDF or click to browse</span>
-                <span className="mt-1 text-xs text-muted-foreground">
-                  University math / physics exercises
-                </span>
-              </>
-            )}
-          </div>
-
-          <div>
-            <Label className="mb-2 block text-xs">Year level</Label>
-            <div className="flex gap-1">
-              {YEARS.map((y, i) => (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => pickYear(y)}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
-                    year === y
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/70"
-                  }`}
-                >
-                  {ORDINAL[i]}
-                </button>
-              ))}
+      <div
+        className={cn(
+          "grid gap-6",
+          sidebarOpen ? "lg:grid-cols-[320px_1fr]" : "grid-cols-1",
+        )}
+      >
+        {/* Left control panel (collapsible) */}
+        {sidebarOpen && (
+          <aside className="animate-rise space-y-5 lg:sticky lg:top-20 lg:self-start">
+            <div
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onDrop}
+              className={cn(
+                "flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors",
+                dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
+              )}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              {file ? (
+                <>
+                  <FileText className="mb-2 h-6 w-6 text-primary" />
+                  <span className="text-sm font-medium">{file.name}</span>
+                  <span className="mt-1 text-xs text-muted-foreground">
+                    Click to choose a different file
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Upload className="mb-2 h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm font-medium">Drop a PDF or click to browse</span>
+                  <span className="mt-1 text-xs text-muted-foreground">
+                    University math / physics exercises
+                  </span>
+                </>
+              )}
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="hint" className="mb-2 block text-xs">
-              Subject hint (optional)
-            </Label>
-            <Input
-              id="hint"
-              value={hint}
-              onChange={(e) => setHint(e.target.value)}
-              placeholder="e.g. complex analysis"
-            />
-          </div>
+            <div>
+              <Label className="mb-2 block text-xs">Year level</Label>
+              <div className="flex gap-1">
+                {YEARS.map((y, i) => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => pickYear(y)}
+                    className={cn(
+                      "flex-1 rounded-md py-1.5 text-xs font-medium transition-colors",
+                      year === y
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70",
+                    )}
+                  >
+                    {ORDINAL[i]}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <Button onClick={submit} disabled={!file || loading} className="w-full gap-2">
-            <Sparkles className="h-4 w-4" />
-            {loading ? "Extracting…" : "Find variants"}
-          </Button>
+            <div>
+              <Label htmlFor="hint" className="mb-2 block text-xs">
+                Subject hint (optional)
+              </Label>
+              <Input
+                id="hint"
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                placeholder="e.g. complex analysis"
+              />
+            </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </aside>
+            <Button onClick={submit} disabled={!file || loading} className="w-full gap-2">
+              <Sparkles className="h-4 w-4" />
+              {loading ? "Extracting…" : "Find variants"}
+            </Button>
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </aside>
+        )}
 
         {/* Main results panel */}
-        <main className="space-y-4">
+        <main>
           {loading && exercises.length === 0 && (
-            <div className="space-y-4">
-              {[0, 1, 2].map((i) => (
+            <div className="grid gap-5 lg:grid-cols-2">
+              {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-40 animate-pulse rounded-xl border border-border bg-muted/40"
+                  className="h-56 animate-pulse rounded-xl border border-border bg-muted/40"
                 />
               ))}
             </div>
           )}
 
           {!loading && exercises.length === 0 && (
-            <div className="flex h-80 flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
+            <div className="flex h-96 flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
               <Sparkles className="mb-3 h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium">No exercises yet</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                 Upload a PDF of exercises, pick the year level, and we'll extract each
                 problem and search for real university-level variants.
               </p>
+              {!sidebarOpen && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 gap-2"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <PanelLeftOpen className="h-4 w-4" /> Open upload panel
+                </Button>
+              )}
             </div>
           )}
 
-          {exercises.map((exercise, index) => (
-            <ExtractedExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              index={index}
-              yearLevel={session?.year_level ?? year}
-            />
-          ))}
+          {exercises.length > 0 && (
+            <div
+              className={cn(
+                "grid gap-5",
+                // More columns when the sidebar is tucked away.
+                sidebarOpen ? "lg:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3",
+              )}
+            >
+              {exercises.map((exercise, index) => (
+                <ExtractedExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  index={index}
+                  onFocus={() => setFocusIndex(index)}
+                  onRemove={() => handleRemove(exercise.id)}
+                />
+              ))}
+            </div>
+          )}
         </main>
       </div>
+
+      {focusIndex !== null && exercises[focusIndex] && (
+        <ExerciseFocusDialog
+          exercises={exercises}
+          index={focusIndex}
+          yearLevel={session?.year_level ?? year}
+          onNavigate={setFocusIndex}
+          onClose={() => setFocusIndex(null)}
+          onRemove={handleRemove}
+          onFindMore={findMore}
+        />
+      )}
     </div>
   );
 }

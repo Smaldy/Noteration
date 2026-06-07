@@ -1,11 +1,11 @@
-import { BookmarkPlus, Check, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { BookmarkPlus, Check, ExternalLink, Maximize2 } from "lucide-react";
 
 import { MarkdownView } from "@/components/MarkdownView";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
 import type { DuplicateResult } from "@/types/duplicator";
 
+import { normalizeLatex } from "./latex";
+import { useCalibrationSave } from "./useCalibrationSave";
 import { VizRouter } from "./renderers/VizRouter";
 
 interface Props {
@@ -13,35 +13,41 @@ interface Props {
   topic: string;
   subtopic: string | null;
   yearLevel: number;
+  onFocus: () => void;
 }
 
-export function DuplicateResultCard({ result, topic, subtopic, yearLevel }: Props) {
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await api.post("/duplicator/calibration/samples", {
-        topic,
-        subtopic,
-        year_level: yearLevel,
-        source_text: result.problem_text,
-      });
-      setSaved(true);
-    } catch {
-      // Non-fatal — the button just doesn't flip to "saved".
-    } finally {
-      setSaving(false);
-    }
-  };
-
+export function DuplicateResultCard({
+  result,
+  topic,
+  subtopic,
+  yearLevel,
+  onFocus,
+}: Props) {
+  const { saved, saving, save } = useCalibrationSave(
+    result,
+    topic,
+    subtopic,
+    yearLevel,
+  );
   const score = result.difficulty_score;
 
   return (
-    <div className="rounded-lg border border-border bg-background/60 p-3">
+    <div className="group rounded-lg border border-border bg-background/60 p-3">
+      <div className="mb-1 flex justify-end">
+        <button
+          type="button"
+          onClick={onFocus}
+          title="Open variant full screen"
+          aria-label="Open variant full screen"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 group-hover:opacity-100"
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+          Focus
+        </button>
+      </div>
+
       <div className="text-sm">
-        <MarkdownView>{result.problem_text}</MarkdownView>
+        <MarkdownView>{normalizeLatex(result.problem_text)}</MarkdownView>
       </div>
 
       <VizRouter viz={result.viz} />

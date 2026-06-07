@@ -60,7 +60,7 @@ export default defineConfig({
           // additionally dynamic-imported inside PlotlyRenderer, so it gets its own
           // chunk and stays out of vendor (which it would otherwise bloat ~4.5 MB).
           if (id.includes("plotly")) return "plotly";
-          if (/[\\/](mafs|matter-js|mathjs)[\\/]/.test(id)) return "viz";
+          if (/[\\/](matter-js|mathjs)[\\/]/.test(id)) return "viz";
           return "vendor";
         },
       },

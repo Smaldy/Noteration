@@ -24,6 +24,8 @@ interface DuplicatorStore {
   ) => Promise<void>;
   poll: (sessionId: number) => void;
   stopPolling: () => void;
+  removeExercise: (exerciseId: number) => Promise<void>;
+  findMore: (exerciseId: number) => Promise<void>;
   reset: () => void;
 }
 
@@ -81,6 +83,51 @@ export const useDuplicatorStore = create<DuplicatorStore>((set, get) => ({
     if (timer !== null) {
       clearInterval(timer);
       timer = null;
+    }
+  },
+
+  // Optimistically drop the exercise from view, then delete it server-side. On
+  // failure we re-fetch so the UI re-syncs with the truth instead of lying.
+  removeExercise: async (exerciseId) => {
+    const current = get().session;
+    if (current) {
+      set({
+        session: {
+          ...current,
+          exercises: current.exercises.filter((e) => e.id !== exerciseId),
+        },
+      });
+    }
+    try {
+      await api.del(`/duplicator/exercises/${exerciseId}`);
+    } catch {
+      if (current) {
+        try {
+          const fresh = await api.get<ExerciseSession>(
+            `/duplicator/sessions/${current.id}`,
+          );
+          set({ session: fresh });
+        } catch {
+          set({ session: current }); // restore the pre-delete snapshot
+        }
+      }
+    }
+  },
+
+  // Queue another variant search for one exercise; the server resets it to
+  // pending and the worker appends new results, so we resume polling.
+  findMore: async (exerciseId) => {
+    try {
+      const session = await api.post<ExerciseSession>(
+        `/duplicator/exercises/${exerciseId}/search`,
+      );
+      set({ session });
+      if (!allSettled(session)) get().poll(session.id);
+    } catch (err) {
+      set({
+        error:
+          err instanceof ApiError ? err.message : "Could not start a new search.",
+      });
     }
   },
 

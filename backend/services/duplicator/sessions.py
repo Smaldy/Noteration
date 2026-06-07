@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from backend.models.duplicator import ExerciseSession, ExtractedExercise
-from backend.models.enums import ExerciseSessionStatus, QueueStage
+from backend.models.enums import ExerciseSessionStatus, ExerciseStatus, QueueStage
 from backend.models.processing import QueueJob
 from backend.services.documents import PDF_MAGIC, InvalidPDFError, _persist_upload
 from backend.services.duplicator.calibration import add_sample
@@ -39,6 +39,10 @@ IngestFn = Callable[[Path], IngestionResult]
 
 class ExerciseSessionNotFoundError(LookupError):
     """The requested exercise session does not exist."""
+
+
+class ExtractedExerciseNotFoundError(LookupError):
+    """The requested extracted exercise does not exist."""
 
 
 def create_session(
@@ -100,6 +104,42 @@ def create_session(
     session.commit()
     session.refresh(exercise_session)
     return exercise_session
+
+
+def delete_exercise(session: Session, exercise_id: int) -> int:
+    """Delete one extracted exercise (cascading its results + queue jobs).
+
+    Returns the parent ``session_id`` so the caller can report back which session
+    changed. Raises ``ExtractedExerciseNotFoundError`` for an unknown id. Results
+    cascade via the relationship; any pending ``duplicate_search`` job cascades via
+    the FK ``ondelete=CASCADE`` on ``QueueJob.exercise_id``.
+    """
+    exercise = session.get(ExtractedExercise, exercise_id)
+    if exercise is None:
+        raise ExtractedExerciseNotFoundError(exercise_id)
+    session_id = exercise.session_id
+    session.delete(exercise)
+    session.commit()
+    return session_id
+
+
+def requeue_search(session: Session, exercise_id: int) -> ExerciseSession:
+    """Enqueue another ``duplicate_search`` for an exercise ("find more variants").
+
+    Resets the exercise to ``pending`` (so the search drain re-claims it) and adds
+    a fresh search job; the processor *appends* new ``DuplicateResult`` rows to the
+    ones already found. Returns the reloaded parent session for the caller to send
+    back. Raises ``ExtractedExerciseNotFoundError`` for an unknown id.
+    """
+    exercise = session.get(ExtractedExercise, exercise_id)
+    if exercise is None:
+        raise ExtractedExerciseNotFoundError(exercise_id)
+    exercise.status = ExerciseStatus.pending
+    session.add(
+        QueueJob(stage=QueueStage.duplicate_search, exercise_id=exercise.id)
+    )
+    session.commit()
+    return get_exercise_session(session, exercise.session_id)
 
 
 def get_exercise_session(session: Session, session_id: int) -> ExerciseSession:

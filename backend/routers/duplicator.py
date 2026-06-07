@@ -96,6 +96,37 @@ def add_calibration_sample(
     return {"id": sample.id}
 
 
+@router.post(
+    "/exercises/{exercise_id}/search", response_model=ExerciseSessionOut
+)
+def find_more_variants(
+    exercise_id: int,
+    session: Session = Depends(get_session),
+) -> ExerciseSessionOut:
+    """Queue another variant search for one exercise ("Find more variants").
+
+    Resets the exercise to pending and enqueues a fresh ``duplicate_search`` job;
+    the background worker drains it and appends new results. 404 for an unknown id.
+    """
+    try:
+        exercise_session = sessionsvc.requeue_search(session, exercise_id)
+    except sessionsvc.ExtractedExerciseNotFoundError:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    return ExerciseSessionOut.model_validate(exercise_session)
+
+
+@router.delete("/exercises/{exercise_id}", status_code=204)
+def delete_exercise(
+    exercise_id: int,
+    session: Session = Depends(get_session),
+) -> None:
+    """Remove one extracted exercise and its variant results. 404 for unknown id."""
+    try:
+        sessionsvc.delete_exercise(session, exercise_id)
+    except sessionsvc.ExtractedExerciseNotFoundError:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+
 @router.get("/sessions/{session_id}", response_model=ExerciseSessionOut)
 def get_session_detail(
     session_id: int,

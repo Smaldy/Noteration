@@ -98,7 +98,14 @@ export function MarkdownView({ children }: { children: string }) {
         remarkPlugins={[remarkGfm, remarkMath]}
         // Order matters: raw HTML is parsed, then sanitized, then KaTeX injects
         // its own trusted markup (which must not be stripped by the sanitizer).
-        rehypePlugins={[rehypeRaw, rehypeSanitizeRaw, rehypeKatex]}
+        // `throwOnError: false` keeps one malformed expression (common in
+        // AI/PDF-extracted text) from blowing up the whole render — KaTeX shows
+        // the offending source in red instead of throwing.
+        rehypePlugins={[
+          rehypeRaw,
+          rehypeSanitizeRaw,
+          [rehypeKatex, { throwOnError: false, strict: false }],
+        ]}
       >
         {children}
       </ReactMarkdown>

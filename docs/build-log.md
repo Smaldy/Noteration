@@ -2275,6 +2275,77 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   `tokens_used` **is** still recorded by `process_job` for accounting. Both follow
   directly from keeping search out of the topic/lane hot path.
 
+- **Wave ED-7 — Frontend UX/polish (DONE, user-reported issues).** Reworked the
+  duplicator UI for clarity and focus:
+  - **LaTeX breakage fixed at the root.** `MarkdownView` now passes
+    `rehype-katex {throwOnError:false, strict:false}` (one bad PDF/AI expression
+    no longer blows up the whole render — it shows in red), and a new
+    `features/duplicator/latex.ts#normalizeLatex` rewrites the `\( … \)` / `\[ … \]`
+    delimiters that extraction commonly emits (which `remark-math` ignores) into
+    `$…$` / `$$…$$`. Applied to exercise + variant + focus text.
+  - **Decluttered into a card grid** (was a single tall column). Compact
+    `ExtractedExerciseCard` shows topic, a fade-clamped problem preview, viz, and
+    a variant-status footer; grid is 2-col (3-col when the panel is hidden).
+  - **Collapsible upload panel** (`PanelLeftClose/Open` toggle in the header) —
+    separates the drop-zone from the results and auto-tucks on submit, giving the
+    exercises room. Removes the "fake clickable box": only labelled controls act.
+  - **Full-screen focus mode** (`ExerciseFocusDialog`, on the shared
+    `.fullscreen-stage`/`.focus-card` language) — one exercise + all variants at
+    full size, ←/→ to page, Esc to close, body-scroll locked.
+  - **Cleaner 2D graphs** (`MafsRenderer`): viewport auto-fits the curve
+    (asymptote-trimmed y-fit, parametric fits both axes), accent-coloured weighted
+    plot, integer-only axis labels, `preserveAspectRatio={false}`.
+  `tsc -b` + `npm run build` clean (vendor 892 KB / plotly lazy — no new vendor
+  import, per the fragile-manualChunks caution). One manual step for the user:
+  visually smoke a real upload in the browser.
+
+- **Wave ED-8 — Focus-mode rework + per-exercise ops (DONE, 2nd UX pass).**
+  Follow-up to live feedback (formulas still breaking, graphs dirty, focus box too
+  small, no remove/find-more, header scrolled away):
+  - **Bare-LaTeX auto-wrap.** Extraction often emits LaTeX with *no* delimiters
+    (`\frac{…}{…}`, `\lim_{x\to\infty}`, `e^{-x}`). `normalizeLatex` now token-wraps
+    those in `$…$` (command-atom + super/subscript matcher), conservative on `_`
+    so prose/`snake_case` is untouched, and never re-processes existing `$…$`.
+    Unit-checked against the exact failing strings from the screenshot.
+  - **Clean graphs.** `MafsRenderer` y-fit switched to 5th–95th **percentile**
+    framing + span cap — poles (`tan`, `log x / x²`) no longer render as a black
+    wall. Graphs accept a `height` (taller in focus). `PlotlyRenderer` height made
+    a prop too.
+  - **Full-screen two-pane focus.** `ExerciseFocusDialog` now fills the viewport
+    (`flex-col`, sticky header, scrolling body): description pane | visualization
+    pane (440px graph) when a viz exists, full variant list below. ←/→ + Esc.
+  - **Remove + Find-more.** New backend endpoints `DELETE /duplicator/exercises/
+    {id}` (cascades results + the pending search job via FK) and `POST
+    /duplicator/exercises/{id}/search` (resets exercise→pending, enqueues another
+    `duplicate_search`; the worker appends results). Service fns
+    `sessions.delete_exercise` / `requeue_search` + `ExtractedExerciseNotFoundError`.
+    Store gains optimistic `removeExercise` (re-syncs on failure) + `findMore`
+    (resumes poll). Wired to card hover-actions and the focus header.
+  - **Sticky page header** so back / panel-toggle never scroll out of reach.
+  4 new backend tests (delete cascade + 404, requeue resets/appends + 404) — all
+  green (16/16 duplicator suite). `tsc -b` + `npm run build` clean, routes
+  registered. Manual step unchanged: eyeball a real upload.
+
+- **Wave ED-9 — Graphs unified on Plotly + variant focus (DONE, 3rd UX pass).**
+  Feedback: graphs still buggy/ugly, variants not full-screenable.
+  - **Dropped Mafs; all graphs render through Plotly.** `PlotlyRenderer` now also
+    handles `mafs_function` (y=f(x)) and `mafs_parametric` ((x(t),y(t))) as clean
+    themed line plots: 5th–95th-percentile axis framing, line **broken at poles**
+    via `clampNull`+`connectgaps:false` (no more black asymptote wall), dark/light
+    grid + axis colors read from the theme, spline curve, transparent bg.
+    `VizRouter` routes `mafs_*`→Plotly; `MafsRenderer.tsx` deleted; `mafs` removed
+    from the `viz` manualChunk (now matter-js+mathjs). viz chunk 686→673 KB,
+    vendor 892→862 KB, Plotly still lazy. (`mafs` pkg now unused in code; left in
+    package.json — not bundled.)
+  - **Variants are full-screenable + graphable.** New `VariantFocusDialog` (stacks
+    at z-60 above the exercise focus) gives a variant the same description | graph
+    split (440px graph) with ←/→ paging across the exercise's variants, Esc, and
+    Save-to-calibration; capture-phase key handling so it doesn't drive the
+    exercise dialog underneath. Each `DuplicateResultCard` gets a Focus button;
+    `VariantsPanel` owns the focus index and lays variant cards out 2-up. Save
+    logic extracted to a shared `useCalibrationSave` hook.
+  `tsc -b` + `npm run build` clean.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue
