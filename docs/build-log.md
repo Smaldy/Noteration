@@ -2374,6 +2374,17 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   clean; 21 prompt tests green. (Already-extracted sessions with literal `□`/`[x]`
   need a re-run via Find-more/re-upload to pick up the new format.)
 
+- **Wave ED-12 — Broaden bare-exponent LaTeX wrapping (DONE).** Bare exponents
+  beyond a single char rendered the literal `^` (e.g. `e^-x`, `x^10`, `10^6`).
+  `normalizeLatex` now: (a) matches a whole base token (number incl. decimals,
+  identifier, or closing bracket — so `10^6` isn't split to `1`+`0^6`); (b) accepts
+  a signed alnum run as the superscript body (`e^-x`, `2^kt`); (c) **braces
+  multi-char script bodies** (`x^10`→`x^{10}`, `e^-x`→`e^{-x}`) so KaTeX applies
+  the whole exponent, not just the first token. Subscripts stay digit/brace-only
+  so prose (`first_order_systems`) and `x_i` are untouched; existing `$…$`/`$$…$$`
+  still skipped. Node-verified across the shapes above. `tsc -b` + `npm run build`
+  clean.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

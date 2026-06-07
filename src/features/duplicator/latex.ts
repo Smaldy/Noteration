@@ -21,17 +21,44 @@
 const COMMAND =
   "\\\\[a-zA-Z]+\\*?(?:\\s*[_^]\\s*(?:\\{[^{}]*\\}|[A-Za-z0-9]))*(?:\\s*\\{[^{}]*\\})*(?:\\s*[_^]\\s*(?:\\{[^{}]*\\}|[A-Za-z0-9]))*";
 
-// A bare super/subscript on a base atom: `x^2`, `e^{-x}`, `a_{ij}`, `z_0`.
-// Superscripts accept any single alnum or brace group; subscripts require a
-// brace group or a digit (keeps prose underscores out).
-const SCRIPT =
-  "[A-Za-z0-9)\\]}](?:\\^\\s*(?:\\{[^{}]*\\}|[A-Za-z0-9])|_\\s*(?:\\{[^{}]*\\}|[0-9]))";
+// A bare super/subscript on a base atom: `x^2`, `e^-x`, `10^6`, `e^{2x}`, `z_0`.
+// The base is a whole token — a number (`10`, `2.5`), an identifier (`x`, `mc`),
+// or a closing bracket — so multi-char bases like `10^6` aren't split. The script
+// body is a brace group, OR a signed run of alnum chars for `^` (so `e^-x`,
+// `x^10`, `2^kt` all match), OR a brace/digit run for `_` (subscripts stay
+// digit-only so prose `snake_case` / `x_i` aren't touched).
+const BASE = "(?:\\d+(?:\\.\\d+)?|[A-Za-z][A-Za-z0-9]*|[)\\]}])";
+const SUP = "\\^\\s*(?:\\{[^{}]*\\}|[+-]?[A-Za-z0-9]+)";
+const SUB = "_\\s*(?:\\{[^{}]*\\}|[0-9]+)";
+const SCRIPT = `${BASE}(?:${SUP}|${SUB})`;
 
 const ATOM = new RegExp(`${COMMAND}|${SCRIPT}`, "g");
 
+// Splits a bare script atom into base / operator / body.
+const SCRIPT_PARTS = new RegExp(`^(${BASE})\\s*([_^])\\s*(.+)$`, "s");
+
+/**
+ * Brace a multi-character script body so KaTeX applies it whole: `x^10` → `x^{10}`,
+ * `e^-x` → `e^{-x}`. A single-char or already-braced body is left as written
+ * (`x^2`, `e^{2x}`). Used for bare super/subscript atoms only (not commands).
+ */
+function braceScript(atom: string): string {
+  const m = SCRIPT_PARTS.exec(atom);
+  if (!m) return atom;
+  const [, base, op, rawBody] = m;
+  const body = rawBody.trim();
+  const braced = body.startsWith("{") ? body : `{${body}}`;
+  return `${base}${op}${braced}`;
+}
+
 /** Wrap each bare-LaTeX atom in a segment of plain (non-`$`) text. */
 function wrapBareLatex(segment: string): string {
-  return segment.replace(ATOM, (m) => `$${m.trim()}$`);
+  return segment.replace(ATOM, (m) => {
+    // Command atoms (\frac{…}{…}, \lim_{…}) wrap verbatim; bare scripts get
+    // their multi-char body braced so the whole exponent renders.
+    const inner = m.trim().startsWith("\\") ? m.trim() : braceScript(m.trim());
+    return `$${inner}$`;
+  });
 }
 
 /**
