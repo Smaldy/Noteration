@@ -66,6 +66,17 @@
     **Decision:** ship unsigned + first-run docs (user choice; SmartScreen "More
     info → Run anyway" / mac right-click → Open). **Next:** 12-4 macOS `.dmg` via
     GitHub Actions; 12-5 end-user docs + icon.
+  - **12-4 (done, pending first CI run) — macOS `.dmg` via GitHub Actions.**
+    `.github/workflows/build-macos.yml` on `macos-latest` (arm64): checkout →
+    Python 3.14 + Node 20 → `npm ci && npm run build` (rebuilds the gitignored
+    `dist/`) → install backend + build reqs → `pyinstaller noteration.spec`
+    (produces `Noteration.app` via the spec's `BUNDLE`) → **run the bundle's
+    `--selftest` headlessly** (real macOS verification — fails CI if a dep is
+    missing) → package a drag-to-Applications `.dmg` with `hdiutil` → upload as an
+    artifact, and attach to the GitHub release on `v*` tags. Triggers: push to
+    main/delivery-ready, tags, manual. arm64 only for now (covers Apple-Silicon
+    Macs; Intel would need a `macos-13` matrix job). Not yet exercised — validated
+    by the first push to GitHub. **Next:** 12-5 end-user docs + app icon.
 
 - **Phase 1 — Scaffold (Wave 1)** — Monorepo per `project-structure.md`:
   Vite + React + TS frontend (`src/`) built to `dist/`; FastAPI (`backend/`)

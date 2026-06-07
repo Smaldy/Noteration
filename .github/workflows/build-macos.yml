@@ -1,0 +1,79 @@
+name: Build macOS app
+
+# Produces the macOS installer (.dmg) on GitHub's macOS runners, since the
+# Windows dev box can't cross-compile a Mac build. Runs the bundle's headless
+# self-test so a broken Mac build fails CI instead of reaching a user.
+#
+# macos-latest is Apple Silicon (arm64): the .app runs natively on all
+# Apple-Silicon Macs (2020+). Intel Macs would need a separate macos-13 job.
+
+on:
+  push:
+    branches: [main, delivery-ready]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to attach the .dmg to a release on tag pushes
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend bundle (dist/)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r packaging/requirements-build.txt
+
+      - name: Build .app with PyInstaller
+        run: |
+          pyinstaller packaging/noteration.spec --noconfirm \
+            --distpath packaging/dist --workpath packaging/build
+
+      - name: Self-test the frozen app (headless)
+        run: |
+          APP="packaging/dist/Noteration.app/Contents/MacOS/Noteration"
+          test -x "$APP" || { echo "App binary missing at $APP"; exit 1; }
+          "$APP" --selftest
+
+      - name: Package .dmg (drag-to-Applications)
+        run: |
+          STAGE="$(mktemp -d)/Noteration"
+          mkdir -p "$STAGE"
+          cp -R "packaging/dist/Noteration.app" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          mkdir -p packaging/installer_output
+          hdiutil create -volname "Noteration" \
+            -srcfolder "$STAGE" -ov -format UDZO \
+            "packaging/installer_output/Noteration-macOS.dmg"
+
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noteration-macOS-dmg
+          path: packaging/installer_output/Noteration-macOS.dmg
+          if-no-files-found: error
+
+      - name: Attach .dmg to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/installer_output/Noteration-macOS.dmg
