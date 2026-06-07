@@ -28,7 +28,8 @@ echo   Noteration - building and starting
 echo ============================================
 echo.
 
-echo [1/3] Building the frontend ^(takes ~20s the first time^)...
+echo [1/3] Building the frontend ^(this takes ~2-3 minutes - it is NOT frozen,
+echo       the plotly bundle is large; wait for the file list to print^)...
 call npm run build
 if errorlevel 1 (
   echo.
@@ -45,7 +46,9 @@ popd
 
 echo.
 echo [3/3] Starting the server in a new window...
-start "Noteration server" "%PY%" -m uvicorn backend.main:app --port 8000
+rem /d sets the working dir; cmd /k keeps the window open so uvicorn errors stay
+rem readable. Quote only the exe path inside the cmd /k string.
+start "Noteration server" /d "%ROOT%" cmd /k ""%PY%" -m uvicorn backend.main:app --port 8000"
 
 echo Waiting a few seconds for the server to come up...
 timeout /t 6 /nobreak >nul

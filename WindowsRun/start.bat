@@ -49,7 +49,10 @@ if defined RUNNING (
 
 echo Starting the Noteration server in a new window...
 rem cmd /k keeps the window open if uvicorn errors, so you can read the message.
-start "Noteration server" cmd /k "cd /d "%ROOT%" ^&^& "%PY%" -m uvicorn backend.main:app --port %PORT%"
+rem Use start's /d switch to set the working directory instead of a nested
+rem "cd /d ... && ..." command: caret-escaped && inside the cmd /k quotes is not
+rem consumed as an escape, so it reached cd as a literal path and broke the spawn.
+start "Noteration server" /d "%ROOT%" cmd /k ""%PY%" -m uvicorn backend.main:app --port %PORT%"
 
 echo Waiting for the server to be ready ^(up to 30s on a cold start^)...
 set /a tries=0
