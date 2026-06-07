@@ -103,6 +103,9 @@ def build_search_prompt(
         "- For a piecewise function / system defined by cases, use mafs_function "
         "with `pieces`: an ordered list of {expression, domain:[a,b]} branches "
         "(one per case) instead of a single `expression`.\n"
+        "- Render any multiple-choice options as a GitHub-flavoured Markdown task "
+        "list in `problem_text`, one per line: `- [ ] <option>`. Leave every box "
+        "UNCHECKED — never use `- [x]` and never reveal the correct option.\n"
     )
 
 

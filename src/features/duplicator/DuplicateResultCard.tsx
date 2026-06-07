@@ -47,7 +47,9 @@ export function DuplicateResultCard({
       </div>
 
       <div className="text-sm">
-        <MarkdownView>{normalizeLatex(result.problem_text)}</MarkdownView>
+        <MarkdownView interactiveTasks>
+          {normalizeLatex(result.problem_text)}
+        </MarkdownView>
       </div>
 
       <VizRouter viz={result.viz} />

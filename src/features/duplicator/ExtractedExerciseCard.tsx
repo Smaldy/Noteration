@@ -101,7 +101,9 @@ export function ExtractedExerciseCard({
 
         {/* Preview: clamp tall problems behind a fade so the grid stays even. */}
         <div className="relative max-h-44 overflow-hidden text-sm">
-          <MarkdownView>{normalizeLatex(exercise.raw_text)}</MarkdownView>
+          <MarkdownView interactiveTasks>
+            {normalizeLatex(exercise.raw_text)}
+          </MarkdownView>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
         </div>
 

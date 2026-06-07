@@ -77,7 +77,9 @@ function VariantBody({
               <DifficultyBar score={result.difficulty_score} />
             )}
           </div>
-          <MarkdownView>{normalizeLatex(result.problem_text)}</MarkdownView>
+          <MarkdownView interactiveTasks>
+            {normalizeLatex(result.problem_text)}
+          </MarkdownView>
 
           <div className="mt-6 flex items-center justify-between gap-2 border-t border-border/60 pt-4">
             {result.source_url ? (

@@ -1,4 +1,4 @@
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
@@ -91,7 +91,36 @@ function rehypeSanitizeRaw() {
   };
 }
 
-export function MarkdownView({ children }: { children: string }) {
+// When `interactiveTasks` is on, GFM task-list checkboxes (`- [ ] option`) are
+// rendered as REAL, clickable inputs instead of react-markdown's default disabled
+// ones — used for the Duplicator's multiple-choice options so the user can
+// actually tick an answer. We strip the `disabled`/`checked` props rehype emits
+// and make the box uncontrolled (`defaultChecked`) so it toggles on click; the
+// answer isn't persisted (it's a scratch selection while solving).
+const INTERACTIVE_COMPONENTS: Components = {
+  input({ node: _node, ...props }) {
+    if (props.type === "checkbox") {
+      const { checked, disabled: _disabled, ...rest } = props;
+      return (
+        <input
+          {...rest}
+          type="checkbox"
+          defaultChecked={Boolean(checked)}
+          className="mr-1.5 h-4 w-4 cursor-pointer align-middle [accent-color:var(--primary)]"
+        />
+      );
+    }
+    return <input {...props} />;
+  },
+};
+
+export function MarkdownView({
+  children,
+  interactiveTasks = false,
+}: {
+  children: string;
+  interactiveTasks?: boolean;
+}) {
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert">
       <ReactMarkdown
@@ -106,6 +135,7 @@ export function MarkdownView({ children }: { children: string }) {
           rehypeSanitizeRaw,
           [rehypeKatex, { throwOnError: false, strict: false }],
         ]}
+        components={interactiveTasks ? INTERACTIVE_COMPONENTS : undefined}
       >
         {children}
       </ReactMarkdown>

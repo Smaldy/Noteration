@@ -103,6 +103,10 @@ def build_extraction_prompt(year_level: int, subject_hint: str | None) -> str:
         "single `expression`. Omit `pieces` for ordinary single-formula graphs.\n"
         "- A proof, algebra, or combinatorics problem usually has no useful "
         "visualization → `viz` is null.\n"
+        "- Render any multiple-choice options as a GitHub-flavoured Markdown task "
+        "list inside `raw_text`, one option per line: `- [ ] <option>`. Leave every "
+        "box UNCHECKED (`- [ ]`) — never use `- [x]` and never mark or hint which "
+        "option is correct.\n"
         "- If the page contains no exercises, return [].\n"
     )
 

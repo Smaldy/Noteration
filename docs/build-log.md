@@ -2362,6 +2362,18 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
     change was needed. `tsc -b` + `npm run build` clean; 21 duplicator
     extraction/search tests green; mathjs piecewise eval spot-checked.
 
+- **Wave ED-11 — Real MCQ checkboxes (DONE).** Multiple-choice options were
+  GFM task-list items rendered as react-markdown's *disabled* checkboxes (and the
+  model sometimes pre-checked the answer with `- [x]`). `MarkdownView` gains an
+  `interactiveTasks` prop: when set, a `components.input` override strips the
+  `disabled`/`checked` props and renders an uncontrolled, accent-colored, clickable
+  checkbox so the user can actually tick an answer (scratch selection, not
+  persisted). Enabled on all four Duplicator text surfaces (exercise card +
+  focus, variant card + focus). Both prompts now require options as an UNCHECKED
+  `- [ ]` task list and forbid revealing the answer. `tsc -b` + `npm run build`
+  clean; 21 prompt tests green. (Already-extracted sessions with literal `□`/`[x]`
+  need a re-run via Find-more/re-upload to pick up the new format.)
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

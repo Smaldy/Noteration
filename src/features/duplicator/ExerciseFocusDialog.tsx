@@ -154,7 +154,9 @@ export function ExerciseFocusDialog({
                   ))}
                 </div>
               )}
-              <MarkdownView>{normalizeLatex(exercise.raw_text)}</MarkdownView>
+              <MarkdownView interactiveTasks>
+                {normalizeLatex(exercise.raw_text)}
+              </MarkdownView>
             </section>
 
             {/* Visualization pane */}
