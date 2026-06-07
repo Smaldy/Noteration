@@ -25,6 +25,9 @@ build/
 backend/cache/
 backend/benchmark/samples/*.pdf
 
+# ───── Runtime logs (never commit) ─────
+*.log
+
 # ───── Secrets / env ─────
 .env
 .env.*
