@@ -106,6 +106,11 @@ def build_search_prompt(
         "- Render any multiple-choice options as a GitHub-flavoured Markdown task "
         "list in `problem_text`, one per line: `- [ ] <option>`. Leave every box "
         "UNCHECKED — never use `- [x]` and never reveal the correct option.\n"
+        "- STRUCTURE `problem_text` as clean Markdown: wrap EVERY math expression in "
+        "`$ … $` (inline) or `$$ … $$` (a governing/standalone equation on its own "
+        "line); use a `$$\\begin{cases} … \\\\ … \\end{cases}$$` block for systems / "
+        "piecewise definitions; put each sub-question on its own line as `(a)`, "
+        "`(b)`, … Never leave bare math like `x^2` or `f(x)=…` without delimiters.\n"
     )
 
 

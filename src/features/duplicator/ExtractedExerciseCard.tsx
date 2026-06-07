@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ExtractedExercise } from "@/types/duplicator";
 
-import { normalizeLatex } from "./latex";
+import { formatProblem } from "./latex";
 import { VizRouter } from "./renderers/VizRouter";
 
 /** A short, glanceable summary of the variant-search state for the card footer. */
@@ -102,7 +102,7 @@ export function ExtractedExerciseCard({
         {/* Preview: clamp tall problems behind a fade so the grid stays even. */}
         <div className="relative max-h-44 overflow-hidden text-sm">
           <MarkdownView interactiveTasks>
-            {normalizeLatex(exercise.raw_text)}
+            {formatProblem(exercise.raw_text)}
           </MarkdownView>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
         </div>

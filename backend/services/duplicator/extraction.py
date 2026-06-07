@@ -107,6 +107,16 @@ def build_extraction_prompt(year_level: int, subject_hint: str | None) -> str:
         "list inside `raw_text`, one option per line: `- [ ] <option>`. Leave every "
         "box UNCHECKED (`- [ ]`) — never use `- [x]` and never mark or hint which "
         "option is correct.\n"
+        "- STRUCTURE `raw_text` as clean Markdown so it reads well:\n"
+        "  • Wrap EVERY mathematical expression in LaTeX delimiters — inline math "
+        "as `$ … $`, and each governing/standalone equation on its OWN line as "
+        "centered display math `$$ … $$`. Never leave bare math like `x^2`, "
+        "`f(x)=…`, or `y'' + y = 0` without `$`/`$$`.\n"
+        "  • For a system of equations or a Cauchy/piecewise problem, use a display "
+        "cases block: `$$\\begin{cases} … \\\\ … \\end{cases}$$`.\n"
+        "  • Put each sub-question on its own line, labelled `(a)`, `(b)`, … Keep "
+        "any original problem number / points as a short bold first line (e.g. "
+        "`**Problem 3 (6 points)**`), then a blank line, then the statement.\n"
         "- If the page contains no exercises, return [].\n"
     )
 

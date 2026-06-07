@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ExtractedExercise } from "@/types/duplicator";
 
-import { normalizeLatex } from "./latex";
+import { formatProblem } from "./latex";
 import { VariantsPanel } from "./VariantsPanel";
 import { VizRouter } from "./renderers/VizRouter";
 
@@ -155,7 +155,7 @@ export function ExerciseFocusDialog({
                 </div>
               )}
               <MarkdownView interactiveTasks>
-                {normalizeLatex(exercise.raw_text)}
+                {formatProblem(exercise.raw_text)}
               </MarkdownView>
             </section>
 

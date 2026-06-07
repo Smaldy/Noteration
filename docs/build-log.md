@@ -2385,6 +2385,27 @@ exercise (background queue) → Stage 3 renders visualizations (frontend, on-dem
   still skipped. Node-verified across the shapes above. `tsc -b` + `npm run build`
   clean.
 
+- **Wave ED-13 - Problem structure + function/prime recognition (DONE).**
+  Problem statements rendered as one mashed blob with inconsistent math.
+  - **`latex.ts` gains `formatProblem`** (used by all four Duplicator text
+    surfaces) layered on `normalizeLatex`. New recognition: function application
+    `f(x)`/`g(x,y)` (no space before `(` keeps prose out) and primes `y'`/`y''`/
+    `f'(x)` (lookahead avoids `don't`/`it's`). New coalescing joins adjacent math
+    spans across relations/operators, juxtaposition (`$a$$b$`->`$a b$`), and
+    absorbs operator-joined operands (`$x^2$ + 1`->`$x^2 + 1$`) - anchored on a
+    real span so prose isn't swept in; a trailing sentence period stays outside.
+    Structure pass: bold a leading `Problem N (...)` header onto its own line,
+    split sub-questions `(a)/(b)/a)/b)` onto their own lines, promote a whole-line
+    formula to centered `$$...$$` display, pad display blocks with blank lines.
+    Per-segment processing keeps real `$$` display blocks safe. Node-verified on
+    the two screenshot problems + edge cases.
+  - **Prompts force the framework:** extraction + search now require every math
+    expression wrapped in `$...$`/`$$...$$`, a `\begin{cases}` display block for
+    systems/piecewise, sub-questions on their own `(a)/(b)` lines, and a bold
+    problem-number/points first line - so structure holds even when the model is
+    sloppy (frontend) AND is produced well at the source (prompt).
+  `tsc -b` clean; 21 prompt tests green; `npm run build` clean.
+
 ## DECISIONS (Exercise Duplicator)
 
 - **ED-3 queue integration = separate search drain (user-chosen).** The lane queue

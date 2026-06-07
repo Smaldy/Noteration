@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { DuplicateResult } from "@/types/duplicator";
 
-import { normalizeLatex } from "./latex";
+import { formatProblem } from "./latex";
 import { useCalibrationSave } from "./useCalibrationSave";
 import { VizRouter } from "./renderers/VizRouter";
 
@@ -78,7 +78,7 @@ function VariantBody({
             )}
           </div>
           <MarkdownView interactiveTasks>
-            {normalizeLatex(result.problem_text)}
+            {formatProblem(result.problem_text)}
           </MarkdownView>
 
           <div className="mt-6 flex items-center justify-between gap-2 border-t border-border/60 pt-4">

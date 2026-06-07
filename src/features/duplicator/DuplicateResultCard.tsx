@@ -4,7 +4,7 @@ import { MarkdownView } from "@/components/MarkdownView";
 import { Button } from "@/components/ui/button";
 import type { DuplicateResult } from "@/types/duplicator";
 
-import { normalizeLatex } from "./latex";
+import { formatProblem } from "./latex";
 import { useCalibrationSave } from "./useCalibrationSave";
 import { VizRouter } from "./renderers/VizRouter";
 
@@ -48,7 +48,7 @@ export function DuplicateResultCard({
 
       <div className="text-sm">
         <MarkdownView interactiveTasks>
-          {normalizeLatex(result.problem_text)}
+          {formatProblem(result.problem_text)}
         </MarkdownView>
       </div>
 
