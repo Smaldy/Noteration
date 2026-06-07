@@ -77,6 +77,18 @@
     main/delivery-ready, tags, manual. arm64 only for now (covers Apple-Silicon
     Macs; Intel would need a `macos-13` matrix job). Not yet exercised — validated
     by the first push to GitHub. **Next:** 12-5 end-user docs + app icon.
+  - **12-5 (done) — App icon + docs.** No source artwork existed, so
+    `packaging/make_icon.py` (Pillow) generates `assets/noteration.{ico,icns,png}`
+    — a white "N" monogram on the app's indigo gradient, rounded square. The spec
+    already wires the platform icon into the exe/`.app`; rebuilt the Windows bundle
+    so the `.ico` is embedded. Docs: `packaging/USER-GUIDE.md` (non-technical:
+    install + the unsigned-app click-through for both OSes, get a free Gemini key at
+    AI Studio, first upload→study, where data/log live) — now shipped inside the
+    installer with a Start-Menu shortcut; `packaging/README.md` (developer: how the
+    pieces fit, build the Windows installer, verify with --selftest/--smoke, the
+    macOS CI build, releasing). Recompiled `Noteration-Setup-0.1.0.exe` with icon +
+    guide. **Phase 12 delivery packaging is feature-complete on Windows; macOS
+    awaits the first CI run.**
 
 - **Phase 1 — Scaffold (Wave 1)** — Monorepo per `project-structure.md`:
   Vite + React + TS frontend (`src/`) built to `dist/`; FastAPI (`backend/`)
