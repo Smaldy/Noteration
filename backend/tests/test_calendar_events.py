@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Generator
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,8 +20,11 @@ import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.db.database import Base, get_session
 from backend.main import app
 from backend.models import Chapter, Document, ScheduleEntry, Subject, Topic
+from backend.models.hierarchy import utcnow
 
-TODAY = date.today()
+# Match the server's UTC convention (routers.study._today == utcnow().date());
+# local date.today() can be a day off near midnight in non-UTC timezones.
+TODAY = utcnow().date()
 D = timedelta(days=1)
 
 
