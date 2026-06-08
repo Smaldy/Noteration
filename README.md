@@ -51,7 +51,7 @@ Grab the latest installer from the [**Releases page**](https://github.com/Smaldy
 
 Everything is bundled — the recipient installs nothing else. Full step-by-step (including the one-time "unsigned app" click-through and getting a free Gemini key) is in the [**User Guide**](packaging/USER-GUIDE.md).
 
-> The app is currently **unsigned**, so the first launch shows a standard OS warning (Windows: *More info → Run anyway*; macOS: *right-click → Open*). It's safe — everything runs locally.
+> The app is currently **unsigned** because i ain't spending 200 euros for windows and 100 for apple to get it signed, ah hell naw, if you want to feel more secure with no warning pay me so next time it will be signed. The first launch shows a standard OS warning (Windows: *More info → Run anyway*; macOS: *right-click → Open*). For windows Smart App Control might block it, to solve it momenterally disable smart app control, I hope you understand twin, because I ain't helping you. It's safe trust me bro I have standards i don't steal from brokie desparate ahh students.
 
 ---
 
