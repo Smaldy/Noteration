@@ -388,7 +388,8 @@
       "errored": "{{count}} in errore",
       "overnight": "Notturno",
       "resumeChapter": "Riprendi capitolo",
-      "pause": "Pausa"
+      "pause": "Pausa",
+      "clearCompleted": "Rimuovi completati"
     },
     "history": {
       "empty": "Ancora nessuna cronologia di generazione. Man mano che gli argomenti vengono generati, ciò che li ha prodotti — e ogni cambio di provider — comparirà qui.",

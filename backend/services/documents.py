@@ -704,25 +704,22 @@ def get_book_chapter_groups(session: Session) -> list[DocumentChapters]:
     returns the chapter lanes for *all* books in one query, so the queue can always
     show them without a param.
 
-    A book is a document with **≥2 chapters**; a single-chapter document (a slide
-    deck's one "Slides" unit) is already represented by its subject lane, so it's
-    excluded. A book whose every chapter is running *and* fully ready is finished
-    and dropped too (it belongs in the Library, not the active queue). Trash
+    Returns the chapters for **every active document**, regardless of chapter count,
+    so the Queue page can nest them under their subject lane card (expandable) and
+    offer per-chapter pause/resume — including single-chapter slide decks, whose
+    chapter is otherwise unreachable (the subject lane resumes the *subject*, not the
+    chapter). A document whose every chapter is running *and* fully ready is finished
+    and dropped (it belongs in the Library, not the active queue). Trash
     front/back-matter chapters are filtered exactly as ``get_chapter_statuses`` does.
     """
     groups: dict[int, DocumentChapters] = {}
-    for doc_id in (
-        session.execute(
-            select(Chapter.document_id)
-            .group_by(Chapter.document_id)
-            .having(func.count(Chapter.id) >= 2)
-        )
-        .scalars()
-        .all()
-    ):
+    candidate_ids = set(
+        session.execute(select(Chapter.document_id).distinct()).scalars().all()
+    )
+    for doc_id in candidate_ids:
         chapters = get_chapter_statuses(session, doc_id)
-        if len(chapters) < 2:
-            continue  # dropped to <2 once trash chapters were filtered out
+        if not chapters:
+            continue
         finished = all(
             ch.queue_state is QueueLaneState.running
             and ch.topics_ready >= ch.topics_total

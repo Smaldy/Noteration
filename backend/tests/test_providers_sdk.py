@@ -234,6 +234,51 @@ def test_gemini_hard_error_propagates_without_rotation() -> None:
     assert calls == ["m1"]  # did not rotate past the hard error
 
 
+class _ServerError(Exception):
+    """Mimics google-genai ServerError: carries an HTTP ``code`` attribute."""
+
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def test_gemini_rotates_to_next_model_on_transient_overload() -> None:
+    # The delivered-app bug: model rotation tried gemini-3.5-flash first, Google
+    # answered 503 "high demand", and the *whole* Gemini tier failed with a 503 to
+    # the user. A transient server fault must rotate to a healthy model instead.
+    ok = SimpleNamespace(text="ok", usage_metadata=None)
+    client, calls = _gemini_per_model_client(
+        {"m1": _ServerError(503, "model is overloaded, please try again later"), "m2": ok}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    result = provider.generate("p", max_tokens=10)
+    assert result.text == "ok"
+    assert calls == ["m1", "m2"]  # rotated past the busy model
+
+
+def test_gemini_rotates_on_timeout_message_without_status_code() -> None:
+    # A bare timeout (httpx ReadTimeout) has no HTTP status — classify by message.
+    ok = SimpleNamespace(text="ok", usage_metadata=None)
+    client, calls = _gemini_per_model_client(
+        {"m1": Exception("The read operation timed out"), "m2": ok}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    assert provider.generate("p", max_tokens=10).text == "ok"
+    assert calls == ["m1", "m2"]
+
+
+def test_gemini_all_models_transient_defers_briefly_not_hard_fail() -> None:
+    # If every model is transiently busy, report a *limit* (brief defer + re-route),
+    # NOT ProviderUnavailableError (which would back the whole tier off for minutes).
+    client, _ = _gemini_per_model_client(
+        {"m1": _ServerError(503, "high demand"), "m2": _ServerError(500, "internal error")}
+    )
+    provider = GeminiProvider(client=client, clock=lambda: T0, models=["m1", "m2"])
+    with pytest.raises(ProviderLimitError) as excinfo:
+        provider.generate("p", max_tokens=10)
+    assert excinfo.value.reset_at is None  # job retries soon, not stranded for an hour
+
+
 # --- Claude -----------------------------------------------------------------
 
 

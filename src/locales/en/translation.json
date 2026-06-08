@@ -388,7 +388,8 @@
       "errored": "{{count}} errored",
       "overnight": "Overnight",
       "resumeChapter": "Resume chapter",
-      "pause": "Pause"
+      "pause": "Pause",
+      "clearCompleted": "Clear completed"
     },
     "history": {
       "empty": "No generation history yet. As topics are generated, what produced them — and every provider switch — shows up here.",

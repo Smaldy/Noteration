@@ -33,8 +33,9 @@ def _seed_document(
 
 
 def _tree() -> list[ChapterIn]:
-    # Chapters explicitly set running so their non-skip topics enqueue (the schema
-    # default is paused — a confirmed chapter processes nothing until enabled).
+    # Chapters explicitly set running so their non-skip topics enqueue. (The schema
+    # default is also ``running`` now — see ``test_confirm_default_chapter_processes``
+    # — but pinning it keeps these assertions independent of the default.)
     return [
         ChapterIn(
             title="Chapter 1",
@@ -143,6 +144,39 @@ def test_exam_doc_enqueues_generation_only(session: Session) -> None:
         select(QueueJob).where(QueueJob.stage == QueueStage.formula)
     ).all()
     assert formula_jobs == []
+
+
+def test_confirm_default_chapter_processes(session: Session) -> None:
+    # Omitting queue_state must default to running so a confirmed document
+    # processes (the "I confirmed it, so generate it" behaviour). Regression guard
+    # for the delivered-app trap where every chapter defaulted to paused and a
+    # single-chapter doc was then unrecoverable from the UI.
+    document = _seed_document(session)
+    chapters = [
+        ChapterIn(title="Only chapter", topics=[TopicIn(title="Intro")]),
+    ]
+    counts = docsvc.confirm_structure(session, document.id, chapters=chapters)
+    assert counts.topics_enqueued == 1
+    chapter = session.scalars(select(Chapter)).one()
+    assert chapter.queue_state is QueueLaneState.running
+    assert session.scalars(select(QueueJob)).all() != []
+
+
+def test_confirm_paused_chapter_enqueues_nothing(session: Session) -> None:
+    # Pausing a chapter in review is still honoured: its topics exist but no jobs
+    # are created until the user resumes it.
+    document = _seed_document(session)
+    chapters = [
+        ChapterIn(
+            title="Skipped for now",
+            queue_state=QueueLaneState.paused,
+            topics=[TopicIn(title="Later")],
+        ),
+    ]
+    counts = docsvc.confirm_structure(session, document.id, chapters=chapters)
+    assert counts.topics_created == 1
+    assert counts.topics_enqueued == 0
+    assert session.scalars(select(QueueJob)).all() == []
 
 
 def test_all_skip_enqueues_nothing(session: Session) -> None:

@@ -94,10 +94,11 @@ class TopicIn(BaseModel):
 class ChapterIn(BaseModel):
     title: str = Field(min_length=1)
     topics: list[TopicIn] = Field(min_length=1)
-    # Per-chapter lane. Defaults to ``paused``: confirming a document starts every
-    # chapter paused, and the student explicitly enables the chapters to process
-    # (so a 700-page book never auto-burns free-tier quota on chapters not studied).
-    queue_state: QueueLaneState = QueueLaneState.paused
+    # Per-chapter lane. Defaults to ``running``: confirming a document processes its
+    # chapters (the expected "I confirmed it, so generate it" behaviour). A student
+    # can still pause specific chapters in review (e.g. to skip parts of a long book
+    # and not burn free-tier quota on chapters they aren't studying).
+    queue_state: QueueLaneState = QueueLaneState.running
     # Outline-backed page range (1-indexed, inclusive); null for non-outline trees.
     page_start: int | None = None
     page_end: int | None = None

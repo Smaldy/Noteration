@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { useChaptersStore } from "@/stores/chapters";
 import { useLanesStore } from "@/stores/lanes";
 import { useQueueStore } from "@/stores/queue";
-import { ChapterStatusList } from "./ChapterStatusList";
 import { ClearHistoryMenu } from "./ClearHistoryMenu";
 import { HistoryView } from "./HistoryView";
 import { LaneCard } from "./LaneCard";
@@ -35,8 +34,20 @@ export function QueuePage() {
 
   const chapterGroups = useChaptersStore((s) => s.groups);
   const chapterBusy = useChaptersStore((s) => s.busy);
+  const dismissedChapters = useChaptersStore((s) => s.dismissed);
   const fetchChapters = useChaptersStore((s) => s.fetchGroups);
   const setChapterState = useChaptersStore((s) => s.setQueueState);
+  const dismissChapters = useChaptersStore((s) => s.dismiss);
+
+  // Hide chapters the user has cleared from the queue, then drop any now-empty
+  // document group. (Dissolving-but-not-yet-committed chapters stay — they're
+  // mid dust animation and dismissed only once it finishes.)
+  const visibleGroups = chapterGroups
+    .map((g) => ({
+      ...g,
+      chapters: g.chapters.filter((c) => !dismissedChapters.includes(c.id)),
+    }))
+    .filter((g) => g.chapters.length > 0);
 
   useEffect(() => {
     // Skip polling while the tab is hidden (no one's looking), and only fetch the
@@ -124,14 +135,6 @@ export function QueuePage() {
             </Banner>
           )}
 
-          <ChapterStatusList
-            groups={chapterGroups}
-            busy={chapterBusy}
-            onSetState={(chapterId, state) =>
-              void setChapterState(chapterId, state)
-            }
-          />
-
           {lanes && lanes.lanes.length > 0 ? (
             <ul className="space-y-3">
               {lanes.lanes.map((lane) => (
@@ -139,6 +142,14 @@ export function QueuePage() {
                   key={lane.subject_id}
                   lane={lane}
                   busy={busy === lane.subject_id}
+                  chapterGroups={visibleGroups.filter(
+                    (g) => g.subject_id === lane.subject_id,
+                  )}
+                  chapterBusy={chapterBusy}
+                  onSetChapterState={(chapterId, state) =>
+                    void setChapterState(chapterId, state)
+                  }
+                  onDismissChapters={dismissChapters}
                   onPauseToggle={() =>
                     void (lane.queue_state === "paused"
                       ? resumeLane(lane.subject_id)

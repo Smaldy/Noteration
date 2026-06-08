@@ -81,6 +81,46 @@ DEFAULT_MODEL = GEMINI_2_5_FLASH_LITE
 # within the hour in case it was a transient per-minute blip.
 _DEFAULT_LIMIT_COOLDOWN = timedelta(hours=1)
 
+# A *transient* server-side fault (Google 5xx "model overloaded / high demand", a
+# request timeout) is not a quota hit and not a permanent fault: the model is just
+# busy right now. Cool it briefly and rotate to the next model — at any moment some
+# Gemini models are healthy while others spike — instead of failing the whole tier.
+_TRANSIENT_COOLDOWN = timedelta(seconds=30)
+
+# HTTP statuses and message markers that mean "temporarily busy, try another model".
+# Kept deliberately narrow: a 4xx (auth/quota/bad request/404 missing model) must
+# NOT be treated as transient — only server overload (5xx) and timeouts rotate.
+_TRANSIENT_STATUSES = frozenset({500, 502, 503, 504})
+_TRANSIENT_MARKERS = (
+    "overloaded",
+    "high demand",
+    "unavailable",
+    "try again later",
+    "deadline",
+    "timeout",
+    "timed out",
+    "temporarily",
+    "internal error",
+)
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True when ``exc`` is a temporary server overload/timeout (→ rotate, retry).
+
+    Inspects the SDK error's HTTP status (``code``/``status_code``) and message so
+    it works across google-genai ``ServerError``/``APIError`` and the underlying
+    httpx timeout exceptions, none of which share a common base we can isinstance on.
+    """
+    code = getattr(exc, "code", None)
+    if not isinstance(code, int):
+        code = getattr(exc, "status_code", None)
+    if isinstance(code, int) and code in _TRANSIENT_STATUSES:
+        return True
+    lowered = str(exc).lower()
+    if any(str(s) in lowered for s in _TRANSIENT_STATUSES):
+        return True
+    return any(marker in lowered for marker in _TRANSIENT_MARKERS)
+
 _VISION_PROMPT = (
     "Transcribe the equation in this image to LaTeX. Output only the LaTeX, "
     "with no surrounding text or delimiters."
@@ -259,10 +299,13 @@ class GeminiProvider(Provider):
         """Run ``call`` against the first model with headroom, rotating on limits.
 
         Per-model RPD limit (a 429 on one model) → cool that model, try the next.
-        All models limited (shared token budget exhausted) → raise
+        A *transient* server fault (Google 5xx "overloaded" / a timeout) → cool that
+        model briefly and try the next, since other models are usually healthy when
+        one spikes. All models limited (shared token budget exhausted) → raise
         ``ProviderLimitError`` so the waterfall falls through to Ollama. A hard
-        (non-limit) error propagates immediately so the waterfall backs off the
-        whole provider rather than retrying the same fault on every model.
+        (non-limit, non-transient) error — e.g. auth or a missing model — propagates
+        immediately so the waterfall backs off the whole provider rather than
+        retrying the same permanent fault on every model.
 
         The model cooldown and the *raised* reset time are **decoupled**: a 429
         with no explicit reset cools that model for ``_DEFAULT_LIMIT_COOLDOWN``
@@ -297,13 +340,22 @@ class GeminiProvider(Provider):
                         serve_again_at.append(mapped.reset_at)
                     last_limit = str(exc)
                     continue
+                if _is_transient(exc):
+                    # Server busy/timeout on *this* model: cool it briefly and try
+                    # the next. Don't add to serve_again_at — the brief cooldown is
+                    # internal, so a passing blip doesn't strand the job until a
+                    # real window reopens.
+                    slot.cooldown_until = now + _TRANSIENT_COOLDOWN
+                    last_limit = str(exc)
+                    continue
                 raise mapped from exc
             slot.limiter.record(now)
             return self._to_result(response)
 
         reset_at = min(serve_again_at) if serve_again_at else None
         raise ProviderLimitError(
-            last_limit or "all Gemini models are rate-limited", reset_at=reset_at
+            last_limit or "all Gemini models are rate-limited or busy",
+            reset_at=reset_at,
         )
 
     def _config(

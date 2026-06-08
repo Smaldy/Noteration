@@ -388,7 +388,8 @@
       "errored": "{{count}} con error",
       "overnight": "Nocturno",
       "resumeChapter": "Reanudar capítulo",
-      "pause": "Pausar"
+      "pause": "Pausar",
+      "clearCompleted": "Borrar completados"
     },
     "history": {
       "empty": "Aún no hay historial de generación. A medida que se generan los temas, lo que los produjo — y cada cambio de proveedor — aparecerá aquí.",

@@ -16,7 +16,7 @@ export interface EditChapter {
   uid: number;
   title: string;
   topics: EditTopic[];
-  /** Per-chapter lane the user toggles. Defaults to paused (enable to process). */
+  /** Per-chapter lane the user toggles. Defaults to running (pause to skip). */
   queueState: ChapterQueueState;
   /** Outline-backed page range, or null for non-outline trees. */
   pageStart: number | null;
@@ -51,14 +51,14 @@ export const emptyEditState: EditState = { chapters: [], nextUid: 1 };
 /** Build editable state from a detected structure.
 
  * Topic priorities come from the backend (it pre-sets `skip` on trash chapters);
- * chapters carry their outline page range and default to `paused` — the student
- * explicitly enables the chapters to process. */
+ * chapters carry their outline page range and default to `running` — confirming
+ * processes the document; the student can pause specific chapters to skip them. */
 export function initEditState(structure: ProposedStructure): EditState {
   let uid = 1;
   const chapters = structure.chapters.map((chapter) => ({
     uid: uid++,
     title: chapter.title,
-    queueState: "paused" as ChapterQueueState,
+    queueState: "running" as ChapterQueueState,
     pageStart: chapter.page_start,
     pageEnd: chapter.page_end,
     topics: chapter.topics.map((topic) => ({
@@ -104,7 +104,7 @@ export function structureReducer(state: EditState, action: EditAction): EditStat
           {
             uid: state.nextUid,
             title: "",
-            queueState: "paused",
+            queueState: "running",
             pageStart: null,
             pageEnd: null,
             topics: [

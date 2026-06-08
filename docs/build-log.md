@@ -5,6 +5,45 @@
 
 ## DONE
 
+- **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
+  installed app).** Five fixes from real first-use of the packaged build, all on a
+  green tree (**591 backend tests**, tsc + Vite build clean):
+  - **Gemini transient-error rotation (the "Regenerate → 503").** With model
+    rotation ON, the order tries `gemini-3.5-flash` first; Google intermittently
+    times out / answers `503 "high demand"` on the newer flash models while the
+    lite ones stay healthy. `gemini.py._dispatch` treated any non-429 as a *hard*
+    failure that aborted the whole Gemini tier → `AllProvidersExhausted` → 503.
+    Added `_is_transient` (5xx / "overloaded" / "high demand" / timeout, by HTTP
+    code *or* message) → such a fault now **cools that model 30s and rotates** to
+    the next; only auth/400/404 stay hard. All-models-transient raises a *limit*
+    (brief defer + re-route), not a hard fail. (Also confirmed AI Studio's new
+    `AQ.`-prefixed key format is valid.) Tests: transient rotation,
+    timeout-by-message, all-transient-defers-briefly.
+  - **Chapters process by default on confirm.** The structure-review per-chapter
+    switch defaulted to **paused**, so confirming a document enqueued 0 jobs and
+    the queue sat idle (user saw "nothing happens"). Flipped the default to
+    `running` (schema `ChapterIn.queue_state`, `structureReducer`, types); pausing
+    is now opt-in. Tests: `test_confirm_default_chapter_processes`,
+    `test_confirm_paused_chapter_enqueues_nothing`.
+  - **Single-chapter docs were unrecoverable from the queue.** `get_book_chapter_groups`
+    only surfaced ≥2-chapter "books", so a single-chapter slide deck confirmed
+    paused had no resume control (the subject lane resumes the *subject*, not the
+    chapter) — a dead end. It now returns **every active (non-finished) document's**
+    chapters, grouped by document, tagged with `subject_id`.
+  - **Expandable subject lane cards (user request).** The Queue page used to show a
+    separate chapter list only for multi-chapter books. Now each compact subject
+    `LaneCard` has a **▾ chevron**; expanding reveals that subject's chapters
+    (nested `ChapterGroups`, grouped per file) with per-chapter pause/resume. The
+    standalone list is gone; `QueuePage` feeds each card its subject's groups.
+  - **Clear-completed + dust animation (user request).** A "Clear completed" pill
+    (emerald, shows a count) appears in the expanded panel when a subject has
+    finished chapters. Clearing **disintegrates** each row into ~16 drifting
+    emerald motes while the card blurs out (framer variants; deterministic scatter
+    per chapter id), then commits to a **localStorage-persisted dismissed set** so
+    it stays gone across the 5s poll and restarts. View-only — the notes live on in
+    the Library; no backend change. New i18n key `queue.chapters.clearCompleted`
+    (en/es/it).
+
 - **Phase 12 — Delivery packaging (in progress; native desktop app, no terminal).**
   Goal: a double-click installer for non-technical users (Windows installer built
   here; macOS `.dmg` via GitHub Actions). Branch `delivery-ready`.

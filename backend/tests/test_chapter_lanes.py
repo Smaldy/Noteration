@@ -415,13 +415,15 @@ def test_document_tree_drops_trash_chapters_and_topics(session: Session) -> None
     assert [t.title for t in tree.chapters[0].topics] == ["Forces"]
 
 
-# --- grouped book chapter lanes (always reachable) --------------------------
+# --- grouped chapter lanes (nested under each subject lane, expandable) ------
 
 
-def test_book_chapter_groups_lists_only_multichapter_in_progress(
+def test_book_chapter_groups_lists_every_active_document(
     session: Session,
 ) -> None:
-    # A book (2 chapters), still processing → listed.
+    # The Queue page nests these under the subject lane (expand to manage chapters),
+    # so EVERY active document is returned — multi-chapter books and single-chapter
+    # decks alike — not just multi-chapter "books".
     book = _confirm(
         session,
         [
@@ -431,17 +433,36 @@ def test_book_chapter_groups_lists_only_multichapter_in_progress(
                       topics=[TopicIn(title="b")]),
         ],
     )
-    # A single-chapter deck → covered by its subject lane, excluded.
-    _confirm(
+    # A single-chapter deck that's running is now also listed (so it can be expanded
+    # and its chapter paused/resumed).
+    deck = _confirm(
         session,
         [ChapterIn(title="Slides", queue_state=QueueLaneState.running,
                    topics=[TopicIn(title="s")])],
     )
 
     groups = docsvc.get_book_chapter_groups(session)
-    assert [g.document_id for g in groups] == [book.id]
-    assert [c.title for c in groups[0].chapters] == ["Ch 1", "Ch 2"]
-    assert groups[0].subject_name == "Physics"
+    assert {g.document_id for g in groups} == {book.id, deck.id}
+    book_group = next(g for g in groups if g.document_id == book.id)
+    assert [c.title for c in book_group.chapters] == ["Ch 1", "Ch 2"]
+    assert book_group.subject_name == "Physics"
+
+
+def test_book_chapter_groups_surfaces_paused_single_chapter_doc(
+    session: Session,
+) -> None:
+    # Regression guard for the delivered-app dead end: a single-chapter document
+    # confirmed paused had NO resume control (the subject lane resumes the subject,
+    # not the chapter), so it was stuck idle forever. It must now appear so its lone
+    # chapter has a visible ▶ resume button.
+    deck = _confirm(
+        session,
+        [ChapterIn(title="Slides", queue_state=QueueLaneState.paused,
+                   topics=[TopicIn(title="s")])],
+    )
+    groups = docsvc.get_book_chapter_groups(session)
+    assert [g.document_id for g in groups] == [deck.id]
+    assert [c.title for c in groups[0].chapters] == ["Slides"]
 
 
 def test_book_chapter_groups_excludes_finished_books(session: Session) -> None:

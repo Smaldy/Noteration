@@ -1,12 +1,15 @@
-import { motion } from "framer-motion";
-import { Clock, Moon, Pause, Play } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, Clock, Moon, Pause, Play, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
+import type { ChapterQueueState, DocumentChapters } from "@/types/chapter";
 import type { LaneState, LaneStatus } from "@/types/lanes";
+import { ChapterGroups, isChapterComplete } from "./ChapterStatusList";
 
 // Visual style per lane state; the label is resolved via i18n at render.
 const STATE_STYLE: Record<LaneState, { accent: string; pill: string }> = {
@@ -31,15 +34,46 @@ const STATE_STYLE: Record<LaneState, { accent: string; pill: string }> = {
 interface LaneCardProps {
   lane: LaneStatus;
   busy: boolean;
+  /** This subject's documents + chapters, shown nested when the card is expanded. */
+  chapterGroups: DocumentChapters[];
+  chapterBusy: number | null;
+  onSetChapterState: (chapterId: number, state: ChapterQueueState) => void;
+  /** Hide completed chapters from the queue (called once each one's dust settles). */
+  onDismissChapters: (chapterIds: number[]) => void;
   onPauseToggle: () => void;
   onOvernightToggle: (enabled: boolean) => void;
 }
 
-export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneCardProps) {
+export function LaneCard({
+  lane,
+  busy,
+  chapterGroups,
+  chapterBusy,
+  onSetChapterState,
+  onDismissChapters,
+  onPauseToggle,
+  onOvernightToggle,
+}: LaneCardProps) {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  // Chapters mid dust-clear: they keep rendering (animating) until their motes
+  // settle, then `onDissolved` commits them to the dismissed set and they unmount.
+  const [dissolving, setDissolving] = useState<number[]>([]);
   const style = STATE_STYLE[lane.state];
   const paused = lane.queue_state === "paused";
   const provider = providerInfo(lane.active_provider);
+  const chapterCount = chapterGroups.reduce((n, g) => n + g.chapters.length, 0);
+  const canExpand = chapterCount > 0;
+  const completedIds = chapterGroups
+    .flatMap((g) => g.chapters)
+    .filter((c) => isChapterComplete(c) && !dissolving.includes(c.id))
+    .map((c) => c.id);
+
+  const clearCompleted = () => setDissolving((prev) => [...prev, ...completedIds]);
+  const handleDissolved = (chapterId: number) => {
+    setDissolving((prev) => prev.filter((id) => id !== chapterId));
+    onDismissChapters([chapterId]);
+  };
 
   return (
     <motion.li
@@ -111,6 +145,61 @@ export function LaneCard({ lane, busy, onPauseToggle, onOvernightToggle }: LaneC
         <Count label={t("queue.lane.counts.queued")} value={lane.queued} tone="text-muted-foreground" />
         <Count label={t("queue.lane.counts.errored")} value={lane.error} tone="text-destructive" />
       </div>
+
+      {/* Expand to reveal this subject's chapters with per-chapter pause/resume. */}
+      {canExpand && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="flex w-full items-center justify-center gap-1.5 border-t py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+          >
+            <ChevronDown
+              className={cn("size-4 transition-transform", expanded && "rotate-180")}
+            />
+            {t("queue.chapters.title")}
+            <span className="tabular-nums text-muted-foreground/70">({chapterCount})</span>
+          </button>
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                key="chapters"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden border-t bg-muted/20"
+              >
+                <div className="space-y-3 p-4">
+                  {completedIds.length > 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={clearCompleted}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300"
+                      >
+                        <Sparkles className="size-3.5" />
+                        {t("queue.chapters.clearCompleted")}
+                        <span className="tabular-nums opacity-70">
+                          ({completedIds.length})
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                  <ChapterGroups
+                    groups={chapterGroups}
+                    busy={chapterBusy}
+                    dissolving={dissolving}
+                    onSetState={onSetChapterState}
+                    onDissolved={handleDissolved}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
     </motion.li>
   );
 }
