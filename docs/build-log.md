@@ -54,9 +54,13 @@
     lands in the main `index` chunk (no new vendor-chunk boundary → no circular
     init). Smoke-tested the **served prod bundle**: health/state/earn endpoints +
     index all good (dev DB reset after). Arcade UI is English-only for v1 (arcade
-    flavor text; not wired to i18n) — logged. **Next:** 14-3 the canvas game engine
-    (cursor-as-player, RAF loop, health, projectiles, collision) + first tab's
-    enemy pool.
+    flavor text; not wired to i18n) — logged. **PAUSED for user playtest** of the
+    hub/economy before the engine. **Next:** 14-3 the canvas game engine
+    (cursor-as-player, RAF loop, health, projectiles, collision) replacing the
+    `playing` placeholder — **first enemy pool = Queue "Time Pressure"** (user's
+    pick: Clock enemy — click the face, avoid radiating spikes; Hourglass — slow,
+    flips unpredictably, splits in two on death). Later: remaining tab themes +
+    bombs/nav-alerts (self-contained arcade nav), then wave manager + polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a
