@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { emitStudyEvent } from "@/lib/arcadeEvents";
 import { cn } from "@/lib/utils";
 import type { MCQ } from "@/types/study";
 
@@ -78,6 +79,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
     setSelected(i);
     setRevealed(true);
     if (i === mcq.correct_index) setCorrect((c) => c + 1);
+    emitStudyEvent("mcq"); // additive: feeds the arcade coin economy (no behavior change)
   }
 
   function next() {

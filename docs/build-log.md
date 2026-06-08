@@ -32,6 +32,31 @@
     upgrades + errors, cooldown trigger, all HTTP endpoints). Tree green: full
     suite **611 passed**. **Next:** 14-2 joystick button + arcade machine overlay
     (hub/lever/coin display/cooldown timer), then the game engine.
+  - **14-2 (done) — Frontend foundation, entry point, arcade hub + earning.** All
+    new under `src/features/arcade/` + `src/{types,stores,lib}` — **only two**
+    existing files gained a single additive line each (the approved seam): a
+    `mcq` emit in `QuizTab.choose` and a `flashcard` emit in `FlashcardsTab.grade`
+    (both fire-and-forget via `lib/arcadeEvents.ts`; the symmetric flashcard emit
+    chosen over fragile `fetch`/DOM interception — cleaner and reliable). `App.tsx`
+    + `main.tsx` got one import/line each (mount `<ArcadeRoot/>`; load the
+    Press Start 2P pixel font). Pieces: `types/arcade.ts` (mirrors the API),
+    `stores/arcade.ts` (Zustand: server-authoritative state + run lifecycle phase
+    machine off→starting→playing→over), `JoystickButton` (fixed bottom-left, coin
+    badge), `ArcadeOverlay` (retro CRT cabinet, scoped scanline/neon CSS — nothing
+    leaks to `index.css`; two screens via ◄►), `Player1Screen` (coins, hi-score,
+    best-wave, lever with fresh/resume cost gating, cooldown countdown replacing
+    the lever), `UpgradesScreen` (shop spending score points, level pips), and
+    `GameLayer` (permanent WAVE-slam + GAME-OVER screens; a survival-timer
+    **placeholder** for `playing` so the whole economy loop is exercisable now —
+    the canvas engine replaces just that branch next). `ArcadeRoot` is the single
+    mount point: fetches state, subscribes study→coins, renders the three layers.
+    Dep: `@fontsource/press-start-2p`. tsc + `npm run build` clean; arcade code
+    lands in the main `index` chunk (no new vendor-chunk boundary → no circular
+    init). Smoke-tested the **served prod bundle**: health/state/earn endpoints +
+    index all good (dev DB reset after). Arcade UI is English-only for v1 (arcade
+    flavor text; not wired to i18n) — logged. **Next:** 14-3 the canvas game engine
+    (cursor-as-player, RAF loop, health, projectiles, collision) + first tab's
+    enemy pool.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

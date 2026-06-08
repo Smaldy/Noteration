@@ -6,6 +6,7 @@ import "@fontsource-variable/inter";
 import "@fontsource-variable/montserrat";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/newsreader";
+import "@fontsource/press-start-2p"; // arcade minigame pixel font
 
 import "katex/dist/katex.min.css";
 

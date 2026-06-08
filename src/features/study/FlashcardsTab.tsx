@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { emitStudyEvent } from "@/lib/arcadeEvents";
 import { cn } from "@/lib/utils";
 import { ApiError, api } from "@/lib/api";
 import type { FlashcardContent } from "@/types/study";
@@ -81,6 +82,7 @@ export function FlashcardsTab({
     setError(null);
     try {
       await api.post(`/study/flashcards/${card.id}/review`, { grade: g });
+      emitStudyEvent("flashcard"); // additive: feeds the arcade coin economy
       setIndex((i) => i + 1);
       setFlipped(false);
     } catch (err) {

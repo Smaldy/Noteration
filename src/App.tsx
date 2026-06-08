@@ -3,6 +3,7 @@ import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 // Always-mounted (visible on every route), so they stay in the main bundle.
+import { ArcadeRoot } from "@/features/arcade/ArcadeRoot";
 import { CreditsOverlay } from "@/features/credits/CreditsOverlay";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
 import { ProviderBadge } from "@/features/queue/ProviderBadge";
@@ -75,6 +76,8 @@ export default function App() {
       <PomodoroWidget />
       {/* Hidden easter egg: tap the Library title 4× quickly to summon the credits. */}
       <CreditsOverlay />
+      {/* Study-gated arcade minigame — additive overlay; never touches the app. */}
+      <ArcadeRoot />
     </>
   );
 }
