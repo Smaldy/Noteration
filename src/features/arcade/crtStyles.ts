@@ -141,8 +141,8 @@ export const arcadeStyles = `
     box-shadow:
       inset 0 3px 5px rgba(255,255,255,0.6),
       inset 0 -7px 11px rgba(85,0,14,0.6),
-      0 5px 3px rgba(108,12,24,0.85),
-      0 10px 15px rgba(0,0,0,0.5);
+      0 5px 5px rgba(108,12,24,0.7),
+      0 12px 18px rgba(0,0,0,0.42);
     font-size: 18px; line-height: 1;
     cursor: pointer;
     transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
@@ -153,8 +153,8 @@ export const arcadeStyles = `
     box-shadow:
       inset 0 2px 4px rgba(255,255,255,0.5),
       inset 0 -5px 9px rgba(85,0,14,0.6),
-      0 1px 2px rgba(108,12,24,0.85),
-      0 3px 8px rgba(0,0,0,0.45);
+      0 1px 3px rgba(108,12,24,0.7),
+      0 4px 10px rgba(0,0,0,0.4);
   }
   .cab-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 

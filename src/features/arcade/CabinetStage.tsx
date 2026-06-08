@@ -194,15 +194,17 @@ function renderSlot(id: string, props: CabinetStageProps): ReactNode {
  *  screen + the wide kick). Pure decoration; positioned in stage units. */
 type Decal = { cls: "star" | "bolt" | "dot" | "ring"; x: number; y: number; s: number; c: string; r: number };
 const DECALS: Decal[] = [
-  { cls: "star", x: -78, y: 180, s: 44, c: "#5fe6ff", r: -12 },
-  { cls: "star", x: 498, y: 210, s: 40, c: "#ff6ad5", r: 14 },
-  { cls: "dot", x: -60, y: 300, s: 18, c: "#ffe14d", r: 0 },
-  { cls: "ring", x: 506, y: 330, s: 30, c: "#5fe6ff", r: 0 },
-  { cls: "star", x: -176, y: 700, s: 58, c: "#ffe14d", r: -8 },
-  { cls: "star", x: 602, y: 702, s: 52, c: "#74ff9c", r: 12 },
-  { cls: "bolt", x: -64, y: 766, s: 46, c: "#ff6ad5", r: 6 },
-  { cls: "ring", x: 660, y: 800, s: 36, c: "#5fe6ff", r: 0 },
-  { cls: "dot", x: 548, y: 660, s: 14, c: "#ffe14d", r: 0 },
+  // big neon stars on the wide kick (plenty of room, won't stick out)
+  { cls: "star", x: -214, y: 696, s: 120, c: "#ffe14d", r: -10 },
+  { cls: "star", x: 588, y: 696, s: 120, c: "#74ff9c", r: 12 },
+  // bolt + ring accents on the kick
+  { cls: "bolt", x: 78, y: 792, s: 90, c: "#ff6ad5", r: 8 },
+  { cls: "ring", x: 540, y: 792, s: 50, c: "#5fe6ff", r: 0 },
+  // cabinet side strips — sized to fit the ~80px margins beside the screen
+  { cls: "star", x: -82, y: 160, s: 64, c: "#5fe6ff", r: -12 },
+  { cls: "star", x: 494, y: 192, s: 66, c: "#ff6ad5", r: 14 },
+  { cls: "dot", x: -56, y: 308, s: 22, c: "#ffe14d", r: 0 },
+  { cls: "dot", x: 520, y: 300, s: 18, c: "#ff6ad5", r: 0 },
 ];
 
 function CabinetDecals() {
