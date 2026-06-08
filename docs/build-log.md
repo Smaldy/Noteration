@@ -54,8 +54,23 @@
     lands in the main `index` chunk (no new vendor-chunk boundary → no circular
     init). Smoke-tested the **served prod bundle**: health/state/earn endpoints +
     index all good (dev DB reset after). Arcade UI is English-only for v1 (arcade
-    flavor text; not wired to i18n) — logged. **PAUSED for user playtest** of the
-    hub/economy before the engine. **Next:** 14-3 the canvas game engine
+    flavor text; not wired to i18n) — logged.
+  - **14-2b (done) — Cabinet redesign + economy tweaks (user playtest feedback +
+    concept art).** Economy: start cost **10→3**, daily-quest bonus **1→3 coins**,
+    and MCQs count toward the quest **only when answered correctly** (the `mcq`
+    emit in `QuizTab` now fires only on a correct choice). UI rebuilt to a physical
+    **2.5-D arcade cabinet** ("NOTINVASION"): backlit trapezoid marquee, a **wide
+    old-TV CRT** (aspect 4/3, was portrait), and an **angled control deck**
+    (perspective tilt) carrying the controls **outside** the screen — a 4-way
+    cluster of **semi-3-D arcade buttons** (◄►= change screen Main/Store/Quests;
+    ▲▼ amber = pick New Start / Continue), a **ball-top lever** that tips on pull,
+    and a **coin slot** that a coin physically **arcs into** on start. Keyboard
+    support (arrows + Enter/Esc). New `ArcadeButton`, `ArcadeLever`, `MainScreen`
+    (start selector; lever moved out), `QuestsScreen`; `Player1Screen` removed;
+    `crtStyles.ts` rewritten (cabinet/marquee/deck/button/lever/slot, all scoped).
+    tsc + build clean; served bundle smoke-tested (base_cost=3; dev DB reset).
+    **PAUSED for user playtest** before the engine. **Next:** 14-3 the canvas game
+    engine
     (cursor-as-player, RAF loop, health, projectiles, collision) replacing the
     `playing` placeholder — **first enemy pool = Queue "Time Pressure"** (user's
     pick: Clock enemy — click the face, avoid radiating spikes; Hourglass — slow,

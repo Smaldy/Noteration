@@ -31,12 +31,12 @@ from backend.models.hierarchy import utcnow
 COIN_PER_FLASHCARD = 1
 COIN_PER_MCQ = 1
 DAILY_MCQ_TARGET = 15
-DAILY_BONUS_COINS = 1
+DAILY_BONUS_COINS = 3
 
 # Entry costs. Starting fresh from Wave 1 is always the flat base; resuming a
 # run pays the base plus the wave you left off at, so deep resumes cost
 # progressively more than a fresh start (spec's "base_cost + wave_number").
-BASE_COST = 10
+BASE_COST = 3
 
 
 def resume_cost(wave: int) -> int:

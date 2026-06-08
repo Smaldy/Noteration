@@ -22,16 +22,16 @@ export function UpgradesScreen({ state }: { state: ArcadeState }) {
   }
 
   return (
-    <div className={`flex h-full flex-col py-5 ${ARCADE_PIXEL}`}>
-      <div className="text-center">
-        <p className="arcade-neon-cyan text-[11px] tracking-[0.3em]">UPGRADES</p>
-        <p className="mt-3 text-[9px]">
+    <div className={`flex h-full flex-col ${ARCADE_PIXEL}`}>
+      <div className="flex items-center justify-between">
+        <p className="arcade-neon-cyan text-[11px] tracking-[0.3em]">STORE</p>
+        <p className="text-[9px]">
           <span className="arcade-dim">SCORE </span>
           <span className="arcade-neon-yellow text-sm">{state.score_balance}</span>
         </p>
       </div>
 
-      <div className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
         {state.upgrades.map((u) => (
           <UpgradeRow
             key={u.key}

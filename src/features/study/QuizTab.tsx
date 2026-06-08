@@ -78,8 +78,10 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
     if (revealed) return;
     setSelected(i);
     setRevealed(true);
-    if (i === mcq.correct_index) setCorrect((c) => c + 1);
-    emitStudyEvent("mcq"); // additive: feeds the arcade coin economy (no behavior change)
+    if (i === mcq.correct_index) {
+      setCorrect((c) => c + 1);
+      emitStudyEvent("mcq"); // additive: arcade coins + daily quest, correct answers only
+    }
   }
 
   function next() {
