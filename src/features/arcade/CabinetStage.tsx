@@ -27,9 +27,10 @@ export interface CabinetStageProps {
   screenDots: ReactNode;
   /** the marquee title. */
   marquee: ReactNode;
-  canResume: boolean;
+  /** whether ▲ ▼ does anything on the active screen (resume toggle / store nav). */
+  navEnabled: boolean;
   onCycleScreen: (dir: 1 | -1) => void;
-  onCycleSelection: () => void;
+  onMove: (dir: 1 | -1) => void;
   leverPulled: boolean;
   leverDisabled: boolean;
   onPull: () => void;
@@ -147,8 +148,8 @@ function renderSlot(id: string, props: CabinetStageProps): ReactNode {
           key={id}
           box={box}
           label="Select previous"
-          onClick={props.onCycleSelection}
-          disabled={!props.canResume}
+          onClick={() => props.onMove(-1)}
+          disabled={!props.navEnabled}
         >
           ▲
         </DeckButton>
@@ -159,8 +160,8 @@ function renderSlot(id: string, props: CabinetStageProps): ReactNode {
           key={id}
           box={box}
           label="Select next"
-          onClick={props.onCycleSelection}
-          disabled={!props.canResume}
+          onClick={() => props.onMove(1)}
+          disabled={!props.navEnabled}
         >
           ▼
         </DeckButton>

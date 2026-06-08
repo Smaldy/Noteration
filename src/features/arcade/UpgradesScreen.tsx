@@ -1,25 +1,29 @@
-import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 
-import { useArcadeStore } from "@/stores/arcade";
-import type { ArcadeState, ArcadeUpgrade } from "@/types/arcade";
+import type { ArcadeState } from "@/types/arcade";
 
 import { ARCADE_PIXEL } from "./crtStyles";
 
-/** The shop: spend score points (earned during runs) on permanent upgrades. */
-export function UpgradesScreen({ state }: { state: ArcadeState }) {
-  const buyUpgrade = useArcadeStore((s) => s.buyUpgrade);
-  const [error, setError] = useState<string | null>(null);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+/** The shop. Selection is driven by the deck's ▲ ▼ buttons (selectedIndex);
+ *  the lever buys the highlighted row. Purely presentational — the overlay owns
+ *  the selection and the buy action. */
+export function UpgradesScreen({
+  state,
+  selectedIndex,
+  error,
+  busy,
+}: {
+  state: ArcadeState;
+  selectedIndex: number;
+  error?: string | null;
+  busy?: boolean;
+}) {
+  const selRef = useRef<HTMLDivElement | null>(null);
 
-  async function buy(key: string) {
-    setError(null);
-    setBusyKey(key);
-    const result = await buyUpgrade(key);
-    if (!result.ok) setError(result.error ?? "Could not buy");
-    setBusyKey(null);
-  }
+  useEffect(() => {
+    selRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
 
   return (
     <div className={`flex h-full flex-col ${ARCADE_PIXEL}`}>
@@ -31,70 +35,66 @@ export function UpgradesScreen({ state }: { state: ArcadeState }) {
         </p>
       </div>
 
-      <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
-        {state.upgrades.map((u) => (
-          <UpgradeRow
-            key={u.key}
-            upgrade={u}
-            affordable={u.next_cost != null && state.score_balance >= u.next_cost}
-            busy={busyKey === u.key}
-            onBuy={() => buy(u.key)}
-          />
-        ))}
-      </div>
-
-      {error && <p className="arcade-neon-pink mt-2 text-center text-[8px]">{error}</p>}
-    </div>
-  );
-}
-
-function UpgradeRow({
-  upgrade,
-  affordable,
-  busy,
-  onBuy,
-}: {
-  upgrade: ArcadeUpgrade;
-  affordable: boolean;
-  busy: boolean;
-  onBuy: () => void;
-}) {
-  const maxed = upgrade.next_cost == null;
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-fuchsia-400/20 bg-black/40 px-3 py-2">
-      <div className="min-w-0">
-        <p className="arcade-neon-green text-[9px]">{upgrade.name}</p>
-        <p className="arcade-dim mt-1 truncate text-[7px] leading-relaxed">
-          {upgrade.description}
-        </p>
-        <div className="mt-1.5 flex gap-1">
-          {Array.from({ length: upgrade.max_level }, (_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 w-3 rounded-sm ${
-                i < upgrade.level ? "bg-amber-400" : "bg-white/15"
+      <div className="mt-2 flex-1 space-y-2 overflow-y-auto pr-1">
+        {state.upgrades.map((u, i) => {
+          const selected = i === selectedIndex;
+          const maxed = u.next_cost == null;
+          const affordable = !maxed && state.score_balance >= (u.next_cost ?? 0);
+          return (
+            <div
+              key={u.key}
+              ref={selected ? selRef : undefined}
+              className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition ${
+                selected
+                  ? "border-fuchsia-300/80 bg-fuchsia-500/10"
+                  : "border-fuchsia-400/15 bg-black/40"
               }`}
-            />
-          ))}
-        </div>
+            >
+              <div className="min-w-0">
+                <p className={`text-[9px] ${selected ? "arcade-neon-cyan" : "arcade-neon-green"}`}>
+                  {u.name}
+                </p>
+                <p className="arcade-dim mt-1 truncate text-[7px] leading-relaxed">
+                  {u.description}
+                </p>
+                <div className="mt-1.5 flex gap-1">
+                  {Array.from({ length: u.max_level }, (_, k) => (
+                    <span
+                      key={k}
+                      className={`h-1.5 w-3 rounded-sm ${k < u.level ? "bg-amber-400" : "bg-white/15"}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="shrink-0 text-right">
+                {maxed ? (
+                  <span className="arcade-neon-yellow text-[8px]">MAX</span>
+                ) : busy && selected ? (
+                  <span className="arcade-neon-cyan arcade-blink text-[8px]">BUYING</span>
+                ) : (
+                  <span
+                    className={`inline-flex items-center gap-1 text-[8px] ${
+                      affordable ? "arcade-neon-yellow" : "arcade-dim"
+                    }`}
+                  >
+                    <Sparkles className="size-3" />
+                    {u.next_cost}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {maxed ? (
-        <span className="arcade-neon-yellow shrink-0 text-[8px]">MAX</span>
-      ) : (
-        <motion.button
-          type="button"
-          onClick={onBuy}
-          disabled={!affordable || busy}
-          whileTap={affordable ? { scale: 0.9 } : undefined}
-          className={`flex shrink-0 flex-col items-center gap-0.5 rounded border px-2.5 py-1.5 text-[7px] transition disabled:opacity-50 ${
-            affordable ? "border-amber-400/60 arcade-neon-yellow" : "border-white/15 arcade-dim"
-          }`}
-        >
-          <Sparkles className="size-3" />
-          <span>{upgrade.next_cost}</span>
-        </motion.button>
-      )}
+      <p className="mt-2 text-center text-[7px]">
+        {error ? (
+          <span className="arcade-neon-pink">{error}</span>
+        ) : (
+          <span className="arcade-dim">▲▼ SELECT · PULL LEVER TO BUY</span>
+        )}
+      </p>
     </div>
   );
 }
