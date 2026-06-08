@@ -1,11 +1,13 @@
 /**
- * Scoped CRT-arcade styling for the minigame cabinet. Injected as a single
- * <style> tag inside the overlay (mirrors CreditsOverlay) so none of it leaks
- * into the real app's global CSS. All class names are arcade-prefixed.
+ * True-3D CRT-arcade cabinet styling for the minigame overlay. Injected as one
+ * <style> tag inside the overlay (mirrors CreditsOverlay) so none of it leaks to
+ * the app's global CSS. All class names are arcade-/box-/lever-/deck- prefixed.
  *
- * The chassis reads as a solid 3-D box (extruded marquee + a skewed right side
- * wall + a grounded shadow) while the CRT screen stays flat and readable. A
- * casino-style pull lever mounts on the right side.
+ * The chassis is built from real geometric planes (perspective + preserve-3d +
+ * rotateX/translateZ): a marquee that juts forward, a recessed screen housing,
+ * a slanted control deck, and a flat coin base — assembled into a solid box.
+ * Utility classes (neon text, pixel font, scanlines, coin) are shared with the
+ * on-screen panels and the game layer.
  */
 
 export const ARCADE_PIXEL = "arcade-pixel";
@@ -22,182 +24,186 @@ export const arcadeStyles = `
     background:
       radial-gradient(120% 80% at 50% -10%, rgba(80,30,120,0.5), transparent 55%),
       radial-gradient(80% 60% at 50% 120%, rgba(20,60,90,0.35), transparent 60%),
-      rgba(3, 2, 8, 0.9);
+      rgba(3, 2, 8, 0.92);
     backdrop-filter: blur(3px);
   }
 
-  /* ---- Cabinet chassis (faux-3-D box) ------------------------------------- */
-  .arcade-cab { position: relative; }
-  /* receding right side wall */
-  .arcade-cab::before {
-    content: ""; position: absolute; z-index: -2;
-    top: 34px; bottom: 30px; right: -28px; width: 32px;
-    background: linear-gradient(90deg, #281452 0%, #160a2e 60%, #0c0620 100%);
-    transform: skewY(33deg); transform-origin: left top;
-    border-radius: 0 12px 14px 0;
-    box-shadow: inset -6px 0 18px rgba(0,0,0,0.6);
-  }
-  /* soft contact shadow on the floor */
-  .arcade-cab::after {
-    content: ""; position: absolute; z-index: -3;
-    left: 6%; right: -2%; bottom: -30px; height: 46px;
-    background: radial-gradient(55% 60% at 50% 0, rgba(0,0,0,0.65), transparent 72%);
-    filter: blur(7px);
-  }
-  .arcade-cab-side {
-    background: linear-gradient(100deg, #2c1656 0%, #1a0f3a 60%, #120a28 100%);
-    border: 2px solid rgba(160,110,240,0.30);
-    box-shadow:
-      inset 2px 0 0 rgba(255,255,255,0.06),
-      inset 0 0 60px rgba(120,70,220,0.16);
+  /* ---- 3D scene (the camera) ---------------------------------------------- */
+  .arcade-scene {
+    perspective: 1300px;
+    perspective-origin: 50% 38%;
+    display: flex; justify-content: center; align-items: center;
   }
 
-  /* ---- Marquee: extruded 3-D block ---------------------------------------- */
-  .arcade-marquee {
+  /* The chassis holding every plane together in one 3D space. */
+  .cabinet-body {
+    width: 460px; max-width: 88vw;
+    transform-style: preserve-3d;
+    display: flex; flex-direction: column;
     position: relative;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.12), transparent 38%),
-      linear-gradient(180deg, #3d1f68, #25113f);
-    border: 2px solid rgba(190,130,255,0.45);
-    border-radius: 12px;
-    box-shadow:
-      0 9px 0 #190d30,                       /* bottom thickness → block, not banner */
-      0 9px 0 2px #120824,
-      0 18px 26px -8px rgba(0,0,0,0.6),
-      0 0 40px -6px rgba(190,120,255,0.55),
-      inset 0 0 24px rgba(255,170,255,0.16);
+    background: #1b0e3d;
+    border-radius: 14px;
+    box-shadow: -18px 0 34px rgba(0,0,0,0.5), 18px 0 34px rgba(0,0,0,0.5);
   }
-  .arcade-marquee::before {  /* top highlight bevel for thickness */
-    content: ""; position: absolute; left: 10px; right: 10px; top: 3px; height: 5px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, transparent, rgba(255,210,255,0.55), transparent);
-  }
-  .arcade-marquee-title {
-    background: linear-gradient(180deg, #fff 0%, #ffd6ff 45%, #ff7bd5 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 0 12px rgba(255,120,220,0.7)) drop-shadow(0 2px 0 rgba(80,20,90,0.6));
+  .cabinet-body::after {  /* grounded contact shadow */
+    content: ""; position: absolute; z-index: -3;
+    left: 4%; right: 4%; bottom: -34px; height: 50px;
+    background: radial-gradient(55% 55% at 50% 0, rgba(0,0,0,0.75), transparent 75%);
+    filter: blur(9px);
   }
 
-  /* ---- The CRT screen (wide, old-TV) -------------------------------------- */
-  .arcade-tv {
-    background: linear-gradient(160deg, #1c1330, #0c0820);
-    border: 3px solid rgba(160,110,235,0.35);
-    box-shadow: inset 0 2px 0 rgba(255,255,255,0.06), 0 10px 30px -10px rgba(0,0,0,0.8);
-    padding: 16px; border-radius: 20px;
+  /* ---- Marquee (juts forward, tilts toward the player) -------------------- */
+  .box-marquee {
+    position: relative; height: 92px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.14), transparent 45%),
+      linear-gradient(180deg, #442375, #220e3b);
+    border: 3px solid rgba(195,140,255,0.55);
+    border-radius: 14px 14px 4px 4px;
+    transform-origin: bottom center;
+    transform: translateZ(34px) rotateX(-11deg);
+    box-shadow:
+      inset 0 0 22px rgba(255,170,255,0.16),
+      0 24px 26px rgba(0,0,0,0.75);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 10;
   }
-  .arcade-screen {
+  .marquee-text {
+    background: linear-gradient(180deg, #fff 0%, #ffe3ff 42%, #ff8ee0 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 14px rgba(255,120,220,0.85)) drop-shadow(0 3px 0 rgba(50,10,60,0.8));
+    font-size: 26px;
+  }
+
+  /* ---- Screen housing (pushed back so the marquee + deck pop) ------------- */
+  .box-screen-housing {
+    position: relative;
+    padding: 30px 30px 26px;
+    background: linear-gradient(160deg, #221638, #0e0a22);
+    border-left: 4px solid #2e1859;
+    border-right: 4px solid #2e1859;
+    transform: translateZ(-18px);
+    z-index: 5;
+  }
+  .crt-screen {
     position: relative;
     aspect-ratio: 4 / 3;
     border-radius: 22px / 30px;
     background:
-      radial-gradient(130% 120% at 50% 30%, rgba(20,70,90,0.4), rgba(1,6,12,0.98) 72%),
-      #03060a;
+      radial-gradient(120% 110% at 50% 32%, rgba(22,78,102,0.45), rgba(1,5,10,0.99) 75%),
+      #020407;
     box-shadow:
-      inset 0 0 90px rgba(0,0,0,0.95),
-      inset 0 0 22px rgba(80,220,255,0.12),
-      0 0 0 6px #05030c, 0 0 0 8px rgba(120,80,200,0.25);
+      inset 0 0 80px rgba(0,0,0,0.97),
+      inset 0 0 26px rgba(70,210,255,0.13),
+      0 0 0 8px #070412,
+      0 0 0 11px rgba(140,90,220,0.25);
     overflow: hidden;
   }
-  .arcade-screen::before {
+  .crt-screen::before {  /* scanlines */
     content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
     background: repeating-linear-gradient(
-      to bottom, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 3px);
+      to bottom, rgba(255,255,255,0.045) 0, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 3px);
   }
-  .arcade-screen::after {
+  .crt-screen::after {  /* vignette + flicker */
     content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 6;
-    background: radial-gradient(120% 120% at 50% 50%, transparent 52%, rgba(0,0,0,0.62) 100%);
-    animation: arcade-flicker 6s infinite steps(60);
+    background: radial-gradient(115% 115% at 50% 50%, transparent 54%, rgba(0,0,0,0.62) 100%);
+    animation: arcade-flicker 5.5s infinite steps(55);
   }
-  @keyframes arcade-flicker { 0%,96%,100%{opacity:1} 97%{opacity:0.85} 98%{opacity:0.97} }
-  .arcade-screen-inner { position: absolute; inset: 0; z-index: 4; padding: 20px 24px; }
+  @keyframes arcade-flicker { 0%,95%,100%{opacity:1} 96%{opacity:0.87} 97%{opacity:0.98} 98%{opacity:0.92} }
+  .arcade-screen-inner { position: absolute; inset: 0; z-index: 4; padding: 18px 20px; }
 
-  /* ---- Control deck (angled) — directional buttons only ------------------- */
-  .arcade-deck-wrap { perspective: 1100px; }
-  .arcade-deck {
-    transform: rotateX(18deg); transform-origin: top center;
-    background: linear-gradient(180deg, #2a1854 0%, #1a0f3a 70%, #150b2c 100%);
-    border: 2px solid rgba(160,110,240,0.22);
-    border-radius: 18px;
-    box-shadow:
-      inset 0 3px 10px rgba(0,0,0,0.5),
-      inset 0 14px 26px -16px rgba(255,255,255,0.10);
+  /* ---- Control deck (slanted panel, passes 3D to its buttons) ------------- */
+  .box-control-deck {
+    position: relative; height: 132px;
+    background: linear-gradient(180deg, #2c1856 0%, #160b2e 100%);
+    border: 2px solid rgba(160,110,240,0.5);
+    border-top: none;
+    transform-origin: top center;
+    transform: translateZ(-18px) rotateX(46deg);
+    transform-style: preserve-3d;
+    box-shadow: inset 0 6px 16px rgba(0,0,0,0.55), 0 16px 18px -5px rgba(0,0,0,0.8);
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    z-index: 8;
   }
+  .deck-btn {
+    position: relative; display: grid; place-items: center;
+    width: 50px; height: 50px; border-radius: 50%;
+    color: rgba(255,255,255,0.95); border: 2px solid rgba(255,255,255,0.22);
+    background: radial-gradient(circle at 32% 26%, #ffb0b0 0%, #ff4d4d 34%, #d41c1c 70%, #a31414 100%);
+    transform: translateZ(12px);
+    box-shadow: -2px 6px 0 #7a0c0c, -4px 11px 11px rgba(0,0,0,0.6);
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+  }
+  .deck-btn:hover:not(:disabled) { filter: brightness(1.08); }
+  .deck-btn:active:not(:disabled) {
+    transform: translateZ(3px);
+    box-shadow: -1px 1px 0 #7a0c0c, -1px 3px 6px rgba(0,0,0,0.45);
+  }
+  .deck-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  /* ---- Coin well (sits inside the continuous body, front-bottom) ---------- */
-  .arcade-slot {
-    background: linear-gradient(180deg, #2a1a4c, #160c2c);
-    border: 2px solid rgba(170,120,245,0.35);
-    border-radius: 12px;
-    box-shadow: inset 0 3px 10px rgba(0,0,0,0.7), 0 2px 0 rgba(255,255,255,0.05);
+  /* ---- Coin base (flat front face, drops down from the deck lip) ---------- */
+  .box-coin-base {
+    position: relative; height: 116px;
+    background: linear-gradient(180deg, #1c0e3a, #0b0518);
+    border: 2px solid rgba(160,110,240,0.3); border-top: none;
+    border-radius: 0 0 14px 14px;
+    transform-origin: top center;
+    transform: translateZ(74px);
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: inset 0 18px 22px rgba(0,0,0,0.55);
+    z-index: 6;
+  }
+  .coin-slot {
+    position: relative;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    width: 230px; padding: 12px 18px;
+    background: linear-gradient(180deg, #160a30, #0a0418);
+    border: 2px solid rgba(160,110,240,0.3);
+    border-radius: 10px;
+    box-shadow: inset 0 6px 12px rgba(0,0,0,0.85);
   }
   .arcade-slot-mouth {
     width: 46px; height: 10px; border-radius: 4px;
-    background: #05030a;
-    box-shadow: inset 0 3px 5px rgba(0,0,0,0.95), 0 1px 0 rgba(255,255,255,0.10);
+    background: #030207;
+    box-shadow: inset 0 4px 6px rgba(0,0,0,0.95), 0 1px 0 rgba(255,255,255,0.08);
   }
   .arcade-coin {
     width: 24px; height: 24px; border-radius: 999px;
-    background: radial-gradient(circle at 36% 30%, #fff1b0, #ffcf3a 45%, #d99412 100%);
-    box-shadow: 0 0 12px rgba(255,200,60,0.75), inset 0 1px 2px rgba(255,255,255,0.8);
-    display: grid; place-items: center; color: #8a5a00; font-weight: 900; font-size: 12px;
+    background: radial-gradient(circle at 36% 30%, #fff4be, #ffcf3a 45%, #c2820c 100%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.8);
+    display: grid; place-items: center; color: #734a00; font-weight: 900; font-size: 12px;
   }
 
-  /* ---- Semi-3-D plastic buttons (single colour, glossy dome) -------------- */
-  .arcade-btn {
-    position: relative; display: grid; place-items: center;
-    width: 54px; height: 54px; border-radius: 999px;
-    color: rgba(255,255,255,0.92);
-    background: radial-gradient(circle at 38% 26%, #ffb0b0 0%, #ff5b5b 34%, #ee2d2d 60%, #b81d1d 100%);
-    border: 2px solid rgba(255,255,255,0.14);
-    box-shadow:
-      inset 0 4px 7px rgba(255,255,255,0.7),
-      inset 0 -8px 12px rgba(120,0,0,0.55),
-      0 9px 16px rgba(0,0,0,0.45),
-      0 3px 0 rgba(80,0,0,0.35);
-    transition: transform 0.07s ease, box-shadow 0.07s ease, filter 0.12s ease;
-    cursor: pointer;
+  /* ---- Slot-machine pull lever (mounted on the screen housing's side) ----- */
+  .lever-assembly {
+    position: absolute; right: -74px; top: 46%;
+    transform: translateY(-50%);
+    z-index: 9;
   }
-  .arcade-btn:hover { filter: brightness(1.07); }
-  .arcade-btn:active:not(:disabled), .arcade-btn-press {
-    transform: translateY(5px) scale(0.97);
-    box-shadow:
-      inset 0 3px 6px rgba(255,255,255,0.55),
-      inset 0 -5px 9px rgba(120,0,0,0.5),
-      0 3px 7px rgba(0,0,0,0.4);
+  .lever-base {
+    width: 26px; height: 70px; border-radius: 7px;
+    background: linear-gradient(90deg, #2a2b34, #6a6c78 50%, #2a2b34);
+    box-shadow: inset -2px 0 6px rgba(0,0,0,0.8), 0 8px 14px rgba(0,0,0,0.55);
   }
-  .arcade-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* ---- Slot-machine pull lever (profile, mounts on the right wall) -------- */
-  /* The hub is a chrome cylinder bolted to the cabinet side; a thick chrome
-     shaft angles up to a big red ball. Drawn in profile (side-on). */
-  .arcade-lever-hub {
-    width: 38px; height: 38px; border-radius: 999px;
-    background: radial-gradient(circle at 38% 30%, #f2f2f6 0%, #aeb0bd 38%, #5b5d6c 72%, #2c2d38 100%);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.7);
-    border: 2px solid #3a3b47;
+  .lever-arm {
+    position: absolute; left: 17px; top: 50%;
+    transform-origin: left center;
   }
-  .arcade-lever-hub-bolt {
-    width: 10px; height: 10px; border-radius: 999px;
-    background: radial-gradient(circle at 40% 35%, #fff, #777 70%);
-    box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);
+  .lever-stick {
+    width: 76px; height: 14px; border-radius: 8px;
+    background: linear-gradient(180deg, #6a6c78 0%, #f2f3f8 46%, #6a6c78 100%);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.5);
   }
-  .arcade-lever-shaft {
-    width: 16px; border-radius: 999px;
-    /* brushed-chrome cylinder: bright centre highlight, dark edges */
-    background: linear-gradient(90deg, #3f4250 0%, #9a9cab 26%, #fbfbff 50%, #9a9cab 74%, #3f4250 100%);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.5), inset 0 0 4px rgba(255,255,255,0.4);
-  }
-  .arcade-lever-knob {
-    width: 54px; height: 54px; border-radius: 999px;
-    background: radial-gradient(circle at 33% 26%, #ffc2c6 0%, #ff5566 30%, #e01e36 60%, #9e0f24 100%);
-    box-shadow:
-      0 8px 18px rgba(0,0,0,0.55),
-      inset 0 6px 9px rgba(255,255,255,0.7),
-      inset 0 -8px 12px rgba(110,0,18,0.55);
-    border: 2px solid rgba(255,255,255,0.18);
+  .lever-ball {
+    position: absolute; right: -34px; top: 50%; transform: translateY(-50%);
+    width: 50px; height: 50px; border-radius: 999px;
+    background: radial-gradient(circle at 32% 26%, #ffc2c6 0%, #ff4d60 34%, #cc142c 64%, #8c0a1c 100%);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.55), inset 0 6px 9px rgba(255,255,255,0.7), inset 0 -8px 12px rgba(110,0,18,0.5);
+    border: 2px solid rgba(255,255,255,0.16);
   }
 
-  /* ---- Neon text ----------------------------------------------------------- */
+  /* ---- Neon text + effects (shared with the on-screen panels) ------------- */
   .arcade-neon-cyan { color:#6ffbff; text-shadow:0 0 8px rgba(80,230,255,0.8),0 0 2px rgba(80,230,255,0.9); }
   .arcade-neon-pink { color:#ff7bd5; text-shadow:0 0 8px rgba(255,100,210,0.8),0 0 2px rgba(255,100,210,0.9); }
   .arcade-neon-yellow { color:#ffe14d; text-shadow:0 0 8px rgba(255,220,70,0.8),0 0 2px rgba(255,220,70,0.9); }
@@ -215,6 +221,6 @@ export const arcadeStyles = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .arcade-screen::after, .arcade-blink, .arcade-slam { animation: none; }
+    .crt-screen::after, .arcade-blink, .arcade-slam { animation: none; }
   }
 `;

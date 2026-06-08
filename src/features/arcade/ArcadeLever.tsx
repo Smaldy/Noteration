@@ -1,13 +1,12 @@
 import { motion } from "framer-motion";
 
 /**
- * A slot-machine pull lever drawn in profile, mounted on the cabinet's right
- * side: a chrome hub bolted to the chassis, a thick chrome shaft angling up to a
- * big red ball. Clicking yanks it down and lets it spring back; the parent drives
- * the `pulled` state and the start sequence.
+ * Slot-machine pull lever (profile), mounted on the right of the screen housing:
+ * a metal base, a chrome stick, and a big red ball. Clicking yanks it down and
+ * lets it spring back; the parent drives `pulled` and the start sequence.
  */
-const REST = 30; // degrees clockwise — shaft resting up-and-to-the-right
-const PULL = 114; // degrees — yanked down/forward
+const REST = -35; // degrees — stick resting up
+const PULL = 26; // degrees — yanked down
 
 export function ArcadeLever({
   pulled,
@@ -24,25 +23,19 @@ export function ArcadeLever({
       onClick={onPull}
       disabled={disabled}
       aria-label="Pull the lever to start"
-      className={`relative block ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-      style={{ width: 130, height: 196 }}
+      className={`lever-assembly ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
     >
-      {/* pivoting arm (shaft + ball), hinged at the hub */}
+      <span className="lever-base block" />
       <motion.span
-        className="absolute bottom-[26px] left-1/2 flex flex-col items-center"
-        style={{ transformOrigin: "bottom center", x: "-50%" }}
+        className="lever-arm block"
+        style={{ transformOrigin: "left center", y: "-50%" }}
         initial={{ rotate: REST }}
         animate={{ rotate: pulled ? [REST, PULL, REST] : REST }}
         transition={{ duration: 0.66, ease: [0.34, 1.56, 0.64, 1], times: [0, 0.42, 1] }}
       >
-        <span className="arcade-lever-knob" />
-        <span className="arcade-lever-shaft" style={{ height: 122, marginTop: -6 }} />
+        <span className="lever-stick block" />
+        <span className="lever-ball" />
       </motion.span>
-
-      {/* chrome hub bolted to the cabinet side */}
-      <span className="arcade-lever-hub absolute bottom-2 left-1/2 grid -translate-x-1/2 place-items-center">
-        <span className="arcade-lever-hub-bolt" />
-      </span>
     </button>
   );
 }

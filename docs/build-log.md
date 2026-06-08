@@ -69,8 +69,18 @@
     (start selector; lever moved out), `QuestsScreen`; `Player1Screen` removed;
     `crtStyles.ts` rewritten (cabinet/marquee/deck/button/lever/slot, all scoped).
     tsc + build clean; served bundle smoke-tested (base_cost=3; dev DB reset).
-    **PAUSED for user playtest** before the engine. **Next:** 14-3 the canvas game
-    engine
+  - **14-2e (done) — True-3D cabinet (user-driven design).** Reworked the cabinet
+    from faux-3-D shadows to **real 3-D planes** (`perspective` + `preserve-3d` +
+    `rotateX`/`translateZ`) per the user's structure: a marquee that juts forward
+    (`translateZ` + `rotateX(-11deg)`), a recessed screen housing, a slanted button
+    deck (`rotateX(46deg)`, passing the tilt to its buttons), and a flat coin base
+    dropped to the front lip — assembled in one `cabinet-body`. CRT scanlines/inner
+    content preserved inside `.crt-screen`; deck buttons inlined (`.deck-btn`,
+    `ArcadeButton.tsx` removed); the slot-machine lever (`ArcadeLever`) re-skinned to
+    the new `lever-assembly/base/arm/stick/ball` classes with the pull animation.
+    Open/close fade-scale kept on a non-3-D wrapper so the planes render cleanly.
+    tsc + build clean. **PAUSED — user is tuning the 3-D CSS directly** (`crtStyles.ts`).
+    **Next:** 14-3 the canvas game engine
     (cursor-as-player, RAF loop, health, projectiles, collision) replacing the
     `playing` placeholder — **first enemy pool = Queue "Time Pressure"** (user's
     pick: Clock enemy — click the face, avoid radiating spikes; Hourglass — slow,

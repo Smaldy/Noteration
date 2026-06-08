@@ -1,11 +1,16 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  X,
+} from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { useArcadeStore } from "@/stores/arcade";
 import type { ArcadeState } from "@/types/arcade";
 
-import { ArcadeButton } from "./ArcadeButton";
 import { ArcadeLever } from "./ArcadeLever";
 import { ARCADE_PIXEL, arcadeStyles } from "./crtStyles";
 import { MainScreen, type StartMode } from "./MainScreen";
@@ -15,10 +20,10 @@ import { UpgradesScreen } from "./UpgradesScreen";
 type Screen = "main" | "store" | "quests";
 const SCREENS: Screen[] = ["main", "store", "quests"];
 
-/** The arcade cabinet: a faux-3-D machine with an extruded marquee, a wide CRT,
- *  an angled button deck, a front-bottom coin slot, and a casino pull lever on
- *  the right side. ◄ ► change the on-screen panel; ▲ ▼ pick New Start / Continue;
- *  the lever drops a coin into the slot and starts. */
+/** The arcade cabinet, built from real 3D planes (perspective + preserve-3d):
+ *  a marquee, a recessed CRT, a slanted button deck, and a coin base. ◄ ► change
+ *  the on-screen panel; ▲ ▼ pick New Start / Continue; the side lever drops a coin
+ *  into the slot and starts. */
 export function ArcadeOverlay() {
   const open = useArcadeStore((s) => s.overlayOpen);
   const close = useArcadeStore((s) => s.closeOverlay);
@@ -86,7 +91,7 @@ export function ArcadeOverlay() {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="arcade-room fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto p-6"
+          className="arcade-room fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto p-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -97,88 +102,96 @@ export function ArcadeOverlay() {
         >
           <style>{arcadeStyles}</style>
 
+          {/* Fade/scale wrapper kept free of preserve-3d so the cabinet's own 3D
+              planes render cleanly. */}
           <motion.div
-            className="arcade-cab relative my-auto w-full max-w-2xl"
-            initial={{ scale: 0.86, y: 28, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
+            className="relative my-auto"
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 230, damping: 23 }}
+            transition={{ type: "spring", stiffness: 220, damping: 24 }}
           >
             <button
               type="button"
               onClick={close}
               aria-label="Close arcade"
-              className="absolute -right-2 -top-2 z-30 grid size-8 place-items-center rounded-full bg-white/10 text-white/70 backdrop-blur transition hover:bg-white/20 hover:text-white"
+              className="absolute -right-2 -top-12 z-30 grid size-9 place-items-center rounded-full bg-white/10 text-white/70 backdrop-blur transition hover:bg-white/20 hover:text-white"
             >
-              <X className="size-4" />
+              <X className="size-5" />
             </button>
 
-            {/* Slot-machine pull lever, mounted in profile on the right side */}
-            <div className="absolute -right-16 top-[30%] z-20 sm:-right-20">
-              <ArcadeLever pulled={pulling} disabled={onCooldown || !affordable} onPull={pull} />
-              <p className={`text-center text-[7px] ${ARCADE_PIXEL} arcade-dim`}>PULL TO START</p>
-            </div>
+            <div className="arcade-scene">
+              <div className="cabinet-body">
+                {/* Marquee */}
+                <div className="box-marquee">
+                  <h1 className={`marquee-text ${ARCADE_PIXEL} tracking-[0.16em]`}>
+                    NOTINVASION
+                  </h1>
+                </div>
 
-            {/* Marquee (extruded block) */}
-            <div className={`arcade-marquee mx-auto w-[84%] py-3.5 text-center ${ARCADE_PIXEL}`}>
-              <p className="arcade-marquee-title text-lg tracking-[0.18em] sm:text-2xl">
-                NOTINVASION
-              </p>
-            </div>
-
-            {/* One continuous body: screen + deck + coin slot (no detached panels) */}
-            <div className="arcade-cab-side mt-3 rounded-2xl px-6 pb-7 pt-6">
-              <div className="arcade-tv mx-auto max-w-lg">
-                <div className="arcade-screen">
-                  <div className="arcade-screen-inner">
-                    {state == null ? (
-                      <LoadingScreen status={status} />
-                    ) : (
-                      <AnimatePresence mode="wait">
-                        <motion.div
-                          key={screen}
-                          className="h-full"
-                          initial={{ opacity: 0, x: 22 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -22 }}
-                          transition={{ duration: 0.18 }}
-                        >
-                          <ScreenBody screen={screen} state={state} selection={selection} />
-                        </motion.div>
-                      </AnimatePresence>
-                    )}
+                {/* Screen housing + side lever */}
+                <div className="box-screen-housing">
+                  <div className="crt-screen">
+                    <div className="arcade-screen-inner">
+                      {state == null ? (
+                        <LoadingScreen status={status} />
+                      ) : (
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={screen}
+                            className="h-full"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.18 }}
+                          >
+                            <ScreenBody screen={screen} state={state} selection={selection} />
+                          </motion.div>
+                        </AnimatePresence>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="mt-3 flex justify-center gap-2">
-                {SCREENS.map((s) => (
-                  <span
-                    key={s}
-                    className={`h-1.5 w-1.5 rounded-full ${screen === s ? "bg-fuchsia-400" : "bg-white/20"}`}
-                  />
-                ))}
-              </div>
+                  <div className="mt-3 flex justify-center gap-2">
+                    {SCREENS.map((s) => (
+                      <span
+                        key={s}
+                        className={`h-1.5 w-1.5 rounded-full ${screen === s ? "bg-fuchsia-400" : "bg-white/20"}`}
+                      />
+                    ))}
+                  </div>
 
-              {/* Control deck — directional buttons (recessed into the body) */}
-              <div className="arcade-deck-wrap mt-5">
-                <div className="arcade-deck flex justify-center px-6 py-6">
-                  <DirectionCluster
-                    onLeft={() => cycleScreen(-1)}
-                    onRight={() => cycleScreen(1)}
-                    onUpDown={cycleSelection}
-                    resumeEnabled={canResume}
+                  <ArcadeLever
+                    pulled={pulling}
+                    disabled={onCooldown || !affordable}
+                    onPull={pull}
                   />
                 </div>
-              </div>
 
-              {/* Coin slot — front-bottom, inside the same continuous body */}
-              <div className="mt-6 flex justify-center">
-                <CoinSlot
-                  coins={state?.coins ?? 0}
-                  flying={coins}
-                  onLanded={(id) => setCoins((c) => c.filter((x) => x !== id))}
-                />
+                {/* Control deck */}
+                <div className="box-control-deck">
+                  <DeckButton mod="left" ariaLabel="Previous screen" onClick={() => cycleScreen(-1)}>
+                    <ChevronLeft className="size-5" />
+                  </DeckButton>
+                  <DeckButton mod="top" ariaLabel="Select previous" onClick={cycleSelection} disabled={!canResume}>
+                    <ChevronUp className="size-5" />
+                  </DeckButton>
+                  <DeckButton mod="bottom" ariaLabel="Select next" onClick={cycleSelection} disabled={!canResume}>
+                    <ChevronDown className="size-5" />
+                  </DeckButton>
+                  <DeckButton mod="right" ariaLabel="Next screen" onClick={() => cycleScreen(1)}>
+                    <ChevronRight className="size-5" />
+                  </DeckButton>
+                </div>
+
+                {/* Coin base */}
+                <div className="box-coin-base">
+                  <CoinSlot
+                    coins={state?.coins ?? 0}
+                    flying={coins}
+                    onLanded={(id) => setCoins((c) => c.filter((x) => x !== id))}
+                  />
+                </div>
               </div>
             </div>
           </motion.div>
@@ -202,37 +215,29 @@ function ScreenBody({
   return <MainScreen state={state} selection={selection} />;
 }
 
-function DirectionCluster({
-  onLeft,
-  onRight,
-  onUpDown,
-  resumeEnabled,
+function DeckButton({
+  mod,
+  ariaLabel,
+  onClick,
+  disabled,
+  children,
 }: {
-  onLeft: () => void;
-  onRight: () => void;
-  onUpDown: () => void;
-  resumeEnabled: boolean;
+  mod: string;
+  ariaLabel: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-3 grid-rows-3 gap-2">
-      <span />
-      <ArcadeButton ariaLabel="Select previous option" onClick={onUpDown} disabled={!resumeEnabled}>
-        <ChevronUp className="size-6" />
-      </ArcadeButton>
-      <span />
-      <ArcadeButton ariaLabel="Previous screen" onClick={onLeft}>
-        <ChevronLeft className="size-6" />
-      </ArcadeButton>
-      <span />
-      <ArcadeButton ariaLabel="Next screen" onClick={onRight}>
-        <ChevronRight className="size-6" />
-      </ArcadeButton>
-      <span />
-      <ArcadeButton ariaLabel="Select next option" onClick={onUpDown} disabled={!resumeEnabled}>
-        <ChevronDown className="size-6" />
-      </ArcadeButton>
-      <span />
-    </div>
+    <button
+      type="button"
+      className={`deck-btn ${mod}`}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -246,23 +251,22 @@ function CoinSlot({
   onLanded: (id: number) => void;
 }) {
   return (
-    <div className={`arcade-slot relative flex w-full max-w-[220px] items-center justify-between gap-3 px-4 py-3 ${ARCADE_PIXEL}`}>
+    <div className={`coin-slot ${ARCADE_PIXEL}`}>
       <div className="flex flex-col">
         <span className="arcade-dim text-[7px]">COINS</span>
         <span className="arcade-neon-yellow text-base">{coins}</span>
       </div>
       <div className="relative">
         <span className="arcade-slot-mouth block" />
-        {/* Coins arcing in from the upper-right (lever), into the mouth. */}
         <div className="pointer-events-none absolute left-1/2 top-1/2">
           {flying.map((id, i) => (
             <motion.span
               key={id}
               className="arcade-coin absolute -translate-x-1/2 -translate-y-1/2"
-              initial={{ x: 190, y: -200, opacity: 0, scale: 0.5, rotate: 0 }}
+              initial={{ x: 170, y: -210, opacity: 0, scale: 0.5, rotate: 0 }}
               animate={{
-                x: [190, 80, 0],
-                y: [-200, -150, 2],
+                x: [170, 70, 0],
+                y: [-210, -150, 2],
                 opacity: [0, 1, 1, 0],
                 scale: [0.5, 1, 0.5],
                 rotate: [0, 240, 460],
