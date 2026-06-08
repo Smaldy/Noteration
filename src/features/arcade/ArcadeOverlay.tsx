@@ -15,9 +15,10 @@ import { UpgradesScreen } from "./UpgradesScreen";
 type Screen = "main" | "store" | "quests";
 const SCREENS: Screen[] = ["main", "store", "quests"];
 
-/** The arcade cabinet: a 2.5-D machine with a backlit marquee, a wide CRT, and an
- *  angled control deck. ◄ ► buttons change the on-screen panel; ▲ ▼ pick New
- *  Start / Continue; the lever (with a coin dropping into the slot) starts. */
+/** The arcade cabinet: a faux-3-D machine with an extruded marquee, a wide CRT,
+ *  an angled button deck, a front-bottom coin slot, and a casino pull lever on
+ *  the right side. ◄ ► change the on-screen panel; ▲ ▼ pick New Start / Continue;
+ *  the lever drops a coin into the slot and starts. */
 export function ArcadeOverlay() {
   const open = useArcadeStore((s) => s.overlayOpen);
   const close = useArcadeStore((s) => s.closeOverlay);
@@ -39,16 +40,12 @@ export function ArcadeOverlay() {
   const affordable =
     !!state && state.coins >= cost && (selection !== "resume" || canResume);
 
-  // A run can't continue what doesn't exist — keep the selection valid.
   useEffect(() => {
     if (selection === "resume" && !canResume) setSelection("fresh");
   }, [selection, canResume]);
 
   const cycleScreen = useCallback((dir: 1 | -1) => {
-    setScreen((s) => {
-      const i = SCREENS.indexOf(s);
-      return SCREENS[(i + dir + SCREENS.length) % SCREENS.length];
-    });
+    setScreen((s) => SCREENS[(SCREENS.indexOf(s) + dir + SCREENS.length) % SCREENS.length]);
   }, []);
 
   const cycleSelection = useCallback(() => {
@@ -58,7 +55,6 @@ export function ArcadeOverlay() {
   const pull = useCallback(() => {
     if (pulling || onCooldown || !affordable) return;
     setPulling(true);
-    // Drop a coin (or a few) into the slot as the lever tips.
     const drops = Math.min(cost, 3);
     setCoins(Array.from({ length: drops }, () => coinId.current++));
     window.setTimeout(async () => {
@@ -67,11 +63,9 @@ export function ArcadeOverlay() {
         setPulling(false);
         setCoins([]);
       }
-      // On success the overlay unmounts (phase → starting); no reset needed.
-    }, 720);
+    }, 760);
   }, [pulling, onCooldown, affordable, cost, startRun, selection]);
 
-  // Keyboard play: arrows drive the deck, Enter/Space pulls the lever.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -92,7 +86,7 @@ export function ArcadeOverlay() {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="arcade-room fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto p-4"
+          className="arcade-room fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -104,7 +98,7 @@ export function ArcadeOverlay() {
           <style>{arcadeStyles}</style>
 
           <motion.div
-            className="arcade-cab relative w-full max-w-xl"
+            className="arcade-cab relative my-auto w-full max-w-2xl"
             initial={{ scale: 0.86, y: 28, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -114,21 +108,27 @@ export function ArcadeOverlay() {
               type="button"
               onClick={close}
               aria-label="Close arcade"
-              className="absolute -right-1 -top-1 z-20 grid size-8 place-items-center rounded-full bg-white/10 text-white/70 backdrop-blur transition hover:bg-white/20 hover:text-white"
+              className="absolute -right-2 -top-2 z-30 grid size-8 place-items-center rounded-full bg-white/10 text-white/70 backdrop-blur transition hover:bg-white/20 hover:text-white"
             >
               <X className="size-4" />
             </button>
 
-            {/* Marquee */}
-            <div className={`arcade-marquee mx-auto w-[88%] py-3 text-center ${ARCADE_PIXEL}`}>
-              <p className="arcade-marquee-title text-base tracking-[0.18em] sm:text-lg">
+            {/* Casino pull lever on the right wall */}
+            <div className="absolute -right-9 top-[34%] z-20">
+              <ArcadeLever pulled={pulling} disabled={onCooldown || !affordable} onPull={pull} />
+              <p className={`mt-1 text-center text-[7px] ${ARCADE_PIXEL} arcade-dim`}>START</p>
+            </div>
+
+            {/* Marquee (extruded block) */}
+            <div className={`arcade-marquee mx-auto w-[84%] py-3.5 text-center ${ARCADE_PIXEL}`}>
+              <p className="arcade-marquee-title text-lg tracking-[0.18em] sm:text-2xl">
                 NOTINVASION
               </p>
             </div>
 
-            {/* Screen + neck */}
-            <div className="arcade-cab-side mt-[-2px] rounded-t-xl px-5 pb-4 pt-5">
-              <div className="arcade-tv mx-auto max-w-md">
+            {/* Screen section */}
+            <div className="arcade-cab-side mt-3 rounded-t-2xl px-6 pb-5 pt-6">
+              <div className="arcade-tv mx-auto max-w-lg">
                 <div className="arcade-screen">
                   <div className="arcade-screen-inner">
                     {state == null ? (
@@ -151,7 +151,6 @@ export function ArcadeOverlay() {
                 </div>
               </div>
 
-              {/* Screen dots */}
               <div className="mt-3 flex justify-center gap-2">
                 {SCREENS.map((s) => (
                   <span
@@ -162,29 +161,25 @@ export function ArcadeOverlay() {
               </div>
             </div>
 
-            {/* Control deck (angled) */}
+            {/* Control deck — directional buttons only */}
             <div className="arcade-deck-wrap">
-              <div className="arcade-deck grid grid-cols-[auto_1fr_auto] items-center gap-3 px-6 py-5">
-                {/* Directional cluster */}
+              <div className="arcade-deck flex justify-center px-6 py-6">
                 <DirectionCluster
                   onLeft={() => cycleScreen(-1)}
                   onRight={() => cycleScreen(1)}
                   onUpDown={cycleSelection}
                   resumeEnabled={canResume}
                 />
-
-                {/* Coin slot (coins drop in here) */}
-                <CoinSlot coins={state?.coins ?? 0} flying={coins} onLanded={(id) =>
-                  setCoins((c) => c.filter((x) => x !== id))
-                } />
-
-                {/* Start lever */}
-                <div className="flex flex-col items-center gap-1">
-                  <ArcadeLever pulled={pulling} disabled={onCooldown || !affordable} onPull={pull} />
-                  <span className={`text-[6px] ${ARCADE_PIXEL} arcade-dim`}>START</span>
-                </div>
               </div>
-              <div className="arcade-deck-lip mx-3" />
+            </div>
+
+            {/* Front-bottom base — coin slot */}
+            <div className="arcade-base flex justify-center px-6 py-5">
+              <CoinSlot
+                coins={state?.coins ?? 0}
+                flying={coins}
+                onLanded={(id) => setCoins((c) => c.filter((x) => x !== id))}
+              />
             </div>
           </motion.div>
         </motion.div>
@@ -219,22 +214,22 @@ function DirectionCluster({
   resumeEnabled: boolean;
 }) {
   return (
-    <div className="grid grid-cols-3 grid-rows-3 gap-1.5">
+    <div className="grid grid-cols-3 grid-rows-3 gap-2">
       <span />
-      <ArcadeButton ariaLabel="Select previous option" onClick={onUpDown} disabled={!resumeEnabled} variant="amber">
-        <ChevronUp className="size-5" />
+      <ArcadeButton ariaLabel="Select previous option" onClick={onUpDown} disabled={!resumeEnabled}>
+        <ChevronUp className="size-6" />
       </ArcadeButton>
       <span />
       <ArcadeButton ariaLabel="Previous screen" onClick={onLeft}>
-        <ChevronLeft className="size-5" />
+        <ChevronLeft className="size-6" />
       </ArcadeButton>
       <span />
       <ArcadeButton ariaLabel="Next screen" onClick={onRight}>
-        <ChevronRight className="size-5" />
+        <ChevronRight className="size-6" />
       </ArcadeButton>
       <span />
-      <ArcadeButton ariaLabel="Select next option" onClick={onUpDown} disabled={!resumeEnabled} variant="amber">
-        <ChevronDown className="size-5" />
+      <ArcadeButton ariaLabel="Select next option" onClick={onUpDown} disabled={!resumeEnabled}>
+        <ChevronDown className="size-6" />
       </ArcadeButton>
       <span />
     </div>
@@ -251,30 +246,34 @@ function CoinSlot({
   onLanded: (id: number) => void;
 }) {
   return (
-    <div className={`arcade-slot relative mx-auto flex w-full max-w-[150px] flex-col items-center gap-2 px-3 py-2.5 ${ARCADE_PIXEL}`}>
-      <span className="arcade-dim text-[7px]">COINS</span>
-      <span className="arcade-neon-yellow text-sm">{coins}</span>
-      <span className="arcade-slot-mouth" />
-      {/* Coins arcing in from the lever side, disappearing into the mouth. */}
-      <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2">
-        {flying.map((id, i) => (
-          <motion.span
-            key={id}
-            className="arcade-coin absolute"
-            initial={{ x: 150, y: -90, opacity: 0, scale: 0.5, rotate: 0 }}
-            animate={{
-              x: [150, 70, 0],
-              y: [-90, -120, 4],
-              opacity: [0, 1, 1, 0],
-              scale: [0.5, 1, 0.55],
-              rotate: [0, 220, 420],
-            }}
-            transition={{ duration: 0.7, delay: i * 0.12, times: [0, 0.45, 1], ease: "easeIn" }}
-            onAnimationComplete={() => onLanded(id)}
-          >
-            ¢
-          </motion.span>
-        ))}
+    <div className={`arcade-slot relative flex w-full max-w-[220px] items-center justify-between gap-3 px-4 py-3 ${ARCADE_PIXEL}`}>
+      <div className="flex flex-col">
+        <span className="arcade-dim text-[7px]">COINS</span>
+        <span className="arcade-neon-yellow text-base">{coins}</span>
+      </div>
+      <div className="relative">
+        <span className="arcade-slot-mouth block" />
+        {/* Coins arcing in from the upper-right (lever), into the mouth. */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2">
+          {flying.map((id, i) => (
+            <motion.span
+              key={id}
+              className="arcade-coin absolute -translate-x-1/2 -translate-y-1/2"
+              initial={{ x: 190, y: -200, opacity: 0, scale: 0.5, rotate: 0 }}
+              animate={{
+                x: [190, 80, 0],
+                y: [-200, -150, 2],
+                opacity: [0, 1, 1, 0],
+                scale: [0.5, 1, 0.5],
+                rotate: [0, 240, 460],
+              }}
+              transition={{ duration: 0.74, delay: i * 0.12, times: [0, 0.5, 1], ease: "easeIn" }}
+              onAnimationComplete={() => onLanded(id)}
+            >
+              ¢
+            </motion.span>
+          ))}
+        </div>
       </div>
     </div>
   );
