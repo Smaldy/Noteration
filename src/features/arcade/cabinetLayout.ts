@@ -8,6 +8,13 @@
  * the skin (fill/border/shadow already declared below) renders the same boxes.
  *
  * SHAPES        rect · round(r) · trap(taper) · oval        (see primitives.tsx)
+ *               trap taper: +value → TOP narrower (faces up); −value → BOTTOM
+ *               narrower (faces down). Magnitude = how strong the recede is.
+ * CENTERING     a box is centered when its center = stage center. Horizontally:
+ *               x = (STAGE_W − w) / 2 = 240 − w/2  →  center cx = 240.
+ *               Vertically: y = (STAGE_H − h) / 2 = 380 − h/2  →  cy = 380.
+ *               Blockout draws cyan dashed center lines and prints each box's
+ *               c<cx>,<cy>; it shows ↔✓ when h-centered, ↕✓ when v-centered.
  * NAMING        kebab-case, region-first: marquee, hood, screen, deck,
  *               btn-left/right/up/down, lever, coin-slot, kick …
  * FUNCTIONAL    ids in FUNCTIONAL_SLOTS render the live element (CRT, buttons,
@@ -36,11 +43,11 @@ export const CABINET_PARTS: Part[] = [
   // ── Chassis ───────────────────────────────────────────────────────────────
   {
     id: "cabinet",
-    shape: "round",
-    x: 40,
-    y: 150,
-    w: 400,
-    h: 560,
+    shape: "rect",
+    x: -93,
+    y: 60,
+    w: 666,
+    h: 450,
     r: 20,
     z: 1,
     fill: "linear-gradient(180deg,#2a1656,#160a30)",
@@ -49,11 +56,11 @@ export const CABINET_PARTS: Part[] = [
   },
   {
     id: "kick",
-    shape: "round",
-    x: 64,
-    y: 698,
-    w: 352,
-    h: 50,
+    shape: "rect",
+    x: -241,
+    y: 630,
+    w: 962,
+    h: 260,
     r: 10,
     z: 2,
     fill: "linear-gradient(180deg,#1c0e3a,#0b0518)",
@@ -63,12 +70,12 @@ export const CABINET_PARTS: Part[] = [
   // ── Marquee ────────────────────────────────────────────────────────────────
   {
     id: "marquee",
-    shape: "round",
-    x: 52,
-    y: 22,
-    w: 376,
-    h: 94,
-    r: 12,
+    shape: "rect",
+    x: -160,
+    y: -60,
+    w: 800,
+    h: 80,
+    r: 10,
     z: 6,
     fill: "linear-gradient(180deg,#442375,#220e3b)",
     border: "3px solid rgba(195,140,255,0.55)",
@@ -79,11 +86,11 @@ export const CABINET_PARTS: Part[] = [
   {
     id: "hood",
     shape: "trap",
-    x: 58,
-    y: 116,
-    w: 364,
-    h: 46,
-    taper: 46,
+    x: -160,
+    y: 20,
+    w: 800,
+    h: 40,
+    taper: -67, // negative → bottom narrower → faces DOWN
     z: 5,
     fill: "linear-gradient(180deg,#1c1038,#0e0822)",
     shadow: "0 8px 12px rgba(0,0,0,0.5)",
@@ -93,41 +100,41 @@ export const CABINET_PARTS: Part[] = [
   {
     id: "bezel",
     shape: "round",
-    x: 64,
-    y: 158,
-    w: 352,
-    h: 254,
+    x: -10,
+    y: 90,
+    w: 500,
+    h: 380,
     r: 18,
     z: 4,
     fill: "#070412",
     border: "2px solid rgba(140,90,220,0.25)",
     shadow: "inset 0 0 30px rgba(0,0,0,0.9)",
   },
-  { id: "screen", shape: "round", x: 90, y: 180, w: 300, h: 210, r: 10, z: 5 },
+  { id: "screen", shape: "round", x: 0, y: 100, w: 480, h: 360, r: 10, z: 5 },
 
   // ── Control deck (perspective panel) ────────────────────────────────────────
   {
     id: "deck",
     shape: "trap",
-    x: 58,
-    y: 412,
-    w: 364,
-    h: 132,
-    taper: 34,
+    x: -241,
+    y: 510,
+    w: 962,
+    h: 120,
+    taper: 148,
     z: 4,
     fill: "linear-gradient(180deg,#2c1856,#160b2e)",
     shadow: "0 14px 18px rgba(0,0,0,0.6)",
   },
-  { id: "btn-left", shape: "oval", x: 122, y: 452, w: 52, h: 52, z: 7, label: "btn-left ◄" },
-  { id: "btn-up", shape: "oval", x: 208, y: 424, w: 52, h: 52, z: 7, label: "btn-up ▲" },
-  { id: "btn-down", shape: "oval", x: 208, y: 482, w: 52, h: 52, z: 7, label: "btn-down ▼" },
-  { id: "btn-right", shape: "oval", x: 296, y: 452, w: 52, h: 52, z: 7, label: "btn-right ►" },
+  { id: "btn-left", shape: "oval", x: 160, y: 548, w: 50, h: 30, z: 7, label: "btn-left ◄" },
+  { id: "btn-up", shape: "oval", x: 215, y: 525, w: 50, h: 30, z: 7, label: "btn-up ▲" },
+  { id: "btn-down", shape: "oval", x: 215, y: 570, w: 50, h: 30, z: 7, label: "btn-down ▼" },
+  { id: "btn-right", shape: "oval", x: 270, y: 548, w: 50, h: 30, z: 7, label: "btn-right ►" },
 
   // ── Lever (profile, mounted on the right side) ──────────────────────────────
-  { id: "lever", shape: "rect", x: 410, y: 296, w: 70, h: 150, z: 8, label: "lever" },
+  { id: "lever", shape: "rect", x: 575, y: 200, w: 30, h: 160, z: 8, label: "lever" },
 
   // ── Coin slot (front, low) ──────────────────────────────────────────────────
-  { id: "coin-slot", shape: "round", x: 150, y: 560, w: 180, h: 74, r: 12, z: 6 },
+  { id: "coin-slot", shape: "round", x: 360, y: 680, w: 160, h: 80, r: 12, z: 6 },
 ];
 
 /** Lookup helper so the stage can position functional slots by id. */

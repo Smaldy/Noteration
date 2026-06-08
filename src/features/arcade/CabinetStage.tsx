@@ -71,7 +71,7 @@ export function CabinetStage(props: CabinetStageProps) {
         {CABINET_PARTS.map((p) => {
           if (props.block || !FUNCTIONAL_SLOTS.has(p.id)) {
             return (
-              <Primitive key={p.id} part={p} block={props.block}>
+              <Primitive key={p.id} part={p} block={props.block} stageW={STAGE_W} stageH={STAGE_H}>
                 {!props.block && p.id === "marquee" ? (
                   <span className="marquee-text arcade-pixel">{props.marquee}</span>
                 ) : null}
@@ -80,6 +80,18 @@ export function CabinetStage(props: CabinetStageProps) {
           }
           return renderSlot(p.id, props);
         })}
+
+        {/* Center guides — only in blockout. A box is centered when its red
+            fill straddles the dashed line symmetrically (and the readout ✓s). */}
+        {props.block && (
+          <>
+            <div className="cab-guide-v" style={{ left: STAGE_W / 2 }} />
+            <div className="cab-guide-h" style={{ top: STAGE_H / 2 }} />
+            <span className="cab-guide-tag" style={{ left: STAGE_W / 2 }}>
+              x={STAGE_W / 2}
+            </span>
+          </>
+        )}
 
         {/* screen indicator dots, parked just under the screen box */}
         {!props.block && screenPart && (

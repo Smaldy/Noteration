@@ -52,10 +52,37 @@ export const arcadeStyles = `
     pointer-events: none; white-space: nowrap;
   }
   .prim-dim {
-    position: absolute; bottom: 2px; left: 4px;
+    position: absolute; bottom: 12px; left: 4px;
     font: 600 8px/1.1 ui-monospace, monospace;
     color: #ffd34d; text-shadow: 0 1px 2px #000;
     pointer-events: none; white-space: nowrap;
+  }
+  .prim-center {
+    position: absolute; bottom: 2px; left: 4px;
+    font: 600 8px/1.1 ui-monospace, monospace;
+    color: #6ffbff; text-shadow: 0 1px 2px #000;
+    pointer-events: none; white-space: nowrap;
+  }
+  .prim-center .ok { color: #74ff9c; }
+  .prim-center .no { color: transparent; }
+
+  /* Center guide lines (blockout only). */
+  .cab-guide-v {
+    position: absolute; top: 0; bottom: 0; width: 0;
+    border-left: 1px dashed rgba(110,251,255,0.7);
+    transform: translateX(-0.5px); z-index: 999; pointer-events: none;
+  }
+  .cab-guide-h {
+    position: absolute; left: 0; right: 0; height: 0;
+    border-top: 1px dashed rgba(110,251,255,0.45);
+    transform: translateY(-0.5px); z-index: 999; pointer-events: none;
+  }
+  .cab-guide-tag {
+    position: absolute; top: 2px;
+    transform: translateX(4px);
+    font: 700 9px/1 ui-monospace, monospace;
+    color: #6ffbff; text-shadow: 0 1px 2px #000;
+    z-index: 999; pointer-events: none;
   }
 
   /* ---- Marquee title ------------------------------------------------------ */

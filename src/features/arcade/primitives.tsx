@@ -14,8 +14,10 @@
  * Shape vocabulary (the only four you need):
  *   rect   — plain rectangle (structure / panels)
  *   round  — rounded rectangle (`r` = corner radius)
- *   trap   — trapezoid for perspective (`taper` = units each TOP corner is
- *            pulled inward; bigger taper = stronger recede)
+ *   trap   — trapezoid for perspective. `taper` = units a pair of corners is
+ *            pulled inward; bigger = stronger recede. SIGN picks which edge:
+ *              taper > 0 → TOP narrower  (panel faces up / away)
+ *              taper < 0 → BOTTOM narrower (panel faces down / toward you)
  *   oval   — ellipse / circle (buttons)
  */
 import type { CSSProperties, ReactNode } from "react";
@@ -33,7 +35,7 @@ export interface Part {
   h: number;
   /** round: corner radius (units). */
   r?: number;
-  /** trap: units each TOP corner is pulled inward (perspective). */
+  /** trap: units a corner-pair is pulled inward; >0 = top narrower, <0 = bottom narrower. */
   taper?: number;
   /** degrees, rotated about the part's own center. */
   rotate?: number;
@@ -55,8 +57,12 @@ function shapeGeometry(p: Part): CSSProperties {
   if (p.shape === "oval") s.borderRadius = "50%";
   else if (p.shape === "round") s.borderRadius = p.r ?? 10;
   else if (p.shape === "trap") {
-    const tp = ((p.taper ?? 24) / p.w) * 100;
-    s.clipPath = `polygon(${tp}% 0, ${100 - tp}% 0, 100% 100%, 0 100%)`;
+    const t = p.taper ?? 24;
+    const tp = (Math.abs(t) / p.w) * 100;
+    s.clipPath =
+      t >= 0
+        ? `polygon(${tp}% 0, ${100 - tp}% 0, 100% 100%, 0 100%)` // top narrower
+        : `polygon(0 0, 100% 0, ${100 - tp}% 100%, ${tp}% 100%)`; // bottom narrower
   }
   return s;
 }
@@ -77,21 +83,36 @@ export function partBox(p: Part): CSSProperties {
 export function Primitive({
   part,
   block,
+  stageW,
+  stageH,
   children,
 }: {
   part: Part;
   block: boolean;
+  /** stage width — enables the horizontal-centered (✓) check in blockout. */
+  stageW?: number;
+  /** stage height — enables the vertical-centered (✓) check in blockout. */
+  stageH?: number;
   children?: ReactNode;
 }) {
   const geom = shapeGeometry(part);
 
   if (block) {
+    const cx = part.x + part.w / 2;
+    const cy = part.y + part.h / 2;
+    const hCentered = stageW != null && Math.round(cx) === Math.round(stageW / 2);
+    const vCentered = stageH != null && Math.round(cy) === Math.round(stageH / 2);
     return (
       <div style={partBox(part)} className="prim-block">
         <div className="prim-block-fill" style={geom} />
         <span className="prim-label">{part.label ?? part.id}</span>
         <span className="prim-dim">
           {part.w}×{part.h} · {part.x},{part.y}
+        </span>
+        <span className="prim-center">
+          c{cx},{cy}
+          <b className={hCentered ? "ok" : "no"}>{hCentered ? " ↔✓" : ""}</b>
+          <b className={vCentered ? "ok" : "no"}>{vCentered ? " ↕✓" : ""}</b>
         </span>
       </div>
     );
