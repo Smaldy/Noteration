@@ -4,6 +4,11 @@ Importing this package registers every model on ``Base.metadata`` so Alembic
 autogenerate and ``create_all`` see the full schema.
 """
 
+from backend.models.arcade import (
+    ArcadePlaySession,
+    ArcadeState,
+    ArcadeUpgrade,
+)
 from backend.models.content import (
     MCQ,
     Flashcard,
@@ -54,6 +59,9 @@ __all__ = [
     "ProviderState",
     "HistoryEvent",
     "Settings",
+    "ArcadeState",
+    "ArcadeUpgrade",
+    "ArcadePlaySession",
     "ExerciseSession",
     "ExtractedExercise",
     "DuplicateResult",

@@ -5,6 +5,34 @@
 
 ## DONE
 
+- **Phase 14 — Arcade minigame (additive feature layer; in progress).** A
+  study-gated retro arcade overlay; "study to earn the right to play." Built to be
+  **fully non-destructive** — no existing model/route/component changed; the React
+  layer will mount alongside `ProviderBadge`/`PomodoroWidget` at the `App.tsx`
+  level. Two locked decisions (user): (1) **self-contained arcade nav** — the game
+  overlay owns its own arena nav (Queue/Flashcard/Settings/Calendar/Editor) on top
+  of the frozen real UI, never touching the real router (the app has no global tab
+  bar); (2) **one additive `mcq-answered` emit** in `QuizTab` for MCQ coins (the
+  quiz is client-only; flashcard reviews already hit the server).
+  - **14-1 (done) — Backend foundation.** New `backend/models/arcade.py`:
+    `ArcadeState` (singleton id=1 — coins, score_balance, high_score, wave_record,
+    resumable run, daily-quest counters), `ArcadeUpgrade` (key→level), and
+    `ArcadePlaySession` (run log + the cooldown ledger). `services/arcade.py` owns
+    all rules (server is source of truth for currency/records/cooldown/quest):
+    coin economy (flashcard/mcq + the 15-MCQ/day → bonus coin, UTC daily reset),
+    entry costs (fresh = flat `BASE_COST`; resume = `BASE_COST + wave`), run
+    lifecycle (start deducts + opens a session, end banks score + updates records +
+    saves the resumable run on death), upgrade shop (5-item catalog, spent from
+    score_balance), and an anti-binge **rolling-1h cooldown** (>5 run-starts/hour
+    locks the lever until the oldest ages out). Thin `routers/arcade.py`
+    (`/api/arcade/*`: GET state, POST coins/earn, run/start, run/end,
+    upgrades/{key}/buy) wired additively into `main.py`; `schemas/arcade.py`.
+    Migration `c0ffee1a2b3c` (3 tables) — `alembic check` clean, applied to dev DB.
+    20 tests (economy, daily quest + reset, run cycle, resume cost/consume,
+    upgrades + errors, cooldown trigger, all HTTP endpoints). Tree green: full
+    suite **611 passed**. **Next:** 14-2 joystick button + arcade machine overlay
+    (hub/lever/coin display/cooldown timer), then the game engine.
+
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a
   green tree (**591 backend tests**, tsc + Vite build clean):
