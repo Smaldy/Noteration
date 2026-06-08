@@ -112,26 +112,18 @@ export const arcadeStyles = `
   .arcade-screen-inner { position: absolute; inset: 0; z-index: 4; padding: 20px 24px; }
 
   /* ---- Control deck (angled) — directional buttons only ------------------- */
-  .arcade-deck-wrap { perspective: 1000px; }
+  .arcade-deck-wrap { perspective: 1100px; }
   .arcade-deck {
-    transform: rotateX(30deg); transform-origin: top center;
-    background: linear-gradient(180deg, #321d5e 0%, #1c1040 70%, #140a2a 100%);
-    border: 2px solid rgba(160,110,240,0.30); border-top: none;
+    transform: rotateX(18deg); transform-origin: top center;
+    background: linear-gradient(180deg, #2a1854 0%, #1a0f3a 70%, #150b2c 100%);
+    border: 2px solid rgba(160,110,240,0.22);
+    border-radius: 18px;
     box-shadow:
-      inset 0 14px 30px -14px rgba(255,255,255,0.12),
-      inset 0 0 50px rgba(90,50,170,0.25),
-      0 24px 40px -18px rgba(0,0,0,0.7);
-    border-radius: 0 0 26px 26px;
+      inset 0 3px 10px rgba(0,0,0,0.5),
+      inset 0 14px 26px -16px rgba(255,255,255,0.10);
   }
 
-  /* ---- Front-bottom base (coin slot lives here) --------------------------- */
-  .arcade-base {
-    margin: 0 14px;
-    background: linear-gradient(180deg, #20133f 0%, #140b29 75%, #0e0720 100%);
-    border: 2px solid rgba(160,110,240,0.26); border-top: none;
-    border-radius: 0 0 18px 18px;
-    box-shadow: inset 0 12px 22px -12px rgba(0,0,0,0.65);
-  }
+  /* ---- Coin well (sits inside the continuous body, front-bottom) ---------- */
   .arcade-slot {
     background: linear-gradient(180deg, #2a1a4c, #160c2c);
     border: 2px solid rgba(170,120,245,0.35);
@@ -175,28 +167,34 @@ export const arcadeStyles = `
   }
   .arcade-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* ---- Casino pull-lever (mounts on the right wall) ----------------------- */
-  .arcade-lever-mount {
-    width: 26px; height: 54px; border-radius: 8px;
-    background: linear-gradient(180deg, #3a2566, #170c34);
-    border: 2px solid rgba(160,110,240,0.4);
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.15), 0 6px 14px rgba(0,0,0,0.5);
+  /* ---- Slot-machine pull lever (profile, mounts on the right wall) -------- */
+  /* The hub is a chrome cylinder bolted to the cabinet side; a thick chrome
+     shaft angles up to a big red ball. Drawn in profile (side-on). */
+  .arcade-lever-hub {
+    width: 38px; height: 38px; border-radius: 999px;
+    background: radial-gradient(circle at 38% 30%, #f2f2f6 0%, #aeb0bd 38%, #5b5d6c 72%, #2c2d38 100%);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.7);
+    border: 2px solid #3a3b47;
   }
-  .arcade-lever-pivot {
-    width: 16px; height: 16px; border-radius: 999px;
-    background: radial-gradient(circle at 40% 35%, #d9d9e2, #4a4a55 70%);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  .arcade-lever-hub-bolt {
+    width: 10px; height: 10px; border-radius: 999px;
+    background: radial-gradient(circle at 40% 35%, #fff, #777 70%);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);
   }
-  .arcade-lever-rod {
-    width: 9px; border-radius: 6px;
-    background: linear-gradient(90deg, #5a5a66, #d2d2dc 45%, #5a5a66);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  .arcade-lever-shaft {
+    width: 16px; border-radius: 999px;
+    /* brushed-chrome cylinder: bright centre highlight, dark edges */
+    background: linear-gradient(90deg, #3f4250 0%, #9a9cab 26%, #fbfbff 50%, #9a9cab 74%, #3f4250 100%);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5), inset 0 0 4px rgba(255,255,255,0.4);
   }
   .arcade-lever-knob {
-    width: 34px; height: 34px; border-radius: 999px;
-    background: radial-gradient(circle at 34% 26%, #ffb0b6 0%, #ff3b52 42%, #c4112c 100%);
-    box-shadow: 0 5px 12px rgba(0,0,0,0.55), inset 0 4px 6px rgba(255,255,255,0.65), inset 0 -5px 8px rgba(120,0,20,0.5);
-    border: 2px solid rgba(255,255,255,0.15);
+    width: 54px; height: 54px; border-radius: 999px;
+    background: radial-gradient(circle at 33% 26%, #ffc2c6 0%, #ff5566 30%, #e01e36 60%, #9e0f24 100%);
+    box-shadow:
+      0 8px 18px rgba(0,0,0,0.55),
+      inset 0 6px 9px rgba(255,255,255,0.7),
+      inset 0 -8px 12px rgba(110,0,18,0.55);
+    border: 2px solid rgba(255,255,255,0.18);
   }
 
   /* ---- Neon text ----------------------------------------------------------- */

@@ -113,10 +113,10 @@ export function ArcadeOverlay() {
               <X className="size-4" />
             </button>
 
-            {/* Casino pull lever on the right wall */}
-            <div className="absolute -right-9 top-[34%] z-20">
+            {/* Slot-machine pull lever, mounted in profile on the right side */}
+            <div className="absolute -right-16 top-[30%] z-20 sm:-right-20">
               <ArcadeLever pulled={pulling} disabled={onCooldown || !affordable} onPull={pull} />
-              <p className={`mt-1 text-center text-[7px] ${ARCADE_PIXEL} arcade-dim`}>START</p>
+              <p className={`text-center text-[7px] ${ARCADE_PIXEL} arcade-dim`}>PULL TO START</p>
             </div>
 
             {/* Marquee (extruded block) */}
@@ -126,8 +126,8 @@ export function ArcadeOverlay() {
               </p>
             </div>
 
-            {/* Screen section */}
-            <div className="arcade-cab-side mt-3 rounded-t-2xl px-6 pb-5 pt-6">
+            {/* One continuous body: screen + deck + coin slot (no detached panels) */}
+            <div className="arcade-cab-side mt-3 rounded-2xl px-6 pb-7 pt-6">
               <div className="arcade-tv mx-auto max-w-lg">
                 <div className="arcade-screen">
                   <div className="arcade-screen-inner">
@@ -159,27 +159,27 @@ export function ArcadeOverlay() {
                   />
                 ))}
               </div>
-            </div>
 
-            {/* Control deck — directional buttons only */}
-            <div className="arcade-deck-wrap">
-              <div className="arcade-deck flex justify-center px-6 py-6">
-                <DirectionCluster
-                  onLeft={() => cycleScreen(-1)}
-                  onRight={() => cycleScreen(1)}
-                  onUpDown={cycleSelection}
-                  resumeEnabled={canResume}
+              {/* Control deck — directional buttons (recessed into the body) */}
+              <div className="arcade-deck-wrap mt-5">
+                <div className="arcade-deck flex justify-center px-6 py-6">
+                  <DirectionCluster
+                    onLeft={() => cycleScreen(-1)}
+                    onRight={() => cycleScreen(1)}
+                    onUpDown={cycleSelection}
+                    resumeEnabled={canResume}
+                  />
+                </div>
+              </div>
+
+              {/* Coin slot — front-bottom, inside the same continuous body */}
+              <div className="mt-6 flex justify-center">
+                <CoinSlot
+                  coins={state?.coins ?? 0}
+                  flying={coins}
+                  onLanded={(id) => setCoins((c) => c.filter((x) => x !== id))}
                 />
               </div>
-            </div>
-
-            {/* Front-bottom base — coin slot */}
-            <div className="arcade-base flex justify-center px-6 py-5">
-              <CoinSlot
-                coins={state?.coins ?? 0}
-                flying={coins}
-                onLanded={(id) => setCoins((c) => c.filter((x) => x !== id))}
-              />
             </div>
           </motion.div>
         </motion.div>
