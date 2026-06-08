@@ -97,13 +97,16 @@ export const arcadeStyles = `
   .crt-screen {
     border-radius: 10px;
     background:
-      radial-gradient(120% 110% at 50% 32%, rgba(22,78,102,0.45), rgba(1,5,10,0.99) 75%),
+      radial-gradient(58% 40% at 28% 14%, rgba(130,225,255,0.10), transparent 62%),
+      radial-gradient(120% 110% at 50% 32%, rgba(22,78,102,0.42), rgba(1,5,10,0.99) 75%),
       #020407;
     box-shadow:
       inset 0 0 80px rgba(0,0,0,0.97),
       inset 0 0 26px rgba(70,210,255,0.13),
-      0 0 0 6px #070412,
-      0 0 0 9px rgba(140,90,220,0.25);
+      inset 0 2px 6px rgba(150,230,255,0.10),
+      0 0 0 5px #0a0616,
+      0 0 0 7px rgba(160,120,235,0.28),
+      0 0 22px 7px rgba(120,60,200,0.18);
     overflow: hidden;
   }
   .crt-screen::before {  /* scanlines */
@@ -123,9 +126,13 @@ export const arcadeStyles = `
   .cab-btn {
     display: grid; place-items: center;
     border-radius: 50%;
-    color: rgba(255,255,255,0.95); border: 2px solid rgba(255,255,255,0.22);
-    background: radial-gradient(circle at 32% 26%, #ffb0b0 0%, #ff4d4d 34%, #d41c1c 70%, #a31414 100%);
-    box-shadow: -2px 6px 0 #7a0c0c, -4px 11px 11px rgba(0,0,0,0.6);
+    color: rgba(255,255,255,0.95); border: 1px solid rgba(70,0,12,0.55);
+    background: radial-gradient(circle at 38% 27%, #ff9d9d 0%, #f44d4d 32%, #cc2026 66%, #8e1320 100%);
+    box-shadow:
+      inset 0 3px 5px rgba(255,255,255,0.6),
+      inset 0 -7px 11px rgba(85,0,14,0.6),
+      0 5px 0 #6c0c18,
+      0 9px 13px rgba(0,0,0,0.55);
     font-size: 18px; line-height: 1;
     cursor: pointer;
     transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
@@ -133,7 +140,11 @@ export const arcadeStyles = `
   .cab-btn:hover:not(:disabled) { filter: brightness(1.08); }
   .cab-btn:active:not(:disabled) {
     transform: translateY(4px);
-    box-shadow: -1px 1px 0 #7a0c0c, -1px 3px 6px rgba(0,0,0,0.45);
+    box-shadow:
+      inset 0 2px 4px rgba(255,255,255,0.5),
+      inset 0 -5px 9px rgba(85,0,14,0.6),
+      0 1px 0 #6c0c18,
+      0 3px 7px rgba(0,0,0,0.5);
   }
   .cab-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -159,24 +170,29 @@ export const arcadeStyles = `
   .cab-lever-ball {
     position: absolute; right: -30px; top: 50%; transform: translateY(-50%);
     width: 46px; height: 46px; border-radius: 999px;
-    background: radial-gradient(circle at 32% 26%, #ffc2c6 0%, #ff4d60 34%, #cc142c 64%, #8c0a1c 100%);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.55), inset 0 6px 9px rgba(255,255,255,0.7), inset 0 -8px 12px rgba(110,0,18,0.5);
-    border: 2px solid rgba(255,255,255,0.16);
+    background:
+      radial-gradient(circle at 34% 26%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 18%),
+      radial-gradient(circle at 36% 30%, #ffd0d3 0%, #ff5061 30%, #d11d2f 62%, #7d0a1c 100%);
+    box-shadow: 0 10px 18px rgba(0,0,0,0.55), inset 0 6px 10px rgba(255,255,255,0.45), inset 0 -10px 14px rgba(110,0,18,0.55);
+    border: 1px solid rgba(255,255,255,0.12);
   }
 
   /* ---- Coin slot ---------------------------------------------------------- */
   .coin-slot {
     display: flex; align-items: center; justify-content: space-between; gap: 14px;
     padding: 12px 18px;
-    background: linear-gradient(180deg, #160a30, #0a0418);
-    border: 2px solid rgba(160,110,240,0.3);
+    background: linear-gradient(180deg, #3a2a58 0%, #241638 48%, #160d28 100%);
+    border: 1px solid rgba(180,140,240,0.32);
     border-radius: 12px;
-    box-shadow: inset 0 6px 12px rgba(0,0,0,0.85);
+    box-shadow:
+      inset 0 2px 0 rgba(215,185,255,0.2),
+      inset 0 -12px 20px rgba(0,0,0,0.6),
+      0 8px 16px rgba(0,0,0,0.5);
   }
   .arcade-slot-mouth {
-    width: 46px; height: 10px; border-radius: 4px;
-    background: #030207;
-    box-shadow: inset 0 4px 6px rgba(0,0,0,0.95), 0 1px 0 rgba(255,255,255,0.08);
+    width: 52px; height: 12px; border-radius: 3px;
+    background: linear-gradient(180deg,#06040c,#000);
+    box-shadow: inset 0 5px 7px rgba(0,0,0,0.95), 0 1px 0 rgba(220,195,255,0.2), 0 -1px 0 rgba(0,0,0,0.7);
   }
   .arcade-coin {
     width: 24px; height: 24px; border-radius: 999px;
