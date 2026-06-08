@@ -79,7 +79,18 @@
     `ArcadeButton.tsx` removed); the slot-machine lever (`ArcadeLever`) re-skinned to
     the new `lever-assembly/base/arm/stick/ball` classes with the pull animation.
     Open/close fade-scale kept on a non-3-D wrapper so the planes render cleanly.
-    tsc + build clean. **PAUSED — user is tuning the 3-D CSS directly** (`crtStyles.ts`).
+    tsc + build clean.
+  - **14-2f/g (done) — Coordinate "blockout" cabinet (replaces preserve-3d).**
+    `preserve-3d` was too hard to tune blind, so the cabinet is now authored as a
+    flat list of **primitive parts** (`rect`/`round`/`trap`/`oval`) at absolute
+    coords on a fixed 480×760 design stage (`cabinetLayout.ts` — the single
+    editable file; `primitives.tsx`; `CabinetStage.tsx` scales-to-fit + wires the
+    functional slots). Press **B** for a saturated-red blockout with per-box
+    label + `w×h · x,y` + center readout and cyan center guide lines. `trap`
+    `taper` is **signed** (>0 top-narrow / faces up, <0 bottom-narrow / faces
+    down). User tuned hood + deck trapezoids to a shared vanishing point → reads
+    convincingly 3-D. Old `box-*`/`preserve-3d` CSS and `ArcadeLever.tsx` removed
+    (lever folded into `CabinetStage`). tsc + build clean. Commits 14-2f / 2056f61.
     **Next:** 14-3 the canvas game engine
     (cursor-as-player, RAF loop, health, projectiles, collision) replacing the
     `playing` placeholder — **first enemy pool = Queue "Time Pressure"** (user's
