@@ -33,7 +33,7 @@ export const arcadeStyles = `
     position: absolute; top: 0; left: 0;
     transform-origin: top left;
   }
-  .prim-skin { pointer-events: none; }
+  .prim-skin { pointer-events: none; display: flex; align-items: center; justify-content: center; }
   .crt-screen .arcade-screen-inner, .cab-btn, .cab-lever, .coin-slot { pointer-events: auto; }
 
   /* ---- Blockout (press B) ------------------------------------------------- */
@@ -89,8 +89,18 @@ export const arcadeStyles = `
   .marquee-text {
     background: linear-gradient(180deg, #fff 0%, #ffe3ff 42%, #ff8ee0 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 0 14px rgba(255,120,220,0.85)) drop-shadow(0 3px 0 rgba(50,10,60,0.8));
-    font-size: 24px; letter-spacing: 0.14em;
+    filter: drop-shadow(0 0 16px rgba(255,120,220,0.85)) drop-shadow(0 3px 8px rgba(50,10,60,0.8));
+    font-size: 42px; letter-spacing: 0.12em; text-align: center;
+  }
+
+  /* ---- Retro decals / stickers (skin only) -------------------------------- */
+  .cab-decal { position: absolute; pointer-events: none; opacity: 0.92; }
+  .cab-decal.dot { border-radius: 999px; }
+  .cab-decal.star {
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  }
+  .cab-decal.bolt {
+    clip-path: polygon(42% 0, 78% 0, 52% 38%, 74% 38%, 30% 100%, 46% 52%, 24% 52%);
   }
 
   /* ---- CRT screen --------------------------------------------------------- */
@@ -131,8 +141,8 @@ export const arcadeStyles = `
     box-shadow:
       inset 0 3px 5px rgba(255,255,255,0.6),
       inset 0 -7px 11px rgba(85,0,14,0.6),
-      0 5px 0 #6c0c18,
-      0 9px 13px rgba(0,0,0,0.55);
+      0 5px 3px rgba(108,12,24,0.85),
+      0 10px 15px rgba(0,0,0,0.5);
     font-size: 18px; line-height: 1;
     cursor: pointer;
     transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
@@ -143,8 +153,8 @@ export const arcadeStyles = `
     box-shadow:
       inset 0 2px 4px rgba(255,255,255,0.5),
       inset 0 -5px 9px rgba(85,0,14,0.6),
-      0 1px 0 #6c0c18,
-      0 3px 7px rgba(0,0,0,0.5);
+      0 1px 2px rgba(108,12,24,0.85),
+      0 3px 8px rgba(0,0,0,0.45);
   }
   .cab-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 

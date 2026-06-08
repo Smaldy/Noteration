@@ -55,7 +55,6 @@ export interface Part {
 function shapeGeometry(p: Part): CSSProperties {
   const s: CSSProperties = {};
   if (p.shape === "oval") s.borderRadius = "50%";
-  else if (p.shape === "round") s.borderRadius = p.r ?? 10;
   else if (p.shape === "trap") {
     const t = p.taper ?? 24;
     const tp = (Math.abs(t) / p.w) * 100;
@@ -63,6 +62,8 @@ function shapeGeometry(p: Part): CSSProperties {
       t >= 0
         ? `polygon(${tp}% 0, ${100 - tp}% 0, 100% 100%, 0 100%)` // top narrower
         : `polygon(0 0, 100% 0, ${100 - tp}% 100%, ${tp}% 100%)`; // bottom narrower
+  } else if (p.r != null) {
+    s.borderRadius = p.r; // round, or rect given an explicit radius (softer corners)
   }
   return s;
 }

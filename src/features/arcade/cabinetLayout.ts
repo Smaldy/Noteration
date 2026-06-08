@@ -50,10 +50,12 @@ export const CABINET_PARTS: Part[] = [
     h: 450,
     r: 20,
     z: 1,
-    fill: "linear-gradient(180deg,#30205e 0%,#241640 52%,#150b2e 100%)",
-    border: "1px solid rgba(150,110,225,0.30)",
+    // top edge fades into the hood above; bottom edge fades into the deck below
+    fill:
+      "linear-gradient(180deg, rgba(8,4,20,0.85), rgba(8,4,20,0) 9%), linear-gradient(0deg, rgba(8,4,20,0.85), rgba(8,4,20,0) 8%), linear-gradient(180deg,#30205e 0%,#241640 52%,#150b2e 100%)",
+    border: "1px solid rgba(150,110,225,0.22)",
     shadow:
-      "0 45px 80px -12px rgba(0,0,0,0.75), inset 0 2px 0 rgba(200,165,255,0.14), inset 16px 0 34px rgba(0,0,0,0.38), inset -16px 0 34px rgba(0,0,0,0.38), inset 0 -46px 60px rgba(0,0,0,0.5)",
+      "0 50px 90px -16px rgba(0,0,0,0.7), inset 0 6px 18px rgba(200,165,255,0.07), inset 22px 0 50px rgba(0,0,0,0.30), inset -22px 0 50px rgba(0,0,0,0.30)",
   },
   {
     id: "kick",
@@ -64,9 +66,11 @@ export const CABINET_PARTS: Part[] = [
     h: 260,
     r: 10,
     z: 2,
-    fill: "linear-gradient(180deg,#160c2e 0%,#0c0620 100%)",
+    // top edge fades into the deck above (matches deck's bottom colour)
+    fill:
+      "linear-gradient(180deg, rgba(6,3,16,0.9), rgba(6,3,16,0) 16%), linear-gradient(180deg,#1a1040 0%,#0c0620 100%)",
     shadow:
-      "inset 0 26px 40px rgba(0,0,0,0.62), inset 0 2px 0 rgba(150,110,220,0.07), inset 14px 0 30px rgba(0,0,0,0.4), inset -14px 0 30px rgba(0,0,0,0.4)",
+      "inset 0 3px 14px rgba(150,110,220,0.05), inset 16px 0 40px rgba(0,0,0,0.35), inset -16px 0 40px rgba(0,0,0,0.35)",
   },
 
   // ── Marquee ────────────────────────────────────────────────────────────────
@@ -80,9 +84,9 @@ export const CABINET_PARTS: Part[] = [
     r: 10,
     z: 6,
     fill: "linear-gradient(180deg,#5f349c 0%,#3c1f6a 52%,#2a1450 100%)",
-    border: "2px solid rgba(214,170,255,0.72)",
+    border: "none",
     shadow:
-      "0 0 42px rgba(216,114,255,0.42), 0 12px 26px rgba(0,0,0,0.55), inset 0 3px 0 rgba(255,228,255,0.4), inset 0 -18px 28px rgba(18,4,38,0.72)",
+      "0 0 46px rgba(216,114,255,0.4), 0 14px 30px -6px rgba(0,0,0,0.5), inset 0 4px 14px rgba(255,228,255,0.22), inset 0 -20px 30px rgba(18,4,38,0.7)",
   },
 
   // ── Hood (perspective panel under the marquee) ──────────────────────────────
@@ -96,7 +100,7 @@ export const CABINET_PARTS: Part[] = [
     taper: -67, // negative → bottom narrower → faces DOWN
     z: 5,
     fill: "linear-gradient(180deg,#241646 0%,#140b2c 58%,#0b0522 100%)",
-    shadow: "0 11px 16px rgba(0,0,0,0.58)",
+    shadow: "0 16px 26px -6px rgba(0,0,0,0.45)",
   },
 
   // ── Screen ──────────────────────────────────────────────────────────────────
@@ -112,7 +116,7 @@ export const CABINET_PARTS: Part[] = [
     fill: "radial-gradient(130% 120% at 50% 0%, #161031 0%, #08050f 72%)",
     border: "2px solid rgba(150,105,228,0.32)",
     shadow:
-      "inset 0 3px 0 rgba(165,125,235,0.2), inset 0 0 44px rgba(0,0,0,0.92), inset 0 -14px 30px rgba(0,0,0,0.85), 0 16px 28px rgba(0,0,0,0.5)",
+      "inset 0 4px 12px rgba(165,125,235,0.14), inset 0 0 50px rgba(0,0,0,0.9), inset 0 -16px 34px rgba(0,0,0,0.85), 0 18px 34px -8px rgba(0,0,0,0.45)",
   },
   { id: "screen", shape: "round", x: 0, y: 100, w: 480, h: 360, r: 10, z: 5 },
 
@@ -126,8 +130,10 @@ export const CABINET_PARTS: Part[] = [
     h: 120,
     taper: 148,
     z: 4,
-    fill: "linear-gradient(180deg,#41297e 0%,#2c1c5e 42%,#1a1040 100%)",
-    shadow: "0 20px 26px rgba(0,0,0,0.62)",
+    // top edge fades into the cabinet above; bottom edge fades into the kick below
+    fill:
+      "linear-gradient(180deg, rgba(8,4,20,0.8), rgba(8,4,20,0) 22%), linear-gradient(0deg, rgba(6,3,16,0.85), rgba(6,3,16,0) 18%), linear-gradient(180deg,#41297e 0%,#2c1c5e 42%,#1a1040 100%)",
+    shadow: "0 26px 40px -6px rgba(0,0,0,0.5)",
   },
   { id: "btn-left", shape: "oval", x: 160, y: 548, w: 50, h: 30, z: 7, label: "btn-left ◄" },
   { id: "btn-up", shape: "oval", x: 215, y: 525, w: 50, h: 30, z: 7, label: "btn-up ▲" },

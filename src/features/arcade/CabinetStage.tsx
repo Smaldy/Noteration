@@ -81,6 +81,10 @@ export function CabinetStage(props: CabinetStageProps) {
           return renderSlot(p.id, props);
         })}
 
+        {/* Retro stickers/decals, skinned-mode only (kept out of CABINET_PARTS
+            so blockout stays clean). */}
+        {!props.block && <CabinetDecals />}
+
         {/* Center guides — only in blockout. A box is centered when its red
             fill straddles the dashed line symmetrically (and the readout ✓s). */}
         {props.block && (
@@ -99,7 +103,7 @@ export function CabinetStage(props: CabinetStageProps) {
             style={{
               position: "absolute",
               left: screenPart.x,
-              top: screenPart.y + screenPart.h + 6,
+              top: screenPart.y + screenPart.h - 4,
               width: screenPart.w,
               zIndex: 7,
             }}
@@ -184,6 +188,45 @@ function renderSlot(id: string, props: CabinetStageProps): ReactNode {
     default:
       return null;
   }
+}
+
+/** Retro decals scattered on the cabinet's exposed faces (left/right of the
+ *  screen + the wide kick). Pure decoration; positioned in stage units. */
+type Decal = { cls: "star" | "bolt" | "dot" | "ring"; x: number; y: number; s: number; c: string; r: number };
+const DECALS: Decal[] = [
+  { cls: "star", x: -78, y: 180, s: 44, c: "#5fe6ff", r: -12 },
+  { cls: "star", x: 498, y: 210, s: 40, c: "#ff6ad5", r: 14 },
+  { cls: "dot", x: -60, y: 300, s: 18, c: "#ffe14d", r: 0 },
+  { cls: "ring", x: 506, y: 330, s: 30, c: "#5fe6ff", r: 0 },
+  { cls: "star", x: -176, y: 700, s: 58, c: "#ffe14d", r: -8 },
+  { cls: "star", x: 602, y: 702, s: 52, c: "#74ff9c", r: 12 },
+  { cls: "bolt", x: -64, y: 766, s: 46, c: "#ff6ad5", r: 6 },
+  { cls: "ring", x: 660, y: 800, s: 36, c: "#5fe6ff", r: 0 },
+  { cls: "dot", x: 548, y: 660, s: 14, c: "#ffe14d", r: 0 },
+];
+
+function CabinetDecals() {
+  return (
+    <>
+      {DECALS.map((d, i) => (
+        <span
+          key={i}
+          className={`cab-decal ${d.cls}`}
+          style={{
+            left: d.x,
+            top: d.y,
+            width: d.s,
+            height: d.s,
+            zIndex: 3,
+            transform: `rotate(${d.r}deg)`,
+            background: d.cls === "ring" ? "transparent" : d.c,
+            border: d.cls === "ring" ? `3px solid ${d.c}` : undefined,
+            filter: `drop-shadow(0 0 6px ${d.c})`,
+          }}
+        />
+      ))}
+    </>
+  );
 }
 
 function DeckButton({
