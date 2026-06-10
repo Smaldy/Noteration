@@ -14,17 +14,19 @@
  */
 import {
   Bookmark,
-  Calendar,
+  CalendarDays,
+  GraduationCap,
   Heart,
-  Library,
   ListChecks,
   type LucideIcon,
   Settings,
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
 import { useArcadeStore } from "@/stores/arcade";
 
 import { ARCADE_PIXEL } from "./crtStyles";
@@ -33,11 +35,12 @@ import { ARENAS, type ArenaId, type FrameInput, type World } from "./game/types"
 import { loadoutFrom } from "./game/types";
 import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
 
+// Same icons the real Library header uses for each section button.
 const ARENA_ICON: Record<ArenaId, LucideIcon> = {
-  calendar: Calendar,
-  queue: ListChecks,
-  library: Library,
+  exam: GraduationCap,
   bookmarks: Bookmark,
+  calendar: CalendarDays,
+  queue: ListChecks,
   settings: Settings,
 };
 
@@ -59,6 +62,7 @@ export function GameCanvas() {
   const endRun = useArcadeStore((s) => s.endRun);
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const worldRef = useRef<World | null>(null);
@@ -83,18 +87,13 @@ export function GameCanvas() {
     hasSlow: false,
   });
 
-  // End the run exactly once, banking whatever the world reached. The "wave
-  // reached" reported is the best sector progress, since each sector advances
-  // independently.
+  // End the run exactly once, banking the global wave + score the world reached.
   const finish = useCallback(
     (died: boolean) => {
       if (endedRef.current) return;
       endedRef.current = true;
       const w = worldRef.current;
-      const wave = w
-        ? Math.max(...ARENAS.map((a) => w.arenas[a.id].wave))
-        : (run?.start_wave ?? 1);
-      void endRun(wave, w?.score ?? 0, died);
+      void endRun(w?.wave ?? run?.start_wave ?? 1, w?.score ?? 0, died);
     },
     [endRun, run],
   );
@@ -218,7 +217,7 @@ export function GameCanvas() {
           health: world.player.health,
           maxHealth: world.player.maxHealth,
           score: world.score,
-          wave: world.arenas[world.arena].wave,
+          wave: world.wave,
           arena: world.arena,
           bombArenas,
           slowReady: world.slowmo.cooldown <= 0,
@@ -254,11 +253,46 @@ export function GameCanvas() {
   const activeDef = ARENAS.find((a) => a.id === hud.arena);
 
   return (
-    <div className="absolute inset-0 select-none bg-black/35">
+    <div className="absolute inset-0 select-none">
       <canvas ref={canvasRef} className="block h-full w-full cursor-none" />
 
-      {/* HUD */}
-      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4 ${ARCADE_PIXEL}`}>
+      {/* Sector nav — a replica of the real Library-header button row, in the
+          same top-right space and using the same Button component / icons /
+          labels, so it reads as the app's own nav. Switching drives the real
+          router; a sector with a live bomb glows (go there and hold to defuse). */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end px-6 py-6">
+        <div className="pointer-events-auto flex items-center gap-2">
+          {ARENAS.map((a, i) => {
+            const Icon = ARENA_ICON[a.id];
+            const active = a.id === hud.arena;
+            const alert = !active && hud.bombArenas.includes(a.id);
+            return (
+              <Button
+                key={a.id}
+                variant="outline"
+                size={a.iconOnly ? "icon" : "default"}
+                onClick={() => go(a.id)}
+                title={`${t(a.labelKey)} (${i + 1})`}
+                className={`relative ${alert ? "arcade-bomb-alert" : ""}`}
+                style={
+                  active
+                    ? { borderColor: a.color, color: a.color, boxShadow: `0 0 12px ${a.color}66` }
+                    : undefined
+                }
+              >
+                <Icon />
+                {!a.iconOnly && t(a.labelKey)}
+                {alert && (
+                  <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-rose-500 shadow" />
+                )}
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Player HUD + controls — bottom-left, clear of the header illusion. */}
+      <div className={`pointer-events-none absolute bottom-0 left-0 flex flex-col gap-2 p-4 ${ARCADE_PIXEL}`}>
         <div className="flex items-center gap-1.5">
           {Array.from({ length: hud.maxHealth }, (_, i) => (
             <Heart
@@ -267,57 +301,12 @@ export function GameCanvas() {
             />
           ))}
         </div>
-        <div className="text-right">
-          <p className="arcade-neon-yellow text-base tabular-nums">{hud.score}</p>
-          <p className="mt-1 text-[9px]" style={{ color: activeDef?.color }}>
+        <p className="text-[10px]">
+          <span className="arcade-neon-yellow text-base tabular-nums">{hud.score}</span>
+          <span className="ml-3" style={{ color: activeDef?.color }}>
             {activeDef?.label} · W{hud.wave}
-          </p>
-        </div>
-      </div>
-
-      {/* Sector nav — switching drives the real router (the live page changes
-          behind the game). A button glows/shines when a bomb is live in that
-          non-active sector; go there and hold to defuse it. */}
-      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2">
-        <div className="pointer-events-auto flex gap-1.5 rounded-xl border border-white/10 bg-black/55 p-1.5 backdrop-blur">
-          {ARENAS.map((a, i) => {
-            const Icon = ARENA_ICON[a.id];
-            const active = a.id === hud.arena;
-            const alert = !active && hud.bombArenas.includes(a.id);
-            return (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => go(a.id)}
-                title={`${a.label} (${i + 1})`}
-                className={`relative grid size-11 place-items-center rounded-lg border transition ${
-                  alert ? "arcade-bomb-alert" : "border-white/10 hover:bg-white/10"
-                }`}
-                style={
-                  active
-                    ? {
-                        color: a.color,
-                        borderColor: a.color,
-                        background: "rgba(255,255,255,0.08)",
-                        boxShadow: `0 0 12px ${a.color}66`,
-                      }
-                    : alert
-                      ? { color: "#ffd0e8" }
-                      : { color: "rgba(255,255,255,0.5)" }
-                }
-              >
-                <Icon className="size-5" />
-                {alert && (
-                  <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-rose-500 shadow" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Controls hint + dodge state */}
-      <div className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4 ${ARCADE_PIXEL}`}>
+          </span>
+        </p>
         <p className="arcade-dim text-[7px] leading-relaxed">
           {load.canShoot ? `CLICK — ZAP + ${bulletsPerClick(load)} SHOTS` : "CLICK TO ZAP"}
           <br />
@@ -332,14 +321,15 @@ export function GameCanvas() {
             </>
           )}
         </p>
-        <button
-          type="button"
-          onClick={() => finish(false)}
-          className="pointer-events-auto rounded border border-white/30 px-3 py-1.5 text-[8px] arcade-dim transition hover:scale-105 hover:text-white"
-        >
-          BANK &amp; EXIT
-        </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => finish(false)}
+        className={`pointer-events-auto absolute bottom-4 right-4 rounded border border-white/30 bg-black/40 px-3 py-1.5 text-[8px] arcade-dim backdrop-blur transition hover:scale-105 hover:text-white ${ARCADE_PIXEL}`}
+      >
+        BANK &amp; EXIT
+      </button>
     </div>
   );
 }

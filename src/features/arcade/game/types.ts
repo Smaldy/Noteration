@@ -27,7 +27,7 @@ export type EnemyKind = "clock" | "hourglass" | "shard";
  * aligned to real routes. Calendar and Queue are the themed sectors; Pomodoro is
  * intentionally absent (it's a main-tab overlay, not a page).
  */
-export type ArenaId = "calendar" | "queue" | "library" | "bookmarks" | "settings";
+export type ArenaId = "exam" | "bookmarks" | "calendar" | "queue" | "settings";
 
 export interface Enemy {
   id: number;
@@ -120,9 +120,9 @@ export interface SlowMo {
   cooldown: number; // remaining cooldown before it can re-trigger
 }
 
-/** Per-arena skirmish bookkeeping (each sector progresses independently). */
+/** Per-arena spawn bookkeeping. The wave number itself is global (one shared
+ *  level across all sectors), only the in-flight spawn batch is per-sector. */
 export interface ArenaState {
-  wave: number;
   pending: number; // enemies still to spawn this wave
   queue: EnemyKind[]; // spawn order for the current wave
   spawnTimer: number;
@@ -143,6 +143,7 @@ export interface World {
   zaps: Zap[];
   floats: FloatText[];
   arenas: Record<ArenaId, ArenaState>;
+  wave: number; // global wave level, shared across all sectors
   bombTimer: number; // seconds until the next bomb is planted
   bannerArena: number; // seconds left to show the "ENTERING …" flash
   waveBanner: number; // seconds left to show the "WAVE N" flash
@@ -164,18 +165,23 @@ export const COLORS = {
 
 export interface ArenaDef {
   id: ArenaId;
-  label: string;
+  label: string; // uppercase label for the in-canvas sector banner
+  labelKey: string; // i18n key, so the DOM nav matches the real header button text
+  iconOnly?: boolean; // Settings is an icon-only button in the real header
   route: string; // real app route this sector drives
-  color: string; // theme accent (also tints the nav button)
+  color: string; // theme accent (drives the bomb glow)
 }
 
-/** Nav order, labels, real routes, and accent colors for the sector switcher. */
+/**
+ * The sector switcher mirrors the real Library-header button row (same order,
+ * routes, icons, and i18n labels) so the game's nav reads as the app's own nav.
+ */
 export const ARENAS: ArenaDef[] = [
-  { id: "calendar", label: "CALENDAR", route: "/calendar", color: COLORS.pink },
-  { id: "queue", label: "QUEUE", route: "/queue", color: COLORS.yellow },
-  { id: "library", label: "LIBRARY", route: "/", color: COLORS.green },
-  { id: "bookmarks", label: "BOOKMARKS", route: "/bookmarks", color: COLORS.cyan },
-  { id: "settings", label: "SETTINGS", route: "/settings", color: "#b69cff" },
+  { id: "exam", label: "EXAM PREP", labelKey: "nav.examPrep", route: "/exam", color: COLORS.cyan },
+  { id: "bookmarks", label: "BOOKMARKS", labelKey: "nav.bookmarks", route: "/bookmarks", color: COLORS.green },
+  { id: "calendar", label: "CALENDAR", labelKey: "nav.calendar", route: "/calendar", color: COLORS.pink },
+  { id: "queue", label: "QUEUE", labelKey: "nav.queue", route: "/queue", color: COLORS.yellow },
+  { id: "settings", label: "SETTINGS", labelKey: "nav.settings", iconOnly: true, route: "/settings", color: "#b69cff" },
 ];
 
 /**
@@ -186,7 +192,7 @@ export const ARENAS: ArenaDef[] = [
 export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
   calendar: ["clock"],
   queue: ["hourglass"],
-  library: ["clock", "hourglass"],
+  exam: ["clock", "hourglass"],
   bookmarks: ["hourglass", "clock"],
   settings: ["clock", "hourglass"],
 };

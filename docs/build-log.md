@@ -161,8 +161,25 @@
     HTTP both) — `test_arcade_api.py` now **23 passed**. Frontend tsc + build clean.
     (Full-suite run shows 4 unrelated, pre-existing failures in
     `test_documents_api`/`test_ingestion` from cross-test PDF/model pollution; each
-    passes in isolation — not arcade.) **Next:** dedicated enemy themes for the
-    Library/Bookmarks/Settings sectors, then balance polish.
+    passes in isolation — not arcade.)
+  - **14-7 (done) — Native nav replica + global wave + brighter (user-driven).**
+    Four tweaks: (1) **DEV_MODE on** (`devMode.ts` now `true`). (2) **Nav in the
+    real button space**: the sector switcher is now a replica of the real
+    Library-header button row — same shadcn `Button variant="outline"`, same
+    lucide icons, same i18n labels (`nav.*`), docked top-right where the header
+    buttons sit — so it reads as the app's own nav. Sectors were realigned to the
+    five real header buttons: **Exam / Bookmarks / Calendar / Queue / Settings**
+    (Settings icon-only), preserving Clock→Calendar and Hourglass→Queue. (3)
+    **Global wave**: the per-sector wave was the reported "bug" — wave is now one
+    shared `world.wave` (only the in-flight spawn batch is per-sector); clearing
+    the active sector advances it, and entering a cleared sector re-arms it at the
+    current wave *without* advancing (no bounce-inflation). (4) **No dark wash**:
+    dropped the `bg-black/35` tint so the live app shows at full brightness. HUD +
+    controls moved bottom-left, BANK & EXIT bottom-right, clear of the header
+    illusion. (Note: the app has no global tab bar, so the replica matches the
+    *Library* header; on other pages it stays as consistent native-looking nav.)
+    tsc + build clean. **Next:** dedicated enemy themes for Exam/Bookmarks/Settings,
+    then balance polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

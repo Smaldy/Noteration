@@ -252,7 +252,7 @@ function drawBanner(ctx: CanvasRenderingContext2D, world: World) {
   ctx.shadowColor = COLORS.pink;
   ctx.fillStyle = COLORS.pink;
   ctx.font = "48px 'Press Start 2P', monospace";
-  ctx.fillText(String(world.arenas[world.arena].wave), world.w / 2, world.h / 2 + 24);
+  ctx.fillText(String(world.wave), world.w / 2, world.h / 2 + 24);
   ctx.restore();
 }
 

@@ -68,7 +68,7 @@ export function createWorld(
 ): World {
   const wave = Math.max(1, startWave);
   const arenas = {} as Record<ArenaId, ArenaState>;
-  for (const a of ARENAS) arenas[a.id] = { wave, pending: 0, queue: [], spawnTimer: 0 };
+  for (const a of ARENAS) arenas[a.id] = { pending: 0, queue: [], spawnTimer: 0 };
 
   const world: World = {
     w,
@@ -92,6 +92,7 @@ export function createWorld(
     zaps: [],
     floats: [],
     arenas,
+    wave,
     bombTimer: BOMB_GAP,
     bannerArena: 1.4,
     waveBanner: 1.4,
@@ -107,9 +108,8 @@ export function createWorld(
 
 function setupWave(world: World, arena: ArenaId) {
   const st = world.arenas[arena];
-  const n = st.wave;
   const pool = ARENA_POOL[arena];
-  const count = 2 + Math.floor(n * 0.8); // total enemies this sector-wave
+  const count = 2 + Math.floor(world.wave * 0.8); // total enemies this wave
   st.queue = [];
   for (let i = 0; i < count; i++) st.queue.push(pool[i % pool.length]);
   st.pending = st.queue.length;
@@ -117,13 +117,19 @@ function setupWave(world: World, arena: ArenaId) {
   if (arena === world.arena) world.waveBanner = 1.4;
 }
 
-/** Switch the active sector. Enemies persist (frozen); transient spikes reset. */
+/** Switch the active sector. Enemies persist (frozen); transient spikes reset.
+ *  A previously-cleared sector is re-armed on entry at the current global wave
+ *  (without advancing it — only clearing a sector you're fighting advances it). */
 export function switchArena(world: World, arena: ArenaId) {
   if (arena === world.arena || world.status !== "playing") return;
   world.arena = arena;
   world.spikes = [];
   world.bannerArena = 1.3;
   world.player.invuln = Math.max(world.player.invuln, 0.8); // grace on arrival
+  const st = world.arenas[arena];
+  if (st.pending === 0 && !world.enemies.some((e) => e.arena === arena)) {
+    setupWave(world, arena);
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -286,13 +292,13 @@ function stepWave(world: World, dt: number) {
       st.spawnTimer = 0.55;
     }
   } else if (!world.enemies.some((e) => e.arena === arena)) {
-    st.wave++;
+    world.wave++; // clearing the active sector advances the shared wave level
     setupWave(world, arena);
   }
 }
 
 function stepEnemies(world: World, edt: number) {
-  const wave = world.arenas[world.arena].wave;
+  const wave = world.wave;
   const emitInterval = Math.max(1.15, 2.6 - wave * 0.11);
   const spikeSpeed = 96 + wave * 6;
   const ring = Math.min(14, 6 + Math.floor(wave / 2));
@@ -488,8 +494,7 @@ function killEnemy(world: World, e: Enemy) {
   burst(world, e.pos, color, e.kind === "clock" ? 16 : 10);
   world.shake = Math.min(14, world.shake + (e.kind === "clock" ? 8 : 4));
 
-  const wave = world.arenas[e.arena].wave;
-  const pts = Math.floor(ENEMY[e.kind].points * (1 + 0.1 * (wave - 1)) * world.load.scoreMult);
+  const pts = Math.floor(ENEMY[e.kind].points * (1 + 0.1 * (world.wave - 1)) * world.load.scoreMult);
   world.score += pts;
   floatText(world, e.pos, `+${pts}`, color);
 
