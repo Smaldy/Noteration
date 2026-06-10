@@ -351,18 +351,22 @@ class RunStart:
     coins_after: int
 
 
-def start_run(session: Session, *, mode: str) -> RunStart:
+def start_run(session: Session, *, mode: str, dev: bool = False) -> RunStart:
     """Pay the entry cost and open a play session. ``mode`` is 'fresh'|'resume'.
 
     Raises ``CooldownActiveError`` while the lever is locked,
     ``NothingToResumeError`` when resuming with no saved run, and
     ``InsufficientCoinsError`` when the balance can't cover the cost.
+
+    ``dev`` (local developer mode) skips the anti-binge cooldown so runs can be
+    started back-to-back while testing.
     """
     state = get_state(session)
     now = utcnow()
-    active = cooldown_until(session, now=now)
-    if active is not None:
-        raise CooldownActiveError(active)
+    if not dev:
+        active = cooldown_until(session, now=now)
+        if active is not None:
+            raise CooldownActiveError(active)
 
     if mode == "resume":
         if state.resumable_wave <= 0:

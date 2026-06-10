@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { DEV_MODE } from "@/features/arcade/devMode";
 import { api, ApiError } from "@/lib/api";
 import type { StudyEvent } from "@/lib/arcadeEvents";
 import type { ArcadeState, RunStart } from "@/types/arcade";
@@ -92,7 +93,7 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
 
   startRun: async (mode) => {
     try {
-      const run = await api.post<RunStart>("/arcade/run/start", { mode });
+      const run = await api.post<RunStart>("/arcade/run/start", { mode, dev: DEV_MODE });
       set({ run, phase: "starting", overlayOpen: false });
       void get().fetchState();
       return { ok: true };

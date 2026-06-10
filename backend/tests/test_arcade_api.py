@@ -241,6 +241,9 @@ def test_cooldown_triggers_after_too_many_runs(session: Session) -> None:
     assert arcade_service.cooldown_until(session) is not None
     with pytest.raises(arcade_service.CooldownActiveError):
         arcade_service.start_run(session, mode="fresh")
+    # Developer mode skips the cooldown entirely.
+    run = arcade_service.start_run(session, mode="fresh", dev=True)
+    assert run.session_id > 0
 
 
 # --- HTTP tests (shared in-memory DB via StaticPool) -------------------------

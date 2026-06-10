@@ -95,7 +95,7 @@ def start_run(
     payload: StartRunRequest, db: Session = Depends(get_session)
 ) -> RunStartOut:
     try:
-        run = arcade_service.start_run(db, mode=payload.mode)
+        run = arcade_service.start_run(db, mode=payload.mode, dev=payload.dev)
     except arcade_service.CooldownActiveError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

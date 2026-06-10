@@ -43,6 +43,8 @@ export function ArcadeOverlay() {
   const coinId = useRef(0);
 
   const cooldown = useCountdown(state?.cooldown_until ?? null);
+  // Developer mode bypasses the anti-binge cooldown (backend skips it too).
+  const onCooldown = cooldown.active && !DEV_MODE;
 
   const canResume = !!state && state.resumable_wave > 0 && state.resume_cost != null;
   const cost =
@@ -65,7 +67,7 @@ export function ArcadeOverlay() {
       ? !canBuy || storeBusy
       : screen === "quests"
         ? true
-        : cooldown.active || !affordable;
+        : onCooldown || !affordable;
 
   // ▲ ▼ does something only on MAIN (if there's a resume) and STORE (if >1 item).
   const navEnabled =
@@ -128,7 +130,7 @@ export function ArcadeOverlay() {
   }, [state, storeIdx, buyUpgrade]);
 
   const startSelected = useCallback(() => {
-    if (cooldown.active || !affordable) return;
+    if (onCooldown || !affordable) return;
     setPulling(true);
     const drops = Math.min(cost, 3);
     setCoins(Array.from({ length: drops }, () => coinId.current++));
@@ -138,7 +140,7 @@ export function ArcadeOverlay() {
       setPulling(false);
       setCoins([]);
     }, 760);
-  }, [cooldown.active, affordable, cost, startRun, selection]);
+  }, [onCooldown, affordable, cost, startRun, selection]);
 
   const pull = useCallback(() => {
     if (pulling) return;
@@ -256,8 +258,8 @@ export function ArcadeOverlay() {
             </div>
           )}
 
-          {/* Always-visible cooldown indicator. */}
-          {cooldown.active && (
+          {/* Always-visible cooldown indicator (hidden in dev mode). */}
+          {onCooldown && (
             <div
               className={`absolute left-1/2 top-4 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/20 px-3 py-1.5 text-[10px] tracking-wider text-rose-100 backdrop-blur ${ARCADE_PIXEL}`}
             >

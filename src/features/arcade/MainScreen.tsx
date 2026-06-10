@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import type { ArcadeState } from "@/types/arcade";
 
 import { ARCADE_PIXEL } from "./crtStyles";
+import { DEV_MODE } from "./devMode";
 import { useCountdown } from "./useCountdown";
 
 export type StartMode = "fresh" | "resume";
@@ -18,6 +19,7 @@ export function MainScreen({
   selection: StartMode;
 }) {
   const cooldown = useCountdown(state.cooldown_until);
+  const onCooldown = cooldown.active && !DEV_MODE; // dev mode ignores the cooldown
   const canResume = state.resumable_wave > 0 && state.resume_cost != null;
   const continuesLeft = Math.max(0, state.max_continues - state.resume_count);
   // A saved run exists but its continues are spent → the lineage is forced to end.
@@ -33,7 +35,7 @@ export function MainScreen({
         </div>
       </div>
 
-      {cooldown.active ? (
+      {onCooldown ? (
         <div className="flex flex-col items-center gap-2">
           <p className="arcade-neon-pink text-[10px]">COOLING DOWN</p>
           <p className="arcade-neon-cyan text-3xl tabular-nums">{cooldown.label}</p>
@@ -71,7 +73,7 @@ export function MainScreen({
       )}
 
       <p className="arcade-dim text-[7px]">
-        {cooldown.active ? "TIMER RUNNING" : "▲▼ SELECT · PULL LEVER ►"}
+        {onCooldown ? "TIMER RUNNING" : "▲▼ SELECT · PULL LEVER ►"}
       </p>
     </div>
   );

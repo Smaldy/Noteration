@@ -18,6 +18,9 @@ class EarnRequest(BaseModel):
 
 class StartRunRequest(BaseModel):
     mode: Literal["fresh", "resume"] = "fresh"
+    # Local developer mode: skip the anti-binge cooldown. Set only by the
+    # frontend DEV_MODE panel (single-user local app; never shipped enabled).
+    dev: bool = False
 
 
 class EndRunRequest(BaseModel):
