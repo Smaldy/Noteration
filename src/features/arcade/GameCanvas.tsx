@@ -12,7 +12,7 @@
  * the bomb to defuse it before the fuse blows. Death or BANK & EXIT ends the run.
  */
 import { Heart, Zap } from "lucide-react";
-import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { useArcadeStore } from "@/stores/arcade";
@@ -23,10 +23,6 @@ import { ARENAS, type ArenaId, arenaForPath, type FrameInput, type World } from 
 import { loadoutFrom } from "./game/types";
 import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
 
-// Height of the top pass-through strip: clicks here reach the real app nav (the
-// Library header buttons and each page's return button) instead of the game.
-const NAV_BAND = 96;
-
 /** Lightweight HUD mirror so React re-renders only when these change. */
 interface Hud {
   health: number;
@@ -35,6 +31,7 @@ interface Hud {
   wave: number;
   arena: ArenaId;
   bombArenas: ArenaId[];
+  bombFuse: number; // soonest fuse (s) among bombs in other sectors
   slowReady: boolean;
   hasSlow: boolean;
 }
@@ -64,6 +61,7 @@ export function GameCanvas() {
     wave: run?.start_wave ?? 1,
     arena: arenaForPath(location.pathname),
     bombArenas: [],
+    bombFuse: 0,
     slowReady: false,
     hasSlow: false,
   });
@@ -118,13 +116,29 @@ export function GameCanvas() {
     worldRef.current = world;
 
     // ── Input ────────────────────────────────────────────────────────────────
-    // Reticle tracks the cursor everywhere (window); zap/dodge are bound to the
-    // input plate (below the nav band) so clicks on the real nav pass through.
+    // The whole overlay is click-through (pointer-events:none); input is captured
+    // on window. A click only zaps when it ISN'T on a real control — clicking the
+    // app's own nav/return buttons (or BANK) navigates them, untouched.
+    const isControl = (t: EventTarget | null) =>
+      t instanceof Element &&
+      !!t.closest('a, button, [role="button"], input, select, textarea, label');
     const onMove = (e: MouseEvent) => {
       inputRef.current.pointer = { x: e.clientX, y: e.clientY };
     };
+    const onDown = (e: MouseEvent) => {
+      if (isControl(e.target)) return; // let the real button do its thing
+      if (e.button === 0) {
+        inputRef.current.clicked = true;
+        inputRef.current.held = true;
+      } else if (e.button === 2) {
+        inputRef.current.dodge = true;
+      }
+    };
     const onUp = () => {
       inputRef.current.held = false;
+    };
+    const onContext = (e: MouseEvent) => {
+      if (!isControl(e.target)) e.preventDefault(); // right-click in the play area = dodge
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === " ") {
@@ -134,9 +148,12 @@ export function GameCanvas() {
         finishRef.current(false);
       }
     };
+    document.body.style.cursor = "none"; // the drawn reticle replaces the OS cursor
     window.addEventListener("mousemove", onMove);
+    window.addEventListener("mousedown", onDown);
     window.addEventListener("mouseup", onUp);
     window.addEventListener("blur", onUp);
+    window.addEventListener("contextmenu", onContext);
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", resize);
 
@@ -162,6 +179,7 @@ export function GameCanvas() {
       if (hudAccum >= 0.1) {
         hudAccum = 0;
         const bombArenas = [...new Set(world.bombs.map((b) => b.arena))];
+        const others = world.bombs.filter((b) => b.arena !== world.arena);
         setHud({
           health: world.player.health,
           maxHealth: world.player.maxHealth,
@@ -169,6 +187,7 @@ export function GameCanvas() {
           wave: world.wave,
           arena: world.arena,
           bombArenas,
+          bombFuse: others.length ? Math.min(...others.map((b) => b.fuse)) : 0,
           slowReady: world.slowmo.cooldown <= 0,
           hasSlow: world.load.slowMoLevel > 0,
         });
@@ -190,9 +209,12 @@ export function GameCanvas() {
 
     return () => {
       cancelAnimationFrame(raf);
+      document.body.style.cursor = "";
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mousedown", onDown);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("blur", onUp);
+      window.removeEventListener("contextmenu", onContext);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", resize);
       setBombSectors([]); // clear the nav glow when the run ends
@@ -201,43 +223,25 @@ export function GameCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Plate handlers (zap / hold-to-defuse / dodge). Bound on the plate so the top
-  // nav band stays click-through to the real app buttons.
-  const onPlateDown = (e: ReactMouseEvent) => {
-    if (e.button === 0) {
-      inputRef.current.clicked = true;
-      inputRef.current.held = true;
-    } else if (e.button === 2) {
-      inputRef.current.dodge = true;
-    }
-  };
-
   const load = loadoutFrom(state);
   const activeDef = ARENAS.find((a) => a.id === hud.arena);
   const otherBombs = hud.bombArenas.filter((a) => a !== hud.arena);
 
   return (
-    // pointer-events-none so the real app behind stays interactive; the input
-    // plate + the BANK button opt back in.
+    // pointer-events-none so the real app behind stays interactive (input is
+    // captured on window); only the BANK button opts back in.
     <div className="pointer-events-none absolute inset-0 select-none">
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      {/* Input plate — captures the game's clicks below the nav band. The strip
-          above it is left click-through so the app's own nav buttons work. */}
-      <div
-        className="pointer-events-auto absolute inset-x-0 bottom-0 cursor-none"
-        style={{ top: NAV_BAND }}
-        onMouseDown={onPlateDown}
-        onContextMenu={(e) => e.preventDefault()}
-      />
-
-      {/* Bomb alert — names the sectors you must navigate to (the real Library
-          button also glows). Sits in the click-through strip; pointer-events none. */}
+      {/* Bomb alert — names the sectors to navigate to (the real Library button
+          also glows). A shining gradient pill with a ticking fuse countdown. */}
       {otherBombs.length > 0 && (
-        <div
-          className={`pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-rose-400/60 bg-rose-500/25 px-3 py-1.5 text-[10px] tracking-wider text-rose-50 backdrop-blur ${ARCADE_PIXEL}`}
-        >
-          ⚠ BOMB IN {otherBombs.map((id) => ARENAS.find((a) => a.id === id)?.label).join(", ")}
+        <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2">
+          <div className={`arcade-bomb-banner flex items-center gap-2.5 rounded-full px-4 py-1.5 text-[10px] tracking-[0.18em] text-white ${ARCADE_PIXEL}`}>
+            <span className="text-sm leading-none">⚠</span>
+            <span>{otherBombs.map((id) => ARENAS.find((a) => a.id === id)?.label).join(" · ")}</span>
+            <span className="tabular-nums text-amber-200">{Math.max(0, Math.ceil(hud.bombFuse))}s</span>
+          </div>
         </div>
       )}
 

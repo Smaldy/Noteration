@@ -232,6 +232,23 @@ export const arcadeStyles = `
     50% { box-shadow: 0 0 18px rgba(255,90,120,1), 0 0 30px rgba(255,90,120,0.6); }
   }
 
+  /* Bomb alert banner — a shining gradient sweep + a ticking pulse each second. */
+  .arcade-bomb-banner {
+    border: 1px solid rgba(255,160,180,0.8);
+    background: linear-gradient(100deg,
+      rgba(190,30,70,0.55) 0%, rgba(255,120,150,0.55) 25%,
+      rgba(255,225,120,0.85) 50%, rgba(255,120,150,0.55) 75%,
+      rgba(190,30,70,0.55) 100%);
+    background-size: 250% 100%;
+    box-shadow: 0 0 16px rgba(255,90,120,0.7), inset 0 0 8px rgba(255,255,255,0.15);
+    animation: arcade-shine 1.5s linear infinite, arcade-tick 1s steps(1,end) infinite;
+  }
+  @keyframes arcade-shine { from { background-position: 125% 0; } to { background-position: -125% 0; } }
+  @keyframes arcade-tick {
+    0% { transform: scale(1); } 8% { transform: scale(1.06); }
+    20%,100% { transform: scale(1); }
+  }
+
   .arcade-slam { animation: arcade-slam 0.6s cubic-bezier(0.2,1.6,0.36,1) both; }
   @keyframes arcade-slam {
     0% { transform: scale(6); opacity: 0; filter: blur(8px); }

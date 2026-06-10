@@ -194,8 +194,21 @@
     matching section `Button` with the shiny `arcade-bomb-alert` border; an
     on-canvas "⚠ BOMB IN …" pill names sectors to return to. Sectors realigned to
     all six real routes (added **library** `/`). Two real files touched additively:
-    `LibraryPage` (glow) + the store (`bombSectors`). tsc + build clean. **Next:**
-    dedicated enemy themes per page, balance polish.
+    `LibraryPage` (glow) + the store (`bombSectors`). tsc + build clean.
+  - **14-9 (done) — Playtest bug fixes.** (1) **Nav clicks were eaten / "just kept
+    shooting"** — the top-strip pass-through (a `pointer-events-auto` plate below a
+    96 px band) was too fragile. Replaced it: the whole overlay is now
+    `pointer-events-none`, input is captured on **window**, and a click only zaps
+    when its target **isn't a real control** (`closest('a,button,[role=button],…')`),
+    so the app's own nav/return buttons (and BANK) navigate untouched anywhere on
+    screen. OS cursor hidden via `document.body` while the reticle is drawn. (2)
+    **Ugly bomb alert** → a shining **gradient pill** (`arcade-bomb-banner`: animated
+    gradient sweep + per-second tick pulse) with a **ticking fuse countdown** (`{s}s`
+    from the soonest off-sector bomb). (3) **Dev buttons no-op** = the running
+    backend is **stale** (no `--reload`); the `/arcade/dev/*` routes 405 until the
+    backend is **restarted** (code/tests are correct). Dev store actions now
+    `console.warn` instead of swallowing. tsc + build clean. **Next:** dedicated
+    enemy themes per page, balance polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

@@ -137,16 +137,18 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
   devGrant: async () => {
     try {
       set({ state: await api.post<ArcadeState>("/arcade/dev/grant") });
-    } catch {
-      // Dev tool; failures are non-fatal.
+    } catch (err) {
+      // Dev tool; non-fatal, but surface so a stale backend (no /dev route yet —
+      // restart it) isn't a silent no-op.
+      console.warn("[arcade] dev grant failed — restart the backend?", err);
     }
   },
 
   devResetUpgrades: async () => {
     try {
       set({ state: await api.post<ArcadeState>("/arcade/dev/reset-upgrades") });
-    } catch {
-      // Dev tool; failures are non-fatal.
+    } catch (err) {
+      console.warn("[arcade] dev reset failed — restart the backend?", err);
     }
   },
 }));
