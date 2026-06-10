@@ -105,7 +105,7 @@ export function createWorld(
 ): World {
   const wave = Math.max(1, startWave);
   const arenas = {} as Record<ArenaId, ArenaState>;
-  for (const a of ARENAS) arenas[a.id] = { pending: 0, queue: [], spawnTimer: 0 };
+  for (const a of ARENAS) arenas[a.id] = { pending: 0, queue: [], spawnTimer: 0, total: 0 };
 
   const world: World = {
     w,
@@ -119,8 +119,12 @@ export function createWorld(
       zapCd: 0,
       hurt: 0,
     },
-    slowmo: { active: 0, cooldown: 0 },
-    phase: { active: 0, cooldown: phaseInterval(load.phaseShieldLevel) },
+    slowmo: { active: 0, cooldown: 0, cooldownMax: Math.max(2.5, 6 - load.slowMoLevel) },
+    phase: {
+      active: 0,
+      cooldown: phaseInterval(load.phaseShieldLevel),
+      interval: phaseInterval(load.phaseShieldLevel),
+    },
     autoFireCd: 0,
     arena: "library", // synced to the real route on mount
     enemies: [],
@@ -160,6 +164,8 @@ function setupWave(world: World, arena: ArenaId, boss = false) {
     st.queue = Array.from({ length: count }, (_, i) => pool[i % pool.length]);
   }
   st.pending = st.queue.length;
+  // The boss itself is already spawned (not in the queue), so count it too.
+  st.total = st.queue.length + (boss && arena === world.arena ? 1 : 0);
   st.spawnTimer = 0.4;
   if (arena === world.arena && !boss) world.waveBanner = 1.4; // boss banner shows instead
 }
@@ -268,6 +274,7 @@ export function step(world: World, dtRaw: number, input: FrameInput): void {
   if (input.dodge && world.slowmo.cooldown <= 0 && world.load.slowMoLevel > 0) {
     world.slowmo.active = 0.55 + 0.2 * world.load.slowMoLevel;
     world.slowmo.cooldown = Math.max(2.5, 6 - world.load.slowMoLevel);
+    world.slowmo.cooldownMax = world.slowmo.cooldown;
   }
   world.slowmo.active = Math.max(0, world.slowmo.active - dt);
   world.slowmo.cooldown = Math.max(0, world.slowmo.cooldown - dt);

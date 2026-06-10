@@ -135,6 +135,7 @@ export interface Player {
 export interface SlowMo {
   active: number; // remaining slow-motion seconds
   cooldown: number; // remaining cooldown before it can re-trigger
+  cooldownMax: number; // the full cooldown of the last trigger (for the HUD ring)
 }
 
 /** Phase Cloak: a recurring auto-invuln window. `active` ticks down while the
@@ -143,6 +144,7 @@ export interface SlowMo {
 export interface PhaseShield {
   active: number;
   cooldown: number;
+  interval: number; // the full between-window interval (for the HUD ring)
 }
 
 /** Per-arena spawn bookkeeping. The wave number itself is global (one shared
@@ -151,6 +153,7 @@ export interface ArenaState {
   pending: number; // enemies still to spawn this wave
   queue: EnemyKind[]; // spawn order for the current wave
   spawnTimer: number;
+  total: number; // enemies in this wave (spawned + pending) — for the HUD counter
 }
 
 export interface World {

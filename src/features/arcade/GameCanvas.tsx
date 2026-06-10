@@ -41,10 +41,15 @@ interface Hud {
   bombArenas: ArenaId[];
   bombFuse: number; // soonest fuse (s) among bombs in other sectors
   boss: boolean; // a boss just spawned → show the scare banner
-  slowReady: boolean;
   hasSlow: boolean;
+  slowReady: boolean;
+  slowActive: boolean;
+  slowFrac: number; // cooldown remaining, 0..1 (0 = charged)
   hasPhase: boolean; // Phase Cloak owned
   phaseActive: boolean; // Phase Cloak currently up (ignore-damage window)
+  phaseFrac: number; // time-to-next-window remaining, 0..1
+  waveLeft: number; // enemies left to clear this sector's wave
+  waveTotal: number; // enemies this wave (for the progress bar)
 }
 
 export function GameCanvas() {
@@ -79,10 +84,15 @@ export function GameCanvas() {
     bombArenas: [],
     bombFuse: 0,
     boss: false,
-    slowReady: false,
     hasSlow: false,
+    slowReady: false,
+    slowActive: false,
+    slowFrac: 0,
     hasPhase: false,
     phaseActive: false,
+    phaseFrac: 0,
+    waveLeft: 0,
+    waveTotal: 0,
   });
 
   // End the run exactly once, banking the global wave + score the world reached.
@@ -234,6 +244,8 @@ export function GameCanvas() {
         hudAccum = 0;
         const bombArenas = [...new Set(world.bombs.map((b) => b.arena))];
         const others = world.bombs.filter((b) => b.arena !== world.arena);
+        const st = world.arenas[world.arena];
+        const aliveHere = world.enemies.reduce((n, e) => (e.arena === world.arena ? n + 1 : n), 0);
         setHud({
           health: world.player.health,
           maxHealth: world.player.maxHealth,
@@ -243,10 +255,15 @@ export function GameCanvas() {
           bombArenas,
           bombFuse: others.length ? Math.min(...others.map((b) => b.fuse)) : 0,
           boss: world.bossBanner > 0,
-          slowReady: world.slowmo.cooldown <= 0,
           hasSlow: world.load.slowMoLevel > 0,
+          slowReady: world.slowmo.cooldown <= 0,
+          slowActive: world.slowmo.active > 0,
+          slowFrac: world.slowmo.cooldownMax > 0 ? world.slowmo.cooldown / world.slowmo.cooldownMax : 0,
           hasPhase: world.load.phaseShieldLevel > 0,
           phaseActive: world.phase.active > 0,
+          phaseFrac: world.phase.interval > 0 ? world.phase.cooldown / world.phase.interval : 0,
+          waveLeft: st.pending + aliveHere,
+          waveTotal: st.total,
         });
         // Publish bomb sectors to the store (for the real nav glow) when changed.
         const key = [...bombArenas].sort().join(",");
@@ -349,30 +366,64 @@ export function GameCanvas() {
             {activeDef?.label} · W{hud.wave}
           </span>
         </p>
+
+        {/* Wave clear-counter: how many enemies are left to advance the wave. */}
+        {hud.waveTotal > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="arcade-dim text-[7px] tabular-nums">
+              {hud.waveLeft > 0 ? (
+                <>
+                  <span style={{ color: activeDef?.color }}>{hud.waveLeft}</span> LEFT
+                </>
+              ) : (
+                <span className="arcade-neon-green">CLEAR!</span>
+              )}
+            </span>
+            <div className="h-1 w-24 overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full transition-[width] duration-200"
+                style={{
+                  width: `${Math.round(((hud.waveTotal - hud.waveLeft) / hud.waveTotal) * 100)}%`,
+                  backgroundColor: activeDef?.color,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         <p className="arcade-dim text-[7px] leading-relaxed">
           {load.canShoot ? `CLICK — ZAP + ${bulletsPerClick(load)} SHOTS` : "CLICK TO ZAP"}
           {load.autoFireLevel > 0 && " · AUTO-TURRET ON"}
           <br />
           HOLD ON A BOMB TO DEFUSE · NAV WITH THE APP&apos;S BUTTONS
-          {hud.hasSlow && (
-            <>
-              <br />
-              <span className={hud.slowReady ? "arcade-neon-green" : "arcade-dim"}>
-                <Zap className="mb-0.5 inline size-2.5" /> SPACE / RMB — OVERCLOCK
-                {hud.slowReady ? " READY" : " ..."}
-              </span>
-            </>
-          )}
-          {hud.hasPhase && (
-            <>
-              <br />
-              <span className={hud.phaseActive ? "arcade-neon-green" : "arcade-dim"}>
-                <Shield className="mb-0.5 inline size-2.5" /> PHASE CLOAK
-                {hud.phaseActive ? " ACTIVE" : " ..."}
-              </span>
-            </>
-          )}
         </p>
+
+        {/* Special-ability dock — each shows a charge ring + ready/active glow. */}
+        {(hud.hasSlow || hud.hasPhase) && (
+          <div className="flex items-center gap-2.5">
+            {hud.hasSlow && (
+              <AbilityPip
+                Icon={Zap}
+                label="OVERCLOCK"
+                hint="SPC"
+                color="#6ffbff"
+                frac={hud.slowFrac}
+                ready={hud.slowReady}
+                active={hud.slowActive}
+              />
+            )}
+            {hud.hasPhase && (
+              <AbilityPip
+                Icon={Shield}
+                label="PHASE"
+                color="#74ff9c"
+                frac={hud.phaseFrac}
+                ready={hud.phaseActive}
+                active={hud.phaseActive}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <button
@@ -383,6 +434,78 @@ export function GameCanvas() {
       >
         BANK &amp; EXIT
       </button>
+    </div>
+  );
+}
+
+/**
+ * A special-ability gauge: an SVG charge ring that fills as the cooldown
+ * recharges, with a ready pulse and an active glow. `frac` is the cooldown
+ * *remaining* (1 = just used, 0 = charged).
+ */
+function AbilityPip({
+  Icon,
+  label,
+  hint,
+  color,
+  frac,
+  ready,
+  active,
+}: {
+  Icon: typeof Zap;
+  label: string;
+  hint?: string;
+  color: string;
+  frac: number;
+  ready: boolean;
+  active: boolean;
+}) {
+  const R = 17;
+  const CIRC = 2 * Math.PI * R;
+  const charged = 1 - Math.max(0, Math.min(1, frac)); // 0..1 portion ready
+  const lit = ready || active;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative grid size-11 place-items-center">
+        <svg className="absolute inset-0 size-full -rotate-90" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="2.5" />
+          <circle
+            cx="20"
+            cy="20"
+            r={R}
+            fill="none"
+            stroke={color}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeDasharray={CIRC}
+            strokeDashoffset={CIRC * (1 - charged)}
+            style={{ filter: lit ? `drop-shadow(0 0 5px ${color})` : "none" }}
+          />
+        </svg>
+        <div
+          className={`grid size-7 place-items-center rounded-lg transition-colors ${
+            active ? "arcade-pip-active" : ""
+          }`}
+          style={{
+            color: lit ? color : "rgba(255,255,255,0.4)",
+            backgroundColor: lit ? `${color}1f` : "rgba(0,0,0,0.4)",
+            boxShadow: lit ? `0 0 10px -2px ${color}` : "none",
+          }}
+        >
+          <Icon className="size-4" />
+        </div>
+        {hint && (
+          <span className="absolute -bottom-0.5 -right-0.5 rounded bg-black/70 px-0.5 text-[6px] leading-tight text-white/60">
+            {hint}
+          </span>
+        )}
+      </div>
+      <span
+        className="text-[6px] tracking-wider"
+        style={{ color: lit ? color : "rgba(255,255,255,0.35)" }}
+      >
+        {active ? "ON" : ready ? "READY" : label}
+      </span>
     </div>
   );
 }

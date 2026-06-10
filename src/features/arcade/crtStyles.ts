@@ -279,6 +279,12 @@ export const arcadeStyles = `
     100% { transform: translateY(-10px) scale(0.95); opacity: 0; }
   }
 
+  .arcade-pip-active { animation: arcade-pip-active 0.7s ease-in-out infinite; }
+  @keyframes arcade-pip-active {
+    0%,100% { transform: scale(1); filter: brightness(1); }
+    50%     { transform: scale(1.12); filter: brightness(1.4); }
+  }
+
   .arcade-slam { animation: arcade-slam 0.6s cubic-bezier(0.2,1.6,0.36,1) both; }
   @keyframes arcade-slam {
     0% { transform: scale(6); opacity: 0; filter: blur(8px); }
