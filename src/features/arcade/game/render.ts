@@ -15,9 +15,10 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
     ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
   }
 
-  // Background + subtle grid.
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(-20, -20, w + 40, h + 40);
+  // Transparent arena — the frozen Noteration app shows through. The container
+  // applies a faint dark wash for contrast; here we only lay a subtle grid so
+  // the game elements read without hiding the app.
+  ctx.clearRect(-40, -40, w + 80, h + 80);
   drawGrid(ctx, w, h);
 
   // Spikes (enemy projectiles).

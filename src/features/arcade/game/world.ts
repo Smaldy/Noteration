@@ -25,7 +25,6 @@ const ZAP_R = 64; // manual click hits enemies within this radius of the cursor
 const ZAP_CD = 0.22;
 const ZAP_DMG = 1;
 const INVULN = 1.15;
-const FIRE_BASE = 0.5; // Sidearm interval at fire_rate level 0
 const BULLET_SPEED = 560;
 const BULLET_R = 5;
 const BULLET_DMG = 1;
@@ -55,7 +54,6 @@ export function createWorld(
       health: load.maxHealth,
       maxHealth: load.maxHealth,
       invuln: 1.5, // brief grace at run start
-      fireCd: 0,
       zapCd: 0,
       hurt: 0,
     },
@@ -190,9 +188,9 @@ function stepPlayer(world: World, dt: number, input: FrameInput) {
   p.invuln = Math.max(0, p.invuln - dt);
   p.hurt = Math.max(0, p.hurt - dt);
   p.zapCd = Math.max(0, p.zapCd - dt);
-  p.fireCd = Math.max(0, p.fireCd - dt);
 
-  // Manual zap — the core "click the clock face" attack.
+  // Click attack: a short-range zap (always) plus — once the Sidearm is owned —
+  // a radiating burst of bullets. More Rapid Fire = more bullets per click.
   if (input.clicked && p.zapCd <= 0) {
     p.zapCd = ZAP_CD;
     world.zaps.push({ pos: { ...p.pos }, life: 0.26, maxLife: 0.26, radius: ZAP_R });
@@ -200,37 +198,27 @@ function stepPlayer(world: World, dt: number, input: FrameInput) {
     for (const e of world.enemies) {
       if (dist2(e.pos, p.pos) <= r2 + e.radius * e.radius) damageEnemy(world, e, ZAP_DMG);
     }
-  }
-
-  // Sidearm — auto-fire at the nearest enemy.
-  if (world.load.canShoot && p.fireCd <= 0 && world.enemies.length > 0) {
-    const target = nearestEnemy(world, p.pos);
-    if (target) {
-      const dx = target.pos.x - p.pos.x;
-      const dy = target.pos.y - p.pos.y;
-      const len = Math.hypot(dx, dy) || 1;
-      world.bullets.push({
-        id: world.nextId++,
-        pos: { ...p.pos },
-        vel: { x: (dx / len) * BULLET_SPEED, y: (dy / len) * BULLET_SPEED },
-        life: 1.4,
-      });
-      p.fireCd = FIRE_BASE / (1 + 0.5 * world.load.fireRateLevel);
-    }
+    if (world.load.canShoot) fireBurst(world);
   }
 }
 
-function nearestEnemy(world: World, from: Vec): Enemy | null {
-  let best: Enemy | null = null;
-  let bd = Infinity;
-  for (const e of world.enemies) {
-    const d = dist2(e.pos, from);
-    if (d < bd) {
-      bd = d;
-      best = e;
-    }
+/** Bullets emitted per click once the Sidearm is owned (0 otherwise). */
+export function bulletsPerClick(load: Loadout): number {
+  return load.canShoot ? 3 + 2 * load.fireRateLevel : 0;
+}
+
+function fireBurst(world: World) {
+  const n = bulletsPerClick(world.load);
+  const off = Math.random() * Math.PI * 2;
+  for (let i = 0; i < n; i++) {
+    const a = off + (i / n) * Math.PI * 2;
+    world.bullets.push({
+      id: world.nextId++,
+      pos: { ...world.player.pos },
+      vel: { x: Math.cos(a) * BULLET_SPEED, y: Math.sin(a) * BULLET_SPEED },
+      life: 0.9,
+    });
   }
-  return best;
 }
 
 function stepWave(world: World, dt: number) {

@@ -16,7 +16,7 @@ import { ARCADE_PIXEL } from "./crtStyles";
 import { render } from "./game/render";
 import type { FrameInput, World } from "./game/types";
 import { loadoutFrom } from "./game/types";
-import { createWorld, step } from "./game/world";
+import { bulletsPerClick, createWorld, step } from "./game/world";
 
 /** Lightweight HUD mirror so React re-renders only when these change. */
 interface Hud {
@@ -169,8 +169,10 @@ export function GameCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const load = loadoutFrom(state);
+
   return (
-    <div className="absolute inset-0 select-none bg-[#0a0617]">
+    <div className="absolute inset-0 select-none bg-black/35">
       <canvas ref={canvasRef} className="block h-full w-full cursor-none" />
 
       {/* HUD */}
@@ -192,7 +194,7 @@ export function GameCanvas() {
       {/* Controls hint + dodge state */}
       <div className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4 ${ARCADE_PIXEL}`}>
         <p className="arcade-dim text-[7px] leading-relaxed">
-          CLICK TO ZAP
+          {load.canShoot ? `CLICK — ZAP + ${bulletsPerClick(load)} SHOTS` : "CLICK TO ZAP"}
           {hud.hasSlow && (
             <>
               <br />

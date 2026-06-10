@@ -85,8 +85,7 @@ export interface Player {
   health: number;
   maxHealth: number;
   invuln: number; // i-frames remaining (seconds)
-  fireCd: number; // auto-fire cooldown remaining
-  zapCd: number; // manual click cooldown remaining
+  zapCd: number; // click cooldown remaining
   hurt: number; // red-flash timer for HUD/screen feedback
 }
 
