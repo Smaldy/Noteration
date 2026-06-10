@@ -4,9 +4,10 @@ import { Joystick } from "lucide-react";
 import { useArcadeStore } from "@/stores/arcade";
 
 /**
- * The arcade entry point: a joystick button fixed at the bottom-left, styled to
- * read as a playful "secret" control distinct from the real app chrome. Clicking
- * it opens the Arcade Machine overlay. Hidden while the game/overlay is active.
+ * The arcade entry point: a small, muted joystick icon fixed at the bottom-left.
+ * It stays quiet (dim, no fill/glow) so it blends with the app chrome, and only
+ * gains presence on hover/focus. Clicking it opens the Arcade Machine overlay.
+ * Hidden while the game/overlay is active.
  */
 export function JoystickButton() {
   const open = useArcadeStore((s) => s.openOverlay);
@@ -22,16 +23,16 @@ export function JoystickButton() {
       onClick={open}
       aria-label="Open the arcade"
       title="Arcade"
-      className="group fixed bottom-4 left-4 z-[60] grid size-12 place-items-center rounded-2xl border border-fuchsia-400/30 bg-gradient-to-br from-indigo-900 to-violet-950 text-fuchsia-200 shadow-[0_8px_30px_-6px_rgba(150,90,255,0.55)] outline-none"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.1, rotate: -6 }}
-      whileTap={{ scale: 0.92 }}
-      transition={{ type: "spring", stiffness: 320, damping: 18 }}
+      className="group fixed bottom-4 left-4 z-[60] grid size-9 place-items-center rounded-lg text-muted-foreground/40 opacity-60 outline-none transition-[color,opacity,background-color] duration-200 hover:bg-muted/60 hover:text-foreground hover:opacity-100 focus-visible:bg-muted/60 focus-visible:text-foreground focus-visible:opacity-100"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 0.6 }}
+      whileTap={{ scale: 0.94 }}
+      transition={{ duration: 0.3 }}
     >
-      <Joystick className="size-6 transition-transform group-hover:-translate-y-0.5" />
+      <Joystick className="size-[18px]" />
       {coins != null && coins > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-amber-400 px-1 text-center text-[10px] font-bold leading-4 text-amber-950 shadow">
+        // Coin count is only revealed on hover/focus so it doesn't draw the eye.
+        <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-muted px-1 text-center text-[9px] font-medium leading-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {coins > 99 ? "99+" : coins}
         </span>
       )}
