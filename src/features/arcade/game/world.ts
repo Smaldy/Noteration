@@ -69,6 +69,19 @@ const BEAM_LIFE = 0.16;
 const BEAM_LEN = 1400;
 const BEAM_WIDTH = 11;
 
+// Every boss gains a signature dash (the "much more powerful ability"): bosses
+// of kinds that have no dash/beam of their own periodically telegraph and lunge
+// across the arena at the cursor, on top of their normal attacks.
+const BOSS_DASH_CD = 3.2;
+const BOSS_DASH_WINDUP = 0.45;
+const BOSS_DASH_TIME = 0.42;
+const BOSS_DASH_MULT = 6.5;
+
+// Health pack dropped on a boss kill.
+const PICKUP_R = 17;
+const PICKUP_LIFE = 16;
+const HEALTH_PACK_VALUE = 2;
+
 // Auto-Turret (auto_fire): fires an aimed bullet at the nearest enemy on a timer
 // that shortens with level. Independent of the Sidearm (the manual click-burst).
 const AUTO_FIRE_BASE = 0.85; // interval (s) at level 1
@@ -148,6 +161,7 @@ export function createWorld(
     enemies: [],
     spikes: [],
     beams: [],
+    pickups: [],
     bullets: [],
     bombs: [],
     particles: [],
@@ -265,6 +279,7 @@ function spawnEnemy(
     windup: 0,
     aimAngle: 0,
     dashTime: 0,
+    dashCd: BOSS_DASH_CD * (0.6 + Math.random() * 0.5),
   });
 }
 
@@ -327,6 +342,7 @@ export function step(world: World, dtRaw: number, input: FrameInput): void {
   stepBeams(world, edt);
   stepBullets(world, dt);
   stepBombs(world, dt);
+  stepPickups(world, dt);
   stepEffects(world, dt);
 
   world.bannerArena = Math.max(0, world.bannerArena - dt);
@@ -460,7 +476,12 @@ function stepEnemies(world: World, edt: number) {
     e.hitFlash = Math.max(0, e.hitFlash - edt * 4);
     e.reload -= edt;
 
-    if (e.kind === "hunter") {
+    // Boss signature dash overrides normal movement while it's lunging/charging.
+    const dashing = bossDashes(e) && stepBossDash(world, e, edt);
+
+    if (dashing) {
+      // movement handled by stepBossDash
+    } else if (e.kind === "hunter") {
       // The plain enemy: chase the cursor and ram it.
       homeToward(e, p.pos, e.speed, edt, 3.5);
     } else if (e.kind === "shooter") {
@@ -615,6 +636,44 @@ function fireBolt(world: World, e: Enemy, target: Vec, spreadRad: number) {
   });
 }
 
+/** Bosses without their own dash/beam get a signature lunge. (dasher/beamer
+ *  bosses already have an amplified version of their own.) */
+function bossDashes(e: Enemy): boolean {
+  return (
+    e.isBoss && (e.kind === "hunter" || e.kind === "shooter" || e.kind === "clock" || e.kind === "hourglass")
+  );
+}
+
+/** Run a boss's periodic dash. Returns true while it's telegraphing or lunging
+ *  (the caller then skips the kind's normal movement for this frame). */
+function stepBossDash(world: World, e: Enemy, edt: number): boolean {
+  const p = world.player;
+  if (e.dashTime > 0) {
+    e.dashTime -= edt;
+    e.pos.x += e.vel.x * edt;
+    e.pos.y += e.vel.y * edt;
+    bounce(world, e);
+    return true;
+  }
+  if (e.windup > 0) {
+    e.windup -= edt;
+    e.aimAngle = Math.atan2(p.pos.y - e.pos.y, p.pos.x - e.pos.x);
+    if (e.windup <= 0) {
+      const ds = e.speed * BOSS_DASH_MULT;
+      e.vel = { x: Math.cos(e.aimAngle) * ds, y: Math.sin(e.aimAngle) * ds };
+      e.dashTime = BOSS_DASH_TIME;
+    }
+    return true;
+  }
+  e.dashCd -= edt;
+  if (e.dashCd <= 0) {
+    e.dashCd = BOSS_DASH_CD;
+    e.windup = BOSS_DASH_WINDUP;
+    return true;
+  }
+  return false;
+}
+
 /** Fire a beamer's laser along `angle`. A boss beamer fires a 3-beam fan. */
 function fireBeam(world: World, e: Enemy, angle: number) {
   const spread = e.isBoss ? [-0.26, 0, 0.26] : [0];
@@ -759,6 +818,46 @@ function plantBomb(world: World) {
   });
 }
 
+function spawnPickup(world: World, arena: ArenaId, at: Vec, kind: "health", value: number) {
+  world.pickups.push({
+    id: world.nextId++,
+    arena,
+    kind,
+    pos: { ...at },
+    value,
+    life: PICKUP_LIFE,
+    maxLife: PICKUP_LIFE,
+    bob: Math.random() * Math.PI * 2,
+  });
+}
+
+function stepPickups(world: World, dt: number) {
+  const p = world.player;
+  const kept = [];
+  for (const pk of world.pickups) {
+    pk.life -= dt;
+    pk.bob += dt * 3;
+    if (pk.life <= 0) continue;
+    // Only collectable in its own sector; walk the cursor over it to grab it.
+    if (pk.arena === world.arena) {
+      const rr = (PICKUP_R + PLAYER_R + 6) * (PICKUP_R + PLAYER_R + 6);
+      if (dist2(pk.pos, p.pos) <= rr) {
+        const healed = Math.min(pk.value, world.player.maxHealth - world.player.health);
+        if (healed > 0) {
+          world.player.health += healed;
+          floatText(world, pk.pos, `+${healed} HP`, COLORS.green);
+        } else {
+          floatText(world, pk.pos, "FULL HP", COLORS.green);
+        }
+        burst(world, pk.pos, COLORS.green, 16);
+        continue; // consumed
+      }
+    }
+    kept.push(pk);
+  }
+  world.pickups = kept;
+}
+
 function stepEffects(world: World, dt: number) {
   world.particles = world.particles.filter((p) => {
     p.pos.x += p.vel.x * dt;
@@ -798,6 +897,9 @@ function killEnemy(world: World, e: Enemy) {
   );
   world.score += pts;
   floatText(world, e.pos, e.isBoss ? `BOSS +${pts}` : `+${pts}`, color);
+
+  // A defeated boss drops a health pack where it died — go grab it to heal.
+  if (e.isBoss) spawnPickup(world, e.arena, e.pos, "health", HEALTH_PACK_VALUE);
 
   // A (non-boss) hourglass splits into two fast shards in the same sector.
   if (e.kind === "hourglass" && !e.isBoss) {

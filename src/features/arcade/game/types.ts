@@ -72,6 +72,7 @@ export interface Enemy {
   windup: number; // >0 while charging an attack (the telegraph)
   aimAngle: number; // locked firing/dash direction (radians)
   dashTime: number; // dasher: remaining seconds of an active dash
+  dashCd: number; // boss-only: seconds until the next signature dash
 }
 
 /** Enemy projectile (the clock's radiating "spikes"). */
@@ -116,6 +117,21 @@ export interface Beam {
   maxLife: number;
   width: number;
   dmg: number;
+}
+
+/**
+ * A floor pickup. Bosses drop a `health` pack on death; walk the cursor over it
+ * (in its sector) to collect. `kind` is open for future drop types.
+ */
+export interface Pickup {
+  id: number;
+  arena: ArenaId; // the sector it was dropped in (only collectable there)
+  kind: "health";
+  pos: Vec;
+  value: number; // hearts restored
+  life: number; // seconds before it fades away
+  maxLife: number;
+  bob: number; // animation phase
 }
 
 /** Player projectile (Sidearm bullets). */
@@ -196,6 +212,7 @@ export interface World {
   enemies: Enemy[]; // all sectors; only `arena`'s are live
   spikes: Spike[]; // active-sector projectiles (cleared on switch)
   beams: Beam[]; // active-sector laser beams (beamer / beamer boss)
+  pickups: Pickup[]; // dropped items (boss health packs); persist across sectors
   bullets: Bullet[];
   bombs: Bomb[]; // all sectors; fuses burn everywhere
   particles: Particle[];

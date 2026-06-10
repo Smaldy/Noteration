@@ -10,6 +10,7 @@ import {
   COLORS,
   type Enemy,
   ENEMY_COLOR,
+  type Pickup,
   type World,
 } from "./types";
 
@@ -53,6 +54,9 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
 
   // Bombs planted in this sector (the fuse ring shows time left to defuse).
   for (const b of world.bombs) if (b.arena === world.arena) drawBomb(ctx, b);
+
+  // Boss health-pack drops in this sector.
+  for (const pk of world.pickups) if (pk.arena === world.arena) drawPickup(ctx, pk);
 
   // Enemies (only the active sector is live/visible).
   for (const e of world.enemies) if (e.arena === world.arena) drawEnemy(ctx, e);
@@ -121,6 +125,27 @@ function drawBeam(ctx: CanvasRenderingContext2D, b: Beam) {
   ctx.moveTo(b.pos.x, b.pos.y);
   ctx.lineTo(ex, ey);
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawPickup(ctx: CanvasRenderingContext2D, pk: Pickup) {
+  const fade = pk.life < 3 ? Math.max(0, pk.life / 3) : 1;
+  const y = pk.pos.y + Math.sin(pk.bob) * 3;
+  ctx.save();
+  ctx.translate(pk.pos.x, y);
+  ctx.globalAlpha = fade;
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = COLORS.green;
+  // Pulsing capsule ring.
+  ctx.strokeStyle = COLORS.green;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.stroke();
+  // Health cross.
+  ctx.fillStyle = COLORS.green;
+  ctx.fillRect(-7, -2.5, 14, 5);
+  ctx.fillRect(-2.5, -7, 5, 14);
   ctx.restore();
 }
 
@@ -340,6 +365,29 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
     ctx.stroke();
   }
   ctx.restore();
+
+  // Boss signature-dash telegraph: a pulsing red ring + aim line during wind-up
+  // (kinds with their own telegraph — dasher/beamer — draw theirs above).
+  if (e.isBoss && e.windup > 0 && e.kind !== "dasher" && e.kind !== "beamer") {
+    const pulse = 0.5 + 0.5 * Math.abs(Math.sin(e.spin * 4));
+    ctx.save();
+    ctx.translate(e.pos.x, e.pos.y);
+    ctx.globalAlpha = 0.4 + 0.5 * pulse;
+    ctx.strokeStyle = "#ff4d6d";
+    ctx.shadowColor = "#ff4d6d";
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(0, 0, e.radius + 10 + pulse * 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(e.aimAngle) * (e.radius + 4), Math.sin(e.aimAngle) * (e.radius + 4));
+    ctx.lineTo(Math.cos(e.aimAngle) * (e.radius + 84), Math.sin(e.aimAngle) * (e.radius + 84));
+    ctx.stroke();
+    ctx.restore();
+  }
 
   if (e.isBoss) drawBossBar(ctx, e);
 }

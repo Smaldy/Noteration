@@ -279,6 +279,29 @@
     tsc + Vite build clean.
     **Next:** balance the new costs/effects once playtested.
 
+  - **14-14 (done) — Ability gauges, continue cap, new variants + bosses
+    (user-driven).** Five-part batch, shipped as four green committed sub-waves:
+    1) **Ability HUD gauges** — Overclock/Phase Cloak now render an SVG charge
+    ring (fills as it recharges) with a ready pulse + active glow, replacing the
+    text lines; plus a **wave clear-counter** ("N LEFT" + arena-tinted bar) so you
+    see how many enemies remain to advance. (`SlowMo.cooldownMax`,
+    `PhaseShield.interval`, `ArenaState.total` feed them.) 2) **Continue cap** —
+    a run lineage can be resumed at most `MAX_CONTINUES`=2 times; the 3rd death
+    forces a fresh start (which resets the count). New `ArcadeState.resume_count`
+    + migration `d1ace2b3c4d5`; `start_run` gates/increments it (`ContinueLimitError`
+    → 409), `resume_cost` nulls when spent so Continue auto-disables; main + game-
+    over screens show "N OF 2 CONTINUES LEFT". 3) **New enemy variants** —
+    **dasher** (telegraphed lunge at the cursor) and **beamer** (charges a tracking
+    laser, then fires a lingering `Beam`; new `world.beams` + point-to-segment hit
+    test). Each sector's first pool entry is its boss kind. 4) **Boss ultras +
+    health pack** — every boss without its own dash/beam gains a signature
+    telegraphed **dash** (red warning ring); dasher/beamer bosses get an amplified
+    lunge / 3-beam fan. A defeated boss **drops a health pack** (`world.pickups`)
+    — walk the cursor over it in its sector to heal `+2`. **28 backend arcade
+    tests** (continue-limit cases added); migration applied to the dev DB; tsc +
+    Vite build clean for every sub-wave.
+    **Next:** balance dash/laser timings + costs once playtested.
+
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a
   green tree (**591 backend tests**, tsc + Vite build clean):
