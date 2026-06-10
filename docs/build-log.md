@@ -148,8 +148,21 @@
     no longer shot down — you stand on a bomb in its sector and **hold the click**
     until a green meter fills (`defuseTime` random 2–5 s, bleeds back when you step
     off); detonation still costs a heart. New `held` level-input alongside the
-    edge `clicked`. tsc + build clean; still in the `index` chunk. **Next:**
-    developer mode (infinite coins/score, reset upgrades) via a code toggle.
+    edge `clicked`. tsc + build clean; still in the `index` chunk.
+  - **14-6 (done) — Developer mode (user-driven).** A single code toggle
+    `DEV_MODE` in `src/features/arcade/devMode.ts` (default `false`) surfaces a
+    dev panel in the cabinet (next to BLOCKOUT) with **GRANT ∞ COINS + SCORE** and
+    **RESET UPGRADES**. Because the economy is server-authoritative, these call two
+    new additive backend endpoints — `POST /arcade/dev/grant` (sets coins + score
+    to `DEV_GRANT_AMOUNT = 1_000_000`, effectively infinite for testing) and
+    `POST /arcade/dev/reset-upgrades` (deletes all `ArcadeUpgrade` rows) — thin
+    router over `arcade_service.dev_grant` / `dev_reset_upgrades`; store gains
+    `devGrant` / `devResetUpgrades`. 3 new tests (service grant, service reset,
+    HTTP both) — `test_arcade_api.py` now **23 passed**. Frontend tsc + build clean.
+    (Full-suite run shows 4 unrelated, pre-existing failures in
+    `test_documents_api`/`test_ingestion` from cross-test PDF/model pollution; each
+    passes in isolation — not arcade.) **Next:** dedicated enemy themes for the
+    Library/Bookmarks/Settings sectors, then balance polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

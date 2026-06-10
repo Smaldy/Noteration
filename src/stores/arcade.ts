@@ -35,6 +35,10 @@ interface ArcadeStore {
   endRun: (waveReached: number, scoreEarned: number, died: boolean) => Promise<void>;
   dismissGameOver: () => void;
   buyUpgrade: (key: string) => Promise<RunResult>;
+
+  // Developer tools (only invoked from the DEV_MODE panel).
+  devGrant: () => Promise<void>;
+  devResetUpgrades: () => Promise<void>;
 }
 
 export const useArcadeStore = create<ArcadeStore>((set, get) => ({
@@ -120,6 +124,22 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
             : err.message
           : "Could not buy upgrade";
       return { ok: false, error };
+    }
+  },
+
+  devGrant: async () => {
+    try {
+      set({ state: await api.post<ArcadeState>("/arcade/dev/grant") });
+    } catch {
+      // Dev tool; failures are non-fatal.
+    }
+  },
+
+  devResetUpgrades: async () => {
+    try {
+      set({ state: await api.post<ArcadeState>("/arcade/dev/reset-upgrades") });
+    } catch {
+      // Dev tool; failures are non-fatal.
     }
   },
 }));

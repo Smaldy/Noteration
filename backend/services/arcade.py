@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -345,3 +345,27 @@ def buy_upgrade(session: Session, *, key: str) -> ArcadeState:
     session.commit()
     session.refresh(state)
     return state
+
+
+# --- developer tools ---------------------------------------------------------
+# Local-only helpers surfaced behind a frontend ``DEV_MODE`` flag, so the user
+# can exercise the shop without grinding. Not wired into any normal game flow.
+
+DEV_GRANT_AMOUNT = 1_000_000
+
+
+def dev_grant(session: Session) -> ArcadeState:
+    """Top coins + score up to a huge balance for testing (effectively infinite)."""
+    state = get_state(session)
+    state.coins = DEV_GRANT_AMOUNT
+    state.score_balance = DEV_GRANT_AMOUNT
+    session.commit()
+    session.refresh(state)
+    return state
+
+
+def dev_reset_upgrades(session: Session) -> ArcadeState:
+    """Clear every owned upgrade back to level 0 so purchases can be re-tested."""
+    session.execute(delete(ArcadeUpgrade))
+    session.commit()
+    return get_state(session)

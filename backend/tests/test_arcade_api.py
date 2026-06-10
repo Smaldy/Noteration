@@ -286,3 +286,33 @@ def test_http_buy_upgrade_flow(client: TestClient) -> None:
     assert body["score_balance"] == 400 - 50
 
     assert client.post("/api/arcade/upgrades/nope/buy").status_code == 404
+
+
+def test_dev_grant_tops_up_coins_and_score(session: Session) -> None:
+    state = arcade_service.dev_grant(session)
+    assert state.coins == arcade_service.DEV_GRANT_AMOUNT
+    assert state.score_balance == arcade_service.DEV_GRANT_AMOUNT
+
+
+def test_dev_reset_upgrades_clears_levels(session: Session) -> None:
+    arcade_service.dev_grant(session)
+    arcade_service.buy_upgrade(session, key="max_health")
+    assert arcade_service._upgrade_levels(session).get("max_health") == 1
+
+    arcade_service.dev_reset_upgrades(session)
+    assert arcade_service._upgrade_levels(session) == {}
+
+
+def test_http_dev_endpoints(client: TestClient) -> None:
+    grant = client.post("/api/arcade/dev/grant")
+    assert grant.status_code == 200, grant.text
+    body = grant.json()
+    assert body["coins"] == arcade_service.DEV_GRANT_AMOUNT
+    assert body["score_balance"] == arcade_service.DEV_GRANT_AMOUNT
+
+    # Buy then reset — the upgrade should drop back to level 0.
+    client.post("/api/arcade/upgrades/shooting/buy")
+    reset = client.post("/api/arcade/dev/reset-upgrades")
+    assert reset.status_code == 200, reset.text
+    shooting = next(u for u in reset.json()["upgrades"] if u["key"] == "shooting")
+    assert shooting["level"] == 0

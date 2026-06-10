@@ -7,6 +7,7 @@ import type { ArcadeState } from "@/types/arcade";
 
 import { CabinetStage } from "./CabinetStage";
 import { ARCADE_PIXEL, arcadeStyles } from "./crtStyles";
+import { DEV_MODE } from "./devMode";
 import { MainScreen, type StartMode } from "./MainScreen";
 import { QuestsScreen } from "./QuestsScreen";
 import { UpgradesScreen } from "./UpgradesScreen";
@@ -28,6 +29,8 @@ export function ArcadeOverlay() {
   const state = useArcadeStore((s) => s.state);
   const startRun = useArcadeStore((s) => s.startRun);
   const buyUpgrade = useArcadeStore((s) => s.buyUpgrade);
+  const devGrant = useArcadeStore((s) => s.devGrant);
+  const devResetUpgrades = useArcadeStore((s) => s.devResetUpgrades);
 
   const [screen, setScreen] = useState<Screen>("main");
   const [selection, setSelection] = useState<StartMode>("fresh");
@@ -223,6 +226,29 @@ export function ArcadeOverlay() {
           >
             BLOCKOUT (B): {block ? "ON" : "OFF"}
           </button>
+
+          {/* Developer panel — only when DEV_MODE is on (src/features/arcade/devMode.ts). */}
+          {DEV_MODE && (
+            <div
+              className={`absolute left-4 top-16 z-30 flex flex-col gap-1.5 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2 backdrop-blur ${ARCADE_PIXEL}`}
+            >
+              <span className="arcade-neon-yellow text-[8px]">DEV MODE</span>
+              <button
+                type="button"
+                onClick={() => void devGrant()}
+                className="rounded bg-amber-400/20 px-2 py-1 text-[8px] text-amber-100 transition hover:bg-amber-400/40"
+              >
+                GRANT ∞ COINS + SCORE
+              </button>
+              <button
+                type="button"
+                onClick={() => void devResetUpgrades()}
+                className="rounded bg-amber-400/20 px-2 py-1 text-[8px] text-amber-100 transition hover:bg-amber-400/40"
+              >
+                RESET UPGRADES
+              </button>
+            </div>
+          )}
 
           {/* Always-visible cooldown indicator. */}
           {cooldown.active && (

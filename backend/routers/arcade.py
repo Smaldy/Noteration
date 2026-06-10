@@ -129,6 +129,20 @@ def end_run(
     return build_state_out(db)
 
 
+@router.post("/dev/grant", response_model=ArcadeStateOut)
+def dev_grant(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: top up coins + score (local testing only)."""
+    arcade_service.dev_grant(db)
+    return build_state_out(db)
+
+
+@router.post("/dev/reset-upgrades", response_model=ArcadeStateOut)
+def dev_reset_upgrades(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: reset all owned upgrades to level 0 (local testing only)."""
+    arcade_service.dev_reset_upgrades(db)
+    return build_state_out(db)
+
+
 @router.post("/upgrades/{key}/buy", response_model=ArcadeStateOut)
 def buy_upgrade(key: str, db: Session = Depends(get_session)) -> ArcadeStateOut:
     try:
