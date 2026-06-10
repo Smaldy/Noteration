@@ -110,6 +110,15 @@ function drawBomb(ctx: CanvasRenderingContext2D, b: Bomb) {
   ctx.beginPath();
   ctx.arc(0, 0, b.radius + 7, -Math.PI / 2, -Math.PI / 2 + t * Math.PI * 2);
   ctx.stroke();
+  // defuse meter — fills green as you hold on the bomb
+  if (b.defuse > 0) {
+    ctx.strokeStyle = COLORS.green;
+    ctx.shadowColor = COLORS.green;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, b.radius - 4, -Math.PI / 2, -Math.PI / 2 + b.defuse * Math.PI * 2);
+    ctx.stroke();
+  }
   // spark tick
   ctx.shadowBlur = 0;
   ctx.fillStyle = body;

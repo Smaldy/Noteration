@@ -4,23 +4,26 @@
  *
  * The player IS the cursor (a reticle). Click to zap (and, with the Sidearm, fire
  * a radiating bullet burst) the enemy under it; dodge the clocks' spikes. The
- * game plays over the frozen app across sectors (the nav bar / keys 1-5 switch);
- * bombs in other sectors flash their nav button and must be defused there. Owned
- * upgrades shape the loadout (max health, Sidearm, bullets-per-click, Overclock
- * slow-mo dodge, score multiplier). Death or BANK & EXIT ends the run through the
- * store, which banks the score.
+ * game plays over the live app across sectors — switching (nav bar / keys 1-5)
+ * drives the real router, so the actual page changes behind the transparent game.
+ * Bombs planted in other sectors glow their nav button; go there and *hold* on the
+ * bomb to defuse it before the fuse blows. Owned upgrades shape the loadout (max
+ * health, Sidearm, bullets-per-click, Overclock slow-mo dodge, score multiplier).
+ * Death or BANK & EXIT ends the run through the store, which banks the score and
+ * restores the page the player came from.
  */
 import {
+  Bookmark,
   Calendar,
   Heart,
-  Layers,
+  Library,
   ListChecks,
   type LucideIcon,
-  PenLine,
   Settings,
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useArcadeStore } from "@/stores/arcade";
 
@@ -33,9 +36,9 @@ import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
 const ARENA_ICON: Record<ArenaId, LucideIcon> = {
   calendar: Calendar,
   queue: ListChecks,
-  flashcard: Layers,
+  library: Library,
+  bookmarks: Bookmark,
   settings: Settings,
-  editor: PenLine,
 };
 
 /** Lightweight HUD mirror so React re-renders only when these change. */
@@ -54,11 +57,20 @@ export function GameCanvas() {
   const state = useArcadeStore((s) => s.state);
   const run = useArcadeStore((s) => s.run);
   const endRun = useArcadeStore((s) => s.endRun);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const worldRef = useRef<World | null>(null);
-  const inputRef = useRef<FrameInput>({ pointer: { x: 0, y: 0 }, clicked: false, dodge: false });
+  const inputRef = useRef<FrameInput>({
+    pointer: { x: 0, y: 0 },
+    clicked: false,
+    held: false,
+    dodge: false,
+  });
   const endedRef = useRef(false);
+  // The real route the player was on when the run began — restored on exit.
+  const homeRef = useRef(location.pathname);
 
   const [hud, setHud] = useState<Hud>({
     health: 0,
@@ -87,9 +99,19 @@ export function GameCanvas() {
     [endRun, run],
   );
 
-  const go = useCallback((id: ArenaId) => {
-    if (worldRef.current) switchArena(worldRef.current, id);
-  }, []);
+  // Switch sector AND drive the real router so the live page changes behind the
+  // (transparent) game. Kept in a ref so the keydown handler can call the latest.
+  const go = useCallback(
+    (id: ArenaId) => {
+      if (!worldRef.current) return;
+      switchArena(worldRef.current, id);
+      const def = ARENAS.find((a) => a.id === id);
+      if (def) navigate(def.route);
+    },
+    [navigate],
+  );
+  const goRef = useRef(go);
+  goRef.current = go;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -133,8 +155,18 @@ export function GameCanvas() {
       inputRef.current.pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const onDown = (e: MouseEvent) => {
-      if (e.button === 0) inputRef.current.clicked = true;
-      else if (e.button === 2) inputRef.current.dodge = true; // right-click dodges
+      if (e.button === 0) {
+        inputRef.current.clicked = true;
+        inputRef.current.held = true; // held drives hold-to-defuse
+      } else if (e.button === 2) {
+        inputRef.current.dodge = true; // right-click dodges
+      }
+    };
+    const onUp = (e: MouseEvent) => {
+      if (e.button === 0) inputRef.current.held = false;
+    };
+    const releaseHold = () => {
+      inputRef.current.held = false;
     };
     const onContext = (e: MouseEvent) => e.preventDefault();
     const onKey = (e: KeyboardEvent) => {
@@ -145,14 +177,20 @@ export function GameCanvas() {
         finish(false);
       } else if (e.key >= "1" && e.key <= "5") {
         const def = ARENAS[Number(e.key) - 1];
-        if (def && worldRef.current) switchArena(worldRef.current, def.id);
+        if (def) goRef.current(def.id);
       }
     };
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("mousedown", onDown);
+    window.addEventListener("mouseup", onUp);
+    canvas.addEventListener("mouseleave", releaseHold);
+    window.addEventListener("blur", releaseHold);
     canvas.addEventListener("contextmenu", onContext);
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", resize);
+
+    // Drive the real router to the starting sector so the live page matches.
+    goRef.current(world.arena);
 
     // ── Loop ─────────────────────────────────────────────────────────────────
     let raf = 0;
@@ -200,9 +238,13 @@ export function GameCanvas() {
       cancelAnimationFrame(raf);
       canvas.removeEventListener("mousemove", onMove);
       canvas.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mouseup", onUp);
+      canvas.removeEventListener("mouseleave", releaseHold);
+      window.removeEventListener("blur", releaseHold);
       canvas.removeEventListener("contextmenu", onContext);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", resize);
+      navigate(homeRef.current); // put the app back where the player was
     };
     // Run once per mount: a run is a fresh world; loadout is fixed at start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,8 +275,9 @@ export function GameCanvas() {
         </div>
       </div>
 
-      {/* Sector nav — the game's own switcher (never touches the real router).
-          A button flashes when a bomb is live in that non-active sector. */}
+      {/* Sector nav — switching drives the real router (the live page changes
+          behind the game). A button glows/shines when a bomb is live in that
+          non-active sector; go there and hold to defuse it. */}
       <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2">
         <div className="pointer-events-auto flex gap-1.5 rounded-xl border border-white/10 bg-black/55 p-1.5 backdrop-blur">
           {ARENAS.map((a, i) => {
@@ -248,11 +291,16 @@ export function GameCanvas() {
                 onClick={() => go(a.id)}
                 title={`${a.label} (${i + 1})`}
                 className={`relative grid size-11 place-items-center rounded-lg border transition ${
-                  alert ? "animate-pulse border-rose-400 bg-rose-500/25" : "border-white/10 hover:bg-white/10"
+                  alert ? "arcade-bomb-alert" : "border-white/10 hover:bg-white/10"
                 }`}
                 style={
                   active
-                    ? { color: a.color, borderColor: a.color, background: "rgba(255,255,255,0.08)" }
+                    ? {
+                        color: a.color,
+                        borderColor: a.color,
+                        background: "rgba(255,255,255,0.08)",
+                        boxShadow: `0 0 12px ${a.color}66`,
+                      }
                     : alert
                       ? { color: "#ffd0e8" }
                       : { color: "rgba(255,255,255,0.5)" }
@@ -272,6 +320,8 @@ export function GameCanvas() {
       <div className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4 ${ARCADE_PIXEL}`}>
         <p className="arcade-dim text-[7px] leading-relaxed">
           {load.canShoot ? `CLICK — ZAP + ${bulletsPerClick(load)} SHOTS` : "CLICK TO ZAP"}
+          <br />
+          HOLD ON A BOMB TO DEFUSE
           {hud.hasSlow && (
             <>
               <br />

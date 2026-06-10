@@ -221,6 +221,17 @@ export const arcadeStyles = `
   .arcade-blink { animation: arcade-blink 1.1s steps(2,start) infinite; }
   @keyframes arcade-blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
 
+  /* Bomb alert — a glowing, shining border pulse on a sector's nav button. */
+  .arcade-bomb-alert {
+    border-color: #fb7185;
+    background: rgba(244,63,94,0.22);
+    animation: arcade-bomb-glow 0.9s ease-in-out infinite;
+  }
+  @keyframes arcade-bomb-glow {
+    0%,100% { box-shadow: 0 0 6px rgba(251,113,133,0.7), 0 0 0 rgba(251,113,133,0); }
+    50% { box-shadow: 0 0 18px rgba(255,90,120,1), 0 0 30px rgba(255,90,120,0.6); }
+  }
+
   .arcade-slam { animation: arcade-slam 0.6s cubic-bezier(0.2,1.6,0.36,1) both; }
   @keyframes arcade-slam {
     0% { transform: scale(6); opacity: 0; filter: blur(8px); }

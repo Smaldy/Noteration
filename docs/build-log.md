@@ -131,8 +131,25 @@
     `ArenaState`; `world.ts` adds `switchArena` + bomb lifecycle + per-sector waves;
     `render.ts` filters to the active sector and draws bombs (fuse ring) + sector
     banner; `GameCanvas.tsx` adds the nav bar + bomb-alert flashing. Two commits
-    (c42b9d7 + this). tsc + build clean; still in the `index` chunk. **Next:**
-    dedicated enemy themes for Flashcard/Settings/Editor, then balance polish.
+    (c42b9d7 + this). tsc + build clean; still in the `index` chunk.
+  - **14-5 (done) — Drive the real router + hold-to-defuse (user-driven; LOCKED
+    DECISION OVERRIDDEN).** The user explicitly reversed the earlier locked
+    decision "the game never touches the real router": switching sectors now
+    **navigates the real app** (the live page changes behind the transparent
+    game). Since the app has **no global tab bar** (no shared nav component — only
+    a study-specific sidebar), a literal "ghost button" pinned over a real nav
+    button isn't reliable, so the game's own nav bar stays the switcher but now
+    drives the router and gets a glowing/shining border (`arcade-bomb-alert`) when
+    a sector has a live bomb. Sectors were realigned to **real routes**:
+    Calendar `/calendar` (Clock), Queue `/queue` (Hourglass), Library `/`,
+    Bookmarks `/bookmarks`, Settings `/settings` (Flashcard/Editor dropped — no
+    global route). `GameCanvas` captures the entry route, navigates to the start
+    sector on mount, and restores it on exit. **Bomb defuse reworked**: bombs are
+    no longer shot down — you stand on a bomb in its sector and **hold the click**
+    until a green meter fills (`defuseTime` random 2–5 s, bleeds back when you step
+    off); detonation still costs a heart. New `held` level-input alongside the
+    edge `clicked`. tsc + build clean; still in the `index` chunk. **Next:**
+    developer mode (infinite coins/score, reset upgrades) via a code toggle.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

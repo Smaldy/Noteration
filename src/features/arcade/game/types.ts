@@ -22,11 +22,12 @@ export interface Loadout {
 export type EnemyKind = "clock" | "hourglass" | "shard";
 
 /**
- * The game's self-contained "arenas" — one per real app section. The game owns
- * this nav (it never touches the real router); the live app is a frozen backdrop.
- * Pomodoro is intentionally absent: it's a main-tab overlay, not a section.
+ * The game's "arenas" — one per real app page. Switching a sector now drives the
+ * real router (the live page changes behind the transparent game), so the set is
+ * aligned to real routes. Calendar and Queue are the themed sectors; Pomodoro is
+ * intentionally absent (it's a main-tab overlay, not a page).
  */
-export type ArenaId = "calendar" | "queue" | "flashcard" | "settings" | "editor";
+export type ArenaId = "calendar" | "queue" | "library" | "bookmarks" | "settings";
 
 export interface Enemy {
   id: number;
@@ -57,18 +58,18 @@ export interface Spike {
 
 /**
  * A bomb planted in an arena. Its fuse burns down everywhere (even while you're
- * in another sector — that's the threat); when it hits zero it hurts you. Shoot
- * or zap it in its arena to defuse before then. A bomb in a non-active arena
- * flashes that arena's nav button.
+ * in another sector — that's the threat); when it hits zero it costs a heart. To
+ * defuse, stand on it in its sector and *hold* the click until the defuse meter
+ * fills (`defuseTime` seconds). A bomb in a non-active sector glows its nav button.
  */
 export interface Bomb {
   id: number;
   arena: ArenaId;
   pos: Vec;
-  hp: number;
-  maxHp: number;
   fuse: number; // seconds remaining before it blows
   maxFuse: number;
+  defuse: number; // hold-to-defuse progress, 0..1
+  defuseTime: number; // seconds of holding needed to fully defuse
   radius: number;
 }
 
@@ -164,16 +165,17 @@ export const COLORS = {
 export interface ArenaDef {
   id: ArenaId;
   label: string;
+  route: string; // real app route this sector drives
   color: string; // theme accent (also tints the nav button)
 }
 
-/** Nav order, labels, and accent colors for the in-game sector switcher. */
+/** Nav order, labels, real routes, and accent colors for the sector switcher. */
 export const ARENAS: ArenaDef[] = [
-  { id: "calendar", label: "CALENDAR", color: COLORS.pink },
-  { id: "queue", label: "QUEUE", color: COLORS.yellow },
-  { id: "flashcard", label: "FLASHCARD", color: COLORS.green },
-  { id: "settings", label: "SETTINGS", color: COLORS.cyan },
-  { id: "editor", label: "EDITOR", color: "#b69cff" },
+  { id: "calendar", label: "CALENDAR", route: "/calendar", color: COLORS.pink },
+  { id: "queue", label: "QUEUE", route: "/queue", color: COLORS.yellow },
+  { id: "library", label: "LIBRARY", route: "/", color: COLORS.green },
+  { id: "bookmarks", label: "BOOKMARKS", route: "/bookmarks", color: COLORS.cyan },
+  { id: "settings", label: "SETTINGS", route: "/settings", color: "#b69cff" },
 ];
 
 /**
@@ -184,15 +186,16 @@ export const ARENAS: ArenaDef[] = [
 export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
   calendar: ["clock"],
   queue: ["hourglass"],
-  flashcard: ["clock", "hourglass"],
-  settings: ["hourglass", "clock"],
-  editor: ["clock", "hourglass"],
+  library: ["clock", "hourglass"],
+  bookmarks: ["hourglass", "clock"],
+  settings: ["clock", "hourglass"],
 };
 
 /** Per-frame input gathered by the React glue. */
 export interface FrameInput {
   pointer: Vec; // absolute cursor position in world space
-  clicked: boolean; // left button pressed this frame (manual zap)
+  clicked: boolean; // left button pressed this frame (edge — fires the zap/shot)
+  held: boolean; // left button currently down (level — drives hold-to-defuse)
   dodge: boolean; // dodge requested this frame (space / right-click)
 }
 

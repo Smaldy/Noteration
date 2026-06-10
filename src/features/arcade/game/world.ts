@@ -43,11 +43,14 @@ const SPIKE_R = 6;
 const SLOW_FACTOR = 0.32; // enemy/spike time multiplier during Overclock
 
 const BOMB_R = 22;
-const BOMB_FUSE = 10; // seconds before a planted bomb blows
-const BOMB_HP = 3;
+const BOMB_FUSE = 12; // seconds before a planted bomb blows
 const BOMB_GAP = 15; // seconds between bomb plantings
 const MAX_BOMBS = 2;
 const BOMB_POINTS = 220;
+const DEFUSE_MIN = 2; // hold-to-defuse seconds (randomized per bomb)
+const DEFUSE_MAX = 5;
+const DEFUSE_REACH = 30; // how close the cursor must be to hold-defuse a bomb
+const DEFUSE_DECAY = 0.6; // progress lost per second when not holding on it
 
 const ENEMY: Record<EnemyKind, { hp: number; r: number; speed: number; points: number }> = {
   clock: { hp: 3, r: 26, speed: 34, points: 120 },
@@ -234,11 +237,21 @@ function stepPlayer(world: World, dt: number, input: FrameInput) {
       if (e.arena !== world.arena) continue;
       if (dist2(e.pos, p.pos) <= r2 + e.radius * e.radius) damageEnemy(world, e, ZAP_DMG);
     }
-    for (const b of world.bombs) {
-      if (b.arena !== world.arena) continue;
-      if (dist2(b.pos, p.pos) <= r2 + b.radius * b.radius) damageBomb(world, b, ZAP_DMG);
-    }
     if (world.load.canShoot) fireBurst(world);
+  }
+
+  // Hold the click on a bomb in this sector to defuse it: the meter fills over
+  // `defuseTime`, and bleeds back down when you step off it.
+  for (const b of world.bombs) {
+    if (b.arena !== world.arena) continue;
+    const reach = b.radius + DEFUSE_REACH;
+    const onIt = dist2(b.pos, p.pos) <= reach * reach;
+    if (input.held && onIt) {
+      b.defuse += dt / b.defuseTime;
+      if (b.defuse >= 1) defuseBomb(world, b);
+    } else if (b.defuse > 0) {
+      b.defuse = Math.max(0, b.defuse - dt * DEFUSE_DECAY);
+    }
   }
 }
 
@@ -397,18 +410,6 @@ function stepBullets(world: World, dt: number) {
         break;
       }
     }
-    if (!hit) {
-      for (const bomb of world.bombs) {
-        if (bomb.arena !== world.arena) continue;
-        const rr = (BULLET_R + bomb.radius) * (BULLET_R + bomb.radius);
-        if (dist2(b.pos, bomb.pos) <= rr) {
-          damageBomb(world, bomb, BULLET_DMG);
-          burst(world, b.pos, COLORS.cyan, 4);
-          hit = true;
-          break;
-        }
-      }
-    }
     if (!hit) kept.push(b);
   }
   world.bullets = kept;
@@ -445,10 +446,10 @@ function plantBomb(world: World) {
     id: world.nextId++,
     arena,
     pos: { x: 80 + Math.random() * (world.w - 160), y: 110 + Math.random() * (world.h - 220) },
-    hp: BOMB_HP,
-    maxHp: BOMB_HP,
     fuse: BOMB_FUSE,
     maxFuse: BOMB_FUSE,
+    defuse: 0,
+    defuseTime: DEFUSE_MIN + Math.random() * (DEFUSE_MAX - DEFUSE_MIN),
     radius: BOMB_R,
   });
 }
@@ -499,16 +500,12 @@ function killEnemy(world: World, e: Enemy) {
   }
 }
 
-function damageBomb(world: World, b: Bomb, amount: number) {
-  if (b.hp <= 0) return;
-  b.hp -= amount;
-  if (b.hp <= 0) {
-    world.bombs = world.bombs.filter((x) => x !== b);
-    burst(world, b.pos, COLORS.green, 18);
-    const pts = Math.floor(BOMB_POINTS * world.load.scoreMult);
-    world.score += pts;
-    floatText(world, b.pos, `DEFUSED +${pts}`, COLORS.green);
-  }
+function defuseBomb(world: World, b: Bomb) {
+  world.bombs = world.bombs.filter((x) => x !== b);
+  burst(world, b.pos, COLORS.green, 18);
+  const pts = Math.floor(BOMB_POINTS * world.load.scoreMult);
+  world.score += pts;
+  floatText(world, b.pos, `DEFUSED +${pts}`, COLORS.green);
 }
 
 function hurtPlayer(world: World, ignoreInvuln = false) {
