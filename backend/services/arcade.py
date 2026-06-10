@@ -38,9 +38,19 @@ DAILY_BONUS_COINS = 3
 # progressively more than a fresh start (spec's "base_cost + wave_number").
 BASE_COST = 3
 
+# A run can be continued (resumed after death) at most this many times; the third
+# death ends the lineage and forces a fresh start. A fresh start resets the count.
+MAX_CONTINUES = 2
+
 
 def resume_cost(wave: int) -> int:
     return BASE_COST + max(wave, 0)
+
+
+def can_resume(state: ArcadeState) -> bool:
+    """Whether the saved run may still be continued (one is saved and continues
+    aren't exhausted)."""
+    return state.resumable_wave > 0 and state.resume_count < MAX_CONTINUES
 
 
 # Anti-binge cooldown: too many runs *started* within a trailing window locks
@@ -214,6 +224,10 @@ class NothingToResumeError(ArcadeError):
     pass
 
 
+class ContinueLimitError(ArcadeError):
+    """The run lineage has used up its allotted continues — start fresh."""
+
+
 class UnknownUpgradeError(ArcadeError):
     pass
 
@@ -353,6 +367,8 @@ def start_run(session: Session, *, mode: str) -> RunStart:
     if mode == "resume":
         if state.resumable_wave <= 0:
             raise NothingToResumeError("no run to resume")
+        if state.resume_count >= MAX_CONTINUES:
+            raise ContinueLimitError("continue limit reached — start fresh")
         start_wave = state.resumable_wave
         start_score = state.resumable_score
         cost = resume_cost(start_wave)
@@ -365,10 +381,15 @@ def start_run(session: Session, *, mode: str) -> RunStart:
         raise InsufficientCoinsError("not enough coins")
 
     state.coins -= cost
-    # Starting consumes the saved run either way: a fresh start abandons it; a
-    # resume picks it up (it'll be re-saved on the next death).
+    # Starting consumes the saved run either way: a fresh start abandons it and
+    # begins a new lineage (continues reset); a resume picks it up and spends one
+    # continue (it'll be re-saved on the next death).
     state.resumable_wave = 0
     state.resumable_score = 0
+    if mode == "resume":
+        state.resume_count += 1
+    else:
+        state.resume_count = 0
 
     run = ArcadePlaySession(started_at=now, start_wave=start_wave)
     session.add(run)

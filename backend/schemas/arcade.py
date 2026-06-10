@@ -62,7 +62,9 @@ class ArcadeStateOut(BaseModel):
     wave_record: int
     resumable_wave: int
     resumable_score: int
-    resume_cost: int | None  # cost to resume the saved run, None if none
+    resume_cost: int | None  # cost to resume the saved run, None if none/exhausted
+    resume_count: int  # continues used on the current run lineage
+    max_continues: int  # how many continues a lineage allows before a forced fresh
     cooldown_until: datetime | None
     daily_quest: DailyQuestOut
     upgrades: list[UpgradeOut]

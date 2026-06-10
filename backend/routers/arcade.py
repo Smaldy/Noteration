@@ -56,9 +56,11 @@ def build_state_out(session: Session) -> ArcadeStateOut:
         resumable_score=state.resumable_score,
         resume_cost=(
             arcade_service.resume_cost(state.resumable_wave)
-            if state.resumable_wave > 0
+            if arcade_service.can_resume(state)
             else None
         ),
+        resume_count=state.resume_count,
+        max_continues=arcade_service.MAX_CONTINUES,
         cooldown_until=arcade_service.cooldown_until(session),
         daily_quest=DailyQuestOut(
             mcq_count=state.daily_mcq_count,
@@ -101,6 +103,11 @@ def start_run(
         )
     except arcade_service.NothingToResumeError:
         raise HTTPException(status_code=409, detail="No run to resume")
+    except arcade_service.ContinueLimitError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Continue limit reached — start a new game",
+        )
     except arcade_service.InsufficientCoinsError:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,

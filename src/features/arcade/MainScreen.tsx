@@ -19,6 +19,9 @@ export function MainScreen({
 }) {
   const cooldown = useCountdown(state.cooldown_until);
   const canResume = state.resumable_wave > 0 && state.resume_cost != null;
+  const continuesLeft = Math.max(0, state.max_continues - state.resume_count);
+  // A saved run exists but its continues are spent → the lineage is forced to end.
+  const exhausted = state.resumable_wave > 0 && state.resume_cost == null;
 
   return (
     <div className={`flex h-full flex-col items-center justify-between text-center ${ARCADE_PIXEL}`}>
@@ -50,9 +53,20 @@ export function MainScreen({
             label={
               canResume
                 ? `CONTINUE W${state.resumable_wave} · ${state.resume_cost}`
-                : "CONTINUE —"
+                : exhausted
+                  ? "NO CONTINUES LEFT"
+                  : "CONTINUE —"
             }
           />
+          {canResume ? (
+            <p className="arcade-dim text-[6px] tracking-[0.2em]">
+              {continuesLeft} OF {state.max_continues} CONTINUES LEFT
+            </p>
+          ) : exhausted ? (
+            <p className="arcade-neon-pink text-[6px] tracking-[0.2em]">
+              RUN ENDED — START A NEW GAME
+            </p>
+          ) : null}
         </div>
       )}
 

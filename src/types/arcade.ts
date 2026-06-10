@@ -33,6 +33,8 @@ export interface ArcadeState {
   resumable_wave: number;
   resumable_score: number;
   resume_cost: number | null;
+  resume_count: number; // continues used on the current run lineage
+  max_continues: number; // continues allowed before a forced fresh start
   cooldown_until: string | null; // ISO datetime
   daily_quest: DailyQuest;
   upgrades: ArcadeUpgrade[];

@@ -36,6 +36,9 @@ class ArcadeState(Base):
     # Resumable run left behind on death (0 = no run to resume).
     resumable_wave: Mapped[int] = mapped_column(default=0)
     resumable_score: Mapped[int] = mapped_column(default=0)
+    # How many times the current run lineage has been continued. A fresh start
+    # resets it; once it hits MAX_CONTINUES the run can no longer be resumed.
+    resume_count: Mapped[int] = mapped_column(default=0)
     # Daily quest (complete N MCQs in a day → bonus coin). Counter resets when
     # ``daily_quest_date`` no longer matches the server's UTC "today".
     daily_mcq_count: Mapped[int] = mapped_column(default=0)

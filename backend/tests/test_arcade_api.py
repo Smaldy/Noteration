@@ -114,6 +114,40 @@ def test_resume_costs_base_plus_wave_and_consumes_saved_run(session: Session) ->
     assert state.resumable_wave == 0  # consumed
 
 
+def test_continue_limit_blocks_after_max_resumes(session: Session) -> None:
+    state = arcade_service.get_state(session)
+    state.coins = 1000
+    session.commit()
+
+    # Fresh start, then a death leaves a resumable run (lineage at 0 continues).
+    run = arcade_service.start_run(session, mode="fresh")
+    arcade_service.end_run(
+        session, session_id=run.session_id, wave_reached=4, score_earned=40, died=True
+    )
+    # Continue up to the limit; each resume spends one continue and re-saves on death.
+    for expected in range(1, arcade_service.MAX_CONTINUES + 1):
+        run = arcade_service.start_run(session, mode="resume")
+        assert arcade_service.get_state(session).resume_count == expected
+        arcade_service.end_run(
+            session, session_id=run.session_id, wave_reached=5, score_earned=50, died=True
+        )
+
+    state = arcade_service.get_state(session)
+    assert state.resumable_wave > 0  # a run is still saved...
+    assert arcade_service.can_resume(state) is False  # ...but continues are spent
+    with pytest.raises(arcade_service.ContinueLimitError):
+        arcade_service.start_run(session, mode="resume")
+
+
+def test_fresh_start_resets_continue_count(session: Session) -> None:
+    state = arcade_service.get_state(session)
+    state.coins = 1000
+    state.resume_count = arcade_service.MAX_CONTINUES
+    session.commit()
+    arcade_service.start_run(session, mode="fresh")
+    assert arcade_service.get_state(session).resume_count == 0
+
+
 def test_end_run_banks_score_updates_records_and_saves_resume_on_death(
     session: Session,
 ) -> None:

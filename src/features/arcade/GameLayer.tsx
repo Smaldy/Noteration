@@ -76,11 +76,21 @@ function GameOver() {
           <span className="arcade-neon-yellow">{lastScore}</span>
         </div>
         {state && state.resumable_wave > 0 && (
-          <p className="arcade-dim text-[7px] leading-relaxed">
-            RESUME WAVE {state.resumable_wave}
-            <br />
-            FROM THE ARCADE ({state.resume_cost} COINS)
-          </p>
+          state.resume_cost != null ? (
+            <p className="arcade-dim text-[7px] leading-relaxed">
+              RESUME WAVE {state.resumable_wave}
+              <br />
+              FROM THE ARCADE ({state.resume_cost} COINS)
+              <br />
+              {Math.max(0, state.max_continues - state.resume_count)} CONTINUES LEFT
+            </p>
+          ) : (
+            <p className="arcade-neon-pink text-[7px] leading-relaxed">
+              NO CONTINUES LEFT
+              <br />
+              START A NEW GAME
+            </p>
+          )
         )}
         <div className="flex gap-3">
           <button
