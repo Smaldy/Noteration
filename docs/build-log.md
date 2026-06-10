@@ -91,12 +91,27 @@
     down). User tuned hood + deck trapezoids to a shared vanishing point → reads
     convincingly 3-D. Old `box-*`/`preserve-3d` CSS and `ArcadeLever.tsx` removed
     (lever folded into `CabinetStage`). tsc + build clean. Commits 14-2f / 2056f61.
-    **Next:** 14-3 the canvas game engine
-    (cursor-as-player, RAF loop, health, projectiles, collision) replacing the
-    `playing` placeholder — **first enemy pool = Queue "Time Pressure"** (user's
-    pick: Clock enemy — click the face, avoid radiating spikes; Hourglass — slow,
-    flips unpredictably, splits in two on death). Later: remaining tab themes +
-    bombs/nav-alerts (self-contained arcade nav), then wave manager + polish.
+  - **14-3 (done) — Canvas game engine (NOTINVASION).** The `playing` placeholder
+    is replaced by the real game. Split for testability: `game/types.ts` (pure
+    data + `loadoutFrom` mapping owned upgrade levels → a `Loadout`), `game/world.ts`
+    (`createWorld` + `step` — deterministic plain-math sim: no React/canvas),
+    `game/render.ts` (`render(ctx, world)` — neon-on-dark canvas draw), and
+    `GameCanvas.tsx` (React glue: rAF loop, DPR-scaled canvas, mouse/space input,
+    HUD, BANK & EXIT). **Player is the cursor** (reticle); click = a short-range
+    "zap" (the "click the clock face" core). First enemy pool = Queue **"Time
+    Pressure"**: **Clock** (drifts, radiates timed spike rings), **Hourglass**
+    (slow, flips heading unpredictably, splits into two fast **Shards** on death).
+    All five upgrades wired: Reinforced Hull → +1 max health, Sidearm → auto-fire
+    at nearest enemy, Rapid Fire → shorter interval, Overclock → space/RMB
+    slow-mo dodge (enemy clock only), Combo Chip → +25% score. Internal wave
+    manager scales spawn counts + spike count/speed + emit cadence per wave and
+    starts from `run.start_wave` (resume-aware); death or BANK & EXIT routes
+    through the store's `endRun` (banks score; death saves the resumable run).
+    Additive only — no existing file changed except `GameLayer` swapping the
+    placeholder branch for `<GameCanvas/>` (dead `PlayingPlaceholder` removed).
+    tsc + `npm run build` clean; arcade stays in the main `index` chunk (no new
+    vendor boundary). **Next:** remaining tab enemy themes (Flashcard/Settings/
+    Calendar/Editor), bombs + self-contained nav alerts, then balance polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

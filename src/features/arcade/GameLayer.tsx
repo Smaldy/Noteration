@@ -1,19 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 
 import { beginPlaying, useArcadeStore } from "@/stores/arcade";
 
 import { ARCADE_PIXEL, arcadeStyles } from "./crtStyles";
+import { GameCanvas } from "./GameCanvas";
 
 /**
  * The game layer that sits over the frozen app. Phase machine:
  *   starting → "WAVE X" slam-in, then auto-advance to playing
- *   playing  → the live game (Wave 2: a survival placeholder; the canvas engine,
- *              enemies, projectiles, and bombs land in the next waves)
+ *   playing  → the live NOTINVASION game (canvas engine: cursor-as-player,
+ *              clock/hourglass enemies, radiating spikes, upgrades)
  *   over     → GAME OVER, with the resume/new-game choice back in the hub
  *
- * The slam-in and game-over screens are permanent; only the `playing` body is a
- * placeholder, so the real engine drops straight in here later.
+ * The slam-in and game-over screens are permanent; the `playing` body is the
+ * real canvas engine (`GameCanvas`).
  */
 export function GameLayer() {
   const phase = useArcadeStore((s) => s.phase);
@@ -26,7 +27,7 @@ export function GameLayer() {
       <style>{arcadeStyles}</style>
       <AnimatePresence mode="wait">
         {phase === "starting" && <WaveSlam key="slam" wave={run.start_wave} />}
-        {phase === "playing" && <PlayingPlaceholder key="play" />}
+        {phase === "playing" && <GameCanvas key="play" />}
         {phase === "over" && <GameOver key="over" />}
       </AnimatePresence>
     </div>
@@ -48,66 +49,6 @@ function WaveSlam({ wave }: { wave: number }) {
       <div className={`arcade-slam text-center ${ARCADE_PIXEL}`}>
         <p className="arcade-neon-cyan text-sm tracking-[0.4em]">WAVE</p>
         <p className="arcade-neon-pink mt-3 text-7xl">{wave}</p>
-      </div>
-    </motion.div>
-  );
-}
-
-/** Wave-2 placeholder: a survival timer so the economy loop (earn score → buy
- *  upgrades; die → resume) is fully exercisable before the engine exists. */
-function PlayingPlaceholder() {
-  const run = useArcadeStore((s) => s.run);
-  const endRun = useArcadeStore((s) => s.endRun);
-  const [score, setScore] = useState(run?.start_score ?? 0);
-  const startWave = run?.start_wave ?? 1;
-  const ended = useRef(false);
-
-  useEffect(() => {
-    const id = setInterval(() => setScore((s) => s + 10 * startWave), 1000);
-    return () => clearInterval(id);
-  }, [startWave]);
-
-  function end(died: boolean) {
-    if (ended.current) return;
-    ended.current = true;
-    void endRun(startWave, score, died);
-  }
-
-  return (
-    <motion.div
-      className="absolute inset-0 flex flex-col items-center justify-center bg-black/85"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <div className={`flex flex-col items-center gap-6 text-center ${ARCADE_PIXEL}`}>
-        <div className="flex gap-8 text-[10px]">
-          <span className="arcade-neon-cyan">WAVE {startWave}</span>
-          <span className="arcade-neon-yellow">SCORE {score}</span>
-        </div>
-        <div className="max-w-xs rounded-lg border border-fuchsia-400/30 bg-black/50 p-5">
-          <p className="arcade-neon-green text-[9px] leading-relaxed">
-            GAME ENGINE
-            <br />
-            UNDER CONSTRUCTION
-          </p>
-          <p className="arcade-dim mt-3 text-[7px] leading-relaxed">
-            ENEMIES, PROJECTILES + BOMBS
-            <br />
-            ARRIVE IN THE NEXT WAVE.
-            <br />
-            SURVIVING BANKS SCORE.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => end(true)}
-            className="rounded border border-rose-400/60 arcade-neon-pink px-4 py-2 text-[8px] transition hover:scale-105"
-          >
-            END RUN
-          </button>
-        </div>
       </div>
     </motion.div>
   );
