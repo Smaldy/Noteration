@@ -20,6 +20,7 @@ import {
   ARENAS,
   type ArenaId,
   type ArenaState,
+  type Beam,
   type Bomb,
   COLORS,
   type Enemy,
@@ -54,6 +55,19 @@ const DEFUSE_DECAY = 0.6; // progress lost per second when not holding on it
 
 const PLAYER_KNOCKBACK = 20; // how far an enemy is shoved off after touching you
 const BOLT_SPEED = 240; // shooter projectile speed
+
+// Dasher lunge. Winds up (telegraph), then streaks at the cursor at DASH_MULT×
+// its base speed for DASH_TIME seconds. Bosses amplify all three.
+const DASH_WINDUP = 0.5;
+const DASH_TIME = 0.3;
+const DASH_MULT = 5.5;
+
+// Beamer laser. Charges (telegraph) tracking the cursor, then fires a straight
+// beam that lingers briefly. Bosses charge faster and fire a fan.
+const BEAM_WINDUP = 0.85;
+const BEAM_LIFE = 0.16;
+const BEAM_LEN = 1400;
+const BEAM_WIDTH = 11;
 
 // Auto-Turret (auto_fire): fires an aimed bullet at the nearest enemy on a timer
 // that shortens with level. Independent of the Sidearm (the manual click-burst).
@@ -93,6 +107,10 @@ const ENEMY: Record<
   clock: { hp: 3, r: 26, speed: 30, reload: 2.4, contact: 1, points: 26 },
   hourglass: { hp: 2, r: 22, speed: 26, reload: 999, contact: 1, points: 16 },
   shard: { hp: 1, r: 13, speed: 88, reload: 999, contact: 1, points: 7 },
+  // Dasher: drifts slow, then telegraphs and lunges fast at the cursor (`reload`
+  // is the cooldown between lunges). Beamer: holds range and fires a charged laser.
+  dasher: { hp: 2, r: 15, speed: 64, reload: 2.6, contact: 1, points: 18 },
+  beamer: { hp: 3, r: 20, speed: 34, reload: 3.2, contact: 1, points: 24 },
 };
 
 // ── Construction ─────────────────────────────────────────────────────────────
@@ -129,6 +147,7 @@ export function createWorld(
     arena: "library", // synced to the real route on mount
     enemies: [],
     spikes: [],
+    beams: [],
     bullets: [],
     bombs: [],
     particles: [],
@@ -177,6 +196,7 @@ export function switchArena(world: World, arena: ArenaId) {
   if (arena === world.arena || world.status !== "playing") return;
   world.arena = arena;
   world.spikes = [];
+  world.beams = [];
   world.bannerArena = 1.3;
   world.player.invuln = Math.max(world.player.invuln, 0.8); // grace on arrival
   const st = world.arenas[arena];
@@ -242,6 +262,9 @@ function spawnEnemy(
     hitFlash: 0,
     wanderTimer: 0,
     wander: { x: world.w / 2, y: world.h / 2 },
+    windup: 0,
+    aimAngle: 0,
+    dashTime: 0,
   });
 }
 
@@ -301,6 +324,7 @@ export function step(world: World, dtRaw: number, input: FrameInput): void {
   stepWave(world, dt);
   stepEnemies(world, edt);
   stepSpikes(world, edt);
+  stepBeams(world, edt);
   stepBullets(world, dt);
   stepBombs(world, dt);
   stepEffects(world, dt);
@@ -462,6 +486,48 @@ function stepEnemies(world: World, edt: number) {
         e.reload = Math.max(1.1, e.reloadTime - wave * 0.04);
         emitRing(world, e, ring, ringSpeed);
       }
+    } else if (e.kind === "dasher") {
+      // Stalk slowly, telegraph, then lunge fast at the cursor and coast.
+      if (e.dashTime > 0) {
+        e.dashTime -= edt;
+        e.pos.x += e.vel.x * edt;
+        e.pos.y += e.vel.y * edt;
+        bounce(world, e);
+      } else if (e.windup > 0) {
+        e.windup -= edt;
+        e.aimAngle = Math.atan2(p.pos.y - e.pos.y, p.pos.x - e.pos.x); // aim tracks until launch
+        e.vel.x *= 0.8;
+        e.vel.y *= 0.8;
+        e.pos.x += e.vel.x * edt;
+        e.pos.y += e.vel.y * edt;
+        if (e.windup <= 0) {
+          const ds = e.speed * DASH_MULT * (e.isBoss ? 1.5 : 1);
+          e.vel = { x: Math.cos(e.aimAngle) * ds, y: Math.sin(e.aimAngle) * ds };
+          e.dashTime = DASH_TIME * (e.isBoss ? 1.6 : 1);
+        }
+      } else {
+        homeToward(e, p.pos, e.speed, edt, 2);
+        if (e.reload <= 0) {
+          e.windup = DASH_WINDUP * (e.isBoss ? 0.5 : 1);
+          e.reload = e.reloadTime;
+        }
+      }
+    } else if (e.kind === "beamer") {
+      // Hold mid-range, charge (telegraph) while tracking, then fire a laser.
+      const d = Math.hypot(p.pos.x - e.pos.x, p.pos.y - e.pos.y) || 1;
+      if (e.windup <= 0) {
+        const sign = d > 320 ? 1 : d < 210 ? -1 : 0;
+        e.pos.x += ((p.pos.x - e.pos.x) / d) * e.speed * sign * edt;
+        e.pos.y += ((p.pos.y - e.pos.y) / d) * e.speed * sign * edt;
+        if (e.reload <= 0) e.windup = BEAM_WINDUP * (e.isBoss ? 0.6 : 1);
+      } else {
+        e.windup -= edt;
+        e.aimAngle = Math.atan2(p.pos.y - e.pos.y, p.pos.x - e.pos.x);
+        if (e.windup <= 0) {
+          fireBeam(world, e, e.aimAngle);
+          e.reload = e.reloadTime;
+        }
+      }
     } else {
       // Hourglass + shard: drift and flip heading unpredictably; shards lean
       // toward the player so they stay a threat.
@@ -547,6 +613,47 @@ function fireBolt(world: World, e: Enemy, target: Vec, spreadRad: number) {
     radius: SPIKE_R + 1,
     life: 4,
   });
+}
+
+/** Fire a beamer's laser along `angle`. A boss beamer fires a 3-beam fan. */
+function fireBeam(world: World, e: Enemy, angle: number) {
+  const spread = e.isBoss ? [-0.26, 0, 0.26] : [0];
+  for (const off of spread) {
+    world.beams.push({
+      id: world.nextId++,
+      pos: { ...e.pos },
+      angle: angle + off,
+      len: BEAM_LEN,
+      life: BEAM_LIFE,
+      maxLife: BEAM_LIFE,
+      width: BEAM_WIDTH * (e.isBoss ? 1.4 : 1),
+      dmg: e.contactDmg,
+    });
+  }
+}
+
+function stepBeams(world: World, edt: number) {
+  const p = world.player;
+  const kept: Beam[] = [];
+  for (const b of world.beams) {
+    b.life -= edt;
+    if (b.life <= 0) continue;
+    if (p.invuln <= 0) {
+      const end = { x: b.pos.x + Math.cos(b.angle) * b.len, y: b.pos.y + Math.sin(b.angle) * b.len };
+      if (distToSegment(p.pos, b.pos, end) <= b.width / 2 + PLAYER_R) hurtPlayer(world, false, b.dmg);
+    }
+    kept.push(b);
+  }
+  world.beams = kept;
+}
+
+/** Shortest distance from point `p` to the segment `a`–`b`. */
+function distToSegment(p: Vec, a: Vec, b: Vec): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / len2, 0, 1);
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
 function bounce(world: World, e: Enemy) {

@@ -30,7 +30,14 @@ export interface Loadout {
   phaseShieldLevel: number; // Phase Cloak 0..10 — periodic ignore-damage window
 }
 
-export type EnemyKind = "hunter" | "shooter" | "clock" | "hourglass" | "shard";
+export type EnemyKind =
+  | "hunter"
+  | "shooter"
+  | "clock"
+  | "hourglass"
+  | "shard"
+  | "dasher"
+  | "beamer";
 
 /**
  * The game's "arenas" — one per real app page. The active sector is derived from
@@ -61,6 +68,10 @@ export interface Enemy {
   hitFlash: number; // brief flash after taking damage
   wanderTimer: number; // clock: seconds until it picks a new drift target
   wander: Vec;
+  // Telegraphed-attack state (dasher lunge / beamer laser; reused by bosses).
+  windup: number; // >0 while charging an attack (the telegraph)
+  aimAngle: number; // locked firing/dash direction (radians)
+  dashTime: number; // dasher: remaining seconds of an active dash
 }
 
 /** Enemy projectile (the clock's radiating "spikes"). */
@@ -88,6 +99,23 @@ export interface Bomb {
   defuseTime: number; // seconds of holding needed to fully defuse
   radius: number;
   defusing: boolean; // set each frame while actively being defused (Dampening Field)
+}
+
+/**
+ * A laser beam fired by a beamer (or, amplified, a beamer boss). A straight
+ * damaging segment from `pos` along `angle` for `len` px, alive briefly after a
+ * telegraphed wind-up. Hits the player (i-frames gate repeat damage); cosmetic
+ * to enemies.
+ */
+export interface Beam {
+  id: number;
+  pos: Vec; // origin (the firer's position when it fired)
+  angle: number;
+  len: number;
+  life: number;
+  maxLife: number;
+  width: number;
+  dmg: number;
 }
 
 /** Player projectile (Sidearm bullets). */
@@ -167,6 +195,7 @@ export interface World {
   arena: ArenaId; // the active sector
   enemies: Enemy[]; // all sectors; only `arena`'s are live
   spikes: Spike[]; // active-sector projectiles (cleared on switch)
+  beams: Beam[]; // active-sector laser beams (beamer / beamer boss)
   bullets: Bullet[];
   bombs: Bomb[]; // all sectors; fuses burn everywhere
   particles: Particle[];
@@ -201,6 +230,8 @@ export const ENEMY_COLOR: Record<EnemyKind, string> = {
   clock: COLORS.pink,
   hourglass: COLORS.yellow,
   shard: COLORS.green,
+  dasher: "#ff9f43", // orange — the lunging stalker
+  beamer: "#b388ff", // violet — the laser sentinel
 };
 
 export interface ArenaDef {
@@ -243,17 +274,18 @@ export function unlockedSectorIds(wave: number): ArenaId[] {
 /**
  * Which enemy types spawn in each sector. Library (always open) breeds the plain
  * cursor-hunting **hunter**; each unlocked sector adds its own special:
- * Calendar → Clock (spike rings), Queue → Hourglass (splitter), Exam/Settings →
- * Shooter (aimed bolts), Bookmarks → fast hunter+shooter mix. (`shard` only
+ * Calendar → Clock (spike rings), Queue → Hourglass (splitter), Exam → Beamer
+ * (charged laser), Bookmarks → Dasher (telegraphed lunge), Settings → a Beamer/
+ * Dasher/Clock mix. Each sector's first entry is its boss kind. (`shard` only
  * appears from a hourglass's death.)
  */
 export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
   library: ["hunter"],
   calendar: ["clock", "hunter"],
   queue: ["hourglass", "hunter"],
-  exam: ["shooter", "hunter"],
-  bookmarks: ["hunter", "shooter"],
-  settings: ["shooter", "clock"],
+  exam: ["beamer", "shooter"], // Exam Prep — laser sentinels (boss = beamer)
+  bookmarks: ["dasher", "hunter"], // Bookmarks — lunging stalkers (boss = dasher)
+  settings: ["beamer", "dasher", "clock"],
 };
 
 /** Per-frame input gathered by the React glue. */

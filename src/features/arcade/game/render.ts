@@ -3,7 +3,17 @@
  * frame onto a 2D context. No simulation happens here. Neon-on-dark to match the
  * cabinet's CRT; glow comes from `shadowBlur`.
  */
-import { ARENAS, type Bomb, COLORS, type Enemy, ENEMY_COLOR, type World } from "./types";
+import {
+  ARENAS,
+  type Beam,
+  type Bomb,
+  COLORS,
+  type Enemy,
+  ENEMY_COLOR,
+  type World,
+} from "./types";
+
+const BEAM_COLOR = ENEMY_COLOR.beamer;
 
 export function render(ctx: CanvasRenderingContext2D, world: World) {
   const { w, h } = world;
@@ -28,6 +38,9 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
     ctx.fillStyle = COLORS.pink;
     diamond(ctx, s.pos.x, s.pos.y, s.radius);
   }
+
+  // Beamer laser beams (fade over their short life).
+  for (const b of world.beams) drawBeam(ctx, b);
 
   // Bullets (player).
   for (const b of world.bullets) {
@@ -84,6 +97,31 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
 
   if (world.waveBanner > 0) drawBanner(ctx, world);
   if (world.bannerArena > 0) drawArenaBanner(ctx, world);
+}
+
+function drawBeam(ctx: CanvasRenderingContext2D, b: Beam) {
+  const a = Math.max(0, b.life / b.maxLife);
+  const ex = b.pos.x + Math.cos(b.angle) * b.len;
+  const ey = b.pos.y + Math.sin(b.angle) * b.len;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = BEAM_COLOR;
+  ctx.lineCap = "round";
+  // Outer glow pass, then a hot white core.
+  ctx.strokeStyle = BEAM_COLOR;
+  ctx.lineWidth = b.width;
+  ctx.beginPath();
+  ctx.moveTo(b.pos.x, b.pos.y);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(2, b.width * 0.4);
+  ctx.beginPath();
+  ctx.moveTo(b.pos.x, b.pos.y);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawBomb(ctx: CanvasRenderingContext2D, b: Bomb) {
@@ -212,6 +250,78 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
     ctx.moveTo(0, 0);
     ctx.lineTo(r * 0.45, r * 0.2);
     ctx.stroke();
+  } else if (e.kind === "dasher") {
+    const charging = e.windup > 0;
+    // Motion streak behind it while lunging.
+    if (e.dashTime > 0) {
+      ctx.save();
+      ctx.rotate(e.aimAngle);
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = base;
+      ctx.lineWidth = r;
+      ctx.beginPath();
+      ctx.moveTo(-r * 1.4, 0);
+      ctx.lineTo(-r * 3.4, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.rotate(e.aimAngle + Math.PI / 2); // chevron tip points along the aim
+    // Telegraph: a dashed aim line + white flash while winding up to lunge.
+    if (charging) {
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.lineTo(0, -r - 64);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = charging ? "rgba(255,255,255,0.4)" : "rgba(255,159,67,0.16)";
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.lineTo(r * 0.9, r * 0.6);
+    ctx.lineTo(0, r * 0.12);
+    ctx.lineTo(-r * 0.9, r * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (e.kind === "beamer") {
+    const charging = e.windup > 0;
+    // Telegraph warning line while charging (brightens as it nears firing).
+    if (charging) {
+      ctx.save();
+      ctx.rotate(e.aimAngle);
+      const heat = Math.max(0, Math.min(1, 1 - e.windup / 0.85));
+      ctx.globalAlpha = 0.25 + 0.55 * heat;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5 + 3 * heat;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(r + 1400, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.rotate(e.spin * 0.4);
+    ctx.fillStyle = "rgba(179,136,255,0.12)";
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2;
+      const fn = i === 0 ? "moveTo" : "lineTo";
+      ctx[fn](Math.cos(ang) * r, Math.sin(ang) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Charging core pulses brighter as it winds up.
+    ctx.fillStyle = charging ? "#ffffff" : base;
+    const core = charging ? r * (0.32 + 0.3 * Math.abs(Math.sin(e.spin * 3))) : r * 0.32;
+    ctx.beginPath();
+    ctx.arc(0, 0, core, 0, Math.PI * 2);
+    ctx.fill();
   } else {
     // hourglass + shard: two triangles tip-to-tip
     ctx.rotate(e.spin);
