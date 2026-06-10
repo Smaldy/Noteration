@@ -29,7 +29,7 @@ import {
   type World,
 } from "./game/types";
 import { loadoutFrom } from "./game/types";
-import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
+import { bossActive, bulletsPerClick, createWorld, step, switchArena } from "./game/world";
 
 /** Lightweight HUD mirror so React re-renders only when these change. */
 interface Hud {
@@ -41,6 +41,7 @@ interface Hud {
   bombArenas: ArenaId[];
   bombFuse: number; // soonest fuse (s) among bombs in other sectors
   boss: boolean; // a boss just spawned → show the scare banner
+  bossAlive: boolean; // a boss is alive → sector is locked until it dies
   hasSlow: boolean;
   slowReady: boolean;
   slowActive: boolean;
@@ -84,6 +85,7 @@ export function GameCanvas() {
     bombArenas: [],
     bombFuse: 0,
     boss: false,
+    bossAlive: false,
     hasSlow: false,
     slowReady: false,
     slowActive: false,
@@ -183,7 +185,15 @@ export function GameCanvas() {
       if (kind === "nav") {
         const navEl = (e.target as Element).closest("[data-arcade-sector]")!;
         const w = worldRef.current;
-        if (w && sectorUnlocked(navEl.getAttribute("data-arcade-sector") as ArenaId, w.wave)) {
+        const target = navEl.getAttribute("data-arcade-sector") as ArenaId;
+        if (w && bossActive(w) && target !== w.arena) {
+          // Boss duel: you're locked into its sector until it's dead.
+          e.preventDefault();
+          e.stopPropagation();
+          showLock(e.clientX, e.clientY);
+          return;
+        }
+        if (w && sectorUnlocked(target, w.wave)) {
           return; // an UNLOCKED nav button — let it navigate the real app
         }
         e.preventDefault();
@@ -255,6 +265,7 @@ export function GameCanvas() {
           bombArenas,
           bombFuse: others.length ? Math.min(...others.map((b) => b.fuse)) : 0,
           boss: world.bossBanner > 0,
+          bossAlive: bossActive(world),
           hasSlow: world.load.slowMoLevel > 0,
           slowReady: world.slowmo.cooldown <= 0,
           slowActive: world.slowmo.active > 0,
@@ -323,6 +334,18 @@ export function GameCanvas() {
             <span className="text-sm leading-none">⚠</span>
             <span>{otherBombs.map((id) => ARENAS.find((a) => a.id === id)?.label).join(" · ")}</span>
             <span className="tabular-nums text-amber-200">{Math.max(0, Math.ceil(hud.bombFuse))}s</span>
+          </div>
+        </div>
+      )}
+
+      {/* Sector lock while a boss lives — you can't leave until it's dead. */}
+      {hud.bossAlive && (
+        <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2">
+          <div
+            className={`flex items-center gap-2 rounded-full border border-rose-400/60 bg-rose-600/25 px-4 py-1.5 text-[10px] tracking-[0.18em] text-rose-100 backdrop-blur ${ARCADE_PIXEL}`}
+          >
+            <Lock className="size-3" />
+            SECTOR LOCKED · DEFEAT THE BOSS
           </div>
         </div>
       )}

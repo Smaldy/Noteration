@@ -187,7 +187,10 @@ function setupWave(world: World, arena: ArenaId, boss = false) {
   const st = world.arenas[arena];
   const pool = ARENA_POOL[arena];
   if (boss && arena === world.arena) {
-    // Boss wave: the sector's headline enemy, beefed, plus a few minions.
+    // Boss wave: the sector's headline enemy, beefed, plus a few minions. The
+    // boss is a duel — clear every planted bomb so nothing forces you to leave
+    // (and `stepBombs` won't plant new ones while the boss lives).
+    world.bombs = [];
     spawnEnemy(world, pool[0], arena, { boss: true });
     world.bossBanner = 3.6;
     const minions = 3;
@@ -208,6 +211,8 @@ function setupWave(world: World, arena: ArenaId, boss = false) {
  *  (without advancing it — only clearing a sector you're fighting advances it). */
 export function switchArena(world: World, arena: ArenaId) {
   if (arena === world.arena || world.status !== "playing") return;
+  // A boss is a duel: you can't leave its sector until it's dead.
+  if (bossActive(world) && arena !== world.arena) return;
   world.arena = arena;
   world.spikes = [];
   world.beams = [];
@@ -426,6 +431,11 @@ function autoFire(world: World) {
     vel: { x: Math.cos(a) * BULLET_SPEED, y: Math.sin(a) * BULLET_SPEED },
     life: 1.1,
   });
+}
+
+/** Whether a boss is currently alive (gates bomb-planting and sector-leaving). */
+export function bossActive(world: World): boolean {
+  return world.enemies.some((e) => e.isBoss);
 }
 
 /** Bullets emitted per click once the Sidearm is owned (0 otherwise). */
@@ -766,9 +776,10 @@ function stepBullets(world: World, dt: number) {
 
 function stepBombs(world: World, dt: number) {
   // Plant a new bomb on a timer (biased toward a sector you're not in, so it
-  // creates a nav alert). Fuses burn in every sector at once.
+  // creates a nav alert). Fuses burn in every sector at once. No new bombs while
+  // a boss is alive — the boss is a self-contained duel in its own sector.
   world.bombTimer -= dt;
-  if (world.bombTimer <= 0 && world.bombs.length < MAX_BOMBS) {
+  if (world.bombTimer <= 0 && world.bombs.length < MAX_BOMBS && !bossActive(world)) {
     world.bombTimer = BOMB_GAP;
     plantBomb(world);
   }
