@@ -49,9 +49,23 @@ COOLDOWN_WINDOW = timedelta(hours=1)
 MAX_RUNS_PER_WINDOW = 5
 
 
-# --- upgrade catalog ---------------------------------------------------------
-# Costs are paid from ``score_balance``; ``costs[i]`` buys level i+1. The game
-# engine interprets each upgrade's effect; the backend only owns ownership/cost.
+# --- skill catalog -----------------------------------------------------------
+# Costs are paid from ``score_balance``; ``cost_at(level)`` buys the next level.
+# The game engine interprets each skill's effect; the backend only owns
+# ownership, cost, and the tier-unlock gate.
+#
+# Scalability: a skill is one ``UpgradeSpec`` row — its cost curve is generated
+# from ``base_cost``×``growth``^level up to ``max_level`` (no hand-typed tables),
+# and ``tier`` groups it under a wave-gated unlock. To add abilities, append a
+# row here (and wire its effect in the frontend ``loadoutFrom``); to add a whole
+# new tier, append to ``TIER_UNLOCK_WAVE`` and tag skills with that tier.
+
+DEFAULT_MAX_LEVEL = 10
+DEFAULT_GROWTH = 1.5  # geometric cost multiplier per owned level
+
+# A tier's skills only become purchasable once the player's best wave
+# (``wave_record``) reaches the unlock. Tier 1 is open from the start.
+TIER_UNLOCK_WAVE: dict[int, int] = {1: 0, 2: 10, 3: 20}
 
 
 @dataclass(frozen=True)
@@ -59,47 +73,120 @@ class UpgradeSpec:
     key: str
     name: str
     description: str
-    costs: tuple[int, ...]  # one entry per purchasable level
+    tier: int
+    base_cost: int  # score cost of the first level
+    max_level: int = DEFAULT_MAX_LEVEL
+    growth: float = DEFAULT_GROWTH
+
+    def cost_at(self, owned_level: int) -> int:
+        """Score cost to buy the ``owned_level+1``-th level (0 = first level)."""
+        return round(self.base_cost * (self.growth**owned_level))
 
     @property
-    def max_level(self) -> int:
-        return len(self.costs)
+    def costs(self) -> tuple[int, ...]:
+        """The full cost curve, one entry per purchasable level."""
+        return tuple(self.cost_at(i) for i in range(self.max_level))
+
+    @property
+    def unlock_wave(self) -> int:
+        return TIER_UNLOCK_WAVE.get(self.tier, 0)
 
 
 UPGRADE_CATALOG: tuple[UpgradeSpec, ...] = (
+    # ── Tier 1 · Core (open from wave 1) ──────────────────────────────────────
     UpgradeSpec(
         "max_health",
         "Reinforced Hull",
         "+1 max health per level — survive more hits.",
-        (50, 120, 260, 520),
+        tier=1,
+        base_cost=50,
     ),
     UpgradeSpec(
-        "shooting",
-        "Sidearm",
-        "Unlock the ability to shoot back at enemies.",
-        (300,),
+        "zap_damage",
+        "Shockwave",
+        "+1 click-burst (area) damage per level.",
+        tier=1,
+        base_cost=60,
     ),
     UpgradeSpec(
-        "fire_rate",
-        "Rapid Fire",
-        "Shoot faster (needs Sidearm).",
-        (180, 360, 720),
-    ),
-    UpgradeSpec(
-        "move_speed",
-        "Overclock",
-        "Dodge projectiles in brief slow-motion.",
-        (90, 200, 440),
+        "zap_reach",
+        "Resonance Field",
+        "+ click-burst radius per level — hit from farther.",
+        tier=1,
+        base_cost=55,
     ),
     UpgradeSpec(
         "score_multiplier",
         "Combo Chip",
         "+25% score per level.",
-        (120, 300, 700),
+        tier=1,
+        base_cost=100,
+    ),
+    # ── Tier 2 · Firepower (unlocks at wave 10) ───────────────────────────────
+    UpgradeSpec(
+        "shooting",
+        "Sidearm",
+        "Unlock the click-burst of bullets.",
+        tier=2,
+        base_cost=300,
+        max_level=1,
+    ),
+    UpgradeSpec(
+        "fire_rate",
+        "Rapid Fire",
+        "+2 bullets per click-burst (needs Sidearm).",
+        tier=2,
+        base_cost=180,
+    ),
+    UpgradeSpec(
+        "auto_fire",
+        "Auto-Turret",
+        "Auto-fire at the nearest enemy; faster per level.",
+        tier=2,
+        base_cost=600,
+    ),
+    UpgradeSpec(
+        "move_speed",
+        "Overclock",
+        "Dodge projectiles in brief slow-motion.",
+        tier=2,
+        base_cost=120,
+    ),
+    # ── Tier 3 · Tactical (unlocks at wave 20) ────────────────────────────────
+    UpgradeSpec(
+        "defuse_speed",
+        "Quick Hands",
+        "Defuse bombs faster (shorter hold) per level.",
+        tier=3,
+        base_cost=140,
+    ),
+    UpgradeSpec(
+        "defuse_window",
+        "Long Fuse",
+        "+1s on every bomb's fuse per level.",
+        tier=3,
+        base_cost=130,
+    ),
+    UpgradeSpec(
+        "defuse_freeze",
+        "Dampening Field",
+        "Slow a bomb's fuse while you defuse it.",
+        tier=3,
+        base_cost=160,
+    ),
+    UpgradeSpec(
+        "phase_shield",
+        "Phase Cloak",
+        "Periodic ignore-damage window (30s→20s).",
+        tier=3,
+        base_cost=220,
     ),
 )
 
 _CATALOG_BY_KEY = {spec.key: spec for spec in UPGRADE_CATALOG}
+
+# Highest wave any tier needs — dev tools unlock everything by reaching it.
+MAX_TIER_UNLOCK_WAVE = max(TIER_UNLOCK_WAVE.values())
 
 
 # --- errors ------------------------------------------------------------------
@@ -133,6 +220,14 @@ class UnknownUpgradeError(ArcadeError):
 
 class UpgradeMaxedError(ArcadeError):
     pass
+
+
+class TierLockedError(ArcadeError):
+    """The skill's tier hasn't been unlocked yet (wave_record too low)."""
+
+    def __init__(self, unlock_wave: int) -> None:
+        super().__init__(f"reach wave {unlock_wave} to unlock this tier")
+        self.unlock_wave = unlock_wave
 
 
 class SessionNotFoundError(ArcadeError):
@@ -327,6 +422,8 @@ def buy_upgrade(session: Session, *, key: str) -> ArcadeState:
     if spec is None:
         raise UnknownUpgradeError(key)
     state = get_state(session)
+    if state.wave_record < spec.unlock_wave:
+        raise TierLockedError(spec.unlock_wave)
     row = session.execute(
         select(ArcadeUpgrade).where(ArcadeUpgrade.key == key)
     ).scalar_one_or_none()
@@ -355,10 +452,12 @@ DEV_GRANT_AMOUNT = 1_000_000
 
 
 def dev_grant(session: Session) -> ArcadeState:
-    """Top coins + score up to a huge balance for testing (effectively infinite)."""
+    """Top coins + score up to a huge balance for testing (effectively infinite),
+    and unlock every skill tier so the whole shop is exercisable locally."""
     state = get_state(session)
     state.coins = DEV_GRANT_AMOUNT
     state.score_balance = DEV_GRANT_AMOUNT
+    state.wave_record = max(state.wave_record, MAX_TIER_UNLOCK_WAVE)
     session.commit()
     session.refresh(state)
     return state

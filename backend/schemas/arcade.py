@@ -37,6 +37,9 @@ class UpgradeOut(BaseModel):
     level: int
     max_level: int
     next_cost: int | None  # None when fully upgraded
+    tier: int  # 1..3 — skills are grouped and gated by tier
+    unlock_wave: int  # wave_record needed to buy this tier (0 = always open)
+    locked: bool  # True while wave_record < unlock_wave
 
 
 class DailyQuestOut(BaseModel):

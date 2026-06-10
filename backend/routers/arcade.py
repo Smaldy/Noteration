@@ -37,10 +37,13 @@ def build_state_out(session: Session) -> ArcadeStateOut:
             level=levels.get(spec.key, 0),
             max_level=spec.max_level,
             next_cost=(
-                spec.costs[levels.get(spec.key, 0)]
+                spec.cost_at(levels.get(spec.key, 0))
                 if levels.get(spec.key, 0) < spec.max_level
                 else None
             ),
+            tier=spec.tier,
+            unlock_wave=spec.unlock_wave,
+            locked=state.wave_record < spec.unlock_wave,
         )
         for spec in arcade_service.UPGRADE_CATALOG
     ]
@@ -151,6 +154,11 @@ def buy_upgrade(key: str, db: Session = Depends(get_session)) -> ArcadeStateOut:
         raise HTTPException(status_code=404, detail="Unknown upgrade")
     except arcade_service.UpgradeMaxedError:
         raise HTTPException(status_code=409, detail="Upgrade already maxed")
+    except arcade_service.TierLockedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Reach wave {exc.unlock_wave} to unlock this tier",
+        )
     except arcade_service.InsufficientScoreError:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,

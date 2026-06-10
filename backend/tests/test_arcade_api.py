@@ -165,12 +165,37 @@ def test_buy_upgrade_errors(session: Session) -> None:
     with pytest.raises(arcade_service.UnknownUpgradeError):
         arcade_service.buy_upgrade(session, key="nope")
 
-    # Single-level upgrade maxes out after one purchase.
+    # Single-level upgrade maxes out after one purchase. Sidearm is a tier-2
+    # skill, so it needs the tier unlocked (a deep-enough wave_record) first.
     state.score_balance = 1000
+    state.wave_record = arcade_service.MAX_TIER_UNLOCK_WAVE
     session.commit()
     arcade_service.buy_upgrade(session, key="shooting")
     with pytest.raises(arcade_service.UpgradeMaxedError):
         arcade_service.buy_upgrade(session, key="shooting")
+
+
+def test_upgrade_cost_curve_is_geometric() -> None:
+    spec = arcade_service._CATALOG_BY_KEY["max_health"]
+    assert spec.max_level == arcade_service.DEFAULT_MAX_LEVEL
+    assert spec.cost_at(0) == 50  # first level is the base cost
+    assert spec.cost_at(1) == round(50 * arcade_service.DEFAULT_GROWTH)
+    # Strictly increasing across the whole curve.
+    assert all(b > a for a, b in zip(spec.costs, spec.costs[1:]))
+
+
+def test_buy_upgrade_blocked_until_tier_unlocked(session: Session) -> None:
+    state = arcade_service.get_state(session)
+    state.score_balance = 100_000
+    session.commit()
+    # Sidearm (tier 2) is locked at wave_record 0.
+    with pytest.raises(arcade_service.TierLockedError):
+        arcade_service.buy_upgrade(session, key="shooting")
+    # Reaching the unlock wave opens the tier.
+    state.wave_record = arcade_service.TIER_UNLOCK_WAVE[2]
+    session.commit()
+    state = arcade_service.buy_upgrade(session, key="shooting")
+    assert arcade_service._upgrade_levels(session)["shooting"] == 1
 
 
 def test_cooldown_triggers_after_too_many_runs(session: Session) -> None:
@@ -230,6 +255,23 @@ def test_http_get_state_defaults(client: TestClient) -> None:
     keys = {u["key"] for u in body["upgrades"]}
     assert "max_health" in keys and "shooting" in keys
     assert body["economy"]["base_cost"] == arcade_service.BASE_COST
+    # Tier metadata is surfaced; tier-1 is open, higher tiers are locked at wave 0.
+    by_key = {u["key"]: u for u in body["upgrades"]}
+    assert by_key["max_health"]["tier"] == 1 and by_key["max_health"]["locked"] is False
+    assert by_key["shooting"]["tier"] == 2 and by_key["shooting"]["locked"] is True
+    assert by_key["shooting"]["unlock_wave"] == arcade_service.TIER_UNLOCK_WAVE[2]
+
+
+def test_http_buy_locked_tier_is_409(client: TestClient) -> None:
+    # Bank plenty of score but at wave_record 0, so tier-2+ skills stay locked.
+    client.post("/api/arcade/coins/earn", json={"source": "flashcard", "count": 50})
+    sid = client.post("/api/arcade/run/start", json={"mode": "fresh"}).json()["session_id"]
+    client.post(
+        "/api/arcade/run/end",
+        json={"session_id": sid, "wave_reached": 1, "score_earned": 5000, "died": True},
+    )
+    resp = client.post("/api/arcade/upgrades/auto_fire/buy")
+    assert resp.status_code == 409, resp.text
 
 
 def test_http_earn_flashcard(client: TestClient) -> None:
