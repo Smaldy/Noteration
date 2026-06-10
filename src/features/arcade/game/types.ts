@@ -22,12 +22,13 @@ export interface Loadout {
 export type EnemyKind = "clock" | "hourglass" | "shard";
 
 /**
- * The game's "arenas" — one per real app page. Switching a sector now drives the
- * real router (the live page changes behind the transparent game), so the set is
- * aligned to real routes. Calendar and Queue are the themed sectors; Pomodoro is
- * intentionally absent (it's a main-tab overlay, not a page).
+ * The game's "arenas" — one per real app page. The active sector is derived from
+ * the real route: the player navigates with the app's *own* buttons (the Library
+ * header buttons, and each page's "← Library" return button), which change the
+ * page and the sector together. Calendar and Queue are the themed sectors;
+ * Pomodoro is intentionally absent (it's a main-tab overlay, not a page).
  */
-export type ArenaId = "exam" | "bookmarks" | "calendar" | "queue" | "settings";
+export type ArenaId = "library" | "exam" | "bookmarks" | "calendar" | "queue" | "settings";
 
 export interface Enemy {
   id: number;
@@ -166,32 +167,35 @@ export const COLORS = {
 export interface ArenaDef {
   id: ArenaId;
   label: string; // uppercase label for the in-canvas sector banner
-  labelKey: string; // i18n key, so the DOM nav matches the real header button text
-  iconOnly?: boolean; // Settings is an icon-only button in the real header
-  route: string; // real app route this sector drives
-  color: string; // theme accent (drives the bomb glow)
+  route: string; // the real app route this sector maps to
+  color: string; // theme accent (canvas banner + HUD label)
+}
+
+/** Every sector and the real route it maps to (`/` is the Library hub). */
+export const ARENAS: ArenaDef[] = [
+  { id: "library", label: "LIBRARY", route: "/", color: COLORS.green },
+  { id: "exam", label: "EXAM PREP", route: "/exam", color: COLORS.cyan },
+  { id: "bookmarks", label: "BOOKMARKS", route: "/bookmarks", color: "#ffa94d" },
+  { id: "calendar", label: "CALENDAR", route: "/calendar", color: COLORS.pink },
+  { id: "queue", label: "QUEUE", route: "/queue", color: COLORS.yellow },
+  { id: "settings", label: "SETTINGS", route: "/settings", color: "#b69cff" },
+];
+
+/** Map a real route to its sector (longest non-root prefix wins; `/` → library). */
+export function arenaForPath(path: string): ArenaId {
+  const hit = ARENAS.find((a) => a.route !== "/" && path.startsWith(a.route));
+  return hit?.id ?? "library";
 }
 
 /**
- * The sector switcher mirrors the real Library-header button row (same order,
- * routes, icons, and i18n labels) so the game's nav reads as the app's own nav.
- */
-export const ARENAS: ArenaDef[] = [
-  { id: "exam", label: "EXAM PREP", labelKey: "nav.examPrep", route: "/exam", color: COLORS.cyan },
-  { id: "bookmarks", label: "BOOKMARKS", labelKey: "nav.bookmarks", route: "/bookmarks", color: COLORS.green },
-  { id: "calendar", label: "CALENDAR", labelKey: "nav.calendar", route: "/calendar", color: COLORS.pink },
-  { id: "queue", label: "QUEUE", labelKey: "nav.queue", route: "/queue", color: COLORS.yellow },
-  { id: "settings", label: "SETTINGS", labelKey: "nav.settings", iconOnly: true, route: "/settings", color: "#b69cff" },
-];
-
-/**
  * Which enemy types spawn in each arena. Calendar → Clock and Queue → Hourglass
- * are the themed sectors; the other three reuse the Time-Pressure pool until
- * they get dedicated enemies. (`shard` only appears from a hourglass's death.)
+ * are the themed sectors; the rest reuse the Time-Pressure pool until they get
+ * dedicated enemies. (`shard` only appears from a hourglass's death.)
  */
 export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
   calendar: ["clock"],
   queue: ["hourglass"],
+  library: ["clock", "hourglass"],
   exam: ["clock", "hourglass"],
   bookmarks: ["hourglass", "clock"],
   settings: ["clock", "hourglass"],

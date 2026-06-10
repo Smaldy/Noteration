@@ -26,6 +26,11 @@ interface ArcadeStore {
   phase: GamePhase;
   run: RunStart | null;
 
+  // Sectors (route ids) that currently have a live bomb — the running game
+  // publishes this so the real Library nav buttons can glow. Empty when idle.
+  bombSectors: string[];
+  setBombSectors: (sectors: string[]) => void;
+
   fetchState: () => Promise<void>;
   openOverlay: () => void;
   closeOverlay: () => void;
@@ -47,6 +52,8 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
   overlayOpen: false,
   phase: "off",
   run: null,
+  bombSectors: [],
+  setBombSectors: (sectors) => set({ bombSectors: sectors }),
 
   fetchState: async () => {
     if (get().state === null) set({ status: "loading" });

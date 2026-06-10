@@ -83,7 +83,7 @@ export function createWorld(
       hurt: 0,
     },
     slowmo: { active: 0, cooldown: 0 },
-    arena: "calendar", // start where the clocks live
+    arena: "library", // synced to the real route on mount
     enemies: [],
     spikes: [],
     bullets: [],

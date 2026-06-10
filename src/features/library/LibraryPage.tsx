@@ -29,6 +29,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/features/search/SearchBar";
 import { UploadDialog } from "@/features/upload/UploadDialog";
+import { cn } from "@/lib/utils";
+import { useArcadeStore } from "@/stores/arcade";
 import { useEasterEggStore } from "@/stores/easterEgg";
 import { useLibraryStore } from "@/stores/library";
 
@@ -52,6 +54,10 @@ export function LibraryPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const registerLibraryTap = useEasterEggStore((s) => s.registerLibraryTap);
+  // The running arcade game lights these section buttons when a bomb is planted
+  // in that sector — defuse it by navigating there (it's a real route).
+  const bombSectors = useArcadeStore((s) => s.bombSectors);
+  const glow = (sector: string) => (bombSectors.includes(sector) ? "arcade-bomb-alert" : "");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -129,25 +135,26 @@ export function LibraryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/exam")}>
+          <Button variant="outline" className={cn(glow("exam"))} onClick={() => navigate("/exam")}>
             <GraduationCap />
             {t("nav.examPrep")}
           </Button>
-          <Button variant="outline" onClick={() => navigate("/bookmarks")}>
+          <Button variant="outline" className={cn(glow("bookmarks"))} onClick={() => navigate("/bookmarks")}>
             <Bookmark />
             {t("nav.bookmarks")}
           </Button>
-          <Button variant="outline" onClick={() => navigate("/calendar")}>
+          <Button variant="outline" className={cn(glow("calendar"))} onClick={() => navigate("/calendar")}>
             <CalendarDays />
             {t("nav.calendar")}
           </Button>
-          <Button variant="outline" onClick={() => navigate("/queue")}>
+          <Button variant="outline" className={cn(glow("queue"))} onClick={() => navigate("/queue")}>
             <ListChecks />
             {t("nav.queue")}
           </Button>
           <Button
             variant="outline"
             size="icon"
+            className={cn(glow("settings"))}
             title={t("nav.settings")}
             onClick={() => navigate("/settings")}
           >

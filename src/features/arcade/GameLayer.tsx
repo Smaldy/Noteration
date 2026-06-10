@@ -23,7 +23,9 @@ export function GameLayer() {
   if (phase === "off" || run === null) return null;
 
   return (
-    <div className="fixed inset-0 z-[80]">
+    // pointer-events-none so the live app stays clickable during play (the game's
+    // input plate + the full-screen slam/over screens opt back in themselves).
+    <div className="pointer-events-none fixed inset-0 z-[80]">
       <style>{arcadeStyles}</style>
       <AnimatePresence mode="wait">
         {phase === "starting" && <WaveSlam key="slam" wave={run.start_wave} />}
@@ -41,7 +43,7 @@ function WaveSlam({ wave }: { wave: number }) {
   }, []);
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center bg-black/80"
+      className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/80"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -62,7 +64,7 @@ function GameOver() {
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center bg-black/85"
+      className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/85"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

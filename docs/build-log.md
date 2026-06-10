@@ -178,8 +178,24 @@
     controls moved bottom-left, BANK & EXIT bottom-right, clear of the header
     illusion. (Note: the app has no global tab bar, so the replica matches the
     *Library* header; on other pages it stays as consistent native-looking nav.)
-    tsc + build clean. **Next:** dedicated enemy themes for Exam/Bookmarks/Settings,
-    then balance polish.
+    tsc + build clean.
+  - **14-8 (done) — Use the app's REAL buttons as the nav (user-driven).** Scrapped
+    the game's own nav bar entirely (the user wanted no second set of buttons). The
+    game plays over the *live* app and the active sector is **derived from the real
+    route** (`arenaForPath`): you navigate with the app's **own** buttons — the
+    Library header buttons and each page's "← Library" return button — and clicking
+    them changes the real page *and* the sector together. To keep those buttons
+    clickable under the full-screen game, the arcade overlay is now
+    `pointer-events-none` except (a) an **input plate** capturing the game's clicks
+    *below* a 96 px top strip and (b) the BANK button / slam / game-over screens;
+    the top strip is left click-through so the app's real nav (which lives there on
+    every page) works. The **glow rides the real buttons**: the running game
+    publishes `bombSectors` to the arcade store and `LibraryPage` lights the
+    matching section `Button` with the shiny `arcade-bomb-alert` border; an
+    on-canvas "⚠ BOMB IN …" pill names sectors to return to. Sectors realigned to
+    all six real routes (added **library** `/`). Two real files touched additively:
+    `LibraryPage` (glow) + the store (`bombSectors`). tsc + build clean. **Next:**
+    dedicated enemy themes per page, balance polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a
