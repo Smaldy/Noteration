@@ -7,6 +7,9 @@ export interface ArcadeUpgrade {
   level: number;
   max_level: number;
   next_cost: number | null;
+  tier: number; // 1..3 — skills are grouped and gated by tier
+  unlock_wave: number; // wave_record needed to buy this tier (0 = always open)
+  locked: boolean; // true while wave_record < unlock_wave
 }
 
 export interface DailyQuest {

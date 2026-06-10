@@ -11,7 +11,7 @@
  * Library button glow (and an on-screen alert names them); go there and *hold* on
  * the bomb to defuse it before the fuse blows. Death or BANK & EXIT ends the run.
  */
-import { Heart, Lock, Zap } from "lucide-react";
+import { Heart, Lock, Shield, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -43,6 +43,8 @@ interface Hud {
   boss: boolean; // a boss just spawned → show the scare banner
   slowReady: boolean;
   hasSlow: boolean;
+  hasPhase: boolean; // Phase Cloak owned
+  phaseActive: boolean; // Phase Cloak currently up (ignore-damage window)
 }
 
 export function GameCanvas() {
@@ -79,6 +81,8 @@ export function GameCanvas() {
     boss: false,
     slowReady: false,
     hasSlow: false,
+    hasPhase: false,
+    phaseActive: false,
   });
 
   // End the run exactly once, banking the global wave + score the world reached.
@@ -241,6 +245,8 @@ export function GameCanvas() {
           boss: world.bossBanner > 0,
           slowReady: world.slowmo.cooldown <= 0,
           hasSlow: world.load.slowMoLevel > 0,
+          hasPhase: world.load.phaseShieldLevel > 0,
+          phaseActive: world.phase.active > 0,
         });
         // Publish bomb sectors to the store (for the real nav glow) when changed.
         const key = [...bombArenas].sort().join(",");
@@ -345,6 +351,7 @@ export function GameCanvas() {
         </p>
         <p className="arcade-dim text-[7px] leading-relaxed">
           {load.canShoot ? `CLICK — ZAP + ${bulletsPerClick(load)} SHOTS` : "CLICK TO ZAP"}
+          {load.autoFireLevel > 0 && " · AUTO-TURRET ON"}
           <br />
           HOLD ON A BOMB TO DEFUSE · NAV WITH THE APP&apos;S BUTTONS
           {hud.hasSlow && (
@@ -353,6 +360,15 @@ export function GameCanvas() {
               <span className={hud.slowReady ? "arcade-neon-green" : "arcade-dim"}>
                 <Zap className="mb-0.5 inline size-2.5" /> SPACE / RMB — OVERCLOCK
                 {hud.slowReady ? " READY" : " ..."}
+              </span>
+            </>
+          )}
+          {hud.hasPhase && (
+            <>
+              <br />
+              <span className={hud.phaseActive ? "arcade-neon-green" : "arcade-dim"}>
+                <Shield className="mb-0.5 inline size-2.5" /> PHASE CLOAK
+                {hud.phaseActive ? " ACTIVE" : " ..."}
               </span>
             </>
           )}

@@ -54,6 +54,7 @@ export function ArcadeOverlay() {
   const selUpgrade = screen === "store" ? upgrades[storeIdx] : undefined;
   const canBuy =
     !!selUpgrade &&
+    !selUpgrade.locked &&
     selUpgrade.next_cost != null &&
     !!state &&
     state.score_balance >= selUpgrade.next_cost;
@@ -111,7 +112,12 @@ export function ArcadeOverlay() {
 
   const buySelected = useCallback(async () => {
     const up = state?.upgrades[storeIdx];
-    if (!up || up.next_cost == null || !state || state.score_balance < up.next_cost) return;
+    if (!up || !state) return;
+    if (up.locked) {
+      setStoreError(`REACH WAVE ${up.unlock_wave} TO UNLOCK`);
+      return;
+    }
+    if (up.next_cost == null || state.score_balance < up.next_cost) return;
     setPulling(true);
     setStoreBusy(true);
     setStoreError(null);

@@ -256,6 +256,29 @@
     dead `INTERACTIVE`/`ctrl` code. tsc + build clean.
     **Next:** balance pass once playtested.
 
+  - **14-13 (done) — Tiered skill tree + 7 new skills (user-driven).** Reworked
+    the shop into a **scalable, data-driven** skill system. *Backend* (`services/
+    arcade.py`): `UpgradeSpec` now generates its cost curve from
+    `base_cost × 1.5^level` up to `max_level` (default **10**) — no hand-typed
+    tables — and carries a `tier` (1–3). `TIER_UNLOCK_WAVE = {1:0, 2:10, 3:20}`
+    gates buying by `wave_record`; a locked buy raises `TierLockedError` → 409.
+    Added 7 skills beside the 5 existing: **zap_damage** (Shockwave, area dmg),
+    **zap_reach** (Resonance Field, area radius), **auto_fire** (Auto-Turret,
+    aimed auto-shot, expensive), **defuse_speed** (Quick Hands, −hold), **defuse_
+    window** (Long Fuse, +fuse), **defuse_freeze** (Dampening Field, slows a fuse
+    while defusing), **phase_shield** (Phase Cloak, periodic ignore-damage 30s→20s).
+    `dev_grant` now also unlocks every tier. `UpgradeOut` gained `tier/unlock_wave/
+    locked`. Adding a skill = one `UpgradeSpec` row + one `loadoutFrom` field;
+    adding a tier = one `TIER_UNLOCK_WAVE` entry. *Sim* (`game/`): `Loadout`
+    +`loadoutFrom` carry every level; `world.ts` implements all 7 (zap dmg/reach,
+    auto-fire timer, fuse window/speed, defuse-freeze burn rate, phase-cloak auto
+    i-frames); `render.ts` draws a green cloak ring while shielded. *UI*:
+    `UpgradesScreen` groups by tier with headers + `WAVE N` lock badges;
+    `ArcadeOverlay` refuses locked buys; HUD shows Auto-Turret / Phase Cloak.
+    **26 backend arcade tests pass** (added cost-curve + tier-lock + 409 cases);
+    tsc + Vite build clean.
+    **Next:** balance the new costs/effects once playtested.
+
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a
   green tree (**591 backend tests**, tsc + Vite build clean):

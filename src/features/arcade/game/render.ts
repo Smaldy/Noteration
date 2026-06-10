@@ -253,10 +253,24 @@ function drawBossBar(ctx: CanvasRenderingContext2D, e: Enemy) {
 function drawPlayer(ctx: CanvasRenderingContext2D, world: World) {
   const p = world.player;
   const { x, y } = p.pos;
-  // Flicker while invulnerable.
-  if (p.invuln > 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
+  const shielded = world.phase.active > 0;
+  // Flicker while invulnerable — but stay solid (and ringed) under the Phase
+  // Cloak so a multi-second shield window doesn't strobe the reticle away.
+  if (!shielded && p.invuln > 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
   ctx.save();
   ctx.translate(x, y);
+  if (shielded) {
+    // Pulsing hex-cloak ring around the reticle.
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = COLORS.green;
+    ctx.strokeStyle = COLORS.green;
+    ctx.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(world.elapsed * 6));
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 19, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   ctx.shadowBlur = 14;
   const col = p.hurt > 0 ? COLORS.pink : world.slowmo.active > 0 ? COLORS.yellow : COLORS.cyan;
   ctx.shadowColor = col;

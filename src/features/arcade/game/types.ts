@@ -10,13 +10,24 @@ export interface Vec {
   y: number;
 }
 
-/** Player loadout, derived once from owned upgrade levels at run start. */
+/**
+ * Player loadout, derived once from owned skill levels at run start. Each field
+ * maps to one skill key (see `loadoutFrom`); the sim reads these, never the raw
+ * upgrade rows, so adding a skill is: add a field here + read it in `world.ts`.
+ */
 export interface Loadout {
   maxHealth: number; // 3 + max_health level
-  canShoot: boolean; // Sidearm owned → auto-fire at the nearest enemy
-  fireRateLevel: number; // 0..3 — shorter auto-fire interval
-  slowMoLevel: number; // Overclock 0..3 — dodge slow-motion duration/cooldown
+  zapDamage: number; // click-burst (area) damage — base 1 + zap_damage level
+  zapReach: number; // click-burst radius in px — base + zap_reach level
+  canShoot: boolean; // Sidearm owned → click fires a bullet burst
+  fireRateLevel: number; // Rapid Fire — more bullets per click-burst
+  autoFireLevel: number; // Auto-Turret 0..10 — 0 = off; higher = faster auto-fire
+  slowMoLevel: number; // Overclock 0..10 — dodge slow-motion duration/cooldown
   scoreMult: number; // 1 + 0.25 × Combo Chip level
+  defuseSpeedLevel: number; // Quick Hands — shorter hold-to-defuse
+  defuseWindowLevel: number; // Long Fuse — longer bomb fuses
+  defuseFreezeLevel: number; // Dampening Field — slows a fuse while defusing it
+  phaseShieldLevel: number; // Phase Cloak 0..10 — periodic ignore-damage window
 }
 
 export type EnemyKind = "hunter" | "shooter" | "clock" | "hourglass" | "shard";
@@ -76,6 +87,7 @@ export interface Bomb {
   defuse: number; // hold-to-defuse progress, 0..1
   defuseTime: number; // seconds of holding needed to fully defuse
   radius: number;
+  defusing: boolean; // set each frame while actively being defused (Dampening Field)
 }
 
 /** Player projectile (Sidearm bullets). */
@@ -125,6 +137,14 @@ export interface SlowMo {
   cooldown: number; // remaining cooldown before it can re-trigger
 }
 
+/** Phase Cloak: a recurring auto-invuln window. `active` ticks down while the
+ *  cloak is up; `cooldown` ticks down between windows (interval shrinks 30s→20s
+ *  as the skill is leveled). Inert unless `load.phaseShieldLevel > 0`. */
+export interface PhaseShield {
+  active: number;
+  cooldown: number;
+}
+
 /** Per-arena spawn bookkeeping. The wave number itself is global (one shared
  *  level across all sectors), only the in-flight spawn batch is per-sector. */
 export interface ArenaState {
@@ -139,6 +159,8 @@ export interface World {
   load: Loadout;
   player: Player;
   slowmo: SlowMo;
+  phase: PhaseShield; // Phase Cloak timers
+  autoFireCd: number; // Auto-Turret: seconds until the next auto-shot
   arena: ArenaId; // the active sector
   enemies: Enemy[]; // all sectors; only `arena`'s are live
   spikes: Spike[]; // active-sector projectiles (cleared on switch)
@@ -245,9 +267,16 @@ export function loadoutFrom(state: ArcadeState | null): Loadout {
     state?.upgrades.find((u) => u.key === key)?.level ?? 0;
   return {
     maxHealth: 3 + level("max_health"),
+    zapDamage: 1 + level("zap_damage"),
+    zapReach: 64 + 12 * level("zap_reach"),
     canShoot: level("shooting") >= 1,
     fireRateLevel: level("fire_rate"),
+    autoFireLevel: level("auto_fire"),
     slowMoLevel: level("move_speed"),
     scoreMult: 1 + 0.25 * level("score_multiplier"),
+    defuseSpeedLevel: level("defuse_speed"),
+    defuseWindowLevel: level("defuse_window"),
+    defuseFreezeLevel: level("defuse_freeze"),
+    phaseShieldLevel: level("phase_shield"),
   };
 }

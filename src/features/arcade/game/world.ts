@@ -34,9 +34,7 @@ import {
 
 // ── Tunables ────────────────────────────────────────────────────────────────
 const PLAYER_R = 9;
-const ZAP_R = 64; // manual click hits enemies/bombs within this radius of the cursor
-const ZAP_CD = 0.22;
-const ZAP_DMG = 1;
+const ZAP_CD = 0.22; // min seconds between click-bursts
 const INVULN = 1.15;
 const BULLET_SPEED = 560;
 const BULLET_R = 5;
@@ -56,6 +54,33 @@ const DEFUSE_DECAY = 0.6; // progress lost per second when not holding on it
 
 const PLAYER_KNOCKBACK = 20; // how far an enemy is shoved off after touching you
 const BOLT_SPEED = 240; // shooter projectile speed
+
+// Auto-Turret (auto_fire): fires an aimed bullet at the nearest enemy on a timer
+// that shortens with level. Independent of the Sidearm (the manual click-burst).
+const AUTO_FIRE_BASE = 0.85; // interval (s) at level 1
+const AUTO_FIRE_STEP = 0.06; // faster per level
+const AUTO_FIRE_MIN = 0.14; // floor on the interval
+
+// Phase Cloak (phase_shield): a recurring auto-invuln window. The interval
+// shrinks linearly from 30s (level 1) to 20s (level PHASE_MAX_LEVEL).
+const PHASE_DUR = 2.5; // seconds of ignore-damage per window
+const PHASE_CD_HI = 30; // interval at level 1
+const PHASE_CD_LO = 20; // interval at max level
+const PHASE_MAX_LEVEL = 10;
+
+// Bomb-defuse skills.
+const DEFUSE_WINDOW_STEP = 1.0; // Long Fuse: +1s of fuse per level
+const DEFUSE_SPEED_STEP = 0.07; // Quick Hands: -7% hold time per level
+const DEFUSE_TIME_MIN = 0.6; // floor on the hold-to-defuse time
+const DEFUSE_FREEZE_STEP = 0.08; // Dampening Field: -8% fuse burn while defusing
+const DEFUSE_BURN_MIN = 0.1; // a defused fuse never fully freezes
+
+/** Phase Cloak interval (seconds) at a given level; Infinity when unowned. */
+function phaseInterval(level: number): number {
+  if (level <= 0) return Infinity;
+  const t = Math.min(1, (level - 1) / (PHASE_MAX_LEVEL - 1));
+  return PHASE_CD_HI - (PHASE_CD_HI - PHASE_CD_LO) * t;
+}
 
 // hp/radius/speed, ability cooldown (`reload`, 999 = no ability — melee only),
 // contact damage, and score. Bosses scale these up at spawn.
@@ -95,6 +120,8 @@ export function createWorld(
       hurt: 0,
     },
     slowmo: { active: 0, cooldown: 0 },
+    phase: { active: 0, cooldown: phaseInterval(load.phaseShieldLevel) },
+    autoFireCd: 0,
     arena: "library", // synced to the real route on mount
     enemies: [],
     spikes: [],
@@ -246,6 +273,23 @@ export function step(world: World, dtRaw: number, input: FrameInput): void {
   world.slowmo.cooldown = Math.max(0, world.slowmo.cooldown - dt);
   const edt = world.slowmo.active > 0 ? dt * SLOW_FACTOR : dt;
 
+  // Phase Cloak: on its own clock, periodically grant a brief ignore-damage
+  // window (keeps player i-frames topped up while it's up).
+  if (world.load.phaseShieldLevel > 0) {
+    if (world.phase.active > 0) {
+      world.phase.active = Math.max(0, world.phase.active - dt);
+    } else {
+      world.phase.cooldown -= dt;
+      if (world.phase.cooldown <= 0) {
+        world.phase.active = PHASE_DUR;
+        world.phase.cooldown = phaseInterval(world.load.phaseShieldLevel);
+      }
+    }
+    if (world.phase.active > 0) {
+      world.player.invuln = Math.max(world.player.invuln, world.phase.active);
+    }
+  }
+
   stepPlayer(world, dt, input);
   stepWave(world, dt);
   stepEnemies(world, edt);
@@ -268,32 +312,73 @@ function stepPlayer(world: World, dt: number, input: FrameInput) {
   p.hurt = Math.max(0, p.hurt - dt);
   p.zapCd = Math.max(0, p.zapCd - dt);
 
-  // Click attack: a short-range zap (always) plus — once the Sidearm is owned —
-  // a radiating burst of bullets. More Rapid Fire = more bullets per click.
+  // Click attack: a short-range area zap (always) plus — once the Sidearm is
+  // owned — a radiating burst of bullets. Shockwave scales the zap's damage and
+  // Resonance Field its radius (`load.zapReach`).
   if (input.clicked && p.zapCd <= 0) {
     p.zapCd = ZAP_CD;
-    world.zaps.push({ pos: { ...p.pos }, life: 0.26, maxLife: 0.26, radius: ZAP_R });
-    const r2 = ZAP_R * ZAP_R;
+    const reach = world.load.zapReach;
+    world.zaps.push({ pos: { ...p.pos }, life: 0.26, maxLife: 0.26, radius: reach });
+    const r2 = reach * reach;
     for (const e of world.enemies) {
       if (e.arena !== world.arena) continue;
-      if (dist2(e.pos, p.pos) <= r2 + e.radius * e.radius) damageEnemy(world, e, ZAP_DMG);
+      if (dist2(e.pos, p.pos) <= r2 + e.radius * e.radius)
+        damageEnemy(world, e, world.load.zapDamage);
     }
     if (world.load.canShoot) fireBurst(world);
   }
 
+  // Auto-Turret: on its own timer, fire an aimed bullet at the nearest enemy.
+  if (world.load.autoFireLevel > 0) {
+    world.autoFireCd -= dt;
+    if (world.autoFireCd <= 0) {
+      world.autoFireCd = Math.max(
+        AUTO_FIRE_MIN,
+        AUTO_FIRE_BASE - AUTO_FIRE_STEP * (world.load.autoFireLevel - 1),
+      );
+      autoFire(world);
+    }
+  }
+
   // Hold the click on a bomb in this sector to defuse it: the meter fills over
-  // `defuseTime`, and bleeds back down when you step off it.
+  // `defuseTime`, and bleeds back down when you step off it. `defusing` is
+  // republished each frame so Dampening Field can slow the fuse in `stepBombs`.
   for (const b of world.bombs) {
+    b.defusing = false;
     if (b.arena !== world.arena) continue;
     const reach = b.radius + DEFUSE_REACH;
     const onIt = dist2(b.pos, p.pos) <= reach * reach;
     if (input.held && onIt) {
+      b.defusing = true;
       b.defuse += dt / b.defuseTime;
       if (b.defuse >= 1) defuseBomb(world, b);
     } else if (b.defuse > 0) {
       b.defuse = Math.max(0, b.defuse - dt * DEFUSE_DECAY);
     }
   }
+}
+
+/** Auto-Turret shot: aim a single bullet at the nearest live enemy. */
+function autoFire(world: World) {
+  const p = world.player;
+  let best: Enemy | null = null;
+  let bestD = Infinity;
+  for (const e of world.enemies) {
+    if (e.arena !== world.arena) continue;
+    const d = dist2(e.pos, p.pos);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  if (!best) return;
+  const a = Math.atan2(best.pos.y - p.pos.y, best.pos.x - p.pos.x);
+  world.bullets.push({
+    id: world.nextId++,
+    pos: { ...p.pos },
+    vel: { x: Math.cos(a) * BULLET_SPEED, y: Math.sin(a) * BULLET_SPEED },
+    life: 1.1,
+  });
 }
 
 /** Bullets emitted per click once the Sidearm is owned (0 otherwise). */
@@ -516,7 +601,11 @@ function stepBombs(world: World, dt: number) {
   }
   const kept: Bomb[] = [];
   for (const b of world.bombs) {
-    b.fuse -= dt;
+    // Dampening Field slows the fuse while you're actively defusing this bomb.
+    const burn = b.defusing
+      ? Math.max(DEFUSE_BURN_MIN, 1 - DEFUSE_FREEZE_STEP * world.load.defuseFreezeLevel)
+      : 1;
+    b.fuse -= dt * burn;
     if (b.fuse <= 0) {
       // Detonate — costs a heart wherever you are.
       world.shake = 20;
@@ -536,15 +625,23 @@ function plantBomb(world: World) {
   const others = unlocked.filter((id) => id !== world.arena);
   const pool = others.length > 0 && Math.random() < 0.8 ? others : unlocked;
   const arena = pool[Math.floor(Math.random() * pool.length)] ?? world.arena;
+  // Long Fuse adds seconds to the fuse; Quick Hands trims the hold-to-defuse.
+  const fuse = BOMB_FUSE + DEFUSE_WINDOW_STEP * world.load.defuseWindowLevel;
+  const baseDefuse = DEFUSE_MIN + Math.random() * (DEFUSE_MAX - DEFUSE_MIN);
+  const defuseTime = Math.max(
+    DEFUSE_TIME_MIN,
+    baseDefuse * (1 - DEFUSE_SPEED_STEP * world.load.defuseSpeedLevel),
+  );
   world.bombs.push({
     id: world.nextId++,
     arena,
     pos: { x: 80 + Math.random() * (world.w - 160), y: 110 + Math.random() * (world.h - 220) },
-    fuse: BOMB_FUSE,
-    maxFuse: BOMB_FUSE,
+    fuse,
+    maxFuse: fuse,
     defuse: 0,
-    defuseTime: DEFUSE_MIN + Math.random() * (DEFUSE_MAX - DEFUSE_MIN),
+    defuseTime,
     radius: BOMB_R,
+    defusing: false,
   });
 }
 
