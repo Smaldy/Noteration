@@ -11,17 +11,27 @@
  * Library button glow (and an on-screen alert names them); go there and *hold* on
  * the bomb to defuse it before the fuse blows. Death or BANK & EXIT ends the run.
  */
-import { Heart, Zap } from "lucide-react";
+import { Heart, Lock, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useArcadeStore } from "@/stores/arcade";
 
 import { ARCADE_PIXEL } from "./crtStyles";
 import { render } from "./game/render";
-import { ARENAS, type ArenaId, arenaForPath, type FrameInput, type World } from "./game/types";
+import {
+  ARENAS,
+  type ArenaId,
+  arenaForPath,
+  type FrameInput,
+  sectorUnlocked,
+  unlockedSectorIds,
+  type World,
+} from "./game/types";
 import { loadoutFrom } from "./game/types";
 import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
+
+const INTERACTIVE = 'a, button, [role="button"], input, select, textarea, label';
 
 /** Lightweight HUD mirror so React re-renders only when these change. */
 interface Hud {
@@ -41,7 +51,9 @@ export function GameCanvas() {
   const run = useArcadeStore((s) => s.run);
   const endRun = useArcadeStore((s) => s.endRun);
   const setBombSectors = useArcadeStore((s) => s.setBombSectors);
+  const setUnlockedSectors = useArcadeStore((s) => s.setUnlockedSectors);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const worldRef = useRef<World | null>(null);
@@ -53,6 +65,9 @@ export function GameCanvas() {
   });
   const endedRef = useRef(false);
   const finishRef = useRef<(died: boolean) => void>(() => {});
+  const lockTimer = useRef<number>();
+  // A padlock pops where a locked control was clicked.
+  const [lockFx, setLockFx] = useState<{ x: number; y: number; key: number } | null>(null);
 
   const [hud, setHud] = useState<Hud>({
     health: 0,
@@ -110,23 +125,28 @@ export function GameCanvas() {
       run?.start_wave ?? 1,
       run?.start_score ?? 0,
     );
-    switchArena(world, arenaForPath(window.location.pathname)); // match the page we open on
+    navigate("/"); // every run starts in the always-unlocked Library hub
     world.player.pos = { x: world.w / 2, y: world.h / 2 };
     inputRef.current.pointer = { ...world.player.pos };
     worldRef.current = world;
 
     // ── Input ────────────────────────────────────────────────────────────────
     // The whole overlay is click-through (pointer-events:none); input is captured
-    // on window. A click only zaps when it ISN'T on a real control — clicking the
-    // app's own nav/return buttons (or BANK) navigates them, untouched.
-    const isControl = (t: EventTarget | null) =>
-      t instanceof Element &&
-      !!t.closest('a, button, [role="button"], input, select, textarea, label');
+    // on window. A click only navigates the app's OWN nav buttons that are
+    // currently UNLOCKED; every other clickable (locked sector buttons, page
+    // controls) is blocked with a padlock pop. Empty space zaps the game.
+    const ctrl = (t: EventTarget | null) => (t instanceof Element ? t.closest(INTERACTIVE) : null);
+    const showLock = (x: number, y: number) => {
+      setLockFx({ x, y, key: performance.now() });
+      window.clearTimeout(lockTimer.current);
+      lockTimer.current = window.setTimeout(() => setLockFx(null), 650);
+    };
     const onMove = (e: MouseEvent) => {
       inputRef.current.pointer = { x: e.clientX, y: e.clientY };
     };
     const onDown = (e: MouseEvent) => {
-      if (isControl(e.target)) return; // let the real button do its thing
+      const el = e.target as Element | null;
+      if (el?.closest("[data-arcade-ui]") || ctrl(el)) return; // a control — handled on click
       if (e.button === 0) {
         inputRef.current.clicked = true;
         inputRef.current.held = true;
@@ -134,11 +154,29 @@ export function GameCanvas() {
         inputRef.current.dodge = true;
       }
     };
+    const onClickCapture = (e: MouseEvent) => {
+      const el = e.target as Element | null;
+      if (!el || el.closest("[data-arcade-ui]")) return; // our own UI (BANK) — allow
+      const navEl = el.closest("[data-arcade-sector]");
+      const w = worldRef.current;
+      if (
+        navEl &&
+        w &&
+        sectorUnlocked(navEl.getAttribute("data-arcade-sector") as ArenaId, w.wave)
+      ) {
+        return; // an unlocked sector button — let it navigate
+      }
+      if (navEl || ctrl(el)) {
+        e.preventDefault();
+        e.stopPropagation();
+        showLock(e.clientX, e.clientY);
+      }
+    };
     const onUp = () => {
       inputRef.current.held = false;
     };
     const onContext = (e: MouseEvent) => {
-      if (!isControl(e.target)) e.preventDefault(); // right-click in the play area = dodge
+      if (!ctrl(e.target)) e.preventDefault(); // right-click in the play area = dodge
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === " ") {
@@ -151,6 +189,7 @@ export function GameCanvas() {
     document.body.style.cursor = "none"; // the drawn reticle replaces the OS cursor
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mousedown", onDown);
+    window.addEventListener("click", onClickCapture, true); // capture: block before React
     window.addEventListener("mouseup", onUp);
     window.addEventListener("blur", onUp);
     window.addEventListener("contextmenu", onContext);
@@ -162,6 +201,7 @@ export function GameCanvas() {
     let last = performance.now();
     let hudAccum = 0;
     let lastBombKey = "";
+    let lastUnlockWave = -1;
     const frame = (now: number) => {
       const dt = (now - last) / 1000;
       last = now;
@@ -197,6 +237,11 @@ export function GameCanvas() {
           lastBombKey = key;
           setBombSectors(bombArenas);
         }
+        // Publish unlocked sectors when the wave crosses an unlock threshold.
+        if (world.wave !== lastUnlockWave) {
+          lastUnlockWave = world.wave;
+          setUnlockedSectors(unlockedSectorIds(world.wave));
+        }
       }
 
       if (world.status === "over") {
@@ -210,14 +255,17 @@ export function GameCanvas() {
     return () => {
       cancelAnimationFrame(raf);
       document.body.style.cursor = "";
+      window.clearTimeout(lockTimer.current);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("click", onClickCapture, true);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("blur", onUp);
       window.removeEventListener("contextmenu", onContext);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", resize);
       setBombSectors([]); // clear the nav glow when the run ends
+      setUnlockedSectors([]);
     };
     // Run once per mount: a run is a fresh world; loadout is fixed at start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,6 +290,17 @@ export function GameCanvas() {
             <span>{otherBombs.map((id) => ARENAS.find((a) => a.id === id)?.label).join(" · ")}</span>
             <span className="tabular-nums text-amber-200">{Math.max(0, Math.ceil(hud.bombFuse))}s</span>
           </div>
+        </div>
+      )}
+
+      {/* Padlock pop where a locked control was clicked. */}
+      {lockFx && (
+        <div
+          key={lockFx.key}
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2"
+          style={{ left: lockFx.x, top: lockFx.y }}
+        >
+          <Lock className="arcade-lock-pop size-7 text-rose-300 drop-shadow-[0_0_6px_rgba(255,90,120,0.9)]" />
         </div>
       )}
 
@@ -279,6 +338,7 @@ export function GameCanvas() {
 
       <button
         type="button"
+        data-arcade-ui
         onClick={() => finishRef.current(false)}
         className={`pointer-events-auto absolute bottom-4 right-4 rounded border border-white/30 bg-black/40 px-3 py-1.5 text-[8px] arcade-dim backdrop-blur transition hover:scale-105 hover:text-white ${ARCADE_PIXEL}`}
       >

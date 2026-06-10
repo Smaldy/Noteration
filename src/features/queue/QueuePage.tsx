@@ -78,6 +78,7 @@ export function QueuePage() {
     <div className="mx-auto max-w-3xl px-6 py-10">
       <button
         type="button"
+        data-arcade-sector="library"
         onClick={() => navigate("/")}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >

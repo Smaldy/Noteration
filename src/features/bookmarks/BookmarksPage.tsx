@@ -37,6 +37,7 @@ export function BookmarksPage() {
     <div className="mx-auto max-w-3xl animate-rise px-6 py-10">
       <button
         type="button"
+        data-arcade-sector="library"
         onClick={() => navigate("/")}
         className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >

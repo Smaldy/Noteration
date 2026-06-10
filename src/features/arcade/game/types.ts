@@ -171,13 +171,17 @@ export interface ArenaDef {
   color: string; // theme accent (canvas banner + HUD label)
 }
 
-/** Every sector and the real route it maps to (`/` is the Library hub). */
+/**
+ * Every sector and the real route it maps to (`/` is the Library hub). Order is
+ * the **unlock order**: library is always open, each later sector unlocks every
+ * 5 waves (calendar@5, queue@10, exam@15, bookmarks@20, settings@25).
+ */
 export const ARENAS: ArenaDef[] = [
   { id: "library", label: "LIBRARY", route: "/", color: COLORS.green },
-  { id: "exam", label: "EXAM PREP", route: "/exam", color: COLORS.cyan },
-  { id: "bookmarks", label: "BOOKMARKS", route: "/bookmarks", color: "#ffa94d" },
   { id: "calendar", label: "CALENDAR", route: "/calendar", color: COLORS.pink },
   { id: "queue", label: "QUEUE", route: "/queue", color: COLORS.yellow },
+  { id: "exam", label: "EXAM PREP", route: "/exam", color: COLORS.cyan },
+  { id: "bookmarks", label: "BOOKMARKS", route: "/bookmarks", color: "#ffa94d" },
   { id: "settings", label: "SETTINGS", route: "/settings", color: "#b69cff" },
 ];
 
@@ -185,6 +189,16 @@ export const ARENAS: ArenaDef[] = [
 export function arenaForPath(path: string): ArenaId {
   const hit = ARENAS.find((a) => a.route !== "/" && path.startsWith(a.route));
   return hit?.id ?? "library";
+}
+
+/** A sector is open once the global wave reaches its unlock threshold. */
+export function sectorUnlocked(id: ArenaId, wave: number): boolean {
+  return ARENAS.findIndex((a) => a.id === id) * 5 <= wave;
+}
+
+/** The sectors currently unlocked at a given wave. */
+export function unlockedSectorIds(wave: number): ArenaId[] {
+  return ARENAS.filter((a) => sectorUnlocked(a.id, wave)).map((a) => a.id);
 }
 
 /**

@@ -26,6 +26,7 @@ import {
   type EnemyKind,
   type FrameInput,
   type Loadout,
+  unlockedSectorIds,
   type Vec,
   type World,
 } from "./types";
@@ -445,9 +446,12 @@ function stepBombs(world: World, dt: number) {
 }
 
 function plantBomb(world: World) {
-  // Prefer a non-active sector; fall back to any if all are active (never here).
-  const others = ARENAS.filter((a) => a.id !== world.arena).map((a) => a.id);
-  const arena = Math.random() < 0.8 ? others[Math.floor(Math.random() * others.length)] : world.arena;
+  // Only plant in UNLOCKED sectors (you must be able to reach it), biased to a
+  // non-active one so it creates a nav alert.
+  const unlocked = unlockedSectorIds(world.wave);
+  const others = unlocked.filter((id) => id !== world.arena);
+  const pool = others.length > 0 && Math.random() < 0.8 ? others : unlocked;
+  const arena = pool[Math.floor(Math.random() * pool.length)] ?? world.arena;
   world.bombs.push({
     id: world.nextId++,
     arena,

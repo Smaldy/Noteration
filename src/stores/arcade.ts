@@ -31,6 +31,11 @@ interface ArcadeStore {
   bombSectors: string[];
   setBombSectors: (sectors: string[]) => void;
 
+  // Sectors currently unlocked by the running game (sections unlock every 5
+  // waves). The real Library buttons show a lock badge for the rest while playing.
+  unlockedSectors: string[];
+  setUnlockedSectors: (sectors: string[]) => void;
+
   fetchState: () => Promise<void>;
   openOverlay: () => void;
   closeOverlay: () => void;
@@ -54,6 +59,8 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
   run: null,
   bombSectors: [],
   setBombSectors: (sectors) => set({ bombSectors: sectors }),
+  unlockedSectors: [],
+  setUnlockedSectors: (sectors) => set({ unlockedSectors: sectors }),
 
   fetchState: async () => {
     if (get().state === null) set({ status: "loading" });

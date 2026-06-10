@@ -19,6 +19,7 @@ import {
   CalendarDays,
   GraduationCap,
   ListChecks,
+  Lock,
   Plus,
   Settings,
 } from "lucide-react";
@@ -55,9 +56,12 @@ export function LibraryPage() {
   const { t } = useTranslation();
   const registerLibraryTap = useEasterEggStore((s) => s.registerLibraryTap);
   // The running arcade game lights these section buttons when a bomb is planted
-  // in that sector — defuse it by navigating there (it's a real route).
+  // in that sector, and locks the ones whose sector hasn't unlocked yet.
   const bombSectors = useArcadeStore((s) => s.bombSectors);
+  const unlockedSectors = useArcadeStore((s) => s.unlockedSectors);
+  const playing = useArcadeStore((s) => s.phase) === "playing";
   const glow = (sector: string) => (bombSectors.includes(sector) ? "arcade-bomb-alert" : "");
+  const locked = (sector: string) => playing && !unlockedSectors.includes(sector);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -135,30 +139,56 @@ export function LibraryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className={cn(glow("exam"))} onClick={() => navigate("/exam")}>
+          <Button
+            variant="outline"
+            data-arcade-sector="exam"
+            className={cn("relative", glow("exam"), locked("exam") && "opacity-50")}
+            onClick={() => navigate("/exam")}
+          >
             <GraduationCap />
             {t("nav.examPrep")}
+            {locked("exam") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
           </Button>
-          <Button variant="outline" className={cn(glow("bookmarks"))} onClick={() => navigate("/bookmarks")}>
+          <Button
+            variant="outline"
+            data-arcade-sector="bookmarks"
+            className={cn("relative", glow("bookmarks"), locked("bookmarks") && "opacity-50")}
+            onClick={() => navigate("/bookmarks")}
+          >
             <Bookmark />
             {t("nav.bookmarks")}
+            {locked("bookmarks") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
           </Button>
-          <Button variant="outline" className={cn(glow("calendar"))} onClick={() => navigate("/calendar")}>
+          <Button
+            variant="outline"
+            data-arcade-sector="calendar"
+            className={cn("relative", glow("calendar"), locked("calendar") && "opacity-50")}
+            onClick={() => navigate("/calendar")}
+          >
             <CalendarDays />
             {t("nav.calendar")}
+            {locked("calendar") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
           </Button>
-          <Button variant="outline" className={cn(glow("queue"))} onClick={() => navigate("/queue")}>
+          <Button
+            variant="outline"
+            data-arcade-sector="queue"
+            className={cn("relative", glow("queue"), locked("queue") && "opacity-50")}
+            onClick={() => navigate("/queue")}
+          >
             <ListChecks />
             {t("nav.queue")}
+            {locked("queue") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
           </Button>
           <Button
             variant="outline"
             size="icon"
-            className={cn(glow("settings"))}
+            data-arcade-sector="settings"
+            className={cn("relative", glow("settings"), locked("settings") && "opacity-50")}
             title={t("nav.settings")}
             onClick={() => navigate("/settings")}
           >
             <Settings />
+            {locked("settings") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
           </Button>
           <Button onClick={() => setUploadOpen(true)}>
             <Plus />

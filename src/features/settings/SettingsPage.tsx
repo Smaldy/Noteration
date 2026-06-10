@@ -763,6 +763,7 @@ function Shell({
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
           <button
             type="button"
+            data-arcade-sector="library"
             onClick={onBack}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >

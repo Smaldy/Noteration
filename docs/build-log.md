@@ -207,8 +207,24 @@
     from the soonest off-sector bomb). (3) **Dev buttons no-op** = the running
     backend is **stale** (no `--reload`); the `/arcade/dev/*` routes 405 until the
     backend is **restarted** (code/tests are correct). Dev store actions now
-    `console.warn` instead of swallowing. tsc + build clean. **Next:** dedicated
-    enemy themes per page, balance polish.
+    `console.warn` instead of swallowing. tsc + build clean.
+  - **14-10 (done) — Section lock/unlock + click restriction (user-driven).**
+    Sectors **unlock progressively**: Library is always open; each other sector
+    unlocks every 5 waves (`sectorUnlocked`/`unlockedSectorIds`; order
+    library→calendar→queue→exam→bookmarks→settings, so calendar@5, queue@10, …).
+    Click handling is now a **capture-phase gate** on window: only the app's own
+    nav buttons whose sector is **unlocked** navigate; every other clickable (a
+    locked sector button, any page control) is blocked (`preventDefault` +
+    `stopPropagation`) with a **padlock pop** (`arcade-lock-pop`) at the cursor;
+    empty space still zaps. Real main buttons carry a new `data-arcade-sector` attr
+    (Library's 5 section buttons + every page's "← Library" return = `library`,
+    always unlocked); the game's BANK button is exempt via `data-arcade-ui`. The
+    game **publishes `unlockedSectors`** to the store and `LibraryPage` dims +
+    lock-badges the still-locked buttons while playing. Bombs only plant in
+    **unlocked** sectors. Each run starts in the Library hub (`navigate("/")`).
+    Touched 5 real page files additively (one attr each) + `LibraryPage`. tsc clean.
+    **Next:** enemy overhaul (cursor-hunting normal enemy, speed/reload stats,
+    per-section specials, a boss every 10 waves with a scare banner).
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

@@ -249,6 +249,18 @@ export const arcadeStyles = `
     20%,100% { transform: scale(1); }
   }
 
+  /* Padlock pop on a blocked (locked) click — pop in, shake, fade up. */
+  .arcade-lock-pop { animation: arcade-lock 0.62s ease-out both; }
+  @keyframes arcade-lock {
+    0%   { transform: scale(0.4) rotate(0deg); opacity: 0; }
+    20%  { transform: scale(1.3) rotate(0deg); opacity: 1; }
+    35%  { transform: translateX(-4px) scale(1.1) rotate(-8deg); }
+    50%  { transform: translateX(4px) scale(1.1) rotate(8deg); }
+    65%  { transform: translateX(-3px) scale(1.05) rotate(-5deg); }
+    80%  { transform: translateX(0) scale(1.05) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-10px) scale(0.95); opacity: 0; }
+  }
+
   .arcade-slam { animation: arcade-slam 0.6s cubic-bezier(0.2,1.6,0.36,1) both; }
   @keyframes arcade-slam {
     0% { transform: scale(6); opacity: 0; filter: blur(8px); }

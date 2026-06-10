@@ -202,6 +202,7 @@ export function CalendarPage() {
     <div className="mx-auto flex h-[100dvh] max-w-[1500px] animate-rise flex-col px-6 py-5">
       <button
         type="button"
+        data-arcade-sector="library"
         onClick={() => navigate("/")}
         className="mb-3 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
