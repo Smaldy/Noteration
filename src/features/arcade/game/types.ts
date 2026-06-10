@@ -21,9 +21,17 @@ export interface Loadout {
 
 export type EnemyKind = "clock" | "hourglass" | "shard";
 
+/**
+ * The game's self-contained "arenas" — one per real app section. The game owns
+ * this nav (it never touches the real router); the live app is a frozen backdrop.
+ * Pomodoro is intentionally absent: it's a main-tab overlay, not a section.
+ */
+export type ArenaId = "calendar" | "queue" | "flashcard" | "settings" | "editor";
+
 export interface Enemy {
   id: number;
   kind: EnemyKind;
+  arena: ArenaId; // the sector this enemy lives in (only the active one is live)
   pos: Vec;
   vel: Vec;
   hp: number;
@@ -45,6 +53,23 @@ export interface Spike {
   vel: Vec;
   radius: number;
   life: number;
+}
+
+/**
+ * A bomb planted in an arena. Its fuse burns down everywhere (even while you're
+ * in another sector — that's the threat); when it hits zero it hurts you. Shoot
+ * or zap it in its arena to defuse before then. A bomb in a non-active arena
+ * flashes that arena's nav button.
+ */
+export interface Bomb {
+  id: number;
+  arena: ArenaId;
+  pos: Vec;
+  hp: number;
+  maxHp: number;
+  fuse: number; // seconds remaining before it blows
+  maxFuse: number;
+  radius: number;
 }
 
 /** Player projectile (Sidearm bullets). */
@@ -94,35 +119,37 @@ export interface SlowMo {
   cooldown: number; // remaining cooldown before it can re-trigger
 }
 
+/** Per-arena skirmish bookkeeping (each sector progresses independently). */
+export interface ArenaState {
+  wave: number;
+  pending: number; // enemies still to spawn this wave
+  queue: EnemyKind[]; // spawn order for the current wave
+  spawnTimer: number;
+}
+
 export interface World {
   w: number;
   h: number;
   load: Loadout;
   player: Player;
   slowmo: SlowMo;
-  enemies: Enemy[];
-  spikes: Spike[];
+  arena: ArenaId; // the active sector
+  enemies: Enemy[]; // all sectors; only `arena`'s are live
+  spikes: Spike[]; // active-sector projectiles (cleared on switch)
   bullets: Bullet[];
+  bombs: Bomb[]; // all sectors; fuses burn everywhere
   particles: Particle[];
   zaps: Zap[];
   floats: FloatText[];
-  wave: number;
-  pending: number; // enemies still to spawn this wave
-  spawnTimer: number;
+  arenas: Record<ArenaId, ArenaState>;
+  bombTimer: number; // seconds until the next bomb is planted
+  bannerArena: number; // seconds left to show the "ENTERING …" flash
   waveBanner: number; // seconds left to show the "WAVE N" flash
   score: number;
   status: "playing" | "over";
   shake: number; // screen-shake intensity, decays each frame
   nextId: number;
   elapsed: number;
-  _queue?: EnemyKind[]; // pending spawn order for the current wave
-}
-
-/** Per-frame input gathered by the React glue. */
-export interface FrameInput {
-  pointer: Vec; // absolute cursor position in world space
-  clicked: boolean; // left button pressed this frame (manual zap)
-  dodge: boolean; // dodge requested this frame (space / right-click)
 }
 
 export const COLORS = {
@@ -133,6 +160,41 @@ export const COLORS = {
   bg: "#0a0617",
   grid: "rgba(120,90,200,0.10)",
 } as const;
+
+export interface ArenaDef {
+  id: ArenaId;
+  label: string;
+  color: string; // theme accent (also tints the nav button)
+}
+
+/** Nav order, labels, and accent colors for the in-game sector switcher. */
+export const ARENAS: ArenaDef[] = [
+  { id: "calendar", label: "CALENDAR", color: COLORS.pink },
+  { id: "queue", label: "QUEUE", color: COLORS.yellow },
+  { id: "flashcard", label: "FLASHCARD", color: COLORS.green },
+  { id: "settings", label: "SETTINGS", color: COLORS.cyan },
+  { id: "editor", label: "EDITOR", color: "#b69cff" },
+];
+
+/**
+ * Which enemy types spawn in each arena. Calendar → Clock and Queue → Hourglass
+ * are the themed sectors; the other three reuse the Time-Pressure pool until
+ * they get dedicated enemies. (`shard` only appears from a hourglass's death.)
+ */
+export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
+  calendar: ["clock"],
+  queue: ["hourglass"],
+  flashcard: ["clock", "hourglass"],
+  settings: ["hourglass", "clock"],
+  editor: ["clock", "hourglass"],
+};
+
+/** Per-frame input gathered by the React glue. */
+export interface FrameInput {
+  pointer: Vec; // absolute cursor position in world space
+  clicked: boolean; // left button pressed this frame (manual zap)
+  dodge: boolean; // dodge requested this frame (space / right-click)
+}
 
 /** Read the owned upgrade levels off the server state into a game loadout. */
 export function loadoutFrom(state: ArcadeState | null): Loadout {

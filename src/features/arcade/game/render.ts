@@ -3,7 +3,7 @@
  * frame onto a 2D context. No simulation happens here. Neon-on-dark to match the
  * cabinet's CRT; glow comes from `shadowBlur`.
  */
-import { COLORS, type Enemy, type World } from "./types";
+import { ARENAS, type Bomb, COLORS, type Enemy, type World } from "./types";
 
 export function render(ctx: CanvasRenderingContext2D, world: World) {
   const { w, h } = world;
@@ -38,8 +38,11 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
     ctx.fill();
   }
 
-  // Enemies.
-  for (const e of world.enemies) drawEnemy(ctx, e);
+  // Bombs planted in this sector (the fuse ring shows time left to defuse).
+  for (const b of world.bombs) if (b.arena === world.arena) drawBomb(ctx, b);
+
+  // Enemies (only the active sector is live/visible).
+  for (const e of world.enemies) if (e.arena === world.arena) drawEnemy(ctx, e);
 
   // Particles.
   ctx.shadowBlur = 6;
@@ -80,6 +83,41 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
   ctx.restore();
 
   if (world.waveBanner > 0) drawBanner(ctx, world);
+  if (world.bannerArena > 0) drawArenaBanner(ctx, world);
+}
+
+function drawBomb(ctx: CanvasRenderingContext2D, b: Bomb) {
+  const t = b.fuse / b.maxFuse;
+  const urgent = b.fuse < 3;
+  const blink = urgent && Math.floor(b.fuse * 8) % 2 === 0;
+  ctx.save();
+  ctx.translate(b.pos.x, b.pos.y);
+  ctx.shadowBlur = 16;
+  // body
+  const body = blink ? "#ffffff" : COLORS.pink;
+  ctx.shadowColor = COLORS.pink;
+  ctx.fillStyle = "rgba(255,123,213,0.15)";
+  ctx.strokeStyle = body;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // fuse arc (drains clockwise as the fuse burns)
+  ctx.strokeStyle = urgent ? COLORS.pink : COLORS.yellow;
+  ctx.shadowColor = ctx.strokeStyle;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, b.radius + 7, -Math.PI / 2, -Math.PI / 2 + t * Math.PI * 2);
+  ctx.stroke();
+  // spark tick
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = body;
+  ctx.font = "bold 18px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("!", 0, 1);
+  ctx.restore();
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -196,6 +234,7 @@ function drawBanner(ctx: CanvasRenderingContext2D, world: World) {
   ctx.save();
   ctx.globalAlpha = a;
   ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
   ctx.shadowBlur = 16;
   ctx.shadowColor = COLORS.cyan;
   ctx.fillStyle = COLORS.cyan;
@@ -204,7 +243,22 @@ function drawBanner(ctx: CanvasRenderingContext2D, world: World) {
   ctx.shadowColor = COLORS.pink;
   ctx.fillStyle = COLORS.pink;
   ctx.font = "48px 'Press Start 2P', monospace";
-  ctx.fillText(String(world.wave), world.w / 2, world.h / 2 + 24);
+  ctx.fillText(String(world.arenas[world.arena].wave), world.w / 2, world.h / 2 + 24);
+  ctx.restore();
+}
+
+function drawArenaBanner(ctx: CanvasRenderingContext2D, world: World) {
+  const def = ARENAS.find((x) => x.id === world.arena);
+  if (!def) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, world.bannerArena * 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = def.color;
+  ctx.fillStyle = def.color;
+  ctx.font = "12px 'Press Start 2P', monospace";
+  ctx.fillText(`▶ ${def.label} SECTOR`, world.w / 2, 92);
   ctx.restore();
 }
 

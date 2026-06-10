@@ -2,21 +2,41 @@
  * NOTINVASION — the live game. React owns only the canvas element, the rAF loop,
  * and input; all rules live in `game/world.ts` and drawing in `game/render.ts`.
  *
- * The player IS the cursor (a reticle). Click to zap the enemy under it; dodge
- * the clocks' radiating spikes. Owned upgrades shape the loadout (max health,
- * Sidearm auto-fire, fire rate, Overclock slow-mo dodge, score multiplier).
- * Death or BANK & EXIT ends the run through the store, which banks the score.
+ * The player IS the cursor (a reticle). Click to zap (and, with the Sidearm, fire
+ * a radiating bullet burst) the enemy under it; dodge the clocks' spikes. The
+ * game plays over the frozen app across sectors (the nav bar / keys 1-5 switch);
+ * bombs in other sectors flash their nav button and must be defused there. Owned
+ * upgrades shape the loadout (max health, Sidearm, bullets-per-click, Overclock
+ * slow-mo dodge, score multiplier). Death or BANK & EXIT ends the run through the
+ * store, which banks the score.
  */
-import { Heart, Zap } from "lucide-react";
+import {
+  Calendar,
+  Heart,
+  Layers,
+  ListChecks,
+  type LucideIcon,
+  PenLine,
+  Settings,
+  Zap,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useArcadeStore } from "@/stores/arcade";
 
 import { ARCADE_PIXEL } from "./crtStyles";
 import { render } from "./game/render";
-import type { FrameInput, World } from "./game/types";
+import { ARENAS, type ArenaId, type FrameInput, type World } from "./game/types";
 import { loadoutFrom } from "./game/types";
-import { bulletsPerClick, createWorld, step } from "./game/world";
+import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
+
+const ARENA_ICON: Record<ArenaId, LucideIcon> = {
+  calendar: Calendar,
+  queue: ListChecks,
+  flashcard: Layers,
+  settings: Settings,
+  editor: PenLine,
+};
 
 /** Lightweight HUD mirror so React re-renders only when these change. */
 interface Hud {
@@ -24,6 +44,8 @@ interface Hud {
   maxHealth: number;
   score: number;
   wave: number;
+  arena: ArenaId;
+  bombArenas: ArenaId[]; // sectors with a live bomb (drive the nav flash)
   slowReady: boolean;
   hasSlow: boolean;
 }
@@ -43,20 +65,31 @@ export function GameCanvas() {
     maxHealth: 0,
     score: run?.start_score ?? 0,
     wave: run?.start_wave ?? 1,
+    arena: "calendar",
+    bombArenas: [],
     slowReady: false,
     hasSlow: false,
   });
 
-  // End the run exactly once, banking whatever the world reached.
+  // End the run exactly once, banking whatever the world reached. The "wave
+  // reached" reported is the best sector progress, since each sector advances
+  // independently.
   const finish = useCallback(
     (died: boolean) => {
       if (endedRef.current) return;
       endedRef.current = true;
       const w = worldRef.current;
-      void endRun(w?.wave ?? run?.start_wave ?? 1, w?.score ?? 0, died);
+      const wave = w
+        ? Math.max(...ARENAS.map((a) => w.arenas[a.id].wave))
+        : (run?.start_wave ?? 1);
+      void endRun(wave, w?.score ?? 0, died);
     },
     [endRun, run],
   );
+
+  const go = useCallback((id: ArenaId) => {
+    if (worldRef.current) switchArena(worldRef.current, id);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -110,6 +143,9 @@ export function GameCanvas() {
         inputRef.current.dodge = true;
       } else if (e.key === "Escape") {
         finish(false);
+      } else if (e.key >= "1" && e.key <= "5") {
+        const def = ARENAS[Number(e.key) - 1];
+        if (def && worldRef.current) switchArena(worldRef.current, def.id);
       }
     };
     canvas.addEventListener("mousemove", onMove);
@@ -139,11 +175,14 @@ export function GameCanvas() {
       hudAccum += dt;
       if (hudAccum >= 0.1) {
         hudAccum = 0;
+        const bombArenas = [...new Set(world.bombs.map((b) => b.arena))];
         setHud({
           health: world.player.health,
           maxHealth: world.player.maxHealth,
           score: world.score,
-          wave: world.wave,
+          wave: world.arenas[world.arena].wave,
+          arena: world.arena,
+          bombArenas,
           slowReady: world.slowmo.cooldown <= 0,
           hasSlow: world.load.slowMoLevel > 0,
         });
@@ -170,6 +209,7 @@ export function GameCanvas() {
   }, []);
 
   const load = loadoutFrom(state);
+  const activeDef = ARENAS.find((a) => a.id === hud.arena);
 
   return (
     <div className="absolute inset-0 select-none bg-black/35">
@@ -187,7 +227,44 @@ export function GameCanvas() {
         </div>
         <div className="text-right">
           <p className="arcade-neon-yellow text-base tabular-nums">{hud.score}</p>
-          <p className="arcade-neon-cyan mt-1 text-[9px]">WAVE {hud.wave}</p>
+          <p className="mt-1 text-[9px]" style={{ color: activeDef?.color }}>
+            {activeDef?.label} · W{hud.wave}
+          </p>
+        </div>
+      </div>
+
+      {/* Sector nav — the game's own switcher (never touches the real router).
+          A button flashes when a bomb is live in that non-active sector. */}
+      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2">
+        <div className="pointer-events-auto flex gap-1.5 rounded-xl border border-white/10 bg-black/55 p-1.5 backdrop-blur">
+          {ARENAS.map((a, i) => {
+            const Icon = ARENA_ICON[a.id];
+            const active = a.id === hud.arena;
+            const alert = !active && hud.bombArenas.includes(a.id);
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => go(a.id)}
+                title={`${a.label} (${i + 1})`}
+                className={`relative grid size-11 place-items-center rounded-lg border transition ${
+                  alert ? "animate-pulse border-rose-400 bg-rose-500/25" : "border-white/10 hover:bg-white/10"
+                }`}
+                style={
+                  active
+                    ? { color: a.color, borderColor: a.color, background: "rgba(255,255,255,0.08)" }
+                    : alert
+                      ? { color: "#ffd0e8" }
+                      : { color: "rgba(255,255,255,0.5)" }
+                }
+              >
+                <Icon className="size-5" />
+                {alert && (
+                  <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-rose-500 shadow" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

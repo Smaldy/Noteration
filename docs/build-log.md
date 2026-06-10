@@ -110,8 +110,29 @@
     Additive only — no existing file changed except `GameLayer` swapping the
     placeholder branch for `<GameCanvas/>` (dead `PlayingPlaceholder` removed).
     tsc + `npm run build` clean; arcade stays in the main `index` chunk (no new
-    vendor boundary). **Next:** remaining tab enemy themes (Flashcard/Settings/
-    Calendar/Editor), bombs + self-contained nav alerts, then balance polish.
+    vendor boundary).
+  - **14-4 (done) — Play over the app + sectors + bombs (user-driven).** The game
+    now runs **on top of the frozen Noteration UI**: the playing-phase canvas is
+    transparent (faint `bg-black/35` wash for contrast; `render` clears instead of
+    painting a bg). **Shooting reworked** per user: clicking now fires a *radiating
+    bullet burst* (kept the close zap too), and **Rapid Fire raises bullets/click**
+    (`3 + 2·level`) instead of auto-fire cadence. **Self-contained sector nav** (the
+    locked "game owns its own arena nav, never touches the real router"): five
+    sectors — Calendar/Queue/Flashcard/Settings/Editor (Pomodoro excluded; it's a
+    main-tab overlay) — switchable via an in-game nav bar or keys 1-5. **Enemies are
+    themed to their sector** (Calendar→Clock, Queue→Hourglass; the other three reuse
+    the Time-Pressure pool for now), and each sector is its own **persistent**
+    skirmish — enemies freeze while you're away, each sector advancing its own wave.
+    **Bomb system**: bombs are planted on a timer (biased to a *non-active* sector),
+    their fuses burn everywhere, and a bomb in another sector **flashes that sector's
+    nav button** (red pulse + dot). Switch there and shoot/zap it down before the
+    fuse blows — detonation costs a heart wherever you are; defusing banks score.
+    New `game/types.ts` gains `ArenaId`/`ARENAS`/`ARENA_POOL`/`Bomb`/per-sector
+    `ArenaState`; `world.ts` adds `switchArena` + bomb lifecycle + per-sector waves;
+    `render.ts` filters to the active sector and draws bombs (fuse ring) + sector
+    banner; `GameCanvas.tsx` adds the nav bar + bomb-alert flashing. Two commits
+    (c42b9d7 + this). tsc + build clean; still in the `index` chunk. **Next:**
+    dedicated enemy themes for Flashcard/Settings/Editor, then balance polish.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a

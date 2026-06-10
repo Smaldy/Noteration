@@ -4,12 +4,23 @@
  * the `World` struct (no React, no canvas) so the rules are deterministic and
  * testable. Rendering lives in `render.ts`.
  *
- * Enemy pool: the Queue "Time Pressure" theme.
+ * The game plays over the frozen Noteration app across self-contained "arenas"
+ * (one per section). Enemies are themed to their sector — Clocks in the Calendar,
+ * Hourglasses in the Queue — and each sector is its own persistent skirmish:
+ * enemies freeze while you're away. Bombs can be planted in any sector and their
+ * fuses burn everywhere, so a bomb in another sector forces you to switch to it
+ * (its nav button flashes) and shoot it down before it blows.
+ *
  *   · Clock     — drifts, periodically radiates a ring of spikes; click the face.
  *   · Hourglass — slow, flips heading unpredictably, splits into two shards on death.
  *   · Shard     — a fast half-hourglass spawned on a hourglass's death.
  */
 import {
+  ARENA_POOL,
+  ARENAS,
+  type ArenaId,
+  type ArenaState,
+  type Bomb,
   COLORS,
   type Enemy,
   type EnemyKind,
@@ -21,7 +32,7 @@ import {
 
 // ── Tunables ────────────────────────────────────────────────────────────────
 const PLAYER_R = 9;
-const ZAP_R = 64; // manual click hits enemies within this radius of the cursor
+const ZAP_R = 64; // manual click hits enemies/bombs within this radius of the cursor
 const ZAP_CD = 0.22;
 const ZAP_DMG = 1;
 const INVULN = 1.15;
@@ -30,6 +41,13 @@ const BULLET_R = 5;
 const BULLET_DMG = 1;
 const SPIKE_R = 6;
 const SLOW_FACTOR = 0.32; // enemy/spike time multiplier during Overclock
+
+const BOMB_R = 22;
+const BOMB_FUSE = 10; // seconds before a planted bomb blows
+const BOMB_HP = 3;
+const BOMB_GAP = 15; // seconds between bomb plantings
+const MAX_BOMBS = 2;
+const BOMB_POINTS = 220;
 
 const ENEMY: Record<EnemyKind, { hp: number; r: number; speed: number; points: number }> = {
   clock: { hp: 3, r: 26, speed: 34, points: 120 },
@@ -45,6 +63,10 @@ export function createWorld(
   startWave: number,
   startScore: number,
 ): World {
+  const wave = Math.max(1, startWave);
+  const arenas = {} as Record<ArenaId, ArenaState>;
+  for (const a of ARENAS) arenas[a.id] = { wave, pending: 0, queue: [], spawnTimer: 0 };
+
   const world: World = {
     w,
     h,
@@ -58,15 +80,17 @@ export function createWorld(
       hurt: 0,
     },
     slowmo: { active: 0, cooldown: 0 },
+    arena: "calendar", // start where the clocks live
     enemies: [],
     spikes: [],
     bullets: [],
+    bombs: [],
     particles: [],
     zaps: [],
     floats: [],
-    wave: Math.max(1, startWave),
-    pending: 0,
-    spawnTimer: 0,
+    arenas,
+    bombTimer: BOMB_GAP,
+    bannerArena: 1.4,
     waveBanner: 1.4,
     score: Math.max(0, startScore),
     status: "playing",
@@ -74,21 +98,29 @@ export function createWorld(
     nextId: 1,
     elapsed: 0,
   };
-  setupWave(world, world.wave);
+  for (const a of ARENAS) setupWave(world, a.id);
   return world;
 }
 
-function setupWave(world: World, n: number) {
-  const clocks = 1 + Math.floor(n / 2);
-  const hourglasses = Math.floor((n + 1) / 3);
-  world.pending = clocks + hourglasses;
-  world.spawnTimer = 0.4;
-  world.waveBanner = 1.4;
-  // Queue the spawn order on a tiny scratch list reused by the spawner.
-  world._queue = [
-    ...Array<EnemyKind>(clocks).fill("clock"),
-    ...Array<EnemyKind>(hourglasses).fill("hourglass"),
-  ];
+function setupWave(world: World, arena: ArenaId) {
+  const st = world.arenas[arena];
+  const n = st.wave;
+  const pool = ARENA_POOL[arena];
+  const count = 2 + Math.floor(n * 0.8); // total enemies this sector-wave
+  st.queue = [];
+  for (let i = 0; i < count; i++) st.queue.push(pool[i % pool.length]);
+  st.pending = st.queue.length;
+  st.spawnTimer = 0.4;
+  if (arena === world.arena) world.waveBanner = 1.4;
+}
+
+/** Switch the active sector. Enemies persist (frozen); transient spikes reset. */
+export function switchArena(world: World, arena: ArenaId) {
+  if (arena === world.arena || world.status !== "playing") return;
+  world.arena = arena;
+  world.spikes = [];
+  world.bannerArena = 1.3;
+  world.player.invuln = Math.max(world.player.invuln, 0.8); // grace on arrival
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,13 +146,14 @@ function edgePoint(world: World): Vec {
   }
 }
 
-function spawnEnemy(world: World, kind: EnemyKind, at?: Vec) {
+function spawnEnemy(world: World, kind: EnemyKind, arena: ArenaId, at?: Vec) {
   const base = ENEMY[kind];
   const pos = at ?? edgePoint(world);
   const ang = Math.random() * Math.PI * 2;
   world.enemies.push({
     id: world.nextId++,
     kind,
+    arena,
     pos,
     vel: { x: Math.cos(ang) * base.speed, y: Math.sin(ang) * base.speed },
     hp: base.hp,
@@ -175,8 +208,10 @@ export function step(world: World, dtRaw: number, input: FrameInput): void {
   stepEnemies(world, edt);
   stepSpikes(world, edt);
   stepBullets(world, dt);
+  stepBombs(world, dt);
   stepEffects(world, dt);
 
+  world.bannerArena = Math.max(0, world.bannerArena - dt);
   world.shake = Math.max(0, world.shake - dt * 60);
   if (world.player.health <= 0) world.status = "over";
 }
@@ -196,7 +231,12 @@ function stepPlayer(world: World, dt: number, input: FrameInput) {
     world.zaps.push({ pos: { ...p.pos }, life: 0.26, maxLife: 0.26, radius: ZAP_R });
     const r2 = ZAP_R * ZAP_R;
     for (const e of world.enemies) {
+      if (e.arena !== world.arena) continue;
       if (dist2(e.pos, p.pos) <= r2 + e.radius * e.radius) damageEnemy(world, e, ZAP_DMG);
+    }
+    for (const b of world.bombs) {
+      if (b.arena !== world.arena) continue;
+      if (dist2(b.pos, p.pos) <= r2 + b.radius * b.radius) damageBomb(world, b, ZAP_DMG);
     }
     if (world.load.canShoot) fireBurst(world);
   }
@@ -223,27 +263,29 @@ function fireBurst(world: World) {
 
 function stepWave(world: World, dt: number) {
   world.waveBanner = Math.max(0, world.waveBanner - dt);
-  if (world.pending > 0) {
-    world.spawnTimer -= dt;
-    if (world.spawnTimer <= 0) {
-      const kind = world._queue?.pop() ?? "clock";
-      spawnEnemy(world, kind);
-      world.pending--;
-      world.spawnTimer = 0.55;
+  const arena = world.arena;
+  const st = world.arenas[arena];
+  if (st.pending > 0) {
+    st.spawnTimer -= dt;
+    if (st.spawnTimer <= 0) {
+      spawnEnemy(world, st.queue.pop() ?? "clock", arena);
+      st.pending--;
+      st.spawnTimer = 0.55;
     }
-  } else if (world.enemies.length === 0) {
-    world.wave++;
-    setupWave(world, world.wave);
+  } else if (!world.enemies.some((e) => e.arena === arena)) {
+    st.wave++;
+    setupWave(world, arena);
   }
 }
 
 function stepEnemies(world: World, edt: number) {
-  const wave = world.wave;
+  const wave = world.arenas[world.arena].wave;
   const emitInterval = Math.max(1.15, 2.6 - wave * 0.11);
   const spikeSpeed = 96 + wave * 6;
   const ring = Math.min(14, 6 + Math.floor(wave / 2));
 
   for (const e of world.enemies) {
+    if (e.arena !== world.arena) continue; // off-sector enemies are frozen
     e.spin += e.spinRate * edt;
     e.hitFlash = Math.max(0, e.hitFlash - edt * 4);
 
@@ -346,6 +388,7 @@ function stepBullets(world: World, dt: number) {
     if (b.life <= 0 || b.pos.x < 0 || b.pos.x > world.w || b.pos.y < 0 || b.pos.y > world.h) continue;
     let hit = false;
     for (const e of world.enemies) {
+      if (e.arena !== world.arena) continue;
       const rr = (BULLET_R + e.radius) * (BULLET_R + e.radius);
       if (dist2(b.pos, e.pos) <= rr) {
         damageEnemy(world, e, BULLET_DMG);
@@ -354,9 +397,60 @@ function stepBullets(world: World, dt: number) {
         break;
       }
     }
+    if (!hit) {
+      for (const bomb of world.bombs) {
+        if (bomb.arena !== world.arena) continue;
+        const rr = (BULLET_R + bomb.radius) * (BULLET_R + bomb.radius);
+        if (dist2(b.pos, bomb.pos) <= rr) {
+          damageBomb(world, bomb, BULLET_DMG);
+          burst(world, b.pos, COLORS.cyan, 4);
+          hit = true;
+          break;
+        }
+      }
+    }
     if (!hit) kept.push(b);
   }
   world.bullets = kept;
+}
+
+function stepBombs(world: World, dt: number) {
+  // Plant a new bomb on a timer (biased toward a sector you're not in, so it
+  // creates a nav alert). Fuses burn in every sector at once.
+  world.bombTimer -= dt;
+  if (world.bombTimer <= 0 && world.bombs.length < MAX_BOMBS) {
+    world.bombTimer = BOMB_GAP;
+    plantBomb(world);
+  }
+  const kept: Bomb[] = [];
+  for (const b of world.bombs) {
+    b.fuse -= dt;
+    if (b.fuse <= 0) {
+      // Detonate — costs a heart wherever you are.
+      world.shake = 20;
+      burst(world, b.pos, COLORS.pink, 22);
+      hurtPlayer(world, true);
+      continue;
+    }
+    kept.push(b);
+  }
+  world.bombs = kept;
+}
+
+function plantBomb(world: World) {
+  // Prefer a non-active sector; fall back to any if all are active (never here).
+  const others = ARENAS.filter((a) => a.id !== world.arena).map((a) => a.id);
+  const arena = Math.random() < 0.8 ? others[Math.floor(Math.random() * others.length)] : world.arena;
+  world.bombs.push({
+    id: world.nextId++,
+    arena,
+    pos: { x: 80 + Math.random() * (world.w - 160), y: 110 + Math.random() * (world.h - 220) },
+    hp: BOMB_HP,
+    maxHp: BOMB_HP,
+    fuse: BOMB_FUSE,
+    maxFuse: BOMB_FUSE,
+    radius: BOMB_R,
+  });
 }
 
 function stepEffects(world: World, dt: number) {
@@ -393,24 +487,36 @@ function killEnemy(world: World, e: Enemy) {
   burst(world, e.pos, color, e.kind === "clock" ? 16 : 10);
   world.shake = Math.min(14, world.shake + (e.kind === "clock" ? 8 : 4));
 
-  const pts = Math.floor(
-    ENEMY[e.kind].points * (1 + 0.1 * (world.wave - 1)) * world.load.scoreMult,
-  );
+  const wave = world.arenas[e.arena].wave;
+  const pts = Math.floor(ENEMY[e.kind].points * (1 + 0.1 * (wave - 1)) * world.load.scoreMult);
   world.score += pts;
   floatText(world, e.pos, `+${pts}`, color);
 
-  // Hourglass splits into two fast shards.
+  // Hourglass splits into two fast shards in the same sector.
   if (e.kind === "hourglass") {
-    spawnEnemy(world, "shard", { x: e.pos.x - 12, y: e.pos.y });
-    spawnEnemy(world, "shard", { x: e.pos.x + 12, y: e.pos.y });
+    spawnEnemy(world, "shard", e.arena, { x: e.pos.x - 12, y: e.pos.y });
+    spawnEnemy(world, "shard", e.arena, { x: e.pos.x + 12, y: e.pos.y });
   }
 }
 
-function hurtPlayer(world: World) {
+function damageBomb(world: World, b: Bomb, amount: number) {
+  if (b.hp <= 0) return;
+  b.hp -= amount;
+  if (b.hp <= 0) {
+    world.bombs = world.bombs.filter((x) => x !== b);
+    burst(world, b.pos, COLORS.green, 18);
+    const pts = Math.floor(BOMB_POINTS * world.load.scoreMult);
+    world.score += pts;
+    floatText(world, b.pos, `DEFUSED +${pts}`, COLORS.green);
+  }
+}
+
+function hurtPlayer(world: World, ignoreInvuln = false) {
   const p = world.player;
+  if (p.invuln > 0 && !ignoreInvuln) return;
   p.health -= 1;
   p.invuln = INVULN;
   p.hurt = 0.5;
-  world.shake = 16;
+  world.shake = Math.max(world.shake, 16);
   burst(world, p.pos, COLORS.pink, 14);
 }
