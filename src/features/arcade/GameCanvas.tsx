@@ -31,8 +31,6 @@ import {
 import { loadoutFrom } from "./game/types";
 import { bulletsPerClick, createWorld, step, switchArena } from "./game/world";
 
-const INTERACTIVE = 'a, button, [role="button"], input, select, textarea, label';
-
 /** Lightweight HUD mirror so React re-renders only when these change. */
 interface Hud {
   health: number;
@@ -134,10 +132,18 @@ export function GameCanvas() {
 
     // ── Input ────────────────────────────────────────────────────────────────
     // The whole overlay is click-through (pointer-events:none); input is captured
-    // on window. A click only navigates the app's OWN nav buttons that are
-    // currently UNLOCKED; every other clickable (locked sector buttons, page
-    // controls) is blocked with a padlock pop. Empty space zaps the game.
-    const ctrl = (t: EventTarget | null) => (t instanceof Element ? t.closest(INTERACTIVE) : null);
+    // on window in the CAPTURE phase so the frozen app never sees the press. Only
+    // two things stay live to the DOM: our own UI ("ui" — the BANK button) and the
+    // app's nav buttons ("nav" — Library section buttons + each page's return).
+    // EVERYTHING else ("play") is inert to the app but drives the GAME, so you can
+    // shoot/defuse on top of notes, calendar chips, slides, toggles, etc. A click
+    // navigates only an UNLOCKED nav button; a locked one pops a padlock instead.
+    const targetKind = (t: EventTarget | null): "ui" | "nav" | "play" => {
+      const el = t instanceof Element ? t : null;
+      if (el?.closest("[data-arcade-ui]")) return "ui";
+      if (el?.closest("[data-arcade-sector]")) return "nav";
+      return "play";
+    };
     const showLock = (x: number, y: number) => {
       setLockFx({ x, y, key: performance.now() });
       window.clearTimeout(lockTimer.current);
@@ -147,8 +153,9 @@ export function GameCanvas() {
       inputRef.current.pointer = { x: e.clientX, y: e.clientY };
     };
     const onDown = (e: MouseEvent) => {
-      const el = e.target as Element | null;
-      if (el?.closest("[data-arcade-ui]") || ctrl(el)) return; // a control — handled on click
+      if (targetKind(e.target) !== "play") return; // our UI / a nav button — let the DOM handle it
+      e.preventDefault();
+      e.stopPropagation(); // the frozen app never receives this press
       if (e.button === 0) {
         inputRef.current.clicked = true;
         inputRef.current.held = true;
@@ -157,28 +164,29 @@ export function GameCanvas() {
       }
     };
     const onClickCapture = (e: MouseEvent) => {
-      const el = e.target as Element | null;
-      if (!el || el.closest("[data-arcade-ui]")) return; // our own UI (BANK) — allow
-      const navEl = el.closest("[data-arcade-sector]");
-      const w = worldRef.current;
-      if (
-        navEl &&
-        w &&
-        sectorUnlocked(navEl.getAttribute("data-arcade-sector") as ArenaId, w.wave)
-      ) {
-        return; // an unlocked sector button — let it navigate
-      }
-      if (navEl || ctrl(el)) {
+      const kind = targetKind(e.target);
+      if (kind === "ui") return; // our own UI (BANK) — allow
+      if (kind === "nav") {
+        const navEl = (e.target as Element).closest("[data-arcade-sector]")!;
+        const w = worldRef.current;
+        if (w && sectorUnlocked(navEl.getAttribute("data-arcade-sector") as ArenaId, w.wave)) {
+          return; // an UNLOCKED nav button — let it navigate the real app
+        }
         e.preventDefault();
         e.stopPropagation();
-        showLock(e.clientX, e.clientY);
+        showLock(e.clientX, e.clientY); // a LOCKED section — padlock pop, no navigation
+        return;
       }
+      // "play": any other clickable in the frozen app — block it (the press already
+      // drove the game). No padlock; this is the playfield.
+      e.preventDefault();
+      e.stopPropagation();
     };
     const onUp = () => {
       inputRef.current.held = false;
     };
     const onContext = (e: MouseEvent) => {
-      if (!ctrl(e.target)) e.preventDefault(); // right-click in the play area = dodge
+      if (targetKind(e.target) === "play") e.preventDefault(); // right-click in the play area = dodge
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === " ") {
@@ -190,7 +198,7 @@ export function GameCanvas() {
     };
     document.body.style.cursor = "none"; // the drawn reticle replaces the OS cursor
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mousedown", onDown);
+    window.addEventListener("mousedown", onDown, true); // capture: block the press before the app
     window.addEventListener("click", onClickCapture, true); // capture: block before React
     window.addEventListener("mouseup", onUp);
     window.addEventListener("blur", onUp);
@@ -260,7 +268,7 @@ export function GameCanvas() {
       document.body.style.cursor = "";
       window.clearTimeout(lockTimer.current);
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("click", onClickCapture, true);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("blur", onUp);

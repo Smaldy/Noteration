@@ -48,7 +48,7 @@ const BOMB_R = 22;
 const BOMB_FUSE = 12; // seconds before a planted bomb blows
 const BOMB_GAP = 15; // seconds between bomb plantings
 const MAX_BOMBS = 2;
-const BOMB_POINTS = 220;
+const BOMB_POINTS = 50;
 const DEFUSE_MIN = 2; // hold-to-defuse seconds (randomized per bomb)
 const DEFUSE_MAX = 5;
 const DEFUSE_REACH = 30; // how close the cursor must be to hold-defuse a bomb
@@ -63,11 +63,11 @@ const ENEMY: Record<
   EnemyKind,
   { hp: number; r: number; speed: number; reload: number; contact: number; points: number }
 > = {
-  hunter: { hp: 2, r: 16, speed: 92, reload: 999, contact: 1, points: 60 },
-  shooter: { hp: 2, r: 18, speed: 48, reload: 1.9, contact: 1, points: 95 },
-  clock: { hp: 3, r: 26, speed: 30, reload: 2.4, contact: 1, points: 120 },
-  hourglass: { hp: 2, r: 22, speed: 26, reload: 999, contact: 1, points: 80 },
-  shard: { hp: 1, r: 13, speed: 88, reload: 999, contact: 1, points: 35 },
+  hunter: { hp: 2, r: 16, speed: 92, reload: 999, contact: 1, points: 12 },
+  shooter: { hp: 2, r: 18, speed: 48, reload: 1.9, contact: 1, points: 20 },
+  clock: { hp: 3, r: 26, speed: 30, reload: 2.4, contact: 1, points: 26 },
+  hourglass: { hp: 2, r: 22, speed: 26, reload: 999, contact: 1, points: 16 },
+  shard: { hp: 1, r: 13, speed: 88, reload: 999, contact: 1, points: 7 },
 };
 
 // ── Construction ─────────────────────────────────────────────────────────────
@@ -583,7 +583,7 @@ function killEnemy(world: World, e: Enemy) {
   world.shake = Math.min(e.isBoss ? 26 : 14, world.shake + (e.isBoss ? 24 : e.kind === "clock" ? 8 : 4));
 
   const pts = Math.floor(
-    ENEMY[e.kind].points * (1 + 0.1 * (world.wave - 1)) * world.load.scoreMult * (e.isBoss ? 8 : 1),
+    ENEMY[e.kind].points * (1 + 0.05 * (world.wave - 1)) * world.load.scoreMult * (e.isBoss ? 5 : 1),
   );
   world.score += pts;
   floatText(world, e.pos, e.isBoss ? `BOSS +${pts}` : `+${pts}`, color);

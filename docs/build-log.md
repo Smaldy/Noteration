@@ -237,6 +237,23 @@
     HP scales gently with wave; boss kills pay ×8. `render.ts` draws the new kinds
     (facing arrowhead / hex turret) + boss bar; `world.ts` adds homeToward / emitRing
     / fireBolt and contact damage; `bossBanner` on the World. tsc + build clean.
+
+  - **14-12 (done) — Interactivity gate + score fixes (user-reported bugs).**
+    1) *Calendar/slides (and any `<div onClick>`) were still interactable* — the old
+    gate only matched a CSS `INTERACTIVE` selector, so non-`button`/`a` clickables
+    slipped through. Inverted the model in `GameCanvas.tsx`: `targetKind()` returns
+    `"ui"` (BANK), `"nav"` (a `[data-arcade-sector]` button), or `"play"`
+    (everything else). `mousedown` now captures on `window` and **everything but
+    ui/nav is `preventDefault`+`stopPropagation`'d** — the frozen app never sees the
+    press. Clicks navigate only an *unlocked* nav button; a locked one pops the
+    padlock; all other clicks are swallowed. 2) *Couldn't shoot/defuse on top of
+    notes in Library* — was the old `ctrl(el)` suppression in `onDown`; "play"
+    targets (notes, chips, toggles, slides) now drive the game normally. 3) *Score
+    crept up "by time"* — confirmed the sim only scores on kill/defuse (no time
+    term); softened the per-wave multiplier 0.10→0.05 (its growth read as passive
+    inflation). **Reduced payouts:** hunter 60→12, shooter 95→20, clock 120→26,
+    hourglass 80→16, shard 35→7, bomb defuse 220→50, boss bonus ×8→×5. Removed the
+    dead `INTERACTIVE`/`ctrl` code. tsc + build clean.
     **Next:** balance pass once playtested.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
