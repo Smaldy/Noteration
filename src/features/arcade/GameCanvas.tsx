@@ -42,6 +42,7 @@ interface Hud {
   arena: ArenaId;
   bombArenas: ArenaId[];
   bombFuse: number; // soonest fuse (s) among bombs in other sectors
+  boss: boolean; // a boss just spawned → show the scare banner
   slowReady: boolean;
   hasSlow: boolean;
 }
@@ -77,6 +78,7 @@ export function GameCanvas() {
     arena: arenaForPath(location.pathname),
     bombArenas: [],
     bombFuse: 0,
+    boss: false,
     slowReady: false,
     hasSlow: false,
   });
@@ -228,6 +230,7 @@ export function GameCanvas() {
           arena: world.arena,
           bombArenas,
           bombFuse: others.length ? Math.min(...others.map((b) => b.fuse)) : 0,
+          boss: world.bossBanner > 0,
           slowReady: world.slowmo.cooldown <= 0,
           hasSlow: world.load.slowMoLevel > 0,
         });
@@ -290,6 +293,18 @@ export function GameCanvas() {
             <span>{otherBombs.map((id) => ARENAS.find((a) => a.id === id)?.label).join(" · ")}</span>
             <span className="tabular-nums text-amber-200">{Math.max(0, Math.ceil(hud.bombFuse))}s</span>
           </div>
+        </div>
+      )}
+
+      {/* Boss spawn scare. */}
+      {hud.boss && (
+        <div className="pointer-events-none absolute inset-x-0 top-[28%] flex flex-col items-center text-center">
+          <p className={`arcade-boss-title text-3xl text-rose-500 sm:text-5xl ${ARCADE_PIXEL}`}>
+            A NEW BOSS SPAWNED
+          </p>
+          <p className={`arcade-boss-sub mt-5 text-base text-rose-300 sm:text-2xl ${ARCADE_PIXEL}`}>
+            ARE YOU READY TO DIE??
+          </p>
         </div>
       )}
 

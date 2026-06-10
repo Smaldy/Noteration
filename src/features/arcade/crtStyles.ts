@@ -249,6 +249,24 @@ export const arcadeStyles = `
     20%,100% { transform: scale(1); }
   }
 
+  /* Boss spawn scare — big, blood-red, violently shaking title + blinking sub. */
+  .arcade-boss-title {
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 14px rgba(255,40,80,0.95), 0 0 34px rgba(255,0,40,0.7), 0 3px 0 rgba(90,0,0,0.6);
+    animation: arcade-boss-shake 0.42s ease-in-out infinite;
+  }
+  .arcade-boss-sub {
+    text-shadow: 0 0 12px rgba(255,80,110,0.95);
+    animation: arcade-blink 0.66s steps(2,start) infinite;
+  }
+  @keyframes arcade-boss-shake {
+    0%,100% { transform: translate(0,0) scale(1); }
+    20% { transform: translate(-5px,2px) scale(1.04); }
+    40% { transform: translate(5px,-3px) scale(1.02); }
+    60% { transform: translate(-4px,-2px) scale(1.05); }
+    80% { transform: translate(4px,3px) scale(1.02); }
+  }
+
   /* Padlock pop on a blocked (locked) click — pop in, shake, fade up. */
   .arcade-lock-pop { animation: arcade-lock 0.62s ease-out both; }
   @keyframes arcade-lock {

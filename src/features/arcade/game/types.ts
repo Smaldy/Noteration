@@ -19,7 +19,7 @@ export interface Loadout {
   scoreMult: number; // 1 + 0.25 × Combo Chip level
 }
 
-export type EnemyKind = "clock" | "hourglass" | "shard";
+export type EnemyKind = "hunter" | "shooter" | "clock" | "hourglass" | "shard";
 
 /**
  * The game's "arenas" — one per real app page. The active sector is derived from
@@ -39,7 +39,11 @@ export interface Enemy {
   hp: number;
   maxHp: number;
   radius: number;
-  emitTimer: number; // clock: seconds until the next spike ring
+  speed: number; // movement speed
+  contactDmg: number; // hearts lost when it touches the cursor
+  reload: number; // seconds until its next ability use (clock ring / shooter bolt)
+  reloadTime: number; // base cooldown between ability uses
+  isBoss: boolean; // a 10-wave boss: bigger, tankier, hits harder
   flipTimer: number; // hourglass/shard: seconds until the next heading flip
   spin: number; // visual rotation (radians)
   spinRate: number;
@@ -147,6 +151,7 @@ export interface World {
   wave: number; // global wave level, shared across all sectors
   bombTimer: number; // seconds until the next bomb is planted
   bannerArena: number; // seconds left to show the "ENTERING …" flash
+  bossBanner: number; // seconds left to show the "A NEW BOSS SPAWNED" scare
   waveBanner: number; // seconds left to show the "WAVE N" flash
   score: number;
   status: "playing" | "over";
@@ -163,6 +168,15 @@ export const COLORS = {
   bg: "#0a0617",
   grid: "rgba(120,90,200,0.10)",
 } as const;
+
+/** Accent color per enemy kind (drawing + death particles/score text). */
+export const ENEMY_COLOR: Record<EnemyKind, string> = {
+  hunter: "#ff6a8a",
+  shooter: COLORS.cyan,
+  clock: COLORS.pink,
+  hourglass: COLORS.yellow,
+  shard: COLORS.green,
+};
 
 export interface ArenaDef {
   id: ArenaId;
@@ -202,17 +216,19 @@ export function unlockedSectorIds(wave: number): ArenaId[] {
 }
 
 /**
- * Which enemy types spawn in each arena. Calendar → Clock and Queue → Hourglass
- * are the themed sectors; the rest reuse the Time-Pressure pool until they get
- * dedicated enemies. (`shard` only appears from a hourglass's death.)
+ * Which enemy types spawn in each sector. Library (always open) breeds the plain
+ * cursor-hunting **hunter**; each unlocked sector adds its own special:
+ * Calendar → Clock (spike rings), Queue → Hourglass (splitter), Exam/Settings →
+ * Shooter (aimed bolts), Bookmarks → fast hunter+shooter mix. (`shard` only
+ * appears from a hourglass's death.)
  */
 export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
-  calendar: ["clock"],
-  queue: ["hourglass"],
-  library: ["clock", "hourglass"],
-  exam: ["clock", "hourglass"],
-  bookmarks: ["hourglass", "clock"],
-  settings: ["clock", "hourglass"],
+  library: ["hunter"],
+  calendar: ["clock", "hunter"],
+  queue: ["hourglass", "hunter"],
+  exam: ["shooter", "hunter"],
+  bookmarks: ["hunter", "shooter"],
+  settings: ["shooter", "clock"],
 };
 
 /** Per-frame input gathered by the React glue. */

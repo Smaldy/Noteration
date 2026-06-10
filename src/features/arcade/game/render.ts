@@ -3,7 +3,7 @@
  * frame onto a 2D context. No simulation happens here. Neon-on-dark to match the
  * cabinet's CRT; glow comes from `shadowBlur`.
  */
-import { ARENAS, type Bomb, COLORS, type Enemy, type World } from "./types";
+import { ARENAS, type Bomb, COLORS, type Enemy, ENEMY_COLOR, type World } from "./types";
 
 export function render(ctx: CanvasRenderingContext2D, world: World) {
   const { w, h } = world;
@@ -147,49 +147,76 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
 }
 
 function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
+  const flash = e.hitFlash > 0.5;
+  const base = ENEMY_COLOR[e.kind];
+  const col = flash ? "#ffffff" : base;
+  const r = e.radius;
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y);
-  ctx.rotate(e.spin);
-  ctx.shadowBlur = 14;
-  const flash = e.hitFlash > 0.5;
+  ctx.shadowBlur = e.isBoss ? 24 : 14;
+  ctx.shadowColor = base;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = e.isBoss ? 4 : 3;
 
-  if (e.kind === "clock") {
-    const col = flash ? "#ffffff" : COLORS.pink;
-    ctx.shadowColor = COLORS.pink;
-    ctx.strokeStyle = col;
-    ctx.fillStyle = "rgba(255,123,213,0.10)";
-    ctx.lineWidth = 3;
+  if (e.kind === "hunter") {
+    // Arrowhead that faces its motion — it's chasing the cursor.
+    ctx.rotate(Math.atan2(e.vel.y, e.vel.x) + Math.PI / 2);
+    ctx.fillStyle = "rgba(255,106,138,0.15)";
     ctx.beginPath();
-    ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
+    ctx.moveTo(0, -r);
+    ctx.lineTo(r * 0.85, r * 0.7);
+    ctx.lineTo(0, r * 0.28);
+    ctx.lineTo(-r * 0.85, r * 0.7);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // tick marks
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(0, -r * 0.12, Math.max(2, r * 0.16), 0, Math.PI * 2);
+    ctx.fill();
+  } else if (e.kind === "shooter") {
+    ctx.rotate(e.spin * 0.5);
+    ctx.fillStyle = "rgba(111,251,255,0.12)";
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const fn = i === 0 ? "moveTo" : "lineTo";
+      ctx[fn](Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (e.kind === "clock") {
+    ctx.rotate(e.spin);
+    ctx.fillStyle = "rgba(255,123,213,0.10)";
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
     ctx.lineWidth = 2;
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
       ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * (e.radius - 5), Math.sin(a) * (e.radius - 5));
-      ctx.lineTo(Math.cos(a) * (e.radius - 1), Math.sin(a) * (e.radius - 1));
+      ctx.moveTo(Math.cos(a) * (r - 5), Math.sin(a) * (r - 5));
+      ctx.lineTo(Math.cos(a) * (r - 1), Math.sin(a) * (r - 1));
       ctx.stroke();
     }
-    // hands (counter-rotate so they spin against the body)
     ctx.rotate(-e.spin * 2.4);
-    ctx.lineWidth = 3;
+    ctx.lineWidth = e.isBoss ? 4 : 3;
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.lineTo(0, -e.radius * 0.6);
+    ctx.lineTo(0, -r * 0.6);
     ctx.moveTo(0, 0);
-    ctx.lineTo(e.radius * 0.45, e.radius * 0.2);
+    ctx.lineTo(r * 0.45, r * 0.2);
     ctx.stroke();
   } else {
-    const small = e.kind === "shard";
-    const col = flash ? "#ffffff" : small ? COLORS.green : COLORS.yellow;
-    ctx.shadowColor = col;
-    ctx.strokeStyle = col;
-    ctx.fillStyle = small ? "rgba(116,255,156,0.12)" : "rgba(255,225,77,0.12)";
-    ctx.lineWidth = small ? 2 : 3;
-    const r = e.radius;
-    // hourglass: two triangles tip-to-tip
+    // hourglass + shard: two triangles tip-to-tip
+    ctx.rotate(e.spin);
+    ctx.fillStyle = e.kind === "shard" ? "rgba(116,255,156,0.12)" : "rgba(255,225,77,0.12)";
+    if (e.kind === "shard") ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(-r, -r);
     ctx.lineTo(r, -r);
@@ -202,6 +229,24 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
     ctx.fill();
     ctx.stroke();
   }
+  ctx.restore();
+
+  if (e.isBoss) drawBossBar(ctx, e);
+}
+
+function drawBossBar(ctx: CanvasRenderingContext2D, e: Enemy) {
+  const w = e.radius * 2.4;
+  const x = e.pos.x - w / 2;
+  const y = e.pos.y - e.radius - 16;
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(x, y, w, 5);
+  ctx.fillStyle = "#ff4d6d";
+  ctx.fillRect(x, y, w * Math.max(0, e.hp / e.maxHp), 5);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, 5);
   ctx.restore();
 }
 

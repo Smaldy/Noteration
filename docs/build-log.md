@@ -223,8 +223,21 @@
     lock-badges the still-locked buttons while playing. Bombs only plant in
     **unlocked** sectors. Each run starts in the Library hub (`navigate("/")`).
     Touched 5 real page files additively (one attr each) + `LibraryPage`. tsc clean.
-    **Next:** enemy overhaul (cursor-hunting normal enemy, speed/reload stats,
-    per-section specials, a boss every 10 waves with a scare banner).
+  - **14-11 (done) — Enemy + boss overhaul (user-driven).** Generalized the enemy
+    model with `speed`, `contactDmg`, `reload`/`reloadTime` (ability cooldown), and
+    `isBoss`. New **hunter** (the plain Library enemy: homes on the cursor and rams
+    it — contact costs a heart, with i-frames + knockback) and **shooter** (holds
+    mid-range, fires aimed bolts on reload). Existing clock (spike rings on reload)
+    + hourglass (splitter) are now the unlocked-sector specials. Per-sector pools:
+    library→hunter, calendar→clock, queue→hourglass, exam/settings→shooter,
+    bookmarks→hunter+shooter. **Every 10th wave is a boss wave**: the sector's
+    headline enemy spawned at ×12 HP, ×1.9 size, ×2 contact, faster reload (bosses
+    fire a spread), with a HP bar over it and a big shaking blood-red scare —
+    "A NEW BOSS SPAWNED / ARE YOU READY TO DIE??" (`arcade-boss-title/sub`). Enemy
+    HP scales gently with wave; boss kills pay ×8. `render.ts` draws the new kinds
+    (facing arrowhead / hex turret) + boss bar; `world.ts` adds homeToward / emitRing
+    / fireBolt and contact damage; `bossBanner` on the World. tsc + build clean.
+    **Next:** balance pass once playtested.
 
 - **Phase 13 — Queue UX & provider reliability (v0.1.1, user-reported from the
   installed app).** Five fixes from real first-use of the packaged build, all on a
