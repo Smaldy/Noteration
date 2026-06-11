@@ -61,4 +61,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: Invasion Update 0.1.2v
+          body_path: packaging/RELEASE-NOTES-0.1.2.md
           files: packaging/installer_output/noteration-*.pkg.tar.zst
