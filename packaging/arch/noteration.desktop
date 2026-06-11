@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Noteration
+GenericName=Study App
+Comment=Turn engineering PDFs into notes, MCQs, flashcards and an SM-2 schedule
+Exec=noteration
+Icon=noteration
+Terminal=false
+Categories=Education;Office;Viewer;
+Keywords=study;notes;flashcards;pdf;spaced-repetition;
+StartupWMClass=Noteration

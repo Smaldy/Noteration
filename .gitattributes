@@ -5,5 +5,10 @@
 *.command text eol=lf
 *.sh      text eol=lf
 
+# Arch packaging: makepkg parses PKGBUILD as bash and reads the .desktop entry on
+# Linux — CRLF would break both.
+PKGBUILD   text eol=lf
+*.desktop  text eol=lf
+
 # Windows run scripts keep CRLF
 *.bat text eol=crlf

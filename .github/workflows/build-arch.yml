@@ -1,0 +1,64 @@
+name: Build Arch package
+
+# Builds a native Arch Linux package (.pkg.tar.zst) from packaging/arch/PKGBUILD
+# inside an archlinux container — installable with `pacman -U`. Reuses the same
+# PyInstaller freeze as the other platforms, laid out under /opt with a desktop
+# entry. makepkg refuses to run as root, so we build as an unprivileged user.
+
+on:
+  push:
+    branches: [main, delivery-ready]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # attach the package to a release on tag pushes
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged # xvfb-run in check() needs to spin up a virtual X server
+    steps:
+      - name: Install toolchain
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed \
+            base-devel git sudo \
+            nodejs npm python python-pip \
+            python-gobject python-cairo gobject-introspection \
+            gtk3 webkit2gtk-4.1 xorg-server-xvfb
+
+      - uses: actions/checkout@v4
+
+      - name: Create unprivileged build user
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          # makepkg writes into the checkout; hand it to the builder.
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          # The repo is checked out under a path git flags as "dubious ownership".
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build package with makepkg
+        run: |
+          cd packaging/arch
+          sudo -u builder makepkg -f --noconfirm
+          mkdir -p "$GITHUB_WORKSPACE/packaging/installer_output"
+          cp noteration-*.pkg.tar.zst "$GITHUB_WORKSPACE/packaging/installer_output/"
+          ls -la "$GITHUB_WORKSPACE/packaging/installer_output/"
+
+      - name: Upload Arch package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noteration-Arch-pkg
+          path: packaging/installer_output/noteration-*.pkg.tar.zst
+          if-no-files-found: error
+
+      - name: Attach package to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Invasion Update 0.1.2v
+          files: packaging/installer_output/noteration-*.pkg.tar.zst

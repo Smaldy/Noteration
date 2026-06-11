@@ -1,0 +1,83 @@
+# Maintainer: Noteration
+#
+# Arch Linux package for Noteration — the local-first study app.
+#
+# Build & install on an Arch box (from this directory):
+#
+#     cd packaging/arch
+#     makepkg -si              # build, then install with pacman
+#
+# This reuses the project's proven PyInstaller one-folder freeze (the same build
+# the Windows/macOS installers ship), laid out the Arch way:
+#   * the frozen bundle lives in /opt/noteration
+#   * /usr/bin/noteration launches it
+#   * a .desktop entry + icon integrate it into the desktop menu
+#
+# pywebview uses the GTK/WebKit backend on Linux, so the package depends on the
+# system webkit2gtk-4.1 + gtk3 runtime (their .so libs and GI typelibs); the
+# Python GTK bindings (gi) are bundled inside the freeze.
+
+pkgname=noteration
+pkgver=0.1.2
+pkgrel=1
+pkgdesc="Local-first study app: turns engineering PDFs into notes, MCQs, flashcards and an SM-2 schedule"
+arch=('x86_64')
+url="https://github.com/AymanAli/Noteration"
+license=('custom')
+depends=('webkit2gtk-4.1' 'gtk3' 'glib2')
+makedepends=('nodejs' 'npm' 'python' 'python-pip' 'python-gobject' 'python-cairo'
+             'gobject-introspection' 'gtk3' 'webkit2gtk-4.1')
+checkdepends=('xorg-server-xvfb')
+options=('!strip' '!debug')
+
+# Built in-place from the repository this PKGBUILD lives in (three levels up):
+# packaging/arch/PKGBUILD -> repo root. Intermediate build artifacts go to
+# $srcdir so the working tree stays clean.
+_repo="$startdir/../.."
+
+build() {
+  cd "$_repo"
+
+  # 1. Frontend bundle (dist/).
+  npm ci
+  npm run build
+
+  # 2. Python build venv. --system-site-packages lets PyInstaller see the
+  #    system PyGObject/pycairo (gi) so it can collect the GTK backend without
+  #    compiling the bindings from source.
+  python -m venv --system-site-packages "$srcdir/venv"
+  # shellcheck disable=SC1091
+  source "$srcdir/venv/bin/activate"
+  pip install --upgrade pip
+  pip install -r backend/requirements.txt
+  pip install -r packaging/requirements-build.txt
+
+  # 3. Freeze the one-folder bundle.
+  pyinstaller packaging/noteration.spec --noconfirm \
+    --distpath "$srcdir/dist" --workpath "$srcdir/build"
+
+  deactivate
+}
+
+check() {
+  # Headless self-test: imports every native dep, migrates a throwaway DB, and
+  # renders+converts a 1-page PDF. xvfb gives pywebview's GTK import a display.
+  xvfb-run -a "$srcdir/dist/Noteration/Noteration" --selftest
+}
+
+package() {
+  # Frozen bundle -> /opt/noteration
+  install -dm755 "$pkgdir/opt/$pkgname"
+  cp -a "$srcdir/dist/Noteration/." "$pkgdir/opt/$pkgname/"
+
+  # Launcher on PATH. PyInstaller resolves its _internal dir from the binary's
+  # real path, so a symlink works.
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s "/opt/$pkgname/Noteration" "$pkgdir/usr/bin/$pkgname"
+
+  # Desktop integration.
+  install -Dm644 "$startdir/noteration.desktop" \
+    "$pkgdir/usr/share/applications/$pkgname.desktop"
+  install -Dm644 "$_repo/packaging/assets/noteration.png" \
+    "$pkgdir/usr/share/icons/hicolor/512x512/apps/$pkgname.png"
+}
