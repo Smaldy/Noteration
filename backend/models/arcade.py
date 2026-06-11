@@ -39,6 +39,11 @@ class ArcadeState(Base):
     # How many times the current run lineage has been continued. A fresh start
     # resets it; once it hits MAX_CONTINUES the run can no longer be resumed.
     resume_count: Mapped[int] = mapped_column(default=0)
+    # Prestige: each surrenders all upgrades for a permanent damage bonus and
+    # unlocks the tier-6 special bullets. ``active_special`` is the chosen one
+    # ("none" | "electric" | "love"); only one can be active at a time.
+    prestige_count: Mapped[int] = mapped_column(default=0)
+    active_special: Mapped[str] = mapped_column(default="none")
     # Daily quest (complete N MCQs in a day → bonus coin). Counter resets when
     # ``daily_quest_date`` no longer matches the server's UTC "today".
     daily_mcq_count: Mapped[int] = mapped_column(default=0)

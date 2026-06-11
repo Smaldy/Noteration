@@ -176,12 +176,14 @@ def test_end_run_twice_is_rejected(session: Session) -> None:
 
 
 def test_buy_upgrade_spends_score_and_levels_up(session: Session) -> None:
+    spec = arcade_service._CATALOG_BY_KEY["max_health"]
     state = arcade_service.get_state(session)
-    state.score_balance = 500
+    state.score_balance = spec.cost_at(0) + spec.cost_at(1) + 10
     session.commit()
+    start = state.score_balance
 
     state = arcade_service.buy_upgrade(session, key="max_health")
-    assert state.score_balance == 500 - 50  # first level cost
+    assert state.score_balance == start - spec.cost_at(0)  # first level cost
     levels = arcade_service._upgrade_levels(session)
     assert levels["max_health"] == 1
 
@@ -201,7 +203,7 @@ def test_buy_upgrade_errors(session: Session) -> None:
 
     # Single-level upgrade maxes out after one purchase. Sidearm is a tier-2
     # skill, so it needs the tier unlocked (a deep-enough wave_record) first.
-    state.score_balance = 1000
+    state.score_balance = 1_000_000
     state.wave_record = arcade_service.MAX_TIER_UNLOCK_WAVE
     session.commit()
     arcade_service.buy_upgrade(session, key="shooting")
@@ -212,10 +214,62 @@ def test_buy_upgrade_errors(session: Session) -> None:
 def test_upgrade_cost_curve_is_geometric() -> None:
     spec = arcade_service._CATALOG_BY_KEY["max_health"]
     assert spec.max_level == arcade_service.DEFAULT_MAX_LEVEL
-    assert spec.cost_at(0) == 50  # first level is the base cost
-    assert spec.cost_at(1) == round(50 * arcade_service.DEFAULT_GROWTH)
+    assert spec.cost_at(0) == spec.base_cost  # first level is the base cost
+    assert spec.cost_at(1) == round(spec.base_cost * arcade_service.DEFAULT_GROWTH)
     # Strictly increasing across the whole curve.
     assert all(b > a for a, b in zip(spec.costs, spec.costs[1:]))
+
+
+def test_new_upgrades_exist_in_expected_tiers() -> None:
+    by_key = arcade_service._CATALOG_BY_KEY
+    assert by_key["pusher_cd"].tier == 3
+    assert by_key["bullet_damage"].tier == 2
+    assert by_key["bullet_speed"].tier == 4
+    # The catalog now spans five normal tiers.
+    assert {s.tier for s in arcade_service.UPGRADE_CATALOG} == {1, 2, 3, 4, 5}
+
+
+def test_prestige_requires_final_tier_then_resets_upgrades(session: Session) -> None:
+    state = arcade_service.get_state(session)
+    state.score_balance = 1_000_000
+    state.wave_record = arcade_service.MAX_TIER_UNLOCK_WAVE
+    session.commit()
+    arcade_service.buy_upgrade(session, key="max_health")
+    assert arcade_service._upgrade_levels(session)["max_health"] == 1
+
+    state = arcade_service.prestige(session)
+    assert state.prestige_count == 1
+    assert arcade_service._upgrade_levels(session) == {}  # all surrendered
+    # Prestige re-locks the tier ladder: wave record resets, so you can't
+    # immediately prestige again (no infinite prestige).
+    assert state.wave_record == 0
+    assert arcade_service.can_prestige(state) is False
+    with pytest.raises(arcade_service.PrestigeLockedError):
+        arcade_service.prestige(session)
+
+
+def test_prestige_blocked_before_final_tier(session: Session) -> None:
+    state = arcade_service.get_state(session)
+    state.wave_record = arcade_service.PRESTIGE_UNLOCK_WAVE - 1
+    session.commit()
+    with pytest.raises(arcade_service.PrestigeLockedError):
+        arcade_service.prestige(session)
+
+
+def test_set_special_requires_prestige_and_toggles(session: Session) -> None:
+    with pytest.raises(arcade_service.SpecialLockedError):
+        arcade_service.set_special(session, special="electric")
+
+    state = arcade_service.get_state(session)
+    state.prestige_count = 1
+    session.commit()
+    state = arcade_service.set_special(session, special="electric")
+    assert state.active_special == "electric"
+    # Re-selecting the active special toggles it off.
+    state = arcade_service.set_special(session, special="electric")
+    assert state.active_special == "none"
+    with pytest.raises(arcade_service.UnknownSpecialError):
+        arcade_service.set_special(session, special="bogus")
 
 
 def test_buy_upgrade_blocked_until_tier_unlocked(session: Session) -> None:
@@ -362,9 +416,39 @@ def test_http_buy_upgrade_flow(client: TestClient) -> None:
     body = buy.json()
     health = next(u for u in body["upgrades"] if u["key"] == "max_health")
     assert health["level"] == 1
-    assert body["score_balance"] == 400 - 50
+    base = arcade_service._CATALOG_BY_KEY["max_health"].base_cost
+    assert body["score_balance"] == 400 - base
 
     assert client.post("/api/arcade/upgrades/nope/buy").status_code == 404
+
+
+def test_http_prestige_and_special_flow(client: TestClient) -> None:
+    # Specials are locked until a prestige.
+    assert client.post("/api/arcade/special/electric").status_code == 409
+    # Prestige is gated behind the final tier; a fresh state is too shallow.
+    assert client.post("/api/arcade/prestige").status_code == 409
+
+    # Reach the final tier via a banked run, then prestige.
+    client.post("/api/arcade/coins/earn", json={"source": "flashcard", "count": 50})
+    sid = client.post("/api/arcade/run/start", json={"mode": "fresh"}).json()["session_id"]
+    client.post(
+        "/api/arcade/run/end",
+        json={
+            "session_id": sid,
+            "wave_reached": arcade_service.PRESTIGE_UNLOCK_WAVE,
+            "score_earned": 10,
+            "died": True,
+        },
+    )
+    body = client.post("/api/arcade/prestige").json()
+    assert body["prestige_count"] == 1
+
+    # Now a special can be toggled on (and back off).
+    on = client.post("/api/arcade/special/love").json()
+    assert on["active_special"] == "love"
+    off = client.post("/api/arcade/special/love").json()
+    assert off["active_special"] == "none"
+    assert client.post("/api/arcade/special/bogus").status_code == 404
 
 
 def test_dev_grant_tops_up_coins_and_score(session: Session) -> None:

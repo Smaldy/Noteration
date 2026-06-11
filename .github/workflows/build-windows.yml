@@ -1,0 +1,83 @@
+name: Build Windows installer
+
+# Produces the Windows installer (Noteration-Setup-<ver>.exe) on a GitHub Windows
+# runner, mirroring the documented local build (PyInstaller one-folder bundle +
+# Inno Setup). Runs the bundle's headless self-test so a broken build fails CI
+# instead of reaching a user.
+
+on:
+  push:
+    branches: [main, delivery-ready]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # attach the .exe to a release on tag pushes
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend bundle (dist/)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r packaging/requirements-build.txt
+
+      - name: Build one-folder bundle with PyInstaller
+        run: |
+          pyinstaller packaging/noteration.spec --noconfirm `
+            --distpath packaging/dist --workpath packaging/build
+
+      - name: Self-test the frozen app (headless)
+        run: |
+          $exe = "packaging/dist/Noteration/Noteration.exe"
+          if (-not (Test-Path $exe)) { throw "App binary missing at $exe" }
+          & $exe --selftest
+          if ($LASTEXITCODE -ne 0) { throw "Self-test failed" }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build the installer (Inno Setup)
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noteration-Windows-Setup
+          path: packaging/installer_output/Noteration-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Attach installer to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Invasion Update 0.1.2v
+          files: packaging/installer_output/Noteration-Setup-*.exe

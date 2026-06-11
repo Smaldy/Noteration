@@ -58,7 +58,7 @@ async def lifespan(_app: FastAPI):
             transcription_worker.stop()
 
 
-app = FastAPI(title="Noteration", version="0.1.1", lifespan=lifespan)
+app = FastAPI(title="Noteration", version="0.1.2", lifespan=lifespan)
 
 api = APIRouter(prefix="/api")
 

@@ -11,6 +11,7 @@ import {
   type Enemy,
   ENEMY_COLOR,
   type Pickup,
+  type Spike,
   type World,
 } from "./types";
 
@@ -32,12 +33,17 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
   ctx.clearRect(-40, -40, w + 80, h + 80);
   drawGrid(ctx, w, h);
 
-  // Spikes (enemy projectiles).
+  // Spikes (enemy projectiles): plain bolts are pink diamonds; thrown clock-hands
+  // (those with a `len`) are spinning rods in the clock's accent.
   ctx.shadowBlur = 10;
   for (const s of world.spikes) {
-    ctx.shadowColor = COLORS.pink;
-    ctx.fillStyle = COLORS.pink;
-    diamond(ctx, s.pos.x, s.pos.y, s.radius);
+    if (s.len) {
+      drawHand(ctx, s);
+    } else {
+      ctx.shadowColor = COLORS.pink;
+      ctx.fillStyle = COLORS.pink;
+      diamond(ctx, s.pos.x, s.pos.y, s.radius);
+    }
   }
 
   // Beamer laser beams (fade over their short life).
@@ -101,6 +107,31 @@ export function render(ctx: CanvasRenderingContext2D, world: World) {
 
   if (world.waveBanner > 0) drawBanner(ctx, world);
   if (world.bannerArena > 0) drawArenaBanner(ctx, world);
+}
+
+/** A thrown clock-hand: a tapered rod that tumbles as it flies. */
+function drawHand(ctx: CanvasRenderingContext2D, s: Spike) {
+  const len = s.len ?? 12;
+  const col = s.color ?? COLORS.pink;
+  ctx.save();
+  ctx.translate(s.pos.x, s.pos.y);
+  ctx.rotate(s.spin ?? 0);
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = col;
+  ctx.fillStyle = col;
+  // Rod from a fat hub out to a point (clock-hand silhouette).
+  const w = Math.max(3, len * 0.22);
+  ctx.beginPath();
+  ctx.moveTo(-len * 0.28, -w / 2);
+  ctx.lineTo(len, 0);
+  ctx.lineTo(-len * 0.28, w / 2);
+  ctx.closePath();
+  ctx.fill();
+  // Center hub.
+  ctx.beginPath();
+  ctx.arc(0, 0, w * 0.75, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBeam(ctx: CanvasRenderingContext2D, b: Beam) {
@@ -209,17 +240,30 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.stroke();
 }
 
+const CHARM_COLOR = "#ff7bd5";
+
 function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
   const flash = e.hitFlash > 0.5;
-  const base = ENEMY_COLOR[e.kind];
+  // A charmed ally reads in heart-pink (it fights for you now).
+  const base = e.charmed ? CHARM_COLOR : ENEMY_COLOR[e.kind];
   const col = flash ? "#ffffff" : base;
   const r = e.radius;
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y);
-  ctx.shadowBlur = e.isBoss ? 24 : 14;
+  ctx.shadowBlur = e.charmed ? 18 : e.isBoss ? 24 : 14;
   ctx.shadowColor = base;
   ctx.strokeStyle = col;
   ctx.lineWidth = e.isBoss ? 4 : 3;
+  // A little floating heart marks a charmed ally.
+  if (e.charmed) {
+    ctx.save();
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = CHARM_COLOR;
+    ctx.font = "10px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("♥", 0, -r - 6);
+    ctx.restore();
+  }
 
   if (e.kind === "hunter") {
     // Arrowhead that faces its motion — it's chasing the cursor.
@@ -267,14 +311,25 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
       ctx.lineTo(Math.cos(a) * (r - 1), Math.sin(a) * (r - 1));
       ctx.stroke();
     }
-    ctx.rotate(-e.spin * 2.4);
+    // Hands (hour/minute/second) regrow after being thrown — length scales with
+    // how far the reload has recharged (0 = just thrown, 1 = fully regrown). A
+    // clone never throws, so its hands always read full.
+    const regen = Math.max(0, Math.min(1, 1 - Math.max(0, e.reload) / e.reloadTime));
+    ctx.rotate(-e.spin * 1.8);
+    ctx.lineCap = "round";
     ctx.lineWidth = e.isBoss ? 4 : 3;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, -r * 0.6);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(r * 0.45, r * 0.2);
-    ctx.stroke();
+    const hands = [
+      [0, r * 0.5],
+      [2.1, r * 0.72],
+      [4.0, r * 0.92],
+    ] as const;
+    for (const [ang, len] of hands) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(ang) * len * regen, Math.sin(ang) * len * regen);
+      ctx.stroke();
+    }
+    ctx.lineCap = "butt";
   } else if (e.kind === "dasher") {
     const charging = e.windup > 0;
     // Motion streak behind it while lunging.
@@ -315,19 +370,33 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
     ctx.stroke();
   } else if (e.kind === "beamer") {
     const charging = e.windup > 0;
-    // Telegraph warning line while charging (brightens as it nears firing).
+    // Telegraph while charging. Two stages: a faint, dashed WHITE tracking line
+    // while the aim still follows the cursor, then — once the aim LOCKS (`armed`)
+    // — a bright, solid RED beam showing exactly where it will fire, giving the
+    // player a clear window to step off the line and dodge.
     if (charging) {
       ctx.save();
       ctx.rotate(e.aimAngle);
-      const heat = Math.max(0, Math.min(1, 1 - e.windup / 0.85));
-      ctx.globalAlpha = 0.25 + 0.55 * heat;
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5 + 3 * heat;
-      ctx.setLineDash([6, 5]);
-      ctx.beginPath();
-      ctx.moveTo(r, 0);
-      ctx.lineTo(r + 1400, 0);
-      ctx.stroke();
+      if (e.armed) {
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#ff3b5c";
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = "#ff3b5c";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.lineTo(r + 1400, 0);
+        ctx.stroke();
+      } else {
+        ctx.globalAlpha = 0.45;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.lineTo(r + 1400, 0);
+        ctx.stroke();
+      }
       ctx.restore();
     }
     ctx.rotate(e.spin * 0.4);
@@ -348,8 +417,53 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy) {
     ctx.arc(0, 0, core, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    // hourglass + shard: two triangles tip-to-tip
-    ctx.rotate(e.spin);
+    // hourglass + shard: two triangles tip-to-tip. Once aggressive they lunge —
+    // a motion streak while dashing, and a dashed aim line while winding up.
+    if (e.dashTime > 0) {
+      ctx.save();
+      ctx.rotate(e.aimAngle);
+      ctx.globalAlpha = 0.32;
+      ctx.strokeStyle = base;
+      ctx.lineWidth = r;
+      ctx.beginPath();
+      ctx.moveTo(-r * 1.3, 0);
+      ctx.lineTo(-r * 3.2, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (e.windup > 0) {
+      // A clean glowing lance toward the lunge direction (replaces the old dashed
+      // stub) — a tapered, fading beam in the enemy's color with an arrowhead.
+      const reach = 230;
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(e.spin * 6));
+      ctx.save();
+      ctx.rotate(e.aimAngle);
+      ctx.globalAlpha = 0.9 * pulse;
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = base;
+      ctx.lineCap = "round";
+      const grad = ctx.createLinearGradient(r, 0, r + reach, 0);
+      grad.addColorStop(0, base);
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(r + reach, 0);
+      ctx.stroke();
+      ctx.fillStyle = base;
+      ctx.beginPath();
+      ctx.moveTo(r + reach + 4, 0);
+      ctx.lineTo(r + reach - 12, -8);
+      ctx.lineTo(r + reach - 12, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    // Literal flip: the hourglass stays upright and squashes vertically through
+    // edge-on (scaleY 1→0→1) when it flips, instead of tumbling. HG_FLIP_DUR=0.34.
+    const sy = e.flipAnim > 0 ? Math.cos((1 - e.flipAnim / 0.34) * Math.PI) : 1;
+    ctx.scale(1, sy);
     ctx.fillStyle = e.kind === "shard" ? "rgba(116,255,156,0.12)" : "rgba(255,225,77,0.12)";
     if (e.kind === "shard") ctx.lineWidth = 2;
     ctx.beginPath();

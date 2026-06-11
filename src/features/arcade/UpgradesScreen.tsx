@@ -1,5 +1,5 @@
-import { Lock, Sparkles } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { Heart, Lock, Sparkles, Star, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ArcadeState } from "@/types/arcade";
 
@@ -9,6 +9,22 @@ const TIER_LABEL: Record<number, string> = {
   1: "TIER I · CORE",
   2: "TIER II · FIREPOWER",
   3: "TIER III · TACTICAL",
+  4: "TIER IV · ADVANCED",
+  5: "TIER V · ELITE",
+};
+
+/** Tier-6 special bullets — toggled (not leveled), unlocked by prestige. */
+const SPECIAL_META: Record<string, { name: string; desc: string; Icon: typeof Zap }> = {
+  electric: {
+    name: "Electric Rounds",
+    desc: "Hits arc a share of their damage to nearby enemies.",
+    Icon: Zap,
+  },
+  love: {
+    name: "Love Rounds",
+    desc: "Charm the enemy you hit (harder the tankier) to fight for you.",
+    Icon: Heart,
+  },
 };
 
 /** The shop. Selection is driven by the deck's ▲ ▼ buttons (selectedIndex);
@@ -19,17 +35,24 @@ export function UpgradesScreen({
   selectedIndex,
   error,
   busy,
+  onSetSpecial,
+  onPrestige,
 }: {
   state: ArcadeState;
   selectedIndex: number;
   error?: string | null;
   busy?: boolean;
+  onSetSpecial?: (special: string) => void;
+  onPrestige?: () => void;
 }) {
   const selRef = useRef<HTMLDivElement | null>(null);
+  const [confirmPrestige, setConfirmPrestige] = useState(false);
 
   useEffect(() => {
     selRef.current?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
+
+  const prestiged = state.prestige_count > 0;
 
   return (
     <div className={`flex h-full flex-col ${ARCADE_PIXEL}`}>
@@ -106,6 +129,99 @@ export function UpgradesScreen({
             </div>
           );
         })}
+
+        {/* ── Tier VI · Special bullets (prestige-gated, togglable) ────────── */}
+        <p className="arcade-dim mb-1.5 mt-2 text-[7px] tracking-[0.25em]">
+          TIER VI · SPECIAL {!prestiged && "· PRESTIGE TO UNLOCK"}
+        </p>
+        {state.specials.map((id) => {
+          const meta = SPECIAL_META[id];
+          if (!meta) return null;
+          const active = state.active_special === id;
+          const Icon = meta.Icon;
+          return (
+            <button
+              key={id}
+              type="button"
+              data-arcade-ui
+              disabled={!prestiged}
+              onClick={() => prestiged && onSetSpecial?.(id)}
+              className={`mb-2 flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition ${
+                active
+                  ? "border-fuchsia-300/80 bg-fuchsia-500/15"
+                  : "border-fuchsia-400/15 bg-black/40"
+              } ${!prestiged ? "opacity-55" : "hover:border-fuchsia-300/50"}`}
+            >
+              <div className="min-w-0">
+                <p
+                  className={`flex items-center gap-1 text-[9px] ${
+                    active ? "arcade-neon-pink" : "arcade-neon-green"
+                  }`}
+                >
+                  <Icon className="size-3" />
+                  {meta.name}
+                </p>
+                <p className="arcade-dim mt-1 truncate text-[7px] leading-relaxed">
+                  {meta.desc}
+                </p>
+              </div>
+              <span className="shrink-0 text-[8px]">
+                {!prestiged ? (
+                  <span className="arcade-neon-pink inline-flex items-center gap-1">
+                    <Lock className="size-2.5" />
+                  </span>
+                ) : active ? (
+                  <span className="arcade-neon-pink">ACTIVE</span>
+                ) : (
+                  <span className="arcade-dim">EQUIP</span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+
+        {/* ── Prestige — surrender all upgrades for a permanent damage bonus ── */}
+        <div className="mt-1 rounded-md border border-amber-300/30 bg-amber-500/5 px-3 py-2">
+          <p className="flex items-center justify-between text-[9px]">
+            <span className="arcade-neon-yellow inline-flex items-center gap-1">
+              <Star className="size-3" />
+              PRESTIGE
+            </span>
+            <span className="arcade-dim text-[7px]">
+              ★ {state.prestige_count} · +{state.prestige_count * 20}% DMG
+            </span>
+          </p>
+          <p className="arcade-dim mt-1 text-[7px] leading-relaxed">
+            Surrender every upgrade for a permanent +20% to all attack damage and
+            the special bullets.
+          </p>
+          {state.can_prestige ? (
+            <button
+              type="button"
+              data-arcade-ui
+              onClick={() => {
+                if (confirmPrestige) {
+                  onPrestige?.();
+                  setConfirmPrestige(false);
+                } else {
+                  setConfirmPrestige(true);
+                }
+              }}
+              className={`mt-1.5 w-full rounded border px-2 py-1 text-[8px] transition hover:scale-[1.02] ${
+                confirmPrestige
+                  ? "border-rose-400/70 arcade-neon-pink"
+                  : "border-amber-300/50 arcade-neon-yellow"
+              }`}
+            >
+              {confirmPrestige ? "CONFIRM — RESET ALL?" : "PRESTIGE NOW"}
+            </button>
+          ) : (
+            <p className="arcade-neon-pink mt-1.5 inline-flex items-center gap-1 text-[8px]">
+              <Lock className="size-2.5" />
+              REACH WAVE {state.prestige_unlock_wave}
+            </p>
+          )}
+        </div>
       </div>
 
       <p className="mt-2 text-center text-[7px]">

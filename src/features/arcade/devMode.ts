@@ -6,4 +6,4 @@
  *
  * Toggle by editing the line below (ask me to set it TRUE or FALSE).
  */
-export const DEV_MODE = true;
+export const DEV_MODE = false;

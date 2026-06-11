@@ -204,6 +204,17 @@ _NOTES_FORMAT_RULES = (
     "  * Do NOT wrap the notes in a code fence.\n"
 )
 
+# Math rule for the assessment fields (mcq question/options/explanation,
+# flashcard front/back). Without this the model often emits bare or `\(…\)`-style
+# math, which the renderer can't typeset — so exponents and integrals show up as
+# literal `10^3` / `\int` text. The `$…$` form is what the front-end expects.
+_ASSESSMENT_MATH_RULE = (
+    "- Math: in every question, option, explanation, and flashcard, write ALL "
+    r"mathematical notation as LaTeX delimited with `$inline$` (or `$$display$$`), "
+    r"e.g. `$10^3$`, `$n^x$`, `$\int_0^1 x^2\,dx$` — never bare or `\(...\)`-style."
+    "\n"
+)
+
 
 def _notes_length_rule(note_length: int) -> str:
     """The 'aim for N pages' length directive for the notes formatting block."""
@@ -252,6 +263,7 @@ def build_generation_prompt(
             "source; each with at least 2 options, a correct_index pointing to the "
             "right option, and a clear explanation of why it is correct.\n"
             "- flashcards: 10-15 flashcards grounded in the source.\n"
+            f"{_ASSESSMENT_MATH_RULE}"
             "- Do not invent material the source does not support.\n"
             f"{lang_rule}\n"
             f"# Topic\n{topic_title}\n\n"
@@ -275,6 +287,7 @@ def build_generation_prompt(
         "- mcqs: 5-10 multiple-choice questions grounded in the notes; each with "
         "at least 2 options and a correct_index pointing to the right option.\n"
         "- flashcards: 5-10 flashcards grounded in the notes.\n"
+        f"{_ASSESSMENT_MATH_RULE}"
         f"{lang_rule}\n"
         f"# Topic\n{topic_title}\n\n"
         f"# Source material\n{source_text}\n"

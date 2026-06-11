@@ -42,6 +42,21 @@ hiddenimports += ["fitz"]  # pymupdf legacy alias used by some code paths
 # TLS roots for the AI SDK HTTP clients.
 datas += collect_data_files("certifi")
 
+# Linux: pywebview uses the GTK/WebKit backend via PyGObject (`gi`), which is
+# imported lazily (so PyInstaller's static analysis misses it). Pull it in plus
+# the GTK backend module. The host still needs the system WebKit2GTK runtime
+# (libwebkit2gtk-4.1) — we bundle the Python bindings, not the GTK stack itself.
+if sys.platform.startswith("linux"):
+    for pkg in ("gi", "cairo"):
+        try:
+            d, b, h = collect_all(pkg)
+            datas += d
+            binaries += b
+            hiddenimports += h
+        except Exception:
+            pass
+    hiddenimports += ["webview.platforms.gtk", "gi.repository.WebKit2", "gi.repository.Gtk"]
+
 # App payload: the built frontend bundle and the Alembic migration scripts.
 # Targets chosen so the running code finds them:
 #   backend/main.py    -> <bundle>/dist
@@ -105,8 +120,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "Noteration",
             "CFBundleDisplayName": "Noteration",
-            "CFBundleShortVersionString": "0.1.1",
-            "CFBundleVersion": "0.1.1",
+            "CFBundleShortVersionString": "0.1.2",
+            "CFBundleVersion": "0.1.2",
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "11.0",
         },

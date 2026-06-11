@@ -279,6 +279,31 @@ export const arcadeStyles = `
     100% { transform: translateY(-10px) scale(0.95); opacity: 0; }
   }
 
+  /* Player HUD backing panel — lifts hearts/score/abilities off the busy frozen
+     app behind so they stay legible. A dark glassy slab whose neon edge + glow
+     follow the app's SELECTED accent (--primary), keeping the arcade vibe. */
+  .arcade-hud-panel {
+    background:
+      linear-gradient(155deg,
+        color-mix(in oklab, var(--primary) 16%, rgba(8,4,20,0.86)) 0%,
+        rgba(6,3,16,0.92) 100%);
+    border: 1px solid color-mix(in oklab, var(--primary) 58%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--primary) 32%, transparent),
+      inset 0 0 22px color-mix(in oklab, var(--primary) 22%, transparent),
+      0 6px 22px rgba(0,0,0,0.55),
+      0 0 16px -2px color-mix(in oklab, var(--primary) 50%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  /* Neon text tinted to the app's selected accent (used for the score). */
+  .arcade-neon-primary {
+    color: var(--primary);
+    text-shadow:
+      0 0 8px color-mix(in oklab, var(--primary) 70%, transparent),
+      0 0 2px var(--primary);
+  }
+
   .arcade-pip-active { animation: arcade-pip-active 0.7s ease-in-out infinite; }
   @keyframes arcade-pip-active {
     0%,100% { transform: scale(1); filter: brightness(1); }

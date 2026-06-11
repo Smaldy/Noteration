@@ -29,8 +29,11 @@ export function ArcadeOverlay() {
   const state = useArcadeStore((s) => s.state);
   const startRun = useArcadeStore((s) => s.startRun);
   const buyUpgrade = useArcadeStore((s) => s.buyUpgrade);
+  const prestige = useArcadeStore((s) => s.prestige);
+  const setSpecial = useArcadeStore((s) => s.setSpecial);
   const devGrant = useArcadeStore((s) => s.devGrant);
   const devResetUpgrades = useArcadeStore((s) => s.devResetUpgrades);
+  const devAction = useArcadeStore((s) => s.devAction);
 
   const [screen, setScreen] = useState<Screen>("main");
   const [selection, setSelection] = useState<StartMode>("fresh");
@@ -39,7 +42,6 @@ export function ArcadeOverlay() {
   const [storeError, setStoreError] = useState<string | null>(null);
   const [pulling, setPulling] = useState(false);
   const [coins, setCoins] = useState<number[]>([]);
-  const [block, setBlock] = useState(false);
   const coinId = useRef(0);
 
   const cooldown = useCountdown(state?.cooldown_until ?? null);
@@ -158,7 +160,6 @@ export function ArcadeOverlay() {
       else if (e.key === "ArrowRight") cycleScreen(1);
       else if (e.key === "ArrowUp") moveSelection(-1);
       else if (e.key === "ArrowDown") moveSelection(1);
-      else if (e.key === "b" || e.key === "B") setBlock((b) => !b);
       else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         pull();
@@ -189,6 +190,8 @@ export function ArcadeOverlay() {
             storeIdx={storeIdx}
             storeError={storeError}
             storeBusy={storeBusy}
+            onSetSpecial={(id) => void setSpecial(id)}
+            onPrestige={() => void prestige()}
           />
         </motion.div>
       </AnimatePresence>
@@ -225,36 +228,32 @@ export function ArcadeOverlay() {
             <X className="size-5" />
           </button>
 
-          <button
-            type="button"
-            onClick={() => setBlock((b) => !b)}
-            className={`absolute left-4 top-4 z-30 rounded-full px-3 py-1.5 text-[10px] font-bold tracking-wider backdrop-blur transition ${
-              block ? "bg-red-500/80 text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
-            }`}
-          >
-            BLOCKOUT (B): {block ? "ON" : "OFF"}
-          </button>
-
           {/* Developer panel — only when DEV_MODE is on (src/features/arcade/devMode.ts). */}
           {DEV_MODE && (
             <div
-              className={`absolute left-4 top-16 z-30 flex flex-col gap-1.5 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2 backdrop-blur ${ARCADE_PIXEL}`}
+              className={`absolute left-4 top-4 z-30 flex w-40 flex-col gap-1.5 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2 backdrop-blur ${ARCADE_PIXEL}`}
             >
               <span className="arcade-neon-yellow text-[8px]">DEV MODE</span>
-              <button
-                type="button"
-                onClick={() => void devGrant()}
-                className="rounded bg-amber-400/20 px-2 py-1 text-[8px] text-amber-100 transition hover:bg-amber-400/40"
-              >
-                GRANT ∞ COINS + SCORE
-              </button>
-              <button
-                type="button"
-                onClick={() => void devResetUpgrades()}
-                className="rounded bg-amber-400/20 px-2 py-1 text-[8px] text-amber-100 transition hover:bg-amber-400/40"
-              >
-                RESET UPGRADES
-              </button>
+              {(
+                [
+                  ["GRANT ∞ COINS + SCORE", () => void devGrant()],
+                  ["UNLOCK ALL ABILITIES", () => void devAction("max-upgrades")],
+                  ["IGNORE WAVE LOCK", () => void devAction("unlock-tiers")],
+                  ["RESET UPGRADES", () => void devResetUpgrades()],
+                  ["RESET PRESTIGE", () => void devAction("reset-prestige")],
+                  ["RESET SCORE", () => void devAction("reset-score")],
+                  ["RESET COINS", () => void devAction("reset-coins")],
+                ] as const
+              ).map(([label, fn]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={fn}
+                  className="rounded bg-amber-400/20 px-2 py-1 text-left text-[8px] text-amber-100 transition hover:bg-amber-400/40"
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           )}
 
@@ -276,7 +275,7 @@ export function ArcadeOverlay() {
             transition={{ type: "spring", stiffness: 220, damping: 24 }}
           >
             <CabinetStage
-              block={block}
+              block={false}
               screen={screenContent}
               screenDots={dots}
               marquee="NOTINVASION"
@@ -304,6 +303,8 @@ function ScreenBody({
   storeIdx,
   storeError,
   storeBusy,
+  onSetSpecial,
+  onPrestige,
 }: {
   screen: Screen;
   state: ArcadeState;
@@ -311,6 +312,8 @@ function ScreenBody({
   storeIdx: number;
   storeError: string | null;
   storeBusy: boolean;
+  onSetSpecial: (special: string) => void;
+  onPrestige: () => void;
 }) {
   if (screen === "store")
     return (
@@ -319,6 +322,8 @@ function ScreenBody({
         selectedIndex={storeIdx}
         error={storeError}
         busy={storeBusy}
+        onSetSpecial={onSetSpecial}
+        onPrestige={onPrestige}
       />
     );
   if (screen === "quests") return <QuestsScreen state={state} />;

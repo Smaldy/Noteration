@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { MarkdownView } from "@/components/MarkdownView";
 import { Button } from "@/components/ui/button";
 import { emitStudyEvent } from "@/lib/arcadeEvents";
 import { cn } from "@/lib/utils";
@@ -201,7 +202,9 @@ function CardFace({
         <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
-        <p>{text}</p>
+        <p>
+          <MarkdownView inline>{text}</MarkdownView>
+        </p>
       </div>
     </div>
   );

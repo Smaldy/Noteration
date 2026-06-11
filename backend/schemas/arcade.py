@@ -40,7 +40,7 @@ class UpgradeOut(BaseModel):
     level: int
     max_level: int
     next_cost: int | None  # None when fully upgraded
-    tier: int  # 1..3 — skills are grouped and gated by tier
+    tier: int  # 1..5 — skills are grouped and gated by tier
     unlock_wave: int  # wave_record needed to buy this tier (0 = always open)
     locked: bool  # True while wave_record < unlock_wave
 
@@ -72,6 +72,12 @@ class ArcadeStateOut(BaseModel):
     daily_quest: DailyQuestOut
     upgrades: list[UpgradeOut]
     economy: EconomyOut
+    # Prestige / special bullets (tier 6).
+    prestige_count: int
+    can_prestige: bool  # final tier reached → a prestige is allowed
+    prestige_unlock_wave: int  # wave_record needed to prestige
+    active_special: str  # "none" | "electric" | "love"
+    specials: list[str]  # the selectable special-bullet ids
 
 
 class RunStartOut(BaseModel):

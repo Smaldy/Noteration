@@ -11,7 +11,7 @@
  * Library button glow (and an on-screen alert names them); go there and *hold* on
  * the bomb to defuse it before the fuse blows. Death or BANK & EXIT ends the run.
  */
-import { Heart, Lock, Shield, Zap } from "lucide-react";
+import { Heart, Lock, Shield, Waves, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -49,6 +49,8 @@ interface Hud {
   hasPhase: boolean; // Phase Cloak owned
   phaseActive: boolean; // Phase Cloak currently up (ignore-damage window)
   phaseFrac: number; // time-to-next-window remaining, 0..1
+  pusherReady: boolean; // Defuser Pusher charged (next defuse releases a shockwave)
+  pusherFrac: number; // recharge remaining, 0..1 (0 = charged)
   waveLeft: number; // enemies left to clear this sector's wave
   waveTotal: number; // enemies this wave (for the progress bar)
 }
@@ -75,6 +77,17 @@ export function GameCanvas() {
   const lockTimer = useRef<number>();
   // A padlock pops where a locked control was clicked.
   const [lockFx, setLockFx] = useState<{ x: number; y: number; key: number } | null>(null);
+  // The bottom-left HUD panel sits where the reticle (the cursor) can go; fade it
+  // out while the cursor — OR a live enemy — is over it so it never hides them.
+  const hudRef = useRef<HTMLDivElement | null>(null);
+  const hudDimRef = useRef(false);
+  const [hudDim, setHudDim] = useState(false);
+  const enemyDimRef = useRef(false);
+  const [hudEnemyDim, setHudEnemyDim] = useState(false);
+  // Right-click HOLD warps back to the Library (5s, down to 0.5s with Recall).
+  const rightDownRef = useRef<number | null>(null);
+  const recallProgRef = useRef(0);
+  const [recallProg, setRecallProg] = useState(0);
 
   const [hud, setHud] = useState<Hud>({
     health: 0,
@@ -93,6 +106,8 @@ export function GameCanvas() {
     hasPhase: false,
     phaseActive: false,
     phaseFrac: 0,
+    pusherReady: true,
+    pusherFrac: 0,
     waveLeft: 0,
     waveTotal: 0,
   });
@@ -167,6 +182,14 @@ export function GameCanvas() {
     };
     const onMove = (e: MouseEvent) => {
       inputRef.current.pointer = { x: e.clientX, y: e.clientY };
+      // Fade the HUD panel when the cursor is over it (it'd hide the reticle).
+      const r = hudRef.current?.getBoundingClientRect();
+      const over =
+        !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (over !== hudDimRef.current) {
+        hudDimRef.current = over;
+        setHudDim(over);
+      }
     };
     const onDown = (e: MouseEvent) => {
       if (targetKind(e.target) !== "play") return; // our UI / a nav button — let the DOM handle it
@@ -177,6 +200,7 @@ export function GameCanvas() {
         inputRef.current.held = true;
       } else if (e.button === 2) {
         inputRef.current.dodge = true;
+        rightDownRef.current = performance.now(); // start the hold-to-recall timer
       }
     };
     const onClickCapture = (e: MouseEvent) => {
@@ -206,8 +230,11 @@ export function GameCanvas() {
       e.preventDefault();
       e.stopPropagation();
     };
-    const onUp = () => {
-      inputRef.current.held = false;
+    const onUp = (e?: Event) => {
+      // blur (no button) cancels everything; mouseup clears only its own button.
+      const btn = e instanceof MouseEvent ? e.button : undefined;
+      if (btn === undefined || btn === 0) inputRef.current.held = false;
+      if (btn === undefined || btn === 2) rightDownRef.current = null;
     };
     const onContext = (e: MouseEvent) => {
       if (targetKind(e.target) === "play") e.preventDefault(); // right-click in the play area = dodge
@@ -244,6 +271,24 @@ export function GameCanvas() {
       inputRef.current.clicked = false; // one-shot inputs consumed after the step
       inputRef.current.dodge = false;
 
+      // Right-click HOLD → warp to the Library. Threshold shrinks 5s→0.5s with
+      // the Recall Beacon level. Blocked while a boss locks the sector.
+      const holdT =
+        rightDownRef.current != null ? (now - rightDownRef.current) / 1000 : 0;
+      const recallThr = Math.max(0.5, 5 - 0.45 * world.load.recallLevel);
+      const recallable = world.arena !== "library" && !bossActive(world);
+      const prog = recallable && holdT > 0 ? Math.min(1, holdT / recallThr) : 0;
+      if (Math.abs(prog - recallProgRef.current) > 0.03 || (prog === 0 && recallProgRef.current !== 0)) {
+        recallProgRef.current = prog;
+        setRecallProg(prog);
+      }
+      if (prog >= 1) {
+        rightDownRef.current = null;
+        recallProgRef.current = 0;
+        setRecallProg(0);
+        navigate("/"); // the route effect switches the sector to Library
+      }
+
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       render(ctx, world);
@@ -273,9 +318,33 @@ export function GameCanvas() {
           hasPhase: world.load.phaseShieldLevel > 0,
           phaseActive: world.phase.active > 0,
           phaseFrac: world.phase.interval > 0 ? world.phase.cooldown / world.phase.interval : 0,
+          pusherReady: world.pusher.cooldown <= 0,
+          pusherFrac: world.pusher.interval > 0 ? world.pusher.cooldown / world.pusher.interval : 0,
           waveLeft: st.pending + aliveHere,
           waveTotal: st.total,
         });
+        // Fade the HUD panel when a live enemy is overlapping it (they'd hide
+        // behind the slab otherwise). Panel rect ≈ world coords (full-window canvas).
+        const pr = hudRef.current?.getBoundingClientRect();
+        let enemyOver = false;
+        if (pr) {
+          for (const e of world.enemies) {
+            if (e.arena !== world.arena) continue;
+            if (
+              e.pos.x + e.radius >= pr.left &&
+              e.pos.x - e.radius <= pr.right &&
+              e.pos.y + e.radius >= pr.top &&
+              e.pos.y - e.radius <= pr.bottom
+            ) {
+              enemyOver = true;
+              break;
+            }
+          }
+        }
+        if (enemyOver !== enemyDimRef.current) {
+          enemyDimRef.current = enemyOver;
+          setHudEnemyDim(enemyOver);
+        }
         // Publish bomb sectors to the store (for the real nav glow) when changed.
         const key = [...bombArenas].sort().join(",");
         if (key !== lastBombKey) {
@@ -338,6 +407,23 @@ export function GameCanvas() {
         </div>
       )}
 
+      {/* Recall (right-click hold) progress — warping back to the Library. */}
+      {recallProg > 0 && (
+        <div className="pointer-events-none absolute left-1/2 top-20 flex -translate-x-1/2 flex-col items-center gap-1.5">
+          <div
+            className={`rounded-full border border-cyan-300/60 bg-black/55 px-4 py-1.5 text-[9px] tracking-[0.2em] text-cyan-100 backdrop-blur ${ARCADE_PIXEL}`}
+          >
+            RECALLING TO LIBRARY
+          </div>
+          <div className="h-1.5 w-40 overflow-hidden rounded-full bg-white/15">
+            <div
+              className="h-full rounded-full bg-cyan-300"
+              style={{ width: `${Math.round(recallProg * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Sector lock while a boss lives — you can't leave until it's dead. */}
       {hud.bossAlive && (
         <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2">
@@ -373,18 +459,28 @@ export function GameCanvas() {
         </div>
       )}
 
-      {/* Player HUD + controls — bottom-left. */}
-      <div className={`pointer-events-none absolute bottom-0 left-0 flex flex-col gap-2 p-4 ${ARCADE_PIXEL}`}>
+      {/* Player HUD + controls — bottom-left. A backing panel lifts it off the
+          busy frozen app behind so the hearts/score/abilities stay legible. */}
+      <div className={`pointer-events-none absolute bottom-0 left-0 p-3 ${ARCADE_PIXEL}`}>
+       <div
+         ref={hudRef}
+         className="arcade-hud-panel flex flex-col gap-2.5 rounded-2xl p-3.5 transition-opacity duration-150"
+         style={{ opacity: hudDim || hudEnemyDim ? 0.12 : 1 }}
+       >
         <div className="flex items-center gap-1.5">
           {Array.from({ length: hud.maxHealth }, (_, i) => (
             <Heart
               key={i}
-              className={`size-5 ${i < hud.health ? "fill-rose-500 text-rose-400" : "text-white/20"}`}
+              className={`size-[22px] transition-all ${
+                i < hud.health
+                  ? "fill-rose-500 text-rose-300 drop-shadow-[0_0_5px_rgba(255,70,110,0.9)]"
+                  : "fill-white/5 text-white/25"
+              }`}
             />
           ))}
         </div>
         <p className="text-[10px]">
-          <span className="arcade-neon-yellow text-base tabular-nums">{hud.score}</span>
+          <span className="arcade-neon-primary text-base tabular-nums">{hud.score}</span>
           <span className="ml-3" style={{ color: activeDef?.color }}>
             {activeDef?.label} · W{hud.wave}
           </span>
@@ -417,36 +513,48 @@ export function GameCanvas() {
         <p className="arcade-dim text-[7px] leading-relaxed">
           {load.canShoot ? `CLICK — ZAP + ${bulletsPerClick(load)} SHOTS` : "CLICK TO ZAP"}
           {load.autoFireLevel > 0 && " · AUTO-TURRET ON"}
+          {load.special === "electric" && " · ⚡ ELECTRIC ROUNDS"}
+          {load.special === "love" && " · ♥ LOVE ROUNDS"}
           <br />
-          HOLD ON A BOMB TO DEFUSE · NAV WITH THE APP&apos;S BUTTONS
+          HOLD ON A BOMB TO DEFUSE (PUSHES ENEMIES BACK) · NAV WITH THE APP&apos;S BUTTONS
+          <br />
+          HOLD RIGHT-CLICK TO RECALL TO LIBRARY
         </p>
 
-        {/* Special-ability dock — each shows a charge ring + ready/active glow. */}
-        {(hud.hasSlow || hud.hasPhase) && (
-          <div className="flex items-center gap-2.5">
-            {hud.hasSlow && (
-              <AbilityPip
-                Icon={Zap}
-                label="OVERCLOCK"
-                hint="SPC"
-                color="#6ffbff"
-                frac={hud.slowFrac}
-                ready={hud.slowReady}
-                active={hud.slowActive}
-              />
-            )}
-            {hud.hasPhase && (
-              <AbilityPip
-                Icon={Shield}
-                label="PHASE"
-                color="#74ff9c"
-                frac={hud.phaseFrac}
-                ready={hud.phaseActive}
-                active={hud.phaseActive}
-              />
-            )}
-          </div>
-        )}
+        {/* Special-ability dock — each shows a charge ring + ready/active glow.
+            Defuser Pusher is built-in (always shown); the rest are owned skills. */}
+        <div className="flex items-center gap-2.5">
+          <AbilityPip
+            Icon={Waves}
+            label="PUSHER"
+            color="#ff7bd5"
+            frac={hud.pusherFrac}
+            ready={hud.pusherReady}
+            active={false}
+          />
+          {hud.hasSlow && (
+            <AbilityPip
+              Icon={Zap}
+              label="OVERCLOCK"
+              hint="SPC"
+              color="#6ffbff"
+              frac={hud.slowFrac}
+              ready={hud.slowReady}
+              active={hud.slowActive}
+            />
+          )}
+          {hud.hasPhase && (
+            <AbilityPip
+              Icon={Shield}
+              label="PHASE"
+              color="#74ff9c"
+              frac={hud.phaseFrac}
+              ready={hud.phaseActive}
+              active={hud.phaseActive}
+            />
+          )}
+        </div>
+       </div>
       </div>
 
       <button

@@ -48,6 +48,21 @@ const URL_ATTRS = new Set(["href", "src", "xlinkHref", "action", "formAction"]);
 // Control chars + whitespace that browsers strip before resolving a URL scheme.
 const URL_NOISE = /[\x00-\x20]/g;
 
+// Models (and KaTeX's own defaults) often emit math with `\( … \)` / `\[ … \]`
+// delimiters instead of the `$ … $` / `$$ … $$` that remark-math understands —
+// especially in MCQ/flashcard fields, which carry no formatting instruction. Map
+// them to dollar form so exponents, integrals, etc. render instead of leaking as
+// literal `\(10^3\)` text. Non-greedy + a required closing delimiter means a
+// stray, unbalanced `\(` is left untouched (same as before).
+const DISPLAY_MATH = /\\\[([\s\S]+?)\\\]/g;
+const INLINE_MATH = /\\\(([\s\S]+?)\\\)/g;
+
+function normalizeMathDelimiters(src: string): string {
+  return src
+    .replace(DISPLAY_MATH, (_m, body) => `$$${body}$$`)
+    .replace(INLINE_MATH, (_m, body) => `$${body}$`);
+}
+
 function isElement(node: HastNode): node is HastElement {
   return node.type === "element";
 }
@@ -114,31 +129,52 @@ const INTERACTIVE_COMPONENTS: Components = {
   },
 };
 
+// Inline mode: unwrap the block `<p>` react-markdown emits so the rendered
+// content (text + KaTeX, which is all `<span>`s) is valid phrasing content and
+// can sit inside a heading, button, or `<p>` — used for flashcard faces and MCQ
+// question/option/explanation, which are short single-line snippets.
+const INLINE_COMPONENTS: Components = {
+  p: ({ children }) => <>{children}</>,
+};
+
 export function MarkdownView({
   children,
   interactiveTasks = false,
+  inline = false,
 }: {
   children: string;
   interactiveTasks?: boolean;
+  /** Render without the block `prose` wrapper, for use in inline/phrasing contexts. */
+  inline?: boolean;
 }) {
+  const markdown = (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      // Order matters: raw HTML is parsed, then sanitized, then KaTeX injects
+      // its own trusted markup (which must not be stripped by the sanitizer).
+      // `throwOnError: false` keeps one malformed expression (common in
+      // AI/PDF-extracted text) from blowing up the whole render — KaTeX shows
+      // the offending source in red instead of throwing.
+      rehypePlugins={[
+        rehypeRaw,
+        rehypeSanitizeRaw,
+        [rehypeKatex, { throwOnError: false, strict: false }],
+      ]}
+      components={
+        inline
+          ? INLINE_COMPONENTS
+          : interactiveTasks
+            ? INTERACTIVE_COMPONENTS
+            : undefined
+      }
+    >
+      {normalizeMathDelimiters(children)}
+    </ReactMarkdown>
+  );
+
+  if (inline) return markdown;
+
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        // Order matters: raw HTML is parsed, then sanitized, then KaTeX injects
-        // its own trusted markup (which must not be stripped by the sanitizer).
-        // `throwOnError: false` keeps one malformed expression (common in
-        // AI/PDF-extracted text) from blowing up the whole render — KaTeX shows
-        // the offending source in red instead of throwing.
-        rehypePlugins={[
-          rehypeRaw,
-          rehypeSanitizeRaw,
-          [rehypeKatex, { throwOnError: false, strict: false }],
-        ]}
-        components={interactiveTasks ? INTERACTIVE_COMPONENTS : undefined}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
+    <div className="prose prose-sm max-w-none dark:prose-invert">{markdown}</div>
   );
 }

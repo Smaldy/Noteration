@@ -3,6 +3,7 @@ import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { MarkdownView } from "@/components/MarkdownView";
 import { Button } from "@/components/ui/button";
 import { emitStudyEvent } from "@/lib/arcadeEvents";
 import { cn } from "@/lib/utils";
@@ -120,7 +121,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       >
         <h3 className={cn("font-medium", fullscreen ? "text-2xl" : "text-lg")}>
-          {mcq.question}
+          <MarkdownView inline>{mcq.question}</MarkdownView>
         </h3>
 
         <div className="mt-4 space-y-2">
@@ -144,7 +145,9 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
                     "border-destructive/60 bg-destructive/10",
                 )}
               >
-                <span>{option}</span>
+                <span>
+                  <MarkdownView inline>{option}</MarkdownView>
+                </span>
                 {revealed && isCorrect && (
                   <Check className="size-4 text-emerald-600" />
                 )}
@@ -160,7 +163,9 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
       {revealed && (
         <div className="mt-4 rounded-md bg-muted/50 p-3 text-sm">
           {mcq.explanation ? (
-            <p>{mcq.explanation}</p>
+            <p>
+              <MarkdownView inline>{mcq.explanation}</MarkdownView>
+            </p>
           ) : (
             <p className="text-muted-foreground">{t("study.quiz.noExplanation")}</p>
           )}

@@ -74,6 +74,11 @@ def build_state_out(session: Session) -> ArcadeStateOut:
             coin_per_mcq=arcade_service.COIN_PER_MCQ,
             base_cost=arcade_service.BASE_COST,
         ),
+        prestige_count=state.prestige_count,
+        can_prestige=arcade_service.can_prestige(state),
+        prestige_unlock_wave=arcade_service.PRESTIGE_UNLOCK_WAVE,
+        active_special=state.active_special,
+        specials=list(arcade_service.SPECIALS),
     )
 
 
@@ -139,6 +144,32 @@ def end_run(
     return build_state_out(db)
 
 
+@router.post("/prestige", response_model=ArcadeStateOut)
+def prestige(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    try:
+        arcade_service.prestige(db)
+    except arcade_service.PrestigeLockedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Reach wave {exc.unlock_wave} to prestige",
+        )
+    return build_state_out(db)
+
+
+@router.post("/special/{special}", response_model=ArcadeStateOut)
+def set_special(special: str, db: Session = Depends(get_session)) -> ArcadeStateOut:
+    try:
+        arcade_service.set_special(db, special=special)
+    except arcade_service.UnknownSpecialError:
+        raise HTTPException(status_code=404, detail="Unknown special bullet")
+    except arcade_service.SpecialLockedError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Prestige to unlock special bullets",
+        )
+    return build_state_out(db)
+
+
 @router.post("/dev/grant", response_model=ArcadeStateOut)
 def dev_grant(db: Session = Depends(get_session)) -> ArcadeStateOut:
     """Developer tool: top up coins + score (local testing only)."""
@@ -150,6 +181,41 @@ def dev_grant(db: Session = Depends(get_session)) -> ArcadeStateOut:
 def dev_reset_upgrades(db: Session = Depends(get_session)) -> ArcadeStateOut:
     """Developer tool: reset all owned upgrades to level 0 (local testing only)."""
     arcade_service.dev_reset_upgrades(db)
+    return build_state_out(db)
+
+
+@router.post("/dev/reset-prestige", response_model=ArcadeStateOut)
+def dev_reset_prestige(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: wipe prestige progress (local testing only)."""
+    arcade_service.dev_reset_prestige(db)
+    return build_state_out(db)
+
+
+@router.post("/dev/reset-score", response_model=ArcadeStateOut)
+def dev_reset_score(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: zero the score balance (local testing only)."""
+    arcade_service.dev_reset_score(db)
+    return build_state_out(db)
+
+
+@router.post("/dev/reset-coins", response_model=ArcadeStateOut)
+def dev_reset_coins(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: zero the coin balance (local testing only)."""
+    arcade_service.dev_reset_coins(db)
+    return build_state_out(db)
+
+
+@router.post("/dev/max-upgrades", response_model=ArcadeStateOut)
+def dev_max_upgrades(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: own every upgrade at max level (local testing only)."""
+    arcade_service.dev_max_upgrades(db)
+    return build_state_out(db)
+
+
+@router.post("/dev/unlock-tiers", response_model=ArcadeStateOut)
+def dev_unlock_tiers(db: Session = Depends(get_session)) -> ArcadeStateOut:
+    """Developer tool: ignore the per-tier wave restriction (local testing only)."""
+    arcade_service.dev_unlock_tiers(db)
     return build_state_out(db)
 
 

@@ -46,10 +46,13 @@ interface ArcadeStore {
   endRun: (waveReached: number, scoreEarned: number, died: boolean) => Promise<void>;
   dismissGameOver: () => void;
   buyUpgrade: (key: string) => Promise<RunResult>;
+  prestige: () => Promise<RunResult>;
+  setSpecial: (special: string) => Promise<RunResult>;
 
   // Developer tools (only invoked from the DEV_MODE panel).
   devGrant: () => Promise<void>;
   devResetUpgrades: () => Promise<void>;
+  devAction: (path: string) => Promise<void>;
 }
 
 export const useArcadeStore = create<ArcadeStore>((set, get) => ({
@@ -142,6 +145,30 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
     }
   },
 
+  prestige: async () => {
+    try {
+      const state = await api.post<ArcadeState>("/arcade/prestige");
+      set({ state });
+      return { ok: true };
+    } catch (err) {
+      const error =
+        err instanceof ApiError ? err.message : "Could not prestige";
+      return { ok: false, error };
+    }
+  },
+
+  setSpecial: async (special) => {
+    try {
+      const state = await api.post<ArcadeState>(`/arcade/special/${special}`);
+      set({ state });
+      return { ok: true };
+    } catch (err) {
+      const error =
+        err instanceof ApiError ? err.message : "Could not set special";
+      return { ok: false, error };
+    }
+  },
+
   devGrant: async () => {
     try {
       set({ state: await api.post<ArcadeState>("/arcade/dev/grant") });
@@ -157,6 +184,15 @@ export const useArcadeStore = create<ArcadeStore>((set, get) => ({
       set({ state: await api.post<ArcadeState>("/arcade/dev/reset-upgrades") });
     } catch (err) {
       console.warn("[arcade] dev reset failed — restart the backend?", err);
+    }
+  },
+
+  // Generic dev endpoint caller (e.g. "reset-prestige", "max-upgrades").
+  devAction: async (path) => {
+    try {
+      set({ state: await api.post<ArcadeState>(`/arcade/dev/${path}`) });
+    } catch (err) {
+      console.warn(`[arcade] dev ${path} failed — restart the backend?`, err);
     }
   },
 }));

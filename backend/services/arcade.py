@@ -74,8 +74,22 @@ DEFAULT_MAX_LEVEL = 10
 DEFAULT_GROWTH = 1.5  # geometric cost multiplier per owned level
 
 # A tier's skills only become purchasable once the player's best wave
-# (``wave_record``) reaches the unlock. Tier 1 is open from the start.
-TIER_UNLOCK_WAVE: dict[int, int] = {1: 0, 2: 10, 3: 20}
+# (``wave_record``) reaches the unlock. Tier 1 is open from the start. Tiers run
+# 1..5 for normal skills; tier 6 is the special-bullet tier, gated by *prestige*
+# (not a wave) and handled outside the leveled-upgrade catalog (see ``SPECIALS``).
+TIER_UNLOCK_WAVE: dict[int, int] = {1: 0, 2: 10, 3: 20, 4: 30, 5: 40}
+SPECIAL_TIER = 6
+
+# Prestige: a one-way reset — surrender every owned upgrade in exchange for a
+# permanent +20% to the *starting* power of every attack you have, and access to
+# the tier-6 special bullets. Allowed once the run has reached the final tier.
+PRESTIGE_UNLOCK_WAVE = TIER_UNLOCK_WAVE[5]
+PRESTIGE_DAMAGE_BONUS = 0.20  # per prestige, multiplies all attack damage
+
+# The two special bullets unlocked by prestige. Togglable; only one is active at
+# a time (stored on the state as ``active_special``). They cost nothing — they're
+# the prestige reward — so they live here, not in the leveled catalog.
+SPECIALS: tuple[str, ...] = ("electric", "love")
 
 
 @dataclass(frozen=True)
@@ -102,6 +116,10 @@ class UpgradeSpec:
         return TIER_UNLOCK_WAVE.get(self.tier, 0)
 
 
+# Costs were re-scaled ×4 across the board (the grind is meant to span many runs).
+# Tiers were re-laid-out 1..5 by power: cheap core survival/zap first, guns next,
+# bomb/defuse tools mid, mobility/economy after, and the strongest sustained
+# powers (Auto-Turret, Phase Cloak) gated to the final tier.
 UPGRADE_CATALOG: tuple[UpgradeSpec, ...] = (
     # ── Tier 1 · Core (open from wave 1) ──────────────────────────────────────
     UpgradeSpec(
@@ -109,28 +127,21 @@ UPGRADE_CATALOG: tuple[UpgradeSpec, ...] = (
         "Reinforced Hull",
         "+1 max health per level — survive more hits.",
         tier=1,
-        base_cost=50,
+        base_cost=200,
     ),
     UpgradeSpec(
         "zap_damage",
         "Shockwave",
         "+1 click-burst (area) damage per level.",
         tier=1,
-        base_cost=60,
+        base_cost=240,
     ),
     UpgradeSpec(
         "zap_reach",
         "Resonance Field",
         "+ click-burst radius per level — hit from farther.",
         tier=1,
-        base_cost=55,
-    ),
-    UpgradeSpec(
-        "score_multiplier",
-        "Combo Chip",
-        "+25% score per level.",
-        tier=1,
-        base_cost=100,
+        base_cost=220,
     ),
     # ── Tier 2 · Firepower (unlocks at wave 10) ───────────────────────────────
     UpgradeSpec(
@@ -138,7 +149,7 @@ UPGRADE_CATALOG: tuple[UpgradeSpec, ...] = (
         "Sidearm",
         "Unlock the click-burst of bullets.",
         tier=2,
-        base_cost=300,
+        base_cost=1200,
         max_level=1,
     ),
     UpgradeSpec(
@@ -146,21 +157,14 @@ UPGRADE_CATALOG: tuple[UpgradeSpec, ...] = (
         "Rapid Fire",
         "+2 bullets per click-burst (needs Sidearm).",
         tier=2,
-        base_cost=180,
+        base_cost=720,
     ),
     UpgradeSpec(
-        "auto_fire",
-        "Auto-Turret",
-        "Auto-fire at the nearest enemy; faster per level.",
+        "bullet_damage",
+        "Hollow Points",
+        "+1 bullet damage per level (needs Sidearm).",
         tier=2,
-        base_cost=600,
-    ),
-    UpgradeSpec(
-        "move_speed",
-        "Overclock",
-        "Dodge projectiles in brief slow-motion.",
-        tier=2,
-        base_cost=120,
+        base_cost=720,
     ),
     # ── Tier 3 · Tactical (unlocks at wave 20) ────────────────────────────────
     UpgradeSpec(
@@ -168,28 +172,72 @@ UPGRADE_CATALOG: tuple[UpgradeSpec, ...] = (
         "Quick Hands",
         "Defuse bombs faster (shorter hold) per level.",
         tier=3,
-        base_cost=140,
+        base_cost=560,
     ),
     UpgradeSpec(
         "defuse_window",
         "Long Fuse",
         "+1s on every bomb's fuse per level.",
         tier=3,
-        base_cost=130,
+        base_cost=520,
     ),
     UpgradeSpec(
         "defuse_freeze",
         "Dampening Field",
         "Slow a bomb's fuse while you defuse it.",
         tier=3,
-        base_cost=160,
+        base_cost=640,
+    ),
+    UpgradeSpec(
+        "pusher_cd",
+        "Defuser Pusher",
+        "Recharge the defuse shockwave faster (60s→20s).",
+        tier=3,
+        base_cost=600,
+    ),
+    # ── Tier 4 · Advanced (unlocks at wave 30) ────────────────────────────────
+    UpgradeSpec(
+        "bullet_speed",
+        "Railgun",
+        "Faster, longer-range bullets per level (needs Sidearm).",
+        tier=4,
+        base_cost=480,
+    ),
+    UpgradeSpec(
+        "move_speed",
+        "Overclock",
+        "Dodge projectiles in brief slow-motion.",
+        tier=4,
+        base_cost=480,
+    ),
+    UpgradeSpec(
+        "score_multiplier",
+        "Combo Chip",
+        "+25% score per level.",
+        tier=4,
+        base_cost=400,
+    ),
+    UpgradeSpec(
+        "recall",
+        "Recall Beacon",
+        "Hold right-click to warp to Library — faster per level (5s→0.5s).",
+        tier=4,
+        base_cost=440,
+    ),
+    # ── Tier 5 · Elite (unlocks at wave 40) ───────────────────────────────────
+    UpgradeSpec(
+        "auto_fire",
+        "Auto-Turret",
+        "Auto-fire at the nearest enemy; faster per level.",
+        tier=5,
+        base_cost=2400,
     ),
     UpgradeSpec(
         "phase_shield",
         "Phase Cloak",
         "Periodic ignore-damage window (30s→20s).",
-        tier=3,
-        base_cost=220,
+        tier=5,
+        base_cost=880,
     ),
 )
 
@@ -245,6 +293,22 @@ class TierLockedError(ArcadeError):
 
 
 class SessionNotFoundError(ArcadeError):
+    pass
+
+
+class PrestigeLockedError(ArcadeError):
+    """Can't prestige yet — the run hasn't reached the final tier."""
+
+    def __init__(self, unlock_wave: int) -> None:
+        super().__init__(f"reach wave {unlock_wave} to prestige")
+        self.unlock_wave = unlock_wave
+
+
+class SpecialLockedError(ArcadeError):
+    """Special bullets are locked until the first prestige."""
+
+
+class UnknownSpecialError(ArcadeError):
     pass
 
 
@@ -469,6 +533,42 @@ def buy_upgrade(session: Session, *, key: str) -> ArcadeState:
     return state
 
 
+def can_prestige(state: ArcadeState) -> bool:
+    """Whether a prestige is currently allowed (final tier reached)."""
+    return state.wave_record >= PRESTIGE_UNLOCK_WAVE
+
+
+def prestige(session: Session) -> ArcadeState:
+    """Surrender every owned upgrade for a permanent damage bonus and tier-6
+    access. One-way: all upgrade rows are wiped, ``prestige_count`` ticks up, and
+    the wave record resets to 0 — so every tier re-locks and you must climb back
+    to the final tier before you can prestige again (no infinite prestige)."""
+    state = get_state(session)
+    if not can_prestige(state):
+        raise PrestigeLockedError(PRESTIGE_UNLOCK_WAVE)
+    session.execute(delete(ArcadeUpgrade))
+    state.prestige_count += 1
+    state.wave_record = 0  # re-lock the tier ladder; re-earn the prestige gate
+    session.commit()
+    session.refresh(state)
+    return state
+
+
+def set_special(session: Session, *, special: str) -> ArcadeState:
+    """Choose the active special bullet (``"none"`` clears it). Only one can be
+    active; requires at least one prestige to have unlocked the tier."""
+    if special not in ("none", *SPECIALS):
+        raise UnknownSpecialError(special)
+    state = get_state(session)
+    if state.prestige_count <= 0:
+        raise SpecialLockedError("prestige to unlock special bullets")
+    # Toggle off if re-selecting the active one; otherwise switch to it.
+    state.active_special = "none" if state.active_special == special else special
+    session.commit()
+    session.refresh(state)
+    return state
+
+
 # --- developer tools ---------------------------------------------------------
 # Local-only helpers surfaced behind a frontend ``DEV_MODE`` flag, so the user
 # can exercise the shop without grinding. Not wired into any normal game flow.
@@ -483,6 +583,8 @@ def dev_grant(session: Session) -> ArcadeState:
     state.coins = DEV_GRANT_AMOUNT
     state.score_balance = DEV_GRANT_AMOUNT
     state.wave_record = max(state.wave_record, MAX_TIER_UNLOCK_WAVE)
+    # Grant a prestige so the tier-6 special bullets are exercisable locally.
+    state.prestige_count = max(state.prestige_count, 1)
     session.commit()
     session.refresh(state)
     return state
@@ -493,3 +595,57 @@ def dev_reset_upgrades(session: Session) -> ArcadeState:
     session.execute(delete(ArcadeUpgrade))
     session.commit()
     return get_state(session)
+
+
+def dev_reset_prestige(session: Session) -> ArcadeState:
+    """Wipe prestige progress (and any active special) back to zero."""
+    state = get_state(session)
+    state.prestige_count = 0
+    state.active_special = "none"
+    session.commit()
+    session.refresh(state)
+    return state
+
+
+def dev_reset_score(session: Session) -> ArcadeState:
+    """Zero the spendable score balance."""
+    state = get_state(session)
+    state.score_balance = 0
+    session.commit()
+    session.refresh(state)
+    return state
+
+
+def dev_reset_coins(session: Session) -> ArcadeState:
+    """Zero the coin balance."""
+    state = get_state(session)
+    state.coins = 0
+    session.commit()
+    session.refresh(state)
+    return state
+
+
+def dev_max_upgrades(session: Session) -> ArcadeState:
+    """Own every upgrade at its max level (exercise a fully-kitted loadout)."""
+    levels = _upgrade_levels(session)
+    for spec in UPGRADE_CATALOG:
+        if levels.get(spec.key, 0) >= spec.max_level:
+            continue
+        row = session.execute(
+            select(ArcadeUpgrade).where(ArcadeUpgrade.key == spec.key)
+        ).scalar_one_or_none()
+        if row is None:
+            session.add(ArcadeUpgrade(key=spec.key, level=spec.max_level))
+        else:
+            row.level = spec.max_level
+    session.commit()
+    return get_state(session)
+
+
+def dev_unlock_tiers(session: Session) -> ArcadeState:
+    """Lift the wave-gate on every tier (ignore the wave restriction)."""
+    state = get_state(session)
+    state.wave_record = max(state.wave_record, MAX_TIER_UNLOCK_WAVE)
+    session.commit()
+    session.refresh(state)
+    return state

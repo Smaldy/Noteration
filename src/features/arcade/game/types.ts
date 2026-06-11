@@ -28,6 +28,12 @@ export interface Loadout {
   defuseWindowLevel: number; // Long Fuse — longer bomb fuses
   defuseFreezeLevel: number; // Dampening Field — slows a fuse while defusing it
   phaseShieldLevel: number; // Phase Cloak 0..10 — periodic ignore-damage window
+  pusherCdLevel: number; // Defuser Pusher 0..10 — shorter shockwave cooldown (60s→20s)
+  bulletDamageLevel: number; // Hollow Points — +1 bullet damage per level
+  bulletSpeedLevel: number; // Railgun — faster, longer-range bullets
+  recallLevel: number; // Recall Beacon — shorter right-click hold to warp home
+  prestige: number; // prestige count — +20% to every attack's damage each
+  special: "none" | "electric" | "love"; // active tier-6 special bullet
 }
 
 export type EnemyKind =
@@ -71,17 +77,35 @@ export interface Enemy {
   // Telegraphed-attack state (dasher lunge / beamer laser; reused by bosses).
   windup: number; // >0 while charging an attack (the telegraph)
   aimAngle: number; // locked firing/dash direction (radians)
+  armed: boolean; // telegraph has LOCKED its aim (final pre-fire window — evadeable)
   dashTime: number; // dasher: remaining seconds of an active dash
   dashCd: number; // boss-only: seconds until the next signature dash
+  flips: number; // hourglass/shard: heading-flips so far (dashes once it hits the threshold)
+  flipAnim: number; // hourglass/shard: seconds left in the current flip animation
+  // Clock-boss illusion state.
+  isClone: boolean; // a damage-less decoy of the clock boss (doesn't fire/hurt)
+  cloneCd: number; // clock boss: seconds until the next teleport + clone cycle
+  // Love-bullet charm: turned to your side, fights the swarm for a while.
+  charmed: boolean;
+  charmTimer: number; // seconds of charm left before it poofs
 }
 
-/** Enemy projectile (the clock's radiating "spikes"). */
+/**
+ * Enemy projectile. A plain bolt (the shooter's) renders as a small diamond.
+ * The clock's thrown clock-hands set `len`/`spin`/`color` and render as spinning
+ * rods. `dmg` lets a boss's projectile cost more than one heart.
+ */
 export interface Spike {
   id: number;
   pos: Vec;
   vel: Vec;
   radius: number;
   life: number;
+  dmg?: number; // hearts on hit (default 1)
+  len?: number; // set → render as a clock-hand rod of this length (px)
+  spin?: number; // current rod rotation (radians); advanced each frame
+  spinRate?: number; // rod tumble speed
+  color?: string; // rod color (the clock's accent)
 }
 
 /**
@@ -191,6 +215,15 @@ export interface PhaseShield {
   interval: number; // the full between-window interval (for the HUD ring)
 }
 
+/** Defuser Pusher: a built-in ability. Defusing a bomb releases a non-damaging
+ *  shockwave that shoves every enemy in the sector away — but only once its
+ *  cooldown has recharged. `cooldown` ticks down to 0 (ready); `interval` is the
+ *  full recharge time (for the HUD ring). */
+export interface Pusher {
+  cooldown: number;
+  interval: number;
+}
+
 /** Per-arena spawn bookkeeping. The wave number itself is global (one shared
  *  level across all sectors), only the in-flight spawn batch is per-sector. */
 export interface ArenaState {
@@ -207,6 +240,7 @@ export interface World {
   player: Player;
   slowmo: SlowMo;
   phase: PhaseShield; // Phase Cloak timers
+  pusher: Pusher; // Defuser Pusher: defuse-shockwave cooldown
   autoFireCd: number; // Auto-Turret: seconds until the next auto-shot
   arena: ArenaId; // the active sector
   enemies: Enemy[]; // all sectors; only `arena`'s are live
@@ -221,6 +255,7 @@ export interface World {
   arenas: Record<ArenaId, ArenaState>;
   wave: number; // global wave level, shared across all sectors
   bombTimer: number; // seconds until the next bomb is planted
+  bombStreak: number; // consecutive bombs that blew up (escalates detonation dmg)
   bannerArena: number; // seconds left to show the "ENTERING …" flash
   bossBanner: number; // seconds left to show the "A NEW BOSS SPAWNED" scare
   waveBanner: number; // seconds left to show the "WAVE N" flash
@@ -317,9 +352,13 @@ export interface FrameInput {
 export function loadoutFrom(state: ArcadeState | null): Loadout {
   const level = (key: string) =>
     state?.upgrades.find((u) => u.key === key)?.level ?? 0;
+  // Prestige grants +20% to every attack's damage, applied to the owned levels.
+  const prestige = state?.prestige_count ?? 0;
+  const dmgMult = 1 + 0.2 * prestige;
+  const special = (state?.active_special ?? "none") as Loadout["special"];
   return {
     maxHealth: 3 + level("max_health"),
-    zapDamage: 1 + level("zap_damage"),
+    zapDamage: (1 + level("zap_damage")) * dmgMult,
     zapReach: 64 + 12 * level("zap_reach"),
     canShoot: level("shooting") >= 1,
     fireRateLevel: level("fire_rate"),
@@ -330,5 +369,11 @@ export function loadoutFrom(state: ArcadeState | null): Loadout {
     defuseWindowLevel: level("defuse_window"),
     defuseFreezeLevel: level("defuse_freeze"),
     phaseShieldLevel: level("phase_shield"),
+    pusherCdLevel: level("pusher_cd"),
+    bulletDamageLevel: level("bullet_damage"),
+    bulletSpeedLevel: level("bullet_speed"),
+    recallLevel: level("recall"),
+    prestige,
+    special: special === "electric" || special === "love" ? special : "none",
   };
 }

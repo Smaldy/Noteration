@@ -7,7 +7,7 @@ export interface ArcadeUpgrade {
   level: number;
   max_level: number;
   next_cost: number | null;
-  tier: number; // 1..3 — skills are grouped and gated by tier
+  tier: number; // 1..5 — skills are grouped and gated by tier
   unlock_wave: number; // wave_record needed to buy this tier (0 = always open)
   locked: boolean; // true while wave_record < unlock_wave
 }
@@ -39,6 +39,12 @@ export interface ArcadeState {
   daily_quest: DailyQuest;
   upgrades: ArcadeUpgrade[];
   economy: ArcadeEconomy;
+  // Prestige / special bullets (tier 6).
+  prestige_count: number;
+  can_prestige: boolean; // final tier reached → a prestige is allowed
+  prestige_unlock_wave: number; // wave_record needed to prestige
+  active_special: string; // "none" | "electric" | "love"
+  specials: string[]; // selectable special-bullet ids
 }
 
 export interface RunStart {

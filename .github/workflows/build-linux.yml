@@ -1,0 +1,87 @@
+name: Build Linux app
+
+# Produces a portable Linux build (tar.gz of the PyInstaller one-folder bundle)
+# on an Ubuntu runner — the Windows dev box can't cross-compile it. EXPERIMENTAL:
+# this is the first Linux packaging attempt. The bundle ships the Python bindings
+# but relies on the host's system WebKit2GTK runtime (libwebkit2gtk-4.1) for the
+# native window, so the user installs that one package if it isn't already present.
+
+on:
+  push:
+    branches: [main, delivery-ready]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # attach the archive to a release on tag pushes
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GTK / WebKit deps (for pywebview's GTK backend)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgirepository1.0-dev gobject-introspection \
+            gir1.2-gtk-3.0 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 \
+            libcairo2-dev pkg-config
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend bundle (dist/)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r packaging/requirements-build.txt
+          # GTK backend bindings for pywebview on Linux.
+          pip install pycairo PyGObject
+
+      - name: Build one-folder bundle with PyInstaller
+        run: |
+          pyinstaller packaging/noteration.spec --noconfirm \
+            --distpath packaging/dist --workpath packaging/build
+
+      - name: Self-test the frozen app (headless)
+        run: |
+          APP="packaging/dist/Noteration/Noteration"
+          test -x "$APP" || { echo "App binary missing at $APP"; exit 1; }
+          xvfb-run -a "$APP" --selftest
+
+      - name: Package portable tar.gz
+        run: |
+          mkdir -p packaging/installer_output
+          tar -czf packaging/installer_output/Noteration-Linux-x86_64.tar.gz \
+            -C packaging/dist Noteration
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noteration-Linux-tar
+          path: packaging/installer_output/Noteration-Linux-x86_64.tar.gz
+          if-no-files-found: error
+
+      - name: Attach archive to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Invasion Update 0.1.2v
+          files: packaging/installer_output/Noteration-Linux-x86_64.tar.gz
