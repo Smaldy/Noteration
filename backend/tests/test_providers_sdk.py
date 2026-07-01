@@ -7,7 +7,7 @@ cost/usage accounting, error mapping, budget tracking, and the waterfall factory
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -24,7 +24,7 @@ from backend.services.providers.factory import build_waterfall_from_settings
 from backend.services.providers.gemini import GeminiProvider
 from backend.services.providers.ollama import OllamaProvider
 
-T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 # --- budget trackers --------------------------------------------------------

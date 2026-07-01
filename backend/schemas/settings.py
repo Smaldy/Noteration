@@ -55,7 +55,7 @@ class SettingsOut(BaseModel):
     claude_key_set: bool
 
     @classmethod
-    def from_model(cls, settings: Settings) -> "SettingsOut":
+    def from_model(cls, settings: Settings) -> SettingsOut:
         return cls(
             allow_paid=settings.allow_paid,
             provider_order=settings.provider_order,
@@ -115,7 +115,7 @@ class SettingsUpdate(BaseModel):
     language: Language | None = None
 
     @model_validator(mode="after")
-    def _day_window_ordered(self) -> "SettingsUpdate":
+    def _day_window_ordered(self) -> SettingsUpdate:
         if (
             self.calendar_day_start_hour is not None
             and self.calendar_day_end_hour is not None

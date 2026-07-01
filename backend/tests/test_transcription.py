@@ -7,7 +7,7 @@ HTTP routing without any network.
 from __future__ import annotations
 
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -176,7 +176,7 @@ def test_transcribe_pending_rate_limited_keeps_progress(
 def test_resumes_after_rate_limit(session: Session, tmp_path: Path) -> None:
     doc = _audio_doc(session, tmp_path)
     prep = _fake_preparer(3)
-    base = datetime(2026, 6, 6, tzinfo=timezone.utc)
+    base = datetime(2026, 6, 6, tzinfo=UTC)
 
     def _fail_on_second(path: str, _m: str) -> str:
         if "chunk-001" in path:

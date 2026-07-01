@@ -8,7 +8,7 @@ control + history HTTP endpoints.
 from __future__ import annotations
 
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,7 +26,7 @@ from backend.services import history, queue_view
 from backend.services.providers.base import BudgetProbe, Provider, ProviderResult
 from backend.services.queue import QueueService
 
-T0 = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
 
 class _FP(Provider):
@@ -237,7 +237,7 @@ def test_http_lane_status_and_controls(client: TestClient, db_factory: sessionma
 
     assert client.post(f"/api/queue/lanes/{subject_id}/pause").status_code == 204
     paused = client.get("/api/queue/lanes").json()["lanes"]
-    assert next(l for l in paused if l["subject_id"] == subject_id)["state"] == "paused"
+    assert next(lane for lane in paused if lane["subject_id"] == subject_id)["state"] == "paused"
 
     assert client.post(f"/api/queue/lanes/{subject_id}/resume").status_code == 204
     assert (
@@ -247,7 +247,7 @@ def test_http_lane_status_and_controls(client: TestClient, db_factory: sessionma
         == 204
     )
     overnight = client.get("/api/queue/lanes").json()["lanes"]
-    assert next(l for l in overnight if l["subject_id"] == subject_id)["state"] == "overnight"
+    assert next(lane for lane in overnight if lane["subject_id"] == subject_id)["state"] == "overnight"
 
 
 def test_http_lane_control_unknown_subject_404(client: TestClient) -> None:

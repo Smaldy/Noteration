@@ -31,10 +31,11 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.models import Chapter, Document, Flashcard, MCQ, Note, Topic
+from backend.models import MCQ, Chapter, Document, Flashcard, Note, Topic
 from backend.models.enums import DocumentMode
 from backend.models.processing import QueueJob
-from backend.services.pipeline.ingestion import UPLOADS_DIR, get_chapter_markdown
+from backend.paths import UPLOADS_DIR
+from backend.services.pipeline.ingestion import get_chapter_markdown
 from backend.services.pipeline.structure import _clean_title, iter_atx_headings
 from backend.services.providers.base import ProviderResult
 from backend.services.providers.waterfall import Waterfall

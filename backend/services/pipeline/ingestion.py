@@ -29,9 +29,9 @@ from pathlib import Path
 
 # Cache root (gitignored). One subdirectory per file hash. Resolved by
 # backend.paths so packaged builds write to a per-user, writable directory.
-# Original uploaded PDFs (content-addressed) live under uploads/ so a later
-# phase can re-derive page-range markdown without re-uploading. See documents.py.
-from backend.paths import CACHE_ROOT, UPLOADS_DIR  # noqa: E402  (re-exported)
+# Original uploaded PDFs (content-addressed) live under uploads/ (see
+# backend.paths.UPLOADS_DIR and documents.py).
+from backend.paths import CACHE_ROOT  # noqa: E402
 
 MANIFEST_NAME = "manifest.json"
 MARKDOWN_NAME = "document.md"

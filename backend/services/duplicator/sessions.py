@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session, selectinload
 from backend.models.duplicator import ExerciseSession, ExtractedExercise
 from backend.models.enums import ExerciseSessionStatus, ExerciseStatus, QueueStage
 from backend.models.processing import QueueJob
+from backend.paths import UPLOADS_DIR
 from backend.services.documents import PDF_MAGIC, InvalidPDFError, _persist_upload
 from backend.services.duplicator.calibration import add_sample
 from backend.services.duplicator.extraction import (
@@ -29,7 +30,7 @@ from backend.services.duplicator.extraction import (
     extract_exercises,
     load_page_images,
 )
-from backend.services.pipeline.ingestion import UPLOADS_DIR, IngestionResult, ingest
+from backend.services.pipeline.ingestion import IngestionResult, ingest
 from backend.services.providers.factory import build_waterfall_from_settings
 from backend.services.providers.waterfall import Waterfall
 from backend.services.settings import get_settings

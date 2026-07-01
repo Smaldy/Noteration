@@ -30,6 +30,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/features/search/SearchBar";
 import { UploadDialog } from "@/features/upload/UploadDialog";
+import { usePolling } from "@/lib/usePolling";
 import { cn } from "@/lib/utils";
 import { useArcadeStore } from "@/stores/arcade";
 import { useEasterEggStore } from "@/stores/easterEgg";
@@ -77,11 +78,7 @@ export function LibraryPage() {
   const inFlight = documents.some(
     (d) => d.status === "transcribing" || d.status === "processing",
   );
-  useEffect(() => {
-    if (!inFlight) return;
-    const id = window.setInterval(() => void fetchDocuments(), 4000);
-    return () => window.clearInterval(id);
-  }, [inFlight, fetchDocuments]);
+  usePolling(fetchDocuments, 4000, { enabled: inFlight, immediate: false });
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;

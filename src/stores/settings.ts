@@ -28,13 +28,30 @@ function parseHex(hex: string): { r: number; g: number; b: number } | null {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
-/** Pick a readable foreground (near-black/near-white) for a hex background. */
+/** WCAG relative luminance (gamma-corrected sRGB) of a parsed color. */
+function relativeLuminance(c: { r: number; g: number; b: number }): number {
+  const lin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+}
+
+// Near-black foreground candidate (zinc-900); its luminance is fixed.
+const DARK_FG = "#18181b";
+const DARK_FG_LUM = relativeLuminance({ r: 0x18, g: 0x18, b: 0x1b });
+
+/** Pick a readable foreground (near-black/near-white) for a hex background.
+ *  Chooses whichever candidate has the higher WCAG contrast ratio, so
+ *  mid-luminance accents (orange, vivid red) get dark text instead of the
+ *  white that a simple luma threshold would pick but that fails AA. */
 function contrastFor(hex: string): string {
   const c = parseHex(hex);
   if (!c) return "#ffffff";
-  // Relative luminance (sRGB) → dark text on light accents, white on dark.
-  const lum = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
-  return lum > 0.6 ? "#18181b" : "#ffffff";
+  const lum = relativeLuminance(c);
+  const vsWhite = 1.05 / (lum + 0.05);
+  const vsDark = (lum + 0.05) / (DARK_FG_LUM + 0.05);
+  return vsDark >= vsWhite ? DARK_FG : "#ffffff";
 }
 
 /** Hue (deg) + saturation (0–1) of a hex color, for tinting derived tokens. */

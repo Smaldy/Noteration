@@ -25,9 +25,9 @@ from backend.models.enums import (
     TopicPriority,
     TopicStatus,
 )
+from backend.paths import UPLOADS_DIR
 from backend.schemas.structure import ChapterIn
 from backend.services.pipeline.ingestion import (
-    UPLOADS_DIR,
     IngestionResult,
     OutlineEntry,
     ingest,

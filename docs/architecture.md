@@ -294,6 +294,11 @@ Distilled from the build history; these explain "why is it like this":
 - **Secrets** never appear in code, logs, URLs, or API responses (only
   `*_key_set` booleans are echoed). Plaintext keys in the local DB are accepted
   for a single-user local app.
+- **Localhost is not a security boundary by itself.** `backend/security.py`
+  rejects requests with a non-local `Host` (DNS rebinding) or a non-local
+  `Origin` (cross-site form POSTs skip CORS preflight), and stamps
+  `X-Content-Type-Options: nosniff` on every response so served files
+  (attachments, page renders) can't be sniffed into active content.
 - **Gemini model ids are verified against ListModels, never guessed** — a 404
   on an unserved id once masqueraded as a rate limit and wedged transcription.
 
@@ -306,6 +311,10 @@ Distilled from the build history; these explain "why is it like this":
   (StaticPool); provider SDKs are faked — live keys are never needed.
 - **Frontend**: `tsc -b` type-checks before `vite build`; there is no JS test
   suite.
+- **Lint**: `ruff check backend` (config in `pyproject.toml`) and `npm run lint`
+  (flat ESLint config in `eslint.config.js`) — both correctness-focused, both
+  enforced by `.github/workflows/ci.yml` on every push/PR alongside pytest and
+  the type-checked build.
 - **Packaged app**: `packaging/launcher.py --selftest` (imports every heavy
   dep, checks bundled ffmpeg + frontend, migrates a throwaway DB, exercises the
   real ingest path) and `--smoke` (full launch, auto-close). CI runs the

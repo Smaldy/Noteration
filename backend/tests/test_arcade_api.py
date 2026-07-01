@@ -22,7 +22,6 @@ from backend.main import app
 from backend.models.arcade import ArcadeState
 from backend.services import arcade as arcade_service
 
-
 # --- service unit tests ------------------------------------------------------
 
 
@@ -217,7 +216,7 @@ def test_upgrade_cost_curve_is_geometric() -> None:
     assert spec.cost_at(0) == spec.base_cost  # first level is the base cost
     assert spec.cost_at(1) == round(spec.base_cost * arcade_service.DEFAULT_GROWTH)
     # Strictly increasing across the whole curve.
-    assert all(b > a for a, b in zip(spec.costs, spec.costs[1:]))
+    assert all(b > a for a, b in zip(spec.costs, spec.costs[1:], strict=False))
 
 
 def test_new_upgrades_exist_in_expected_tiers() -> None:

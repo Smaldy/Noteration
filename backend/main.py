@@ -29,6 +29,7 @@ from backend.routers import (
     subjects,
     topics,
 )
+from backend.security import install_local_origin_guard
 from backend.services.transcription_worker import TranscriptionWorker
 from backend.services.worker import QueueWorker
 
@@ -59,6 +60,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Noteration", version="0.1.2", lifespan=lifespan)
+
+# Reject DNS-rebinding hosts and cross-site browser requests (see security.py).
+install_local_origin_guard(app)
 
 api = APIRouter(prefix="/api")
 

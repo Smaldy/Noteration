@@ -8,10 +8,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session
 
-from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Topic
-from backend.models.enums import QueueStage, QueueState
+from backend.models import MCQ, Chapter, Document, Flashcard, Note, Subject, Topic
+from backend.models.enums import DocumentMode, QueueStage, QueueState
 from backend.models.processing import QueueJob
-from backend.models.enums import DocumentMode
 from backend.services.pipeline.generation import (
     GENERATION_SCHEMA,
     SOURCE_CHARS_PER_PAGE,
@@ -25,10 +24,10 @@ from backend.services.pipeline.generation import (
     source_cap_for,
     study_max_tokens,
 )
-from backend.services.settings import update_settings
-from backend.services.queue import JobOutcome, QueueService
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
+from backend.services.queue import JobOutcome, QueueService
+from backend.services.settings import update_settings
 
 _GEN_JSON = json.dumps(
     {

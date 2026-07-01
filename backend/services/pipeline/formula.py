@@ -32,8 +32,11 @@ from sqlalchemy.orm import Session
 from backend.models import Chapter, Document, Formula, Note, Topic
 from backend.models.enums import FormulaState
 from backend.models.processing import QueueJob
-from backend.services.pipeline.generation import get_or_create_ai_note, load_topic_source
-from backend.services.pipeline.ingestion import UPLOADS_DIR
+from backend.paths import UPLOADS_DIR
+from backend.services.pipeline.generation import (
+    get_or_create_ai_note,
+    load_topic_source,
+)
 from backend.services.providers.base import ProviderResult
 from backend.services.providers.waterfall import Waterfall
 

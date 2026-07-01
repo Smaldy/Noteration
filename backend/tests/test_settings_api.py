@@ -16,7 +16,6 @@ from backend.main import app
 from backend.models.settings import Settings
 from backend.services import settings as settings_service
 
-
 # --- service unit tests ------------------------------------------------------
 
 

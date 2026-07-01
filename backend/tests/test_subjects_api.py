@@ -14,7 +14,7 @@ from sqlalchemy.pool import StaticPool
 import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.db.database import Base, get_session
 from backend.main import app
-from backend.models import Chapter, Document, Flashcard, MCQ, Note, Subject, Topic
+from backend.models import MCQ, Chapter, Document, Flashcard, Note, Subject, Topic
 from backend.models.enums import DocumentMode, QueueStage
 from backend.models.processing import QueueJob
 from backend.services import subjects as subjectsvc

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePolling } from "@/lib/usePolling";
 import { cn } from "@/lib/utils";
 import { useChaptersStore } from "@/stores/chapters";
 import { useLanesStore } from "@/stores/lanes";
@@ -49,27 +50,18 @@ export function QueuePage() {
     }))
     .filter((g) => g.chapters.length > 0);
 
+  // Only fetch the history feed when its tab is open — the lanes view never
+  // reads it. This effect also loads it instantly on switching to the tab.
   useEffect(() => {
-    // Skip polling while the tab is hidden (no one's looking), and only fetch the
-    // history feed when its tab is open — the lanes view never reads it.
-    const tick = () => {
-      if (document.hidden) return;
-      void fetchStatus();
-      void fetchLanes();
-      void fetchChapters();
-      if (tab === "history") void fetchHistory();
-    };
-    tick();
-    const timer = setInterval(tick, POLL_MS);
-    const onVisible = () => {
-      if (!document.hidden) tick();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [tab, fetchStatus, fetchLanes, fetchHistory, fetchChapters]);
+    if (tab === "history") void fetchHistory();
+  }, [tab, fetchHistory]);
+
+  usePolling(() => {
+    void fetchStatus();
+    void fetchLanes();
+    void fetchChapters();
+    if (tab === "history") void fetchHistory();
+  }, POLL_MS);
 
   const totalReady = status?.ready ?? 0;
   const totalQueued = status?.queued ?? 0;

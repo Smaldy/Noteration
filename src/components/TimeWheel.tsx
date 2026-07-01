@@ -114,7 +114,6 @@ function Drum({ values, index, onIndex, format, ariaLabel }: DrumProps) {
     if (!el) return;
     if (Math.abs(el.scrollTop - index * ROW_H) > 1) el.scrollTop = index * ROW_H;
     paint();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, values.length]);
 
   function onScroll() {

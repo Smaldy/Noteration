@@ -211,6 +211,10 @@ def test_http_attachment_roundtrip(
     assert served.status_code == 200
     assert served.headers["content-type"].startswith("image/png")
     assert served.content == b"\x89PNG-data"
+    # A stored file must never render as an active document (e.g. an SVG with
+    # script served inline): download disposition + no MIME sniffing.
+    assert served.headers["content-disposition"].startswith("attachment")
+    assert served.headers["x-content-type-options"] == "nosniff"
 
     # Delete it
     assert client.delete(f"/api/attachments/{att_id}").status_code == 204

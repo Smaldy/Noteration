@@ -2,3 +2,23 @@
 testpaths = ["backend/tests"]
 pythonpath = ["."]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["backend/db/migrations"]
+
+[tool.ruff.lint]
+# Correctness-focused: pycodestyle errors, pyflakes, bugbear, import sanity,
+# comprehensions, pyupgrade. Style/formatting is intentionally not enforced.
+select = ["E4", "E7", "E9", "F", "B", "I", "C4", "UP"]
+ignore = [
+  # FastAPI's `Depends(...)` in parameter defaults is idiomatic.
+  "B008",
+  # Routers convert service errors with `except ...: raise HTTPException(...)`
+  # everywhere; exception chaining adds nothing to a 4xx response.
+  "B904",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]

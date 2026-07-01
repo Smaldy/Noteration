@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
@@ -44,7 +44,9 @@ export default function App() {
   const location = useLocation();
 
   return (
-    <>
+    // Honor the OS "reduce motion" preference for every Framer Motion animation
+    // (transforms collapse to instant; opacity fades are kept, per Framer's rule).
+    <MotionConfig reducedMotion="user">
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
@@ -78,7 +80,7 @@ export default function App() {
       <CreditsOverlay />
       {/* Study-gated arcade minigame — additive overlay; never touches the app. */}
       <ArcadeRoot />
-    </>
+    </MotionConfig>
   );
 }
 

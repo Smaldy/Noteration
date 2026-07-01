@@ -81,7 +81,7 @@ def build_waterfall(
 
 
 def build_waterfall_from_settings(
-    settings: "Settings",
+    settings: Settings,
     *,
     ollama_model: str | None = None,
     clock: Callable[[], datetime] | None = None,

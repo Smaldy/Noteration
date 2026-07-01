@@ -78,13 +78,13 @@
       "exitFullscreenEsc": "Esci da schermo intero (Esc)"
     },
     "notes": {
-      "empty": "Ancora nessun appunto per questo argomento — aggiungi il tuo qui sotto.",
+      "empty": "Ancora nessun appunto per questo argomento. Aggiungi il tuo qui sotto.",
       "add": "Aggiungi appunto",
       "adding": "Aggiunta…",
       "reconstruct_one": "Ricostruisci {{count}} formula",
       "reconstruct_other": "Ricostruisci {{count}} formule",
       "reconstructing": "Ricostruzione…",
-      "reconstructError": "Impossibile ricostruire le formule — un provider di visione potrebbe essere occupato.",
+      "reconstructError": "Impossibile ricostruire le formule. Un provider di visione potrebbe essere occupato.",
       "deleteBlockConfirm": "Eliminare questo blocco di appunti?",
       "manual": "manuale",
       "generatedBy": "Generato da {{provider}}",
@@ -94,7 +94,7 @@
       "delete": "Elimina",
       "emptyNote": "_Questo appunto è vuoto._",
       "formulas": "Formule",
-      "equationDetected": "equazione rilevata — non ancora ricostruita",
+      "equationDetected": "equazione rilevata, non ancora ricostruita",
       "state": {
         "pending": "in attesa",
         "verified": "verificata",
@@ -103,12 +103,12 @@
       "regenerate": "Rigenera appunti",
       "regenerating": "Rigenerazione…",
       "regenerateLocked": "Sblocca l'appunto per rigenerarlo",
-      "regenerateError": "Impossibile rigenerare gli appunti — un provider potrebbe essere occupato.",
+      "regenerateError": "Impossibile rigenerare gli appunti. Un provider potrebbe essere occupato.",
       "regenerateDialog": {
         "title": "Rigenera appunti",
-        "desc": "Riscrive gli appunti di questo argomento dal materiale di origine. Il quiz e le flashcard — e i relativi progressi di ripasso — vengono mantenuti.",
+        "desc": "Riscrive gli appunti di questo argomento dal materiale di origine. Il quiz, le flashcard e i relativi progressi di ripasso vengono mantenuti.",
         "feedbackLabel": "Cosa vuoi cambiare? (facoltativo)",
-        "feedbackPlaceholder": "es. Troppo breve — espandi la sezione sul momento torcente e aggiungi un esempio svolto.",
+        "feedbackPlaceholder": "es. Troppo breve: espandi la sezione sul momento torcente e aggiungi un esempio svolto.",
         "cancel": "Annulla",
         "confirm": "Rigenera"
       }
@@ -157,7 +157,7 @@
   "upload": {
     "titleExam": "Aggiungi un PDF d'esame",
     "title": "Carica un PDF",
-    "descExam": "Leggeremo il PDF e proporremo una struttura da rivedere. I documenti di preparazione all'esame generano solo quiz a risposta multipla (con spiegazioni) e flashcard — niente appunti.",
+    "descExam": "Leggeremo il PDF e proporremo una struttura da rivedere. I documenti di preparazione all'esame generano solo quiz a risposta multipla (con spiegazioni) e flashcard, non appunti.",
     "desc": "Leggeremo il PDF e proporremo una struttura di capitoli/argomenti da rivedere prima di generare qualsiasi cosa.",
     "subject": "Materia",
     "newSubjectOption": "+ Nuova materia…",
@@ -173,12 +173,12 @@
       "analysingHint": "Lettura della struttura del PDF e rilevamento dei capitoli.",
       "ready": "Pronto",
       "openingReview": "Apertura revisione…",
-      "book": "Libro di {{count}} pagine — i capitoli vengono convertiti man mano che li elabori.",
-      "readExam_one": "Letta {{count}} pagina — pronto per creare la pratica.",
-      "readExam_other": "Lette {{count}} pagine — pronto per creare la pratica.",
-      "read_one": "Letta {{count}} pagina — pronto per la revisione.",
-      "read_other": "Lette {{count}} pagine — pronto per la revisione.",
-      "transcribing": "Caricato — trascrizione in corso…",
+      "book": "Libro di {{count}} pagine. I capitoli vengono convertiti man mano che li elabori.",
+      "readExam_one": "Letta {{count}} pagina, pronto per creare la pratica.",
+      "readExam_other": "Lette {{count}} pagine, pronto per creare la pratica.",
+      "read_one": "Letta {{count}} pagina, pronto per la revisione.",
+      "read_other": "Lette {{count}} pagine, pronto per la revisione.",
+      "transcribing": "Caricato, trascrizione in corso…",
       "transcribingHint": "Stiamo trascrivendo il tuo audio. Potrai rivederne la struttura al termine."
     },
     "review": {
@@ -187,7 +187,7 @@
       "loadFailed": "Impossibile caricare la struttura.",
       "confirmFailed": "Conferma non riuscita. Riprova.",
       "title": "Rivedi la struttura",
-      "intro": "Rinomina, aggiungi o rimuovi capitoli e argomenti e imposta la priorità di ogni argomento. Attiva Elabora sui capitoli che vuoi generare ora — gli altri restano in pausa e non costano nulla finché non li riprendi. Niente viene generato finché non confermi.",
+      "intro": "Rinomina, aggiungi o rimuovi capitoli e argomenti e imposta la priorità di ogni argomento. Attiva Elabora sui capitoli che vuoi generare ora; gli altri restano in pausa e non costano nulla finché non li riprendi. Niente viene generato finché non confermi.",
       "needsManual": "Non siamo riusciti a rilevare automaticamente una struttura. Aggiungi capitoli e argomenti qui sotto per crearne una.",
       "noHeadings": "Questo PDF non ha intestazioni rilevate, quindi gli appunti sono delimitati per ogni argomento in base alla sua posizione nel documento. Mantieni gli argomenti nell'ordine in cui appaiono e dividi le sezioni lunghe in argomenti separati per appunti più pertinenti.",
       "chapterTitlePlaceholder": "Titolo del capitolo",
@@ -217,7 +217,7 @@
       "skip": "Salta"
     },
     "fileLabel": "File PDF o audio",
-    "fileHint": "Carica un PDF o una registrazione audio (es. una lezione) — l'audio viene trascritto automaticamente."
+    "fileHint": "Carica un PDF o una registrazione audio (es. una lezione); l'audio viene trascritto automaticamente."
   },
   "search": {
     "placeholder": "Cerca argomenti e capitoli…",
@@ -304,7 +304,7 @@
       "aiPlanTitle": "Piano di studio IA",
       "aiPlanDesc": "Scegli una materia e distribuiremo i suoi argomenti nel tuo calendario fino alla data dell'esame, dando priorità agli argomenti cruciali e lasciando un margine di ripasso. Questo sostituisce qualsiasi piano IA precedente per quella materia; i tuoi eventi restano al loro posto.",
       "alreadyStudied": "Già studiati",
-      "alreadyStudiedHint": "(gli argomenti selezionati vengono saltati — {{count}} da pianificare)",
+      "alreadyStudiedHint": "(gli argomenti selezionati vengono saltati, {{count}} da pianificare)",
       "noTopicsSubject": "Questa materia non ha ancora argomenti.",
       "planned_one": "Pianificata {{count}} sessione di studio. Ora è sul tuo calendario.",
       "planned_other": "Pianificate {{count}} sessioni di studio. Ora sono sul tuo calendario.",
@@ -331,7 +331,7 @@
   },
   "queue": {
     "title": "Coda di elaborazione",
-    "subtitle": "Ogni materia ha la sua corsia — mettine in pausa una per cedere il suo modello a un'altra. Studia ciò che è pronto ora; il resto continua sui piani gratuiti.",
+    "subtitle": "Ogni materia ha la sua corsia. Mettine in pausa una per cedere il suo modello a un'altra; studia ciò che è pronto ora e il resto continua sui piani gratuiti.",
     "idle": "Inattivo",
     "waterfall": "Cascata",
     "cooling": "in raffreddamento",
@@ -343,7 +343,7 @@
     "queued": "{{count}} in coda",
     "providerSaid": "Il provider ha detto: {{reason}}",
     "resumeShortly": "Ripresa a breve (intorno alle {{time}}).",
-    "resumeCooling": "La quota di un provider si sta raffreddando — ripresa intorno alle {{time}} (~{{minutes}} min).",
+    "resumeCooling": "La quota di un provider si sta raffreddando; ripresa intorno alle {{time}} (~{{minutes}} min).",
     "resumeSummary": "ripresa ~{{time}}",
     "budgetPaused": "Un documento ha raggiunto il suo budget di token ed è in pausa per proteggere la tua quota.",
     "budgetPausedWithTokens": "Un documento ha raggiunto il suo budget di token (~{{spent}} / {{budget}} token) ed è in pausa per proteggere la tua quota.",
@@ -353,7 +353,7 @@
     "retry": "Riprova",
     "events_one": "{{count}} evento",
     "events_other": "{{count}} eventi",
-    "providerBadgeTitle": "Provider IA attivo — apri la coda di elaborazione",
+    "providerBadgeTitle": "Provider IA attivo: apri la coda di elaborazione",
     "lane": {
       "states": {
         "running": "In esecuzione",
@@ -392,7 +392,7 @@
       "clearCompleted": "Rimuovi completati"
     },
     "history": {
-      "empty": "Ancora nessuna cronologia di generazione. Man mano che gli argomenti vengono generati, ciò che li ha prodotti — e ogni cambio di provider — comparirà qui.",
+      "empty": "Ancora nessuna cronologia di generazione. Man mano che gli argomenti vengono generati, ciò che li ha prodotti, e ogni cambio di provider, comparirà qui.",
       "switchedProvider": "Provider cambiato",
       "topicGenerated": "Argomento generato"
     },
@@ -416,7 +416,7 @@
   },
   "exam": {
     "title": "Preparazione esame",
-    "subtitle": "Pratica intensiva — ogni PDF qui diventa quiz a risposta multipla (con spiegazioni) e flashcard. Niente appunti.",
+    "subtitle": "Pratica intensiva: ogni PDF qui diventa quiz a risposta multipla (con spiegazioni) e flashcard. Niente appunti.",
     "addPdf": "Aggiungi PDF d'esame",
     "loading": "Caricamento della preparazione esame…",
     "emptyTitle": "Ancora nessun mazzo d'esame",
@@ -569,10 +569,10 @@
         "pick": "Modello",
         "rotationOrder": "Ordine di rotazione",
         "rotationOrderHint": "Provati in quest'ordine; ognuno cambia al proprio limite giornaliero di richieste.",
-        "disabledNote": "Gemini è disattivato — le note verranno generate con Ollama (o Claude, se consentito)."
+        "disabledNote": "Gemini è disattivato. Le note verranno generate con Ollama (o Claude, se consentito)."
       },
       "models": {
-        "flashLiteHint": "Il più economico e veloce — consigliato per la generazione in blocco.",
+        "flashLiteHint": "Il più economico e veloce, consigliato per la generazione in blocco.",
         "flashHint": "Più capace, consuma più quota per argomento."
       },
       "allowPaid": {
@@ -594,8 +594,8 @@
     "generation": {
       "title": "Generazione appunti",
       "description": "Quanto contenuto genera l'IA per ogni argomento.",
-      "notesLength_one": "Lunghezza appunti — {{count}} pagina per argomento",
-      "notesLength_other": "Lunghezza appunti — {{count}} pagine per argomento",
+      "notesLength_one": "Lunghezza appunti: {{count}} pagina per argomento",
+      "notesLength_other": "Lunghezza appunti: {{count}} pagine per argomento",
       "brief": "Breve",
       "detailed": "Dettagliato",
       "explanation": "Una \"pagina\" è un'unità di contenuto (~300 parole). L'IA punta a questo numero di pagine per argomento; se un argomento non ha materiale sufficiente, genera ciò che può. Più pagine consumano più token."
@@ -641,7 +641,7 @@
       "accentDefault": "Predefinito del tema",
       "accentCustom": "Colore personalizzato",
       "font": "Carattere",
-      "baseFontSize": "Dimensione base del testo — {{size}}px",
+      "baseFontSize": "Dimensione base del testo: {{size}}px",
       "colors": {
         "indigo": "Indaco",
         "violet": "Viola",

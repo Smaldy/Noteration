@@ -15,7 +15,7 @@ from sqlalchemy.pool import StaticPool
 import backend.models  # noqa: F401
 from backend.db.database import Base, get_session
 from backend.main import app
-from backend.models.duplicator import CalibrationSample, ExerciseSession
+from backend.models.duplicator import CalibrationSample
 from backend.models.enums import CalibrationSource
 from backend.services.duplicator import calibration as cal
 from backend.services.duplicator import sessions as sessionsvc

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "lint": "eslint src",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -61,6 +62,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.3.0",
     "@types/matter-js": "^0.20.2",
@@ -68,8 +70,12 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.62.1",
     "vite": "^6.0.7"
   }
 }

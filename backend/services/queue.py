@@ -702,7 +702,7 @@ class QueueService:
         processor: StageProcessor,
         *,
         max_jobs: int,
-        throttle: Callable[[QueueJob, "JobOutcome"], None] | None = None,
+        throttle: Callable[[QueueJob, JobOutcome], None] | None = None,
     ) -> int:
         """Claim and process due jobs until exhaustion, max_jobs, or none left.
 

@@ -46,7 +46,7 @@ class BenchmarkTopic:
     expected_math_blocks: int = 0
 
     @classmethod
-    def from_source(cls, id: str, title: str, source: str) -> "BenchmarkTopic":
+    def from_source(cls, id: str, title: str, source: str) -> BenchmarkTopic:
         return cls(id, title, source, expected_math_blocks=count_math_blocks(source))
 
 

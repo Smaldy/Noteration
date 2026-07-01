@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Generator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -45,7 +45,6 @@ from backend.services.worker import (
     _has_configured_provider,
     drain_once,
 )
-from backend.services.queue import QueueService
 
 
 class _SmartProvider(Provider):
@@ -341,7 +340,7 @@ def test_drain_reuses_waterfall_so_rate_limit_persists(
     session.add(Settings(id=1, api_key_gemini="x"))
     session.commit()
 
-    frozen = datetime(2026, 5, 31, 12, 0, 0, tzinfo=timezone.utc)
+    frozen = datetime(2026, 5, 31, 12, 0, 0, tzinfo=UTC)
     clock = lambda: frozen  # noqa: E731 - window can't reopen between drains
     built: list[_LimitedSmartProvider] = []
 

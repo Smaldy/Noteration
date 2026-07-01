@@ -15,17 +15,16 @@ from backend.models import Chapter, Document, Formula, Note, Subject, Topic
 from backend.models.enums import FormulaState, QueueStage
 from backend.models.processing import QueueJob
 from backend.services.pipeline.formula import (
-    MathRegion,
     NO_OP_PROVIDER,
+    MathRegion,
     crop_pdf_region,
     detect_math_regions,
     make_formula_processor,
     transcribe_pending_formulas,
 )
-from backend.services.queue import JobOutcome, QueueService
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
-
+from backend.services.queue import JobOutcome, QueueService
 
 # --- detection --------------------------------------------------------------
 

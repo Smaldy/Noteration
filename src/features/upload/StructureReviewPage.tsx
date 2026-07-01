@@ -77,7 +77,7 @@ export function StructureReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
+  }, [documentId, t]);
 
   async function handleConfirm() {
     setSubmitting(true);

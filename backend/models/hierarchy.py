@@ -7,7 +7,7 @@ consistent with the parent document's subject on every write (see docs/architect
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum as SAEnum
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 def utcnow() -> datetime:
     """Timezone-aware UTC now — the default for all created/updated stamps."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Subject(Base):
@@ -152,7 +152,7 @@ class Topic(Base):
     notes: Mapped[list[Note]] = relationship(
         back_populates="topic", cascade="all, delete-orphan"
     )
-    attachments: Mapped[list["NoteAttachment"]] = relationship(
+    attachments: Mapped[list[NoteAttachment]] = relationship(
         back_populates="topic", cascade="all, delete-orphan"
     )
     mcqs: Mapped[list[MCQ]] = relationship(

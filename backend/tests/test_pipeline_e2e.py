@@ -13,7 +13,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from backend.models import Document, Flashcard, MCQ, Note, Subject
+from backend.models import MCQ, Document, Flashcard, Note, Subject
 from backend.models.enums import (
     DocumentMode,
     QueueLaneState,
@@ -25,9 +25,9 @@ from backend.models.processing import QueueJob
 from backend.schemas.structure import ChapterIn, TopicIn
 from backend.services import documents as docsvc
 from backend.services.pipeline.processors import make_pipeline_processor
-from backend.services.queue import QueueService
 from backend.services.providers.base import BudgetProbe, Provider, ProviderResult
 from backend.services.providers.waterfall import Waterfall
+from backend.services.queue import QueueService
 
 _GENERATION = {
     "notes_md": "# Kinematics\n\nVelocity is dx/dt.",
@@ -87,7 +87,7 @@ def _seed_confirmed_document(session: Session, tmp_path: Path) -> Document:
 def test_full_topic_pipeline_produces_studiable_material(
     session: Session, tmp_path: Path
 ) -> None:
-    document = _seed_confirmed_document(session, tmp_path)
+    _seed_confirmed_document(session, tmp_path)
     topic_id = session.query(QueueJob).first().topic_id
 
     queue = QueueService(session)

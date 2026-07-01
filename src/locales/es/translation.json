@@ -78,13 +78,13 @@
       "exitFullscreenEsc": "Salir de pantalla completa (Esc)"
     },
     "notes": {
-      "empty": "Aún no hay apuntes para este tema — añade los tuyos abajo.",
+      "empty": "Aún no hay apuntes para este tema. Añade los tuyos abajo.",
       "add": "Añadir apunte",
       "adding": "Añadiendo…",
       "reconstruct_one": "Reconstruir {{count}} fórmula",
       "reconstruct_other": "Reconstruir {{count}} fórmulas",
       "reconstructing": "Reconstruyendo…",
-      "reconstructError": "No se pudieron reconstruir las fórmulas — un proveedor de visión puede estar ocupado.",
+      "reconstructError": "No se pudieron reconstruir las fórmulas. Un proveedor de visión puede estar ocupado.",
       "deleteBlockConfirm": "¿Eliminar este bloque de apuntes?",
       "manual": "manual",
       "generatedBy": "Generado por {{provider}}",
@@ -94,7 +94,7 @@
       "delete": "Eliminar",
       "emptyNote": "_Este apunte está vacío._",
       "formulas": "Fórmulas",
-      "equationDetected": "ecuación detectada — aún no reconstruida",
+      "equationDetected": "ecuación detectada, aún no reconstruida",
       "state": {
         "pending": "pendiente",
         "verified": "verificada",
@@ -103,12 +103,12 @@
       "regenerate": "Regenerar apuntes",
       "regenerating": "Regenerando…",
       "regenerateLocked": "Desbloquea el apunte para regenerarlo",
-      "regenerateError": "No se pudieron regenerar los apuntes — puede que un proveedor esté ocupado.",
+      "regenerateError": "No se pudieron regenerar los apuntes. Puede que un proveedor esté ocupado.",
       "regenerateDialog": {
         "title": "Regenerar apuntes",
-        "desc": "Reescribe los apuntes de este tema a partir del material de origen. El cuestionario y las tarjetas — y su progreso de repaso — se conservan.",
+        "desc": "Reescribe los apuntes de este tema a partir del material de origen. El cuestionario, las tarjetas y su progreso de repaso se conservan.",
         "feedbackLabel": "¿Qué debería cambiar? (opcional)",
-        "feedbackPlaceholder": "p. ej. Demasiado breve — amplía la sección sobre el par y añade un ejemplo resuelto.",
+        "feedbackPlaceholder": "p. ej. Demasiado breve: amplía la sección sobre el par y añade un ejemplo resuelto.",
         "cancel": "Cancelar",
         "confirm": "Regenerar"
       }
@@ -157,7 +157,7 @@
   "upload": {
     "titleExam": "Añadir un PDF de examen",
     "title": "Subir un PDF",
-    "descExam": "Leeremos el PDF y propondremos una estructura para revisar. Los documentos de preparación de examen generan solo preguntas tipo test (con explicaciones) y tarjetas — sin apuntes.",
+    "descExam": "Leeremos el PDF y propondremos una estructura para revisar. Los documentos de preparación de examen generan solo preguntas tipo test (con explicaciones) y tarjetas, sin apuntes.",
     "desc": "Leeremos el PDF y propondremos una estructura de capítulos/temas para que la revises antes de generar nada.",
     "subject": "Asignatura",
     "newSubjectOption": "+ Nueva asignatura…",
@@ -173,12 +173,12 @@
       "analysingHint": "Leyendo el esquema del PDF y detectando capítulos.",
       "ready": "Listo",
       "openingReview": "Abriendo la revisión…",
-      "book": "Libro de {{count}} páginas — los capítulos se convierten a medida que los procesas.",
-      "readExam_one": "Se leyó {{count}} página — listo para crear la práctica.",
-      "readExam_other": "Se leyeron {{count}} páginas — listo para crear la práctica.",
-      "read_one": "Se leyó {{count}} página — listo para revisar.",
-      "read_other": "Se leyeron {{count}} páginas — listo para revisar.",
-      "transcribing": "Subido — transcribiendo…",
+      "book": "Libro de {{count}} páginas. Los capítulos se convierten a medida que los procesas.",
+      "readExam_one": "Se leyó {{count}} página, listo para crear la práctica.",
+      "readExam_other": "Se leyeron {{count}} páginas, listo para crear la práctica.",
+      "read_one": "Se leyó {{count}} página, listo para revisar.",
+      "read_other": "Se leyeron {{count}} páginas, listo para revisar.",
+      "transcribing": "Subido, transcribiendo…",
       "transcribingHint": "Estamos transcribiendo tu audio. Podrás revisar su estructura cuando esté listo."
     },
     "review": {
@@ -187,7 +187,7 @@
       "loadFailed": "No se pudo cargar la estructura.",
       "confirmFailed": "No se pudo confirmar. Inténtalo de nuevo.",
       "title": "Revisar la estructura",
-      "intro": "Renombra, añade o elimina capítulos y temas, y establece la prioridad de cada tema. Activa Procesar en los capítulos que quieras generar ahora — el resto permanece en pausa y no cuesta nada hasta que los reanudes. No se genera nada hasta que confirmes.",
+      "intro": "Renombra, añade o elimina capítulos y temas, y establece la prioridad de cada tema. Activa Procesar en los capítulos que quieras generar ahora; el resto permanece en pausa y no cuesta nada hasta que los reanudes. No se genera nada hasta que confirmes.",
       "needsManual": "No pudimos detectar una estructura automáticamente. Añade capítulos y temas abajo para crear una.",
       "noHeadings": "Este PDF no tiene encabezados detectados, así que los apuntes se delimitan para cada tema según su posición en el documento. Mantén los temas en el orden en que aparecen y divide las secciones largas en temas separados para obtener los apuntes más relevantes.",
       "chapterTitlePlaceholder": "Título del capítulo",
@@ -217,7 +217,7 @@
       "skip": "Omitir"
     },
     "fileLabel": "Archivo PDF o de audio",
-    "fileHint": "Sube un PDF o una grabación de audio (p. ej. una clase) — el audio se transcribe automáticamente."
+    "fileHint": "Sube un PDF o una grabación de audio (p. ej. una clase); el audio se transcribe automáticamente."
   },
   "search": {
     "placeholder": "Buscar temas y capítulos…",
@@ -304,7 +304,7 @@
       "aiPlanTitle": "Plan de estudio con IA",
       "aiPlanDesc": "Elige una asignatura y repartiremos sus temas por tu calendario hasta la fecha del examen, priorizando los temas cruciales y dejando un margen de repaso. Esto reemplaza cualquier plan de IA anterior de esa asignatura; tus propios eventos se quedan donde están.",
       "alreadyStudied": "Ya estudiados",
-      "alreadyStudiedHint": "(los temas marcados se omiten — {{count}} por planificar)",
+      "alreadyStudiedHint": "(los temas marcados se omiten, {{count}} por planificar)",
       "noTopicsSubject": "Esta asignatura aún no tiene temas.",
       "planned_one": "Se planificó {{count}} sesión de estudio. Ya está en tu calendario.",
       "planned_other": "Se planificaron {{count}} sesiones de estudio. Ya están en tu calendario.",
@@ -331,7 +331,7 @@
   },
   "queue": {
     "title": "Cola de procesamiento",
-    "subtitle": "Cada asignatura tiene su propio carril — pausa uno para ceder su modelo a otro. Estudia lo que ya está listo; el resto continúa en los planes gratuitos.",
+    "subtitle": "Cada asignatura tiene su propio carril. Pausa uno para ceder su modelo a otro; estudia lo que ya está listo y el resto continúa en los planes gratuitos.",
     "idle": "Inactivo",
     "waterfall": "Cascada",
     "cooling": "enfriando",
@@ -343,7 +343,7 @@
     "queued": "{{count}} en cola",
     "providerSaid": "El proveedor dijo: {{reason}}",
     "resumeShortly": "Se reanuda en breve (alrededor de las {{time}}).",
-    "resumeCooling": "La cuota de un proveedor se está enfriando — se reanuda alrededor de las {{time}} (~{{minutes}} min).",
+    "resumeCooling": "La cuota de un proveedor se está enfriando; se reanuda alrededor de las {{time}} (~{{minutes}} min).",
     "resumeSummary": "se reanuda ~{{time}}",
     "budgetPaused": "Un documento alcanzó su presupuesto de tokens y está en pausa para proteger tu cuota.",
     "budgetPausedWithTokens": "Un documento alcanzó su presupuesto de tokens (~{{spent}} / {{budget}} tokens) y está en pausa para proteger tu cuota.",
@@ -353,7 +353,7 @@
     "retry": "Reintentar",
     "events_one": "{{count}} evento",
     "events_other": "{{count}} eventos",
-    "providerBadgeTitle": "Proveedor de IA activo — abre la cola de procesamiento",
+    "providerBadgeTitle": "Proveedor de IA activo: abre la cola de procesamiento",
     "lane": {
       "states": {
         "running": "En ejecución",
@@ -392,7 +392,7 @@
       "clearCompleted": "Borrar completados"
     },
     "history": {
-      "empty": "Aún no hay historial de generación. A medida que se generan los temas, lo que los produjo — y cada cambio de proveedor — aparecerá aquí.",
+      "empty": "Aún no hay historial de generación. A medida que se generan los temas, lo que los produjo, y cada cambio de proveedor, aparecerá aquí.",
       "switchedProvider": "Proveedor cambiado",
       "topicGenerated": "Tema generado"
     },
@@ -416,7 +416,7 @@
   },
   "exam": {
     "title": "Preparación de examen",
-    "subtitle": "Práctica intensiva — cada PDF aquí se convierte en preguntas tipo test (con explicaciones) y tarjetas. Sin apuntes.",
+    "subtitle": "Práctica intensiva: cada PDF aquí se convierte en preguntas tipo test (con explicaciones) y tarjetas. Sin apuntes.",
     "addPdf": "Añadir PDF de examen",
     "loading": "Cargando tu preparación de examen…",
     "emptyTitle": "Aún no hay mazos de examen",
@@ -569,10 +569,10 @@
         "pick": "Modelo",
         "rotationOrder": "Orden de rotación",
         "rotationOrderHint": "Se prueban en este orden; cada uno cambia al alcanzar su propio límite diario de solicitudes.",
-        "disabledNote": "Gemini está desactivado — las notas se generarán con Ollama (o Claude, si se permite)."
+        "disabledNote": "Gemini está desactivado. Las notas se generarán con Ollama (o Claude, si se permite)."
       },
       "models": {
-        "flashLiteHint": "El más barato y rápido — recomendado para generación masiva.",
+        "flashLiteHint": "El más barato y rápido, recomendado para generación masiva.",
         "flashHint": "Más capaz, usa más cuota por tema."
       },
       "allowPaid": {
@@ -594,8 +594,8 @@
     "generation": {
       "title": "Generación de apuntes",
       "description": "Cuánto contenido genera la IA por tema.",
-      "notesLength_one": "Longitud de apuntes — {{count}} página por tema",
-      "notesLength_other": "Longitud de apuntes — {{count}} páginas por tema",
+      "notesLength_one": "Longitud de apuntes: {{count}} página por tema",
+      "notesLength_other": "Longitud de apuntes: {{count}} páginas por tema",
       "brief": "Breve",
       "detailed": "Detallado",
       "explanation": "Una \"página\" es una unidad de contenido (~300 palabras). La IA intenta alcanzar este número de páginas por tema; si un tema no tiene suficiente material, genera lo que puede. Más páginas usan más tokens."
@@ -641,7 +641,7 @@
       "accentDefault": "Predeterminado del tema",
       "accentCustom": "Color personalizado",
       "font": "Fuente",
-      "baseFontSize": "Tamaño base del texto — {{size}}px",
+      "baseFontSize": "Tamaño base del texto: {{size}}px",
       "colors": {
         "indigo": "Índigo",
         "violet": "Violeta",

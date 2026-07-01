@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
+import { usePolling } from "@/lib/usePolling";
 import { useLanesStore } from "@/stores/lanes";
 
 const POLL_MS = 10_000;
@@ -21,11 +22,7 @@ export function ProviderBadge() {
   const status = useLanesStore((s) => s.status);
   const fetchLanes = useLanesStore((s) => s.fetchLanes);
 
-  useEffect(() => {
-    void fetchLanes();
-    const timer = setInterval(() => void fetchLanes(), POLL_MS);
-    return () => clearInterval(timer);
-  }, [fetchLanes]);
+  usePolling(fetchLanes, POLL_MS);
 
   const active = status?.active_provider ?? null;
   const info = providerInfo(active);

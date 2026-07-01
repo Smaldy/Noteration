@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import shutil
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import select
@@ -36,8 +36,8 @@ from sqlalchemy.orm import Session
 
 from backend.models import Document
 from backend.models.enums import DocumentStatus
+from backend.paths import UPLOADS_DIR
 from backend.services.pipeline import audio_chunking as ac
-from backend.services.pipeline.ingestion import UPLOADS_DIR
 from backend.services.providers.base import ProviderLimitError, ProviderUnavailableError
 from backend.services.providers.gemini import TRANSCRIBE_MODEL, GeminiProvider
 
@@ -83,7 +83,7 @@ _LANGUAGE_NAMES = {"en": "English", "it": "Italian", "es": "Spanish"}
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def is_audio_filename(filename: str) -> bool:

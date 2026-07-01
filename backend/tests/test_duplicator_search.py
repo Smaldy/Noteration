@@ -29,7 +29,6 @@ from backend.services.duplicator.search import (
     make_duplicate_search_processor,
     parse_variants,
 )
-from backend.services.providers.base import ProviderLimitError
 from backend.services.providers.mock import MockProvider
 from backend.services.providers.waterfall import Waterfall
 from backend.services.queue import QueueService

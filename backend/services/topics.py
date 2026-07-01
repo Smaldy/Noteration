@@ -7,10 +7,13 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.models import Flashcard, Formula, MCQ, Note, QueueJob, Topic
+from backend.models import MCQ, Flashcard, Formula, Note, QueueJob, Topic
 from backend.models.enums import DocumentMode, QueueStage
 from backend.services.attachments import attachment_url
-from backend.services.pipeline.formula import NO_OP_PROVIDER, transcribe_pending_formulas
+from backend.services.pipeline.formula import (
+    NO_OP_PROVIDER,
+    transcribe_pending_formulas,
+)
 from backend.services.pipeline.generation import (
     GENERATE_MORE_MAX_TOKENS,
     MORE_FLASHCARDS_SCHEMA,

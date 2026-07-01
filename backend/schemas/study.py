@@ -73,7 +73,7 @@ class ScheduleEntryCreate(BaseModel):
     is_deadline: bool = False
 
     @model_validator(mode="after")
-    def _at_least_one(self) -> "ScheduleEntryCreate":
+    def _at_least_one(self) -> ScheduleEntryCreate:
         if self.is_deadline:
             if self.subject_id is None:
                 raise ValueError("a deadline needs a subject_id")

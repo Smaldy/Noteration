@@ -3,7 +3,7 @@
 Processing, failover, and resume-from-DB are covered in 4b–4c.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, event, select
@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.db.database import Base
-
 from backend.models import (
     Chapter,
     Document,
@@ -349,8 +348,8 @@ def test_earliest_resume_after(session: Session) -> None:
     queue = QueueService(session)
     assert queue.earliest_resume_after() is None
 
-    sooner = datetime(2026, 6, 1, tzinfo=timezone.utc)
-    later = datetime(2026, 6, 2, tzinfo=timezone.utc)
+    sooner = datetime(2026, 6, 1, tzinfo=UTC)
+    later = datetime(2026, 6, 2, tzinfo=UTC)
     for resume_at in (later, sooner):
         topic = _topic(session)
         job = _claim(queue, topic, QueueStage.notes)
@@ -371,7 +370,7 @@ def test_mid_job_limit_then_restart_completes_all(session: Session) -> None:
         )
         queue.enqueue_topic(topic, stages=(QueueStage.notes,))
 
-    resume_at = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    resume_at = datetime(2026, 6, 1, tzinfo=UTC)
     calls = {"n": 0}
 
     def limited(job: QueueJob, db: Session) -> ProviderResult:
@@ -421,7 +420,7 @@ def test_mid_job_limit_then_restart_completes_all(session: Session) -> None:
 
 def test_claim_skips_jobs_deferred_into_the_future(session: Session) -> None:
     # A job deferred past `now` must not be claimed (don't hit a cooling provider).
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     queue = QueueService(session, clock=lambda: now)
     topic = _topic(session)
     job = _claim(queue, topic, QueueStage.notes)
@@ -435,7 +434,7 @@ def test_claim_skips_jobs_deferred_into_the_future(session: Session) -> None:
 
 def test_run_batch_continues_past_a_failing_topic(session: Session) -> None:
     # A transiently failing topic is deferred, not allowed to block other topics.
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     queue = QueueService(session, clock=lambda: now)
     bad = _topic(session, order_index=0, title="bad")
     good = _topic(session, order_index=1, title="good")

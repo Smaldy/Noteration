@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -105,7 +105,7 @@ def test_status_surfaces_paused_reason_for_deferred_work(session: Session) -> No
     """A job deferred on exhaustion exposes its recorded reason (not just a time)."""
     doc_id = _seed(session)
     queued = session.scalars(select(Topic).where(Topic.title == "queued")).one()
-    resume_at = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+    resume_at = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
     session.add(
         QueueJob(
             topic_id=queued.id,

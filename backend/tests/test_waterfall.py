@@ -6,7 +6,7 @@ exponential backoff to a flaky one, and when all are exhausted surface the
 earliest reset time (never spin).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,7 +18,7 @@ from backend.services.providers import (
     Waterfall,
 )
 
-BASE = datetime(2026, 1, 1, tzinfo=timezone.utc)
+BASE = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 class Clock:

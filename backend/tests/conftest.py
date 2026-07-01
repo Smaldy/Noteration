@@ -15,9 +15,11 @@ from sqlalchemy.orm import Session, sessionmaker
 # `with TestClient(app)` (which runs lifespan), and the worker would otherwise
 # spin up a thread against the real noteration.db. Tests drive the queue directly.
 os.environ.setdefault("NOTERATION_DISABLE_WORKER", "1")
+# TestClient sends `Host: testserver`; allow it through the local-origin guard.
+os.environ.setdefault("NOTERATION_EXTRA_HOSTS", "testserver")
 
-from backend.db.database import Base
 import backend.models  # noqa: F401 - register all models on Base.metadata
+from backend.db.database import Base
 
 
 @pytest.fixture

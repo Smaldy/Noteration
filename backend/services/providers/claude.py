@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from backend.services.providers.base import (
@@ -35,7 +35,7 @@ _VISION_PROMPT = (
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class ClaudeProvider(Provider):

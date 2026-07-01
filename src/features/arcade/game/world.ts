@@ -1071,10 +1071,22 @@ function distToSegment(p: Vec, a: Vec, b: Vec): number {
 }
 
 function bounce(world: World, e: Enemy) {
-  if (e.pos.x < e.radius) (e.pos.x = e.radius), (e.vel.x = Math.abs(e.vel.x));
-  if (e.pos.x > world.w - e.radius) (e.pos.x = world.w - e.radius), (e.vel.x = -Math.abs(e.vel.x));
-  if (e.pos.y < e.radius) (e.pos.y = e.radius), (e.vel.y = Math.abs(e.vel.y));
-  if (e.pos.y > world.h - e.radius) (e.pos.y = world.h - e.radius), (e.vel.y = -Math.abs(e.vel.y));
+  if (e.pos.x < e.radius) {
+    e.pos.x = e.radius;
+    e.vel.x = Math.abs(e.vel.x);
+  }
+  if (e.pos.x > world.w - e.radius) {
+    e.pos.x = world.w - e.radius;
+    e.vel.x = -Math.abs(e.vel.x);
+  }
+  if (e.pos.y < e.radius) {
+    e.pos.y = e.radius;
+    e.vel.y = Math.abs(e.vel.y);
+  }
+  if (e.pos.y > world.h - e.radius) {
+    e.pos.y = world.h - e.radius;
+    e.vel.y = -Math.abs(e.vel.y);
+  }
 }
 
 function stepSpikes(world: World, edt: number) {

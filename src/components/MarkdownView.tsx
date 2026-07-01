@@ -46,6 +46,7 @@ const FORBIDDEN_TAGS = new Set([
 const URL_ATTRS = new Set(["href", "src", "xlinkHref", "action", "formAction"]);
 
 // Control chars + whitespace that browsers strip before resolving a URL scheme.
+// eslint-disable-next-line no-control-regex -- matching control chars is the point
 const URL_NOISE = /[\x00-\x20]/g;
 
 // Models (and KaTeX's own defaults) often emit math with `\( … \)` / `\[ … \]`
