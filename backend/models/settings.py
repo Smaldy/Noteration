@@ -1,6 +1,6 @@
 """Settings — a single-row table (id is always 1) holding app configuration.
 
-API keys are kept here for a local single-user app (acceptable per review.md);
+API keys are kept here for a local single-user app (a documented trade-off; see docs/architecture.md);
 they must never be written to logs or URLs.
 """
 

@@ -322,7 +322,7 @@ def detect_for_document(
     2. **Markdown headings** over the cached markdown (slide decks/lecture PDFs that
        markitdown converts cleanly, books without an outline).
     3. **PDF outline/font-size fallback** (``extract_pdf_structure``) when the
-       markdown yields nothing — ``docs/ai-pipeline.md`` Stage 2's no-model
+       markdown yields nothing — ``docs/architecture.md`` Stage 2's no-model
        fallback so a plainly-structured document isn't reported as unrecognized.
     """
     document = session.get(Document, document_id)

@@ -94,6 +94,12 @@ uvicorn backend.main:app                             # open http://127.0.0.1:800
 
 For building the desktop installers, see [`packaging/README.md`](packaging/README.md).
 
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — how the app works: the pipeline, provider waterfall, budget-aware queue, data model, and the design decisions behind them.
+- [`docs/project-structure.md`](docs/project-structure.md) — directory-by-directory layout of the repo.
+- [`packaging/USER-GUIDE.md`](packaging/USER-GUIDE.md) — non-technical install & first-use guide.
+
 
 ## Privacy
 

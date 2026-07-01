@@ -1,6 +1,6 @@
 """Stage 1 — Ingestion: PDF → markdown + per-page image renders, disk-cached.
 
-The first and cheapest cost lever (see docs/cost-strategy.md): ``markitdown``
+The first and cheapest cost lever (see docs/architecture.md): ``markitdown``
 strips visual noise so fewer input tokens ever reach a model, and PyMuPDF renders
 each page once for later formula cropping. Both outputs are cached on disk keyed
 by the file's content hash, so re-processing a document never re-pays ingestion.
@@ -49,7 +49,7 @@ BOOK_MODE_MIN_PAGES = 80
 
 # A PDF with fewer than this many non-whitespace markdown chars *per page* has no
 # usable text layer (scanned/image-only) and is flagged for the manual-structure
-# fallback (docs/ai-pipeline.md stage 1) rather than fed to heading detection.
+# fallback (docs/architecture.md stage 1) rather than fed to heading detection.
 _MIN_CHARS_PER_PAGE = 8
 
 # Fewer than this many embedded TOC entries isn't a real outline (a stray title

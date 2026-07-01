@@ -4,7 +4,7 @@ Walks providers in cost order; the first with headroom takes the call. On a
 limit-hit it cools that provider (until its ``reset_at``) and moves on; on a
 hard error it applies exponential backoff. When every enabled provider is
 exhausted it raises ``AllProvidersExhausted`` carrying the earliest reset time,
-so the queue can schedule one wake-up instead of spinning (see cost-strategy.md).
+so the queue can schedule one wake-up instead of spinning (see docs/architecture.md).
 
 The waterfall never sleeps — time is injected via ``clock`` so behavior is
 deterministic and the queue owns the actual waiting.

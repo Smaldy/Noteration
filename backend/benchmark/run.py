@@ -2,7 +2,7 @@
 
 Runs a fixed set of representative topics through a provider **one at a time**,
 with the provider's production inter-request cooldown ACTIVE, and records the
-metrics that decide the default bulk provider (cost-strategy.md).
+metrics that decide the default bulk provider (docs/architecture.md).
 
 Why sequential + cooldown + >= 40 topics: a short burst hides exactly what
 matters for the broke-student / overnight use case — sustained-throughput

@@ -1,7 +1,7 @@
 """SQLite engine (WAL mode) and session factory.
 
 WAL lets the background queue commit completed topics while the UI reads
-concurrently — no writer-blocks-readers stalls. See docs/tech-stack.md.
+concurrently — no writer-blocks-readers stalls. See docs/architecture.md.
 """
 
 from collections.abc import Generator

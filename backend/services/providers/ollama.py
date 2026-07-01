@@ -6,7 +6,7 @@ reports ``binding_axis="hardware"`` with no reset. ``supports_vision`` stays Fal
 until the benchmark picks a vision-capable local model. Client is injectable so
 the request/response/error logic is testable without a running Ollama.
 
-Hardened for sustained overnight runs on the 3060-laptop baseline (cost-strategy.md):
+Hardened for sustained overnight runs on the 3060-laptop baseline (docs/architecture.md):
 an inter-request cooldown, a generous request timeout, locked sampling params for
 benchmark reproducibility, and VRAM pinning so the model isn't cold-reloaded
 between topics. See the per-attribute comments below.
@@ -79,7 +79,7 @@ class OllamaProvider(Provider):
         *,
         host: str = DEFAULT_HOST,
         model: str | None = None,
-        enabled: bool = False,  # opt-in; off until benchmark-gated (cost-strategy.md)
+        enabled: bool = False,  # opt-in; off until benchmark-gated (docs/architecture.md)
         client: Any | None = None,
         cooldown_seconds: float | None = None,
         request_timeout: float | None = None,

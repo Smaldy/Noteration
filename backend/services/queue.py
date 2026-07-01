@@ -96,10 +96,10 @@ DEFAULT_STAGES: tuple[QueueStage, ...] = STAGE_ORDER
 
 # Stages enqueued per topic in exam mode: the consolidated generation stage only.
 # The formula stage attaches LaTeX to a Note, and exam docs have no notes, so it
-# is skipped entirely (no wasted vision/registration work). See build-log E3.
+# is skipped entirely (no wasted vision/registration work). See docs/architecture.md.
 EXAM_STAGES: tuple[QueueStage, ...] = (QueueStage.notes,)
 
-# Rough per-topic token cost (cost-strategy.md "token budgets per call"). Source
+# Rough per-topic token cost (docs/architecture.md "token budgets per call"). Source
 # input is now bounded (~generation.SOURCE_MAX_CHARS) and outputs are capped, so a
 # topic's two text stages cost ~ notes (≤2k in + ≤2k out) + assessment (≤2k in +
 # ≤2k out). Formula vision is variable/often zero and excluded. Used both for the
@@ -769,7 +769,7 @@ class QueueService:
     def _document_over_budget(self, topic_id: int, cache: dict[int, bool]) -> bool:
         """Whether the topic's document has spent ≥ its token budget (cached).
 
-        Pausing a runaway document is defense-in-depth (cost-strategy.md): its
+        Pausing a runaway document is defense-in-depth (docs/architecture.md): its
         pending jobs simply aren't claimed — they stay ``pending`` (no defer) so a
         raised budget makes them claimable again on the next drain. A document with
         no budget (auto ceiling 0, i.e. no topics) is never blocked.

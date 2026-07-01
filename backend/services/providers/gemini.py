@@ -3,7 +3,7 @@
 Wired to the ``google-genai`` SDK (lazily imported so the package loads without
 it). Budget is modelled locally (requests/min + requests/day) since the free tier
 exposes no remaining-quota API. The SDK client and clock are injectable so the
-request/response/error logic is testable without network. See cost-strategy.md.
+request/response/error logic is testable without network. See docs/architecture.md.
 
 **Model rotation.** The free tier's request-per-day (RPD) limit is *per model* but
 the daily *token* budget is shared across all Gemini models. So this provider can
@@ -12,7 +12,7 @@ rotates to the next model internally; only when *every* model it holds is limite
 (the shared token budget hit, which 429s them all) does it report
 ``ProviderLimitError`` to the waterfall — which then falls through to Ollama. A
 single-model provider (rotation disabled) simply holds one model. See
-``docs/cost-strategy.md`` and the Settings ``gemini_rotation`` toggle.
+``docs/architecture.md`` and the Settings ``gemini_rotation`` toggle.
 """
 
 from __future__ import annotations

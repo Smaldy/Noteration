@@ -6,7 +6,7 @@ scheduling state. DB-facing helpers (applying a grade to a ``Flashcard``,
 materialising the ``ScheduleEntry`` calendar, deadline mode) build on this core
 in later sub-waves of this module.
 
-Per ``docs/ai-pipeline.md`` Stage 4:
+Per ``docs/architecture.md`` (Scheduler):
 
   - Correct   → SM-2 success (quality ≥ 3): advance repetitions, grow interval,
                 nudge ease up.
@@ -14,7 +14,7 @@ Per ``docs/ai-pipeline.md`` Stage 4:
                 1 day, nudge ease down (floored at 1.3).
   - Skip      → no SM-2 change; the card reappears later in the session (triage).
 
-Grade→quality mapping (resolves ``docs/review.md`` "Still open" #3): a 3-button
+Grade→quality mapping (see ``docs/architecture.md``, Design decisions): a 3-button
 UI carries no latency signal, so we fix Correct = 5, Incorrect = 2, and treat
 Skip as inert (no update at all). The core is pure — no clock, no DB — mirroring
 the provider/queue seam; callers inject "today" and own persistence.
@@ -118,7 +118,7 @@ def apply_grade(state: CardState, grade: Grade) -> CardState | None:
 # mutation but not the transaction (the caller commits, mirroring the
 # queue/generation seam). "today" is injected so the layer stays clock-free.
 #
-# Deadline mode is driven by the subject's exam date (ai-pipeline.md Stage 5):
+# Deadline mode is driven by the subject's exam date (docs/architecture.md):
 # there is no settings flag. When the card's subject has an exam date still in
 # the future, intervals are compressed so no review is scheduled past it.
 # --------------------------------------------------------------------------- #

@@ -8,8 +8,8 @@ structured-output call**: one prompt returns one JSON object carrying ``notes_md
 plus the MCQ/flashcard arrays, validated against ``GENERATION_SCHEMA`` (Gemini
 native JSON Schema). The notes never leave for a second round trip.
 
-(This supersedes ai-pipeline.md's "two calls is the floor" — a deliberate,
-user-directed cost change; see docs/build-log.md DECISIONS.)
+(This supersedes the original two-calls-per-topic design — a deliberate,
+user-directed cost change; see docs/architecture.md (Design decisions).)
 
 Calls go through the provider ``Waterfall`` so any tier can serve them; the queue
 owns transactions, failover, and retry — this processor only builds the prompt,
@@ -50,7 +50,7 @@ DEFAULT_NOTE_LENGTH = 3
 # A "page" of notes ≈ this many words; drives the prompt's word target.
 WORDS_PER_PAGE = 300
 
-# Output cap — sized so one runaway generation can't burn quota (cost-strategy.md
+# Output cap — sized so one runaway generation can't burn quota (docs/architecture.md
 # "token budgets per call"). One call carries both notes and the assessment. The
 # assessment half is roughly fixed; the notes half scales with the requested page
 # count so longer notes aren't truncated mid-page. These are *ceilings* — the
@@ -67,7 +67,7 @@ EXAM_GENERATION_MAX_TOKENS = 6144
 # Input cap on the per-topic source text sent to the model. The dominant cost
 # driver is INPUT tokens (a 22-page PDF is ~14k tokens), and a single topic never
 # needs the whole document as context. This bounds the per-call input cost
-# regardless of slicing path (cost-strategy.md "token budgets per call") and is
+# regardless of slicing path (docs/architecture.md "token budgets per call") and is
 # the safety net for documents whose markdown has no headings to slice by —
 # scanned/slide PDFs, or topics renamed during review. ~8k chars ≈ 2k tokens.
 SOURCE_MAX_CHARS = 8000
@@ -359,7 +359,7 @@ def load_topic_source(
     # topic renamed during review. Returning the WHOLE document here made every
     # topic re-send the entire file, which exhausts the token budget (a 13-topic
     # 14k-token doc cost ~180k input tokens). Give the topic its proportional
-    # contiguous slice instead — see DECISIONS in docs/build-log.md.
+    # contiguous slice instead — see docs/architecture.md (Design decisions).
     ordered = _ordered_topic_ids(session, document)
     return _cap_source(
         _proportional_window(ordered, topic.id, markdown), max_chars=max_chars

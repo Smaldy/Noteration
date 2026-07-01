@@ -6,7 +6,7 @@ topic), a "study this topic" session, or a "study this subject" session — plus
 ``completed``/``completed_at`` pair so a session can be checked off (and judged
 on-time vs late against its scheduled ``date``). ``topic_id`` is therefore
 nullable; ``subject_id`` links whole-subject and AI-plan entries so they cascade
-away with the subject. See docs/build-log.md (calendar manual-events fix).
+away with the subject. See docs/architecture.md (calendar manual-events fix).
 """
 
 from __future__ import annotations

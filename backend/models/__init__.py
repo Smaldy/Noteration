@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models, per docs/data-model.md.
+"""SQLAlchemy ORM models, per docs/architecture.md.
 
 Importing this package registers every model on ``Base.metadata`` so Alembic
 autogenerate and ``create_all`` see the full schema.

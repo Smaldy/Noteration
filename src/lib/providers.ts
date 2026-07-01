@@ -3,7 +3,7 @@
  * badge, the lane cards, the history log, and the in-view note stamp.
  *
  * Tier colors are intentionally FIXED hues (not theme-derived): green = free,
- * amber = local, red = paid (cost-strategy.md / ux-flows.md §13). The student
+ * amber = local, red = paid (docs/architecture.md). The student
  * should read "am I spending money?" at a glance, independent of the accent theme.
  */
 

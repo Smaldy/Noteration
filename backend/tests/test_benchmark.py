@@ -1,7 +1,7 @@
 """Benchmark-harness tests (Wave A).
 
 The harness is an offline script, but its sustained-run discipline is the whole
-point (cost-strategy.md), so we lock it in: >= 40 sequential topics, the
+point (docs/architecture.md), so we lock it in: >= 40 sequential topics, the
 provider's real cooldown active in the timing, throughput labelled as
 sustained/cooldown-inclusive, and a clean stop at the first quota limit.
 """

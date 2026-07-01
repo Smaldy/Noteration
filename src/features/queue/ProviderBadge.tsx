@@ -10,7 +10,7 @@ import { useLanesStore } from "@/stores/lanes";
 const POLL_MS = 10_000;
 
 /**
- * Persistent active-provider badge (ux-flows §13). Always visible in the top-right
+ * Persistent active-provider badge. Always visible in the top-right
  * strip; polls lane status every ~10s and shows the active provider tier-colored —
  * green free · amber local · red paid — so the free-first mission stays in view. On
  * a mid-session failover the label swaps and the badge briefly pulses.

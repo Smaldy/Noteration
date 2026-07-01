@@ -1,90 +1,116 @@
 # Project Structure
 
-> Updated: cost-minimizing architecture — provider waterfall, persistent
-> budget-aware queue, benchmark harness. Tauri removed (local web app). Frontend
-> uses the locked Option A (feature-based) layout.
+How the repository is laid out and what each piece is for. See
+[`architecture.md`](architecture.md) for how the pieces work together.
 
-## Top level — single monorepo
+## Top level
 
 ```
-noteration/
-├── src/                ← React frontend (built bundle served by FastAPI)
-├── backend/            ← Python FastAPI (also serves the frontend bundle)
-├── docs/               ← planning docs
-└── CLAUDE.md
+Noteration/
+├── backend/            ← Python FastAPI app (pipeline, queue, AI calls; serves the frontend)
+├── src/                ← React frontend (built to dist/, served by the backend)
+├── packaging/          ← desktop packaging: launcher, PyInstaller spec, installers, user guide
+├── docs/               ← project documentation (this file + architecture.md)
+├── scripts/            ← PowerShell dev/run helpers + README screenshots (shots/)
+├── WindowsRun/         ← one-click .bat launchers (build/start/stop) for running from source
+├── MacRun/             ← one-click .command launchers (macOS equivalent)
+├── .github/workflows/  ← CI: Windows/macOS/Linux/Arch installer builds + release uploads
+├── index.html          ← Vite entry HTML
+├── package.json        ← frontend deps + scripts (build = tsc -b && vite build)
+├── vite.config.ts      ← Vite config (@ alias, /api dev proxy, manual chunks)
+├── tsconfig*.json      ← TypeScript configs
+├── components.json     ← shadcn/ui CLI config
+├── pyproject.toml      ← pytest config (testpaths = backend/tests)
+└── README.md
 ```
 
 ## Backend (`backend/`)
 
 ```
 backend/
-├── main.py             ← FastAPI app, router registration, serves frontend bundle
-├── routers/            ← HTTP handlers (thin — delegate to services)
-│   ├── documents.py
-│   ├── topics.py
-│   ├── notes.py
-│   ├── mcqs.py
-│   ├── flashcards.py
-│   ├── schedule.py
-│   ├── queue.py            (queue status: ready/queued counts, resume time, retry)
-│   └── settings.py
-├── services/
-│   ├── pipeline/       ← one file per pipeline stage
-│   │   ├── ingestion.py    (markitdown, page rendering, hash-keyed cache)
-│   │   ├── structure.py    (heading/manual detection)
-│   │   ├── formula.py      (region crop + vision transcription → LaTeX)
-│   │   ├── generation.py   (notes call; MCQs+flashcards call)
-│   │   └── scheduler.py    (SM-2 + deadline mode)
-│   ├── providers/      ← provider abstraction + cheapest-first waterfall
-│   │   ├── base.py         (Provider: generate, transcribe_image, budget_probe)
-│   │   ├── gemini.py       (free tier — default)
-│   │   ├── claude.py       (paid — last resort; 5h-window budget probe)
-│   │   ├── ollama.py       (local $0 — benchmark-gated)
-│   │   └── waterfall.py    (ordering, failover, supports_vision routing)
-│   ├── queue.py        ← persistent budget-aware worker pool
-│   │                     (pre-flight dispatch, commit-per-topic, auto-failover,
-│   │                      never-zero-result enforcement)
-│   └── cost.py         ← running cost/token estimation per topic
-├── models/             ← SQLAlchemy ORM (incl. QueueJob, ProviderState)
-├── schemas/            ← Pydantic request/response schemas
-├── benchmark/          ← offline harness: Gemini-free vs. Ollama
-│   ├── run.py              (runs sample topics through each provider)
-│   ├── rubric.py           (note quality + formula accuracy scoring)
-│   └── samples/            (representative test topics/PDFs)
+├── main.py             ← FastAPI app: routers under /api, SPA fallback, lifespan starts workers
+├── paths.py            ← single source of truth for data paths (dev vs frozen vs NOTERATION_DATA_DIR)
+├── migrate.py          ← programmatic `alembic upgrade head`
+├── alembic.ini
+├── requirements.txt
+├── routers/            ← thin HTTP handlers, one per domain (documents, topics, notes,
+│                         study, queue, settings, subjects, chapters, search, bookmarks,
+│                         assessment, attachments, arcade, duplicator)
+├── schemas/            ← Pydantic request/response models, mirroring the routers
+├── services/           ← all business logic
+│   ├── pipeline/       ← ingestion, structure + pdf_outline, formula, generation,
+│   │                     audio_chunking, processors (stage dispatcher)
+│   ├── providers/      ← base ABC, gemini, claude, ollama, mock, waterfall,
+│   │                     budget (limiters), factory
+│   ├── duplicator/     ← extraction, search, sessions, calibration
+│   ├── queue.py        ← persistent budget-aware queue (lanes, stages, atomic commits)
+│   ├── worker.py       ← background drain loop (one thread per provider)
+│   ├── transcription.py / transcription_worker.py   ← resumable audio → transcript
+│   ├── scheduler.py    ← pure SM-2 + deadline mode
+│   ├── planner.py      ← AI study-plan generation
+│   └── …               ← documents, topics, notes, study, settings, subjects,
+│                         search, bookmarks, attachments, assessment, arcade,
+│                         history, queue_view
+├── models/             ← SQLAlchemy ORM, grouped by aggregate: hierarchy, content,
+│                         processing, schedule, settings, arcade, duplicator, enums
 ├── db/
-│   ├── database.py     ← SQLite engine (WAL mode) + session factory
-│   └── migrations/     ← Alembic
-├── cache/              ← hash-keyed markdown + page renders (gitignored)
-└── requirements.txt
+│   ├── database.py     ← SQLite engine (WAL + foreign_keys PRAGMA), session factory
+│   ├── types.py        ← UTCDateTime TypeDecorator
+│   └── migrations/     ← Alembic env + versioned migrations
+├── benchmark/          ← offline provider quality/cost harness (not part of the app)
+├── tests/              ← pytest suite (~600 tests; in-memory SQLite, faked providers)
+└── cache/              ← runtime: hash-keyed markdown/page renders, uploads, attachments (gitignored)
 ```
 
-Key additions for cost control: `services/providers/` (waterfall + failover),
-the persistent `services/queue.py`, `services/cost.py`, the `benchmark/` harness,
-and the on-disk `cache/`.
+## Frontend (`src/`)
 
-## Frontend (`src/`) — Option A: feature-based (locked)
+Feature-based layout: each feature owns its pages and components.
 
 ```
 src/
+├── main.tsx / App.tsx  ← router shell (lazy routes), boot-time settings fetch
+├── index.css           ← Tailwind v4 theme (CSS variables), global styles
 ├── features/
-│   ├── upload/         (file picker, structure review gate)
-│   ├── study/
-│   │   ├── notes/      (TipTap editor, formula annotations, regenerate+diff)
-│   │   ├── quiz/       (MCQ view)
-│   │   └── flashcards/ (card flip + SM-2 self-grade)
-│   ├── calendar/       (FullCalendar + Pomodoro top-bar timer)
-│   ├── queue/          (ready/queued counts, resume countdown, retry failed)
-│   └── settings/       (provider order, allow-paid switch, keys, appearance)
+│   ├── library/        ← home: document cards, status, upload entry
+│   ├── upload/         ← upload dialog + structure-review page (reducer-driven tree)
+│   ├── study/          ← study page: sidebar + Notes/Quiz/Flashcards tabs, regenerate
+│   ├── editor/  (components/editor) ← TipTap note editor + toolbar
+│   ├── queue/          ← queue page: lanes, provider strip, history
+│   ├── calendar/       ← FullCalendar page, manual events, AI plan dialog
+│   ├── exam/           ← exam prep + practice pages
+│   ├── duplicator/     ← exercise duplicator page, renderers/ (Plotly, matter-js,
+│   │                     force diagrams), latex.ts normalization
+│   ├── bookmarks/      ← bookmarks page + button
+│   ├── search/         ← full-text search bar
+│   ├── settings/       ← settings page (keys, providers, appearance)
+│   ├── pomodoro/       ← floating timer + synthesized audio
+│   ├── practice/       ← topic-select dialog for combined decks
+│   ├── arcade/         ← the minigame: cabinet UI, game/ (pure sim + canvas render)
+│   └── credits/        ← credits overlay
 ├── components/
-│   └── ui/             (shadcn/ui primitives)
-├── stores/             (Zustand — one store per domain)
-├── hooks/              (usePomodoro, useQueue, ...)
-├── lib/
-│   ├── api.ts
-│   └── utils.ts
-├── types/
-└── App.tsx
+│   ├── ui/             ← shadcn/ui primitives (button, card, dialog, tabs, …)
+│   ├── MarkdownView.tsx ← shared markdown + KaTeX renderer
+│   └── TimeWheel.tsx
+├── stores/             ← Zustand stores, one per domain (library, study, queue, …)
+├── lib/                ← api.ts (typed fetch wrapper), providers.ts, utils.ts, arcadeEvents.ts
+├── types/              ← TS mirrors of the API schemas
+├── i18n/ + locales/    ← react-i18next setup; en / es / it translations
+└── vite-env.d.ts
 ```
 
-A dedicated `features/queue/` surfaces the never-zero-result state to the student:
-what's ready to study now, what's waiting, and when it resumes.
+## Packaging (`packaging/`)
+
+```
+packaging/
+├── launcher.py             ← desktop entry point (migrate → uvicorn → pywebview window);
+│                             --selftest and --smoke verification modes
+├── noteration.spec         ← PyInstaller recipe (bundles dist/, migrations, native deps)
+├── installer.iss           ← Inno Setup script (per-user Windows installer)
+├── requirements-build.txt  ← build-only deps (pyinstaller, …)
+├── make_icon.py            ← regenerates assets/noteration.{ico,icns,png}
+├── assets/                 ← app icons
+├── arch/                   ← Arch Linux PKGBUILD + .desktop file
+├── README.md               ← developer packaging guide (build/verify/release)
+├── USER-GUIDE.md           ← non-technical install & first-use guide (shipped in the installer)
+└── RELEASE-NOTES-<ver>.md  ← release notes attached to GitHub releases by CI
+```

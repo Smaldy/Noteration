@@ -2,7 +2,7 @@
 
 The Topic is the atomic unit of processing and the result transaction boundary.
 ``Chapter.subject_id`` is denormalized for query speed and must be kept
-consistent with the parent document's subject on every write (see data-model.md).
+consistent with the parent document's subject on every write (see docs/architecture.md).
 """
 
 from __future__ import annotations

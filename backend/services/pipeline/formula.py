@@ -41,7 +41,7 @@ from backend.services.providers.waterfall import Waterfall
 FORMULA_MAX_TOKENS = 512
 # Stamp for a formula stage that did no model call (it never does one now).
 NO_OP_PROVIDER = "none"
-# On-demand crop render settings (cost-strategy.md "cut input tokens"): grayscale
+# On-demand crop render settings (docs/architecture.md "cut input tokens"): grayscale
 # at 150 DPI strictly bounds the visual input token footprint of each equation
 # crop, protecting the rolling tokens-per-minute ceiling.
 CROP_DPI = 150
@@ -125,7 +125,7 @@ def crop_pdf_bbox(
     """Render the region described by ``bbox`` to grayscale PNG bytes at ``dpi``.
 
     Grayscale + 150 DPI keeps the cropped equation image small so its vision
-    input-token footprint stays minimal (cost-strategy.md). Returns None if the
+    input-token footprint stays minimal (docs/architecture.md). Returns None if the
     bbox is unusable (missing page/coords).
     """
     import fitz  # PyMuPDF

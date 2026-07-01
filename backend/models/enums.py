@@ -1,4 +1,4 @@
-"""Shared enums for the ORM, exactly per docs/data-model.md.
+"""Shared enums for the ORM, exactly per docs/architecture.md.
 
 Stored as plain strings (``native_enum=False``) and validated in Python via
 these ``StrEnum`` classes — SQLite has no native enum type.

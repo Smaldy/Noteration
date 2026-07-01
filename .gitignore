@@ -42,17 +42,3 @@ secrets.*
 .idea/
 .DS_Store
 Thumbs.db
-
-# ───── Stray empty files from shell-tool output redirects (never real) ─────
-/0
-/int
-/`$x2
-/{DB_PATH}
-
-# ───── Ruflo / Claude Code runtime (keep config, ignore state) ─────
-.claude/settings.local.json
-.claude/*.local.json.bak
-.ruflo/
-.swarm/
-*.hive
-memory.db

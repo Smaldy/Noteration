@@ -3,7 +3,7 @@
 We can't query a provider's server-side remaining quota, so we model it locally
 from our own call history: free tiers by requests/min + requests/day (the binding
 axis wins), paid Claude by a rolling token window. Time is injected so the
-trackers are deterministic and testable. See cost-strategy.md "Budget-aware
+trackers are deterministic and testable. See docs/architecture.md "Budget-aware
 dispatch".
 """
 

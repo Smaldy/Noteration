@@ -1,12 +1,12 @@
 """Stage 2 — Structure detection: ingested markdown → proposed chapter/topic tree.
 
-Heuristic only, no model call (docs/ai-pipeline.md stage 2): scan the markitdown
+Heuristic only, no model call (docs/architecture.md stage 2): scan the markitdown
 output for heading structure and propose a two-level tree the user then reviews
 (rename / merge / split / set priority) before confirming. When no usable headings
 exist (e.g. a scanned PDF), ``needs_manual`` is set so the UI offers the manual
 definition fallback instead of proposing a misleading empty/garbled tree.
 
-Detection rules (locked here; see DECISIONS in docs/build-log.md):
+Detection rules (locked here; see docs/architecture.md (Design decisions)):
 - Primary signal is Markdown ATX headings (``#``..``######``), which markitdown
   emits for PDFs that retain a text structure. Fenced code blocks are ignored.
 - Fallback when there are no ATX headings: lines like "Chapter/Unit/Part N[: ..]"

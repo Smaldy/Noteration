@@ -9,7 +9,7 @@ free, deterministic signals that markdown conversion throws away:
 1. the embedded **table of contents / bookmarks** (``doc.get_toc()``), and
 2. **font sizes** — headings are set noticeably larger than body text.
 
-This module mines those signals (no model call — see docs/ai-pipeline.md Stage 2,
+This module mines those signals (no model call — see docs/architecture.md Stage 2,
 which sanctions a non-model fallback when no headings are found) and reuses the
 same tree-assembly rules as the markdown path. PyMuPDF is imported lazily so the
 package still loads without it, and the public entry point takes a path so the

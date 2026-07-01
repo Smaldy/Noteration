@@ -1,6 +1,6 @@
 """Waterfall tests: cheapest-first, failover, single-wake-up backoff, vision.
 
-These cover the reliability rules from cost-strategy.md: try cheapest first,
+These cover the reliability rules from docs/architecture.md: try cheapest first,
 fail over on limit/hard error, cool a limited provider until its reset, apply
 exponential backoff to a flaky one, and when all are exhausted surface the
 earliest reset time (never spin).
