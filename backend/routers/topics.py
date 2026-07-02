@@ -20,6 +20,7 @@ from backend.schemas.reorder import ReorderRequest
 from backend.schemas.topic import (
     AttachmentOut,
     GenerateMoreRequest,
+    MergeTopicsRequest,
     RegenerateNotesRequest,
     TopicContentOut,
 )
@@ -154,6 +155,33 @@ def regenerate_notes(
             detail="The model returned unusable output. Please try again.",
         )
     return topicsvc.get_topic_content(session, topic_id)
+
+
+@router.post("/{topic_id}/merge", status_code=status.HTTP_204_NO_CONTENT)
+def merge_topics(
+    topic_id: int,
+    payload: MergeTopicsRequest,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Merge other topics into this one (semantics in ``topics.merge_topics``).
+
+    204 on success — the client refetches whatever views it shows. 404 unknown
+    topic; 400 when no valid source is given (e.g. only the target itself).
+    """
+    try:
+        topicsvc.merge_topics(
+            session,
+            topic_id,
+            payload.source_topic_ids,
+            consolidate=payload.consolidate,
+        )
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    except topicsvc.InvalidMergeError:
+        raise HTTPException(
+            status_code=400, detail="Select at least one other topic to merge"
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

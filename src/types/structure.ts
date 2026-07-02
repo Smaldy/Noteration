@@ -11,6 +11,12 @@ export interface ProposedTopic {
   order_index: number;
   /** Default priority the backend seeds (e.g. `skip` for trash chapters). */
   priority: TopicPriority;
+  /**
+   * 1-indexed PDF pages this topic's content lives on (slide-deck detection);
+   * null for markdown/text trees. Round-trips through confirm so generation
+   * slices exactly these pages.
+   */
+  pages: number[] | null;
 }
 
 export interface ProposedChapter {
@@ -40,6 +46,8 @@ export interface ProposedStructure {
 export interface TopicIn {
   title: string;
   priority: TopicPriority;
+  /** Pages carried from the proposal (merges union them); null for user-added topics. */
+  pages: number[] | null;
 }
 
 export interface ChapterIn {

@@ -37,6 +37,10 @@ _CHAPTER_RE = re.compile(
 
 _FENCE_RE = re.compile(r"^\s*(```|~~~)")
 
+# One titled slide and the 1-indexed pages it covers (a title spanning
+# continuation slides, plus gap-filled untitled pages, owns several pages).
+SlideRun = tuple[str, list[int]]
+
 
 @dataclass
 class ProposedTopic:
@@ -45,6 +49,11 @@ class ProposedTopic:
     # Default priority the review UI seeds the topic with. Trash chapters from an
     # outline come back pre-set to ``skip`` so the user doesn't deselect them by hand.
     priority: TopicPriority = TopicPriority.medium
+    # The 1-indexed PDF pages this topic's content lives on (slide-deck paths,
+    # where each topic is one or more slides). ``None`` for markdown/text trees —
+    # those slice their source by heading instead. Generation converts exactly
+    # these pages, so a merged multi-slide topic gets its real source text.
+    pages: list[int] | None = None
 
 
 @dataclass
@@ -68,6 +77,10 @@ class ProposedStructure:
     # means generation falls back to proportional-by-order slicing, so topic
     # *order* matters — the review UI warns about this. See generation.py.
     has_headings: bool = True
+    # The deck's ``(title, pages)`` slide runs, set only by the slide-deck
+    # detection path. Lets the service layer run the (optional, cached) AI
+    # grouping pass over the titles; never serialized to the client.
+    slides: list[SlideRun] | None = None
 
 
 def detect_structure(markdown: str) -> ProposedStructure:

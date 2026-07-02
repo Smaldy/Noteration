@@ -120,6 +120,13 @@ class TopicContentOut(BaseModel):
     attachments: list[AttachmentOut] = []
 
 
+class MergeTopicsRequest(BaseModel):
+    """Merge other topics into this one — see ``topics.merge_topics`` for semantics."""
+
+    source_topic_ids: list[int] = Field(min_length=1)
+    consolidate: bool = False
+
+
 class GenerateMoreRequest(BaseModel):
     """Ask for more of one assessment kind for a topic (on-demand)."""
 

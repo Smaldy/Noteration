@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Layers, ListChecks, Trash2 } from "lucide-react";
+import { GitMerge, GripVertical, Layers, ListChecks, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
@@ -33,6 +33,8 @@ interface StudySidebarProps {
   selectedTopicId: number | null;
   onSelectTopic: (topicId: number) => void;
   onDeleteTopic: (topicId: number, title: string) => void;
+  /** Open the merge picker: fold this topic into another topic of the subject. */
+  onMergeTopic?: (topicId: number, title: string) => void;
   onToggleBookmark: (topicId: number, bookmarked: boolean) => void;
   onReorderTopics: (chapterId: number, orderedIds: number[]) => void;
   /** Open a pooled quiz/flashcards deck for a scope (whole subject/deck/chapter). */
@@ -121,6 +123,7 @@ function ChapterGroup({
   selectedTopicId,
   onSelectTopic,
   onDeleteTopic,
+  onMergeTopic,
   onToggleBookmark,
   onReorderTopics,
 }: { chapter: ChapterNode } & Omit<StudySidebarProps, "tree">) {
@@ -163,6 +166,11 @@ function ChapterGroup({
                 active={topic.id === selectedTopicId}
                 onSelect={() => onSelectTopic(topic.id)}
                 onDelete={() => onDeleteTopic(topic.id, topic.title)}
+                onMerge={
+                  onMergeTopic
+                    ? () => onMergeTopic(topic.id, topic.title)
+                    : undefined
+                }
                 onToggleBookmark={(b) => onToggleBookmark(topic.id, b)}
               />
             ))}
@@ -178,12 +186,14 @@ function SortableTopic({
   active,
   onSelect,
   onDelete,
+  onMerge,
   onToggleBookmark,
 }: {
   topic: TopicNode;
   active: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onMerge?: () => void;
   onToggleBookmark: (bookmarked: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -234,6 +244,17 @@ function SortableTopic({
               "opacity-0 focus-visible:opacity-100 group-hover/topic:opacity-100",
           )}
         />
+        {onMerge && (
+          <button
+            type="button"
+            title={t("study.sidebar.mergeTopic")}
+            aria-label={t("study.sidebar.mergeTopicAria", { title: topic.title })}
+            onClick={onMerge}
+            className="rounded p-1 text-muted-foreground opacity-0 transition hover:text-primary focus-visible:opacity-100 group-hover/topic:opacity-100"
+          >
+            <GitMerge className="size-3.5" />
+          </button>
+        )}
         <button
           type="button"
           title={t("study.sidebar.deleteTopic")}

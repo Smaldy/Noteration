@@ -2,7 +2,8 @@
   "common": {
     "retry": "Reintentar",
     "loading": "Cargando…",
-    "library": "Biblioteca"
+    "library": "Biblioteca",
+    "cancel": "Cancelar"
   },
   "nav": {
     "examPrep": "Preparación de examen",
@@ -65,7 +66,9 @@
       "flashcardsChapter": "Tarjetas de este capítulo",
       "dragToReorder": "Arrastra para reordenar",
       "deleteTopic": "Eliminar tema",
-      "deleteTopicAria": "Eliminar tema {{title}}"
+      "deleteTopicAria": "Eliminar tema {{title}}",
+      "mergeTopic": "Combinar con otro tema…",
+      "mergeTopicAria": "Combinar el tema {{title}} con otro tema"
     },
     "tabs": {
       "notes": "Apuntes",
@@ -152,6 +155,17 @@
       "remove": "Quitar adjunto",
       "removeConfirm": "¿Quitar este adjunto?",
       "failed": "No se pudo añadir el archivo. Se aceptan imágenes y audio de hasta 25 MB."
+    },
+    "merge": {
+      "title": "Combinar “{{title}}” con…",
+      "description": "Elige el tema que lo conserva todo: las preguntas, las tarjetas (con su calendario de repaso) y los apuntes se mueven allí, y este tema se elimina. Puedes combinar entre documentos de la misma asignatura.",
+      "examBadge": "Examen",
+      "consolidate": "Reescribir los apuntes combinados con IA",
+      "consolidateHint": "Una sola llamada al modelo elimina duplicados en los apuntes combinados. Si no hay proveedor disponible, los apuntes simplemente se anexan.",
+      "merging": "Combinando…",
+      "confirm": "Combinar",
+      "failed": "No se pudo combinar. Inténtalo de nuevo.",
+      "loadFailed": "No se pudieron cargar los temas de la asignatura."
     }
   },
   "upload": {
@@ -209,7 +223,8 @@
       "confirming": "Confirmando…",
       "confirm": "Confirmar e iniciar",
       "backToExam": "Volver a preparación de examen",
-      "backToLibrary": "Volver a la biblioteca"
+      "backToLibrary": "Volver a la biblioteca",
+      "mergeTopicUp": "Combinar con el tema anterior"
     },
     "priority": {
       "examCritical": "Crucial para el examen",

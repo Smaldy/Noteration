@@ -7,6 +7,7 @@ the persistence + validation logic is testable without markitdown/PyMuPDF.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -25,7 +26,7 @@ from backend.models.enums import (
     TopicPriority,
     TopicStatus,
 )
-from backend.paths import UPLOADS_DIR
+from backend.paths import CACHE_ROOT, UPLOADS_DIR
 from backend.schemas.structure import ChapterIn
 from backend.services.pipeline.ingestion import (
     IngestionResult,
@@ -39,13 +40,22 @@ from backend.services.pipeline.pdf_outline import (
     extract_pdf_structure,
     is_trash,
 )
+from backend.services.pipeline.slide_grouping import (
+    MIN_SLIDES_FOR_GROUPING,
+    group_slides,
+    load_cached_grouping,
+    store_cached_grouping,
+)
 from backend.services.pipeline.structure import (
     ProposedChapter,
     ProposedStructure,
     ProposedTopic,
+    SlideRun,
     detect_structure,
 )
 from backend.services.queue import EXAM_STAGES, QueueService
+
+logger = logging.getLogger("backend.documents")
 
 PDF_MAGIC = b"%PDF"
 
@@ -54,6 +64,9 @@ PdfOutlineFn = Callable[[Path], ProposedStructure | None]
 # Reads a PDF's embedded outline: (outline | None, total_pages). Injectable so the
 # outline-primary detection path is unit-testable without a real TOC-bearing PDF.
 OutlineReaderFn = Callable[[Path], "tuple[list[OutlineEntry] | None, int]"]
+# Groups a deck's (title, pages) slides into proposed chapters (model-backed);
+# injectable so detection tests never build a real waterfall.
+SlideGrouperFn = Callable[[list[SlideRun]], list[ProposedChapter]]
 
 
 class InvalidPDFError(ValueError):
@@ -308,6 +321,8 @@ def detect_for_document(
     pdf_outline_fn: PdfOutlineFn = extract_pdf_structure,
     outline_reader: OutlineReaderFn = read_toc,
     uploads_dir: str | Path = UPLOADS_DIR,
+    slide_grouper: SlideGrouperFn | None = None,
+    cache_root: str | Path = CACHE_ROOT,
 ) -> ProposedStructure:
     """Propose a chapter/topic tree for a document.
 
@@ -324,6 +339,13 @@ def detect_for_document(
     3. **PDF outline/font-size fallback** (``extract_pdf_structure``) when the
        markdown yields nothing — ``docs/architecture.md`` Stage 2's no-model
        fallback so a plainly-structured document isn't reported as unrecognized.
+       When this tier recognizes a slide deck, ONE small model call (titles only,
+       disk-cached by file hash, silently skipped when no provider has headroom)
+       groups the slides into real topics/chapters so a deck doesn't fragment
+       into near-duplicate one-slide topics; the heuristic tree is the fallback.
+
+    ``slide_grouper`` overrides the model-backed grouping call (tests); ``None``
+    builds the provider waterfall from Settings on demand.
     """
     document = session.get(Document, document_id)
     if document is None:
@@ -356,16 +378,89 @@ def detect_for_document(
     if not proposed.needs_manual:
         return proposed
 
-    # Tier 3: PDF outline/font-size fallback.
+    # Tier 3: PDF outline/font-size fallback. A cached grouping is self-contained
+    # (titles + pages), so probe it first and skip the whole-document heading
+    # scan — re-opening the review screen costs one small file read.
     if have_pdf:
+        cached = load_cached_grouping(cache_root, document.file_hash)
+        if cached:
+            return _grouped_structure(cached)
         from_pdf = pdf_outline_fn(pdf_path)
         if from_pdf is not None and from_pdf.chapters:
+            grouped = _grouped_slide_structure(
+                session,
+                document,
+                from_pdf,
+                slide_grouper=slide_grouper,
+                cache_root=cache_root,
+            )
+            if grouped is not None:
+                return grouped
             # The tree came from the PDF outline, not markdown headings, so the
             # notes stage can't slice the markdown per topic — flag it so review
             # warns that topic order matters (proportional slicing).
             from_pdf.has_headings = False
             return from_pdf
     return proposed
+
+
+def _grouped_slide_structure(
+    session: Session,
+    document: Document,
+    proposed: ProposedStructure,
+    *,
+    slide_grouper: SlideGrouperFn | None,
+    cache_root: str | Path,
+) -> ProposedStructure | None:
+    """The AI-grouped tree for a slide deck, or ``None`` to keep the heuristic.
+
+    Small decks aren't worth a call. A success is cached by file hash (like
+    ingestion) — ``detect_for_document`` probes that cache before this runs, so
+    the call is paid at most once per document. Any failure — provider
+    exhaustion, unusable output — quietly falls back to the heuristic tree:
+    grouping is an upgrade, never a gate.
+    """
+    slides = proposed.slides
+    if not slides or len(slides) < MIN_SLIDES_FOR_GROUPING:
+        return None
+
+    try:
+        if slide_grouper is not None:
+            chapters = slide_grouper(slides)
+        else:
+            from backend.services.providers.factory import (
+                build_waterfall_from_settings,
+            )
+            from backend.services.settings import get_settings
+
+            waterfall = build_waterfall_from_settings(get_settings(session))
+            chapters = group_slides(waterfall, slides)
+    except Exception:  # noqa: BLE001 - best-effort; the heuristic tree still works
+        logger.warning(
+            "slide grouping failed for document %s; using heuristic tree",
+            document.id,
+            exc_info=True,
+        )
+        return None
+    if not chapters:
+        return None
+
+    store_cached_grouping(cache_root, document.file_hash, chapters)
+    return _grouped_structure(chapters)
+
+
+def _grouped_structure(chapters: list[ProposedChapter]) -> ProposedStructure:
+    """Wrap grouped chapters: every topic carries pages, so slicing is exact.
+
+    ``has_headings`` stays True — the "topic order matters" review warning exists
+    for whole-document proportional slicing, which never runs here: detected
+    topics carry their exact pages, and even a topic the user *adds* during
+    review (no pages) stays scoped to its chapter's page range, because grouped
+    chapters carry ``page_start``/``page_end`` (see generation.load_topic_source).
+    """
+    return ProposedStructure(
+        chapters=chapters, needs_manual=False, method="ai_grouping", has_headings=True
+    )
 
 
 # A book's chapters span many pages; a bookmarked slide deck's "chapters" are one
@@ -467,6 +562,7 @@ def confirm_structure(
                 title=topic_in.title,
                 priority=topic_in.priority,
                 order_index=t_index,
+                pdf_pages=sorted(set(topic_in.pages)) if topic_in.pages else None,
             )
             session.add(topic)
             created.append((topic, chapter))

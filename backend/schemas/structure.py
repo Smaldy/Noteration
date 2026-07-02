@@ -57,6 +57,10 @@ class ProposedTopicOut(BaseModel):
     order_index: int
     # Default priority the review UI seeds (e.g. ``skip`` for trash chapters).
     priority: TopicPriority = TopicPriority.medium
+    # 1-indexed PDF pages this topic's content lives on (slide-deck detection);
+    # null for markdown/text trees. Round-trips through review → confirm so
+    # generation can slice exactly these pages.
+    pages: list[int] | None = None
 
 
 class ProposedChapterOut(BaseModel):
@@ -89,6 +93,9 @@ class TopicIn(BaseModel):
 
     title: str = Field(min_length=1)
     priority: TopicPriority = TopicPriority.medium
+    # Passed through from the proposal (a review-time merge unions the lists);
+    # user-added topics carry null and slice by heading/proportional order.
+    pages: list[int] | None = None
 
 
 class ChapterIn(BaseModel):

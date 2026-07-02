@@ -10,6 +10,8 @@ export interface EditTopic {
   uid: number;
   title: string;
   priority: TopicPriority;
+  /** 1-indexed PDF pages backing this topic (slide decks); null when unmapped. */
+  pages: number[] | null;
 }
 
 export interface EditChapter {
@@ -44,7 +46,8 @@ export type EditAction =
   | { type: "setTopicTitle"; cuid: number; tuid: number; title: string }
   | { type: "setTopicPriority"; cuid: number; tuid: number; priority: TopicPriority }
   | { type: "addTopic"; cuid: number }
-  | { type: "removeTopic"; cuid: number; tuid: number };
+  | { type: "removeTopic"; cuid: number; tuid: number }
+  | { type: "mergeTopicUp"; cuid: number; tuid: number };
 
 export const emptyEditState: EditState = { chapters: [], nextUid: 1 };
 
@@ -65,6 +68,7 @@ export function initEditState(structure: ProposedStructure): EditState {
       uid: uid++,
       title: topic.title,
       priority: topic.priority ?? ("medium" as TopicPriority),
+      pages: topic.pages ?? null,
     })),
   }));
   return { chapters, nextUid: uid };
@@ -108,7 +112,7 @@ export function structureReducer(state: EditState, action: EditAction): EditStat
             pageStart: null,
             pageEnd: null,
             topics: [
-              { uid: state.nextUid + 1, title: "", priority: "medium" },
+              { uid: state.nextUid + 1, title: "", priority: "medium", pages: null },
             ],
           },
         ],
@@ -142,7 +146,7 @@ export function structureReducer(state: EditState, action: EditAction): EditStat
           ...c,
           topics: [
             ...c.topics,
-            { uid: state.nextUid, title: "", priority: "medium" },
+            { uid: state.nextUid, title: "", priority: "medium", pages: null },
           ],
         })),
         nextUid: state.nextUid + 1,
@@ -153,6 +157,27 @@ export function structureReducer(state: EditState, action: EditAction): EditStat
         ...c,
         topics: c.topics.filter((t) => t.uid !== action.tuid),
       }));
+
+    case "mergeTopicUp":
+      // Fold a topic into the one above it: the survivor keeps its title and
+      // absorbs the merged topic's pages, so its notes cover both slides' text.
+      return mapChapter(state, action.cuid, (c) => {
+        const index = c.topics.findIndex((t) => t.uid === action.tuid);
+        if (index <= 0) return c;
+        const above = c.topics[index - 1];
+        const merged = c.topics[index];
+        const union = [
+          ...new Set([...(above.pages ?? []), ...(merged.pages ?? [])]),
+        ].sort((a, b) => a - b);
+        return {
+          ...c,
+          topics: [
+            ...c.topics.slice(0, index - 1),
+            { ...above, pages: union.length ? union : null },
+            ...c.topics.slice(index + 1),
+          ],
+        };
+      });
 
     default:
       return state;
@@ -191,7 +216,11 @@ export function toConfirmPayload(
       queue_state: c.queueState,
       page_start: c.pageStart,
       page_end: c.pageEnd,
-      topics: c.topics.map((t) => ({ title: t.title.trim(), priority: t.priority })),
+      topics: c.topics.map((t) => ({
+        title: t.title.trim(),
+        priority: t.priority,
+        pages: t.pages,
+      })),
     })),
     exam_date: examDate,
   };

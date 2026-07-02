@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowUpToLine, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -228,7 +228,7 @@ export function StructureReviewPage() {
             <div
               className={cn("mt-3 space-y-2 pl-2", skipped && "opacity-70")}
             >
-              {chapter.topics.map((topic) => (
+              {chapter.topics.map((topic, topicIndex) => (
                 <div key={topic.uid} className="flex items-center gap-2">
                   <Input
                     value={topic.title}
@@ -253,6 +253,22 @@ export function StructureReviewPage() {
                       })
                     }
                   />
+                  {topicIndex > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title={t("upload.review.mergeTopicUp")}
+                      onClick={() =>
+                        dispatch({
+                          type: "mergeTopicUp",
+                          cuid: chapter.uid,
+                          tuid: topic.uid,
+                        })
+                      }
+                    >
+                      <ArrowUpToLine />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

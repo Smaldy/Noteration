@@ -3,18 +3,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event, select
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 import backend.models  # noqa: F401 - register models on Base.metadata
-from backend.db.database import Base, get_session
-from backend.main import app
 from backend.models.duplicator import ExerciseSession, ExtractedExercise
 from backend.models.enums import ExerciseSessionStatus
 from backend.services.duplicator import sessions as sessionsvc
@@ -176,40 +172,6 @@ def test_create_session_rejects_non_pdf(session: Session, tmp_path: Path) -> Non
 
 
 # --- HTTP (StaticPool shared in-memory DB across the TestClient thread) ------
-
-
-@pytest.fixture
-def db_factory() -> Generator[sessionmaker, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    @event.listens_for(engine, "connect")
-    def _fk_on(dbapi_connection, _record) -> None:  # noqa: ANN001
-        cur = dbapi_connection.cursor()
-        cur.execute("PRAGMA foreign_keys=ON")
-        cur.close()
-
-    Base.metadata.create_all(engine)
-    yield sessionmaker(bind=engine, expire_on_commit=False)
-    engine.dispose()
-
-
-@pytest.fixture
-def client(db_factory: sessionmaker) -> Generator[TestClient, None, None]:
-    def _override() -> Generator[Session, None, None]:
-        db = db_factory()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_session] = _override
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
 
 
 def test_post_bad_year_level_422(client: TestClient) -> None:

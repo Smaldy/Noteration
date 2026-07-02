@@ -58,7 +58,7 @@ def test_cache_hit_returns_cached_without_converter(tmp_path: Path) -> None:
     cache_root = tmp_path / "cache"
     chapters_dir = cache_root / "h" / "chapters"
     chapters_dir.mkdir(parents=True)
-    (chapters_dir / "0.md").write_text("CACHED CONTENT", encoding="utf-8")
+    (chapters_dir / "p1-5.md").write_text("CACHED CONTENT", encoding="utf-8")
 
     calls: list[Path] = []
 
@@ -67,7 +67,7 @@ def test_cache_hit_returns_cached_without_converter(tmp_path: Path) -> None:
         return "FRESH"
 
     out = get_chapter_markdown(
-        tmp_path / "missing.pdf", "h", 0, 1, 5, cache_root=cache_root, converter=spy
+        tmp_path / "missing.pdf", "h", 1, 5, cache_root=cache_root, converter=spy
     )
     assert out == "CACHED CONTENT"
     assert calls == []  # converter never touched on a hit
@@ -85,13 +85,13 @@ def test_cache_miss_converts_page_range_and_writes_cache(tmp_path: Path) -> None
         return "CHAPTER MARKDOWN"
 
     out = get_chapter_markdown(
-        pdf, "hh", 2, 3, 6, cache_root=cache_root, converter=spy
+        pdf, "hh", 3, 6, cache_root=cache_root, converter=spy
     )
     assert out == "CHAPTER MARKDOWN"
     # Pages 3..6 inclusive → a 4-page sub-PDF was handed to the converter.
     assert seen["pages"] == 4
-    # Result cached for next time at chapters/<idx>.md.
-    cached = (cache_root / "hh" / "chapters" / "2.md").read_text(encoding="utf-8")
+    # Result cached for next time at chapters/p<start>-<end>.md.
+    cached = (cache_root / "hh" / "chapters" / "p3-6.md").read_text(encoding="utf-8")
     assert cached == "CHAPTER MARKDOWN"
 
 
@@ -107,10 +107,10 @@ def test_chapter_slice_is_small_fraction_of_full_doc(tmp_path: Path) -> None:
             return "x" * (d.page_count * 200)
 
     full = get_chapter_markdown(
-        pdf, "full", 0, 1, 500, cache_root=cache_root, converter=proportional
+        pdf, "full", 1, 500, cache_root=cache_root, converter=proportional
     )
     chapter = get_chapter_markdown(
-        pdf, "chap", 1, 100, 159, cache_root=cache_root, converter=proportional
+        pdf, "chap", 100, 159, cache_root=cache_root, converter=proportional
     )
     assert len(chapter) < 0.15 * len(full)  # 60 / 500 = 12%
 
@@ -208,10 +208,8 @@ def test_load_topic_source_uses_chapter_markdown_for_outline_chapter(
 
     captured: dict[str, object] = {}
 
-    def fake_chapter_md(pdf_path, file_hash, chapter_idx, page_start, page_end, **_kw):
-        captured.update(
-            file_hash=file_hash, idx=chapter_idx, ps=page_start, pe=page_end
-        )
+    def fake_chapter_md(pdf_path, file_hash, page_start, page_end, **_kw):
+        captured.update(file_hash=file_hash, ps=page_start, pe=page_end)
         return "# Routing\n\nRouting tables and forwarding decisions.\n"
 
     monkeypatch.setattr(generation, "get_chapter_markdown", fake_chapter_md)
@@ -219,7 +217,7 @@ def test_load_topic_source_uses_chapter_markdown_for_outline_chapter(
     source = generation.load_topic_source(session, topic)
     assert "Routing tables" in source
     assert "WHOLE-DOC" not in source
-    assert captured == {"file_hash": "bk", "idx": 2, "ps": 12, "pe": 79}
+    assert captured == {"file_hash": "bk", "ps": 12, "pe": 79}
 
 
 def test_load_topic_source_without_page_start_uses_whole_doc(

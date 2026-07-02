@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
 import backend.models  # noqa: F401 - register models on Base.metadata
-from backend.db.database import Base, get_session
-from backend.main import app
 from backend.models import Document, Subject
 from backend.services import documents as docsvc
 from backend.services.pipeline.ingestion import IngestionResult
@@ -202,40 +197,6 @@ def test_detect_keeps_needs_manual_when_pdf_yields_nothing(
 
 
 # --- HTTP tests (shared in-memory DB via StaticPool) ------------------------
-
-
-@pytest.fixture
-def db_factory() -> Generator[sessionmaker, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,  # one shared in-memory connection across threads
-    )
-
-    @event.listens_for(engine, "connect")
-    def _fk_on(dbapi_connection, _record) -> None:  # noqa: ANN001
-        cur = dbapi_connection.cursor()
-        cur.execute("PRAGMA foreign_keys=ON")
-        cur.close()
-
-    Base.metadata.create_all(engine)
-    yield sessionmaker(bind=engine, expire_on_commit=False)
-    engine.dispose()
-
-
-@pytest.fixture
-def client(db_factory: sessionmaker) -> Generator[TestClient, None, None]:
-    def _override() -> Generator[Session, None, None]:
-        db = db_factory()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_session] = _override
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
 
 
 def _make_real_pdf(path: Path) -> bytes:

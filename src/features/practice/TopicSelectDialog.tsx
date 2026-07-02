@@ -13,12 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ApiError, api } from "@/lib/api";
+import { TopicTreeSections } from "@/components/TopicTreeSections";
+import { useSubjectTopicTree } from "@/lib/useSubjectTopicTree";
 import { cn } from "@/lib/utils";
-import type {
-  SelectableTopic,
-  SubjectTopicTree,
-} from "@/types/assessment";
+import type { SelectableTopic } from "@/types/assessment";
 import type { DocumentMode } from "@/types/library";
 
 interface TopicSelectDialogProps {
@@ -29,8 +27,6 @@ interface TopicSelectDialogProps {
   /** Scope the tree to one section's documents (study vs exam), to stay coherent. */
   mode?: DocumentMode;
 }
-
-type Status = "loading" | "loaded" | "error";
 
 /** A topic counts as selectable only if it has something to pool. */
 function hasContent(topic: SelectableTopic): boolean {
@@ -52,36 +48,20 @@ export function TopicSelectDialog({
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [tree, setTree] = useState<SubjectTopicTree | null>(null);
-  const [status, setStatus] = useState<Status>("loading");
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
-  // (Re)load the subject's topic tree whenever the dialog opens for a subject.
+  // (Re)loads whenever the dialog opens for a subject.
+  const { tree, status, error } = useSubjectTopicTree(
+    subjectId,
+    open,
+    t("exam.practice.selector.loadFailed"),
+    mode,
+  );
+
+  // A fresh open starts with nothing ticked.
   useEffect(() => {
-    if (!open || !Number.isFinite(subjectId)) return;
-    let cancelled = false;
-    setStatus("loading");
-    setSelected(new Set());
-    const query = mode ? `?mode=${mode}` : "";
-    api
-      .get<SubjectTopicTree>(`/subjects/${subjectId}/topics${query}`)
-      .then((res) => {
-        if (cancelled) return;
-        setTree(res);
-        setStatus("loaded");
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(
-          err instanceof ApiError ? err.message : t("exam.practice.selector.loadFailed"),
-        );
-        setStatus("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, subjectId, mode, t]);
+    if (open) setSelected(new Set());
+  }, [open, subjectId]);
 
   // All topics with content, flattened — the universe for "select all" + totals.
   const selectableTopics = useMemo(() => {
@@ -188,57 +168,42 @@ export function TopicSelectDialog({
           )}
           {status === "loaded" && selectableTopics.length > 0 && (
             <div className="space-y-6">
-              {tree?.documents.map((doc) => {
-                const docTopicIds = doc.chapters
-                  .flatMap((chapter) => chapter.topics)
-                  .filter(hasContent)
-                  .map((topic) => topic.id);
-                const docAllOn = docTopicIds.every((id) => selected.has(id));
-                return (
-                  <section key={doc.id}>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-sm font-semibold">
-                          {doc.filename}
-                        </span>
-                        <Badge variant="secondary" className="shrink-0">
-                          {doc.mode === "exam"
-                            ? t("exam.practice.selector.examBadge")
-                            : t("exam.practice.selector.studyBadge")}
-                        </Badge>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleMany(docTopicIds, !docAllOn)}
-                        className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
-                      >
-                        {docAllOn
-                          ? t("exam.practice.selector.clear")
-                          : t("exam.practice.selector.selectAll")}
-                      </button>
-                    </div>
-                    <div className="space-y-3 border-l border-border/60 pl-3">
-                      {doc.chapters.map((chapter) => (
-                        <div key={chapter.id}>
-                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {chapter.title}
-                          </p>
-                          <ul className="space-y-0.5">
-                            {chapter.topics.map((topic) => (
-                              <TopicRow
-                                key={topic.id}
-                                topic={topic}
-                                checked={selected.has(topic.id)}
-                                onToggle={() => toggle(topic.id)}
-                              />
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                );
-              })}
+              <TopicTreeSections
+                documents={tree?.documents ?? []}
+                documentBadge={(doc) => (
+                  <Badge variant="secondary" className="shrink-0">
+                    {doc.mode === "exam"
+                      ? t("exam.practice.selector.examBadge")
+                      : t("exam.practice.selector.studyBadge")}
+                  </Badge>
+                )}
+                documentAction={(doc) => {
+                  const docTopicIds = doc.chapters
+                    .flatMap((chapter) => chapter.topics)
+                    .filter(hasContent)
+                    .map((topic) => topic.id);
+                  const docAllOn = docTopicIds.every((id) => selected.has(id));
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => toggleMany(docTopicIds, !docAllOn)}
+                      className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+                    >
+                      {docAllOn
+                        ? t("exam.practice.selector.clear")
+                        : t("exam.practice.selector.selectAll")}
+                    </button>
+                  );
+                }}
+                renderTopic={(topic) => (
+                  <TopicRow
+                    key={topic.id}
+                    topic={topic}
+                    checked={selected.has(topic.id)}
+                    onToggle={() => toggle(topic.id)}
+                  />
+                )}
+              />
             </div>
           )}
         </div>

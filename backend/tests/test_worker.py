@@ -17,7 +17,6 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
 import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.db.database import Base
@@ -132,25 +131,6 @@ def test_drain_once_leaves_jobs_pending_when_unconfigured(
 
 
 # --- background-thread integration -------------------------------------------
-
-
-@pytest.fixture
-def db_factory() -> Generator[sessionmaker, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,  # one shared in-memory connection across threads
-    )
-
-    @event.listens_for(engine, "connect")
-    def _fk_on(dbapi_connection, _record) -> None:  # noqa: ANN001
-        cur = dbapi_connection.cursor()
-        cur.execute("PRAGMA foreign_keys=ON")
-        cur.close()
-
-    Base.metadata.create_all(engine)
-    yield sessionmaker(bind=engine, expire_on_commit=False)
-    engine.dispose()
 
 
 @pytest.fixture

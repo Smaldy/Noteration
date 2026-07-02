@@ -36,6 +36,13 @@ interface StudyStore {
   removeAttachment: (attachmentId: number) => Promise<void>;
   /** Delete a topic (and its content), then refresh the document's tree. */
   deleteTopic: (topicId: number, documentId: number) => Promise<void>;
+  /** Merge a topic into another (cross-document), then refresh the tree. */
+  mergeTopic: (
+    sourceId: number,
+    targetId: number,
+    consolidate: boolean,
+    documentId: number,
+  ) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
   toggleTopicBookmark: (topicId: number, bookmarked: boolean) => Promise<void>;
   /** Persist a chapter's new topic order (optimistic). */
@@ -202,6 +209,14 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
 
   deleteTopic: async (topicId, documentId) => {
     await api.del(`/topics/${topicId}`);
+    await get().fetchTree(documentId);
+  },
+
+  mergeTopic: async (sourceId, targetId, consolidate, documentId) => {
+    await api.post(`/topics/${targetId}/merge`, {
+      source_topic_ids: [sourceId],
+      consolidate,
+    });
     await get().fetchTree(documentId);
   },
 

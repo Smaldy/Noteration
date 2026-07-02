@@ -69,15 +69,23 @@ PDF ─▶ Ingestion ─▶ Structure ─▶ [user review] ─▶ Queue ─▶ N
    SHA-256 (`cache/<hash>/`), built in a staging dir and atomically swapped in, so
    re-processing never re-pays ingestion and a crash never leaves a half-cache.
    Scanned/no-text PDFs are flagged (`is_scanned`) for the manual-structure path.
-2. **Structure detection** (`structure.py`, `pdf_outline.py`) — heuristic only,
-   no model call: ATX headings first, then the PDF's embedded outline/bookmarks,
-   then a font-size heuristic for heading-less slide decks, then a conservative
-   "Chapter N" text fallback. Topmost heading level → chapters, deeper → topics;
-   every chapter keeps ≥1 processable topic. The detected tree is recomputed on
-   demand and only becomes DB rows when the user **confirms** it in the review
-   screen (atomic: chapters + topics + queue jobs + status flip in one
-   transaction; re-confirm is refused with 409). Chapters process by default on
-   confirm; pausing is opt-in.
+2. **Structure detection** (`structure.py`, `pdf_outline.py`,
+   `slide_grouping.py`) — heuristics first: ATX headings, then the PDF's
+   embedded outline/bookmarks, then a font-size heuristic for heading-less slide
+   decks, then a conservative "Chapter N" text fallback. Topmost heading level →
+   chapters, deeper → topics; every chapter keeps ≥1 processable topic. When the
+   deck path is taken, ONE small model call over the slide *titles* (not
+   content; disk-cached by file hash) groups related slides — consecutive or
+   not — into real topics and chapters and drops no-content slides (agenda,
+   "questions?"), so a deck doesn't fragment into near-duplicate one-slide
+   topics; on provider exhaustion or unusable output the heuristic tree stands.
+   Deck topics carry the **1-indexed PDF pages** their slides live on
+   (`Topic.pdf_pages`), which generation slices exactly. The detected tree is
+   recomputed on demand and only becomes DB rows when the user **confirms** it
+   in the review screen (atomic: chapters + topics + queue jobs + status flip in
+   one transaction; re-confirm is refused with 409); topics can be merged into
+   the one above them during review (page lists union). Chapters process by
+   default on confirm; pausing is opt-in.
 3. **Formula vision** (`formula.py`) — math regions are found with a delimiter
    heuristic, registered as `pending` formulas (located, zero model calls), and
    transcribed to LaTeX **lazily, on demand** when the user opens a topic
@@ -86,7 +94,8 @@ PDF ─▶ Ingestion ─▶ Structure ─▶ [user review] ─▶ Queue ─▶ N
    returning `{notes_md, mcqs, flashcards}` together (consolidated from an
    earlier two-call design to halve free-tier spend; notes and assessment stay
    mutually consistent). The topic's source text is sliced from the cached
-   markdown at generation time (topic heading → chapter section → whole doc —
+   markdown at generation time (page-mapped topics convert **exactly their
+   PDF pages**, cached per run → topic heading → chapter section → whole doc —
    never zero context); large books load **per-chapter markdown lazily** to avoid
    context explosion. The `note_length` setting (1–10) scales both the output cap
    and the source window. Notes can be **regenerated on demand** (synchronous,
@@ -287,7 +296,15 @@ Distilled from the build history; these explain "why is it like this":
   drained by their own oldest-first loop — minimal blast radius on the hot path.
 - **Per-topic source text is derived, not stored** — sliced from the cached
   markdown at generation time; renamed/merged topics fall back to
-  chapter/whole-doc context.
+  chapter/whole-doc context. Slide-deck topics are the exception: they store
+  their PDF page list (`Topic.pdf_pages`) because slide markdown has no headings
+  to slice by, and proportional guessing sent the wrong slides to the model.
+- **Topics can merge, across documents** (`POST /api/topics/{id}/merge`): each
+  lesson PDF creates its own topics, so one subject accumulates near-duplicates.
+  Merging re-points MCQs/flashcards (SM-2 state intact) and attachments, appends
+  AI notes under per-source headings, deletes the emptied sources, and rebuilds
+  the affected calendars; an optional single model call consolidates the
+  combined notes (best-effort — the merge never depends on a provider).
 - **SM-2 grade mapping**: a 3-button self-grade carries no latency signal, so
   Correct→5, Incorrect→2 (standard lapse), Skip→no update (deck triage without
   corrupting scheduling state).

@@ -10,8 +10,8 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
+from sqlalchemy import JSON, ForeignKey, Integer
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.database import Base
@@ -147,6 +147,12 @@ class Topic(Base):
     studied: Mapped[bool] = mapped_column(default=False)
     bookmarked: Mapped[bool] = mapped_column(default=False)
     order_index: Mapped[int] = mapped_column(default=0)
+    # The 1-indexed PDF pages this topic's content lives on (slide-deck detection
+    # sets these; a review-time merge unions them). Generation converts exactly
+    # these pages for the topic's source; ``None`` falls back to the existing
+    # heading/proportional slicing. See generation.load_topic_source. (Named
+    # ``pdf_pages`` because ``source_pages`` is the SourcePage relationship.)
+    pdf_pages: Mapped[list[int] | None] = mapped_column(JSON, default=None)
 
     chapter: Mapped[Chapter] = relationship(back_populates="topics")
     notes: Mapped[list[Note]] = relationship(

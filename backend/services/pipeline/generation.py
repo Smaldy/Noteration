@@ -35,7 +35,10 @@ from backend.models import MCQ, Chapter, Document, Flashcard, Note, Topic
 from backend.models.enums import DocumentMode
 from backend.models.processing import QueueJob
 from backend.paths import UPLOADS_DIR
-from backend.services.pipeline.ingestion import get_chapter_markdown
+from backend.services.pipeline.ingestion import (
+    get_chapter_markdown,
+    get_pages_markdown,
+)
 from backend.services.pipeline.structure import _clean_title, iter_atx_headings
 from backend.services.providers.base import ProviderResult
 from backend.services.providers.waterfall import Waterfall
@@ -318,11 +321,14 @@ def load_topic_source(
 ) -> str:
     """Slice the topic's source markdown.
 
-    Outline-backed chapter (``page_start`` set) → **lazy per-chapter markdown**:
-    convert only the chapter's pages (cached), then slice the topic's heading
-    within that chapter — so a 700-page book never loads the whole document for one
-    topic. Otherwise (slide decks / headingless / no outline) → the existing
-    whole-document path: topic section → chapter section → proportional slice.
+    Page-mapped topic (``source_pages`` set — slide decks) → convert **exactly
+    those pages** (cached per run): a merged multi-slide topic gets its real
+    slides' text, not a proportional guess. Outline-backed chapter (``page_start``
+    set) → **lazy per-chapter markdown**: convert only the chapter's pages
+    (cached), then slice the topic's heading within that chapter — so a 700-page
+    book never loads the whole document for one topic. Otherwise (headingless /
+    no outline) → the existing whole-document path: topic section → chapter
+    section → proportional slice.
 
     ``max_chars`` hard-caps the returned text (the dominant input-cost lever); it
     scales with the requested note length so longer notes get more context.
@@ -331,6 +337,17 @@ def load_topic_source(
     document = session.get(Document, chapter.document_id) if chapter else None
     if document is None:
         raise TopicSourceUnavailableError(topic.id)
+
+    if topic.pdf_pages and document.file_hash:
+        pdf_path = UPLOADS_DIR / f"{document.file_hash}.pdf"
+        if pdf_path.is_file():
+            pages_md = get_pages_markdown(
+                pdf_path, document.file_hash, topic.pdf_pages
+            )
+            if pages_md.strip():
+                return _cap_source(pages_md, max_chars=max_chars)
+        # Missing PDF or empty conversion (image-only slides) → the generic paths
+        # below still provide non-zero context.
 
     if (
         chapter is not None
@@ -388,7 +405,6 @@ def _load_chapter_scoped_source(
     chapter_md = get_chapter_markdown(
         pdf_path,
         document.file_hash,
-        chapter.order_index,
         chapter.page_start,
         chapter.page_end,
     )
@@ -670,6 +686,44 @@ def build_regenerate_notes_prompt(
         f"{language_directive(language)}"
         f"{feedback_block}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
+    )
+
+
+# Output ceiling for a merged-notes consolidation: the input is several topics'
+# notes, so the rewrite needs more headroom than a single regeneration; still a
+# ceiling, not a target — the prompt asks for deduplication, not expansion.
+CONSOLIDATE_NOTES_MAX_TOKENS = 8192
+
+
+def build_consolidate_notes_prompt(
+    topic_title: str,
+    notes_md: str,
+    *,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Prompt to rewrite a merged topic's concatenated notes as ONE document.
+
+    Used after a topic merge: the input is the target's notes plus each source
+    topic's notes appended under a heading — overlapping by construction (the
+    user merged them *because* they cover the same subject). The model dedupes
+    and reorganizes; it must not invent material or drop content that appears in
+    only one of the merged notes. Returns ``{"notes_md": str}`` like the
+    regeneration call (``NOTES_ONLY_SCHEMA`` / ``parse_notes_only``).
+    """
+    return (
+        "You are an expert engineering tutor. The study notes below were merged "
+        "from several overlapping note sets about the same subject. Rewrite them "
+        "as ONE coherent, deduplicated set of notes, returned as a single JSON "
+        "object.\n\n"
+        "Respond with ONLY a JSON object of this exact shape (no prose, no code "
+        'fences):\n{"notes_md": str}\n'
+        "- notes_md: the merged notes as well-structured Markdown. Combine "
+        "duplicated explanations into one; keep every concept, definition, "
+        "formula, and example that appears in ANY of the note sets; do not "
+        "invent new material. Formatting rules (follow exactly):\n"
+        f"{_NOTES_FORMAT_RULES}"
+        f"{language_directive(language)}"
+        f"\n# Topic\n{topic_title}\n\n# Notes to merge\n{notes_md}\n"
     )
 
 

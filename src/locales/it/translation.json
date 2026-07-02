@@ -2,7 +2,8 @@
   "common": {
     "retry": "Riprova",
     "loading": "Caricamento…",
-    "library": "Libreria"
+    "library": "Libreria",
+    "cancel": "Annulla"
   },
   "nav": {
     "examPrep": "Preparazione esame",
@@ -65,7 +66,9 @@
       "flashcardsChapter": "Flashcard di questo capitolo",
       "dragToReorder": "Trascina per riordinare",
       "deleteTopic": "Elimina argomento",
-      "deleteTopicAria": "Elimina argomento {{title}}"
+      "deleteTopicAria": "Elimina argomento {{title}}",
+      "mergeTopic": "Unisci a un altro argomento…",
+      "mergeTopicAria": "Unisci l'argomento {{title}} a un altro argomento"
     },
     "tabs": {
       "notes": "Appunti",
@@ -152,6 +155,17 @@
       "remove": "Rimuovi allegato",
       "removeConfirm": "Rimuovere questo allegato?",
       "failed": "Impossibile aggiungere il file. Sono accettati immagini e audio fino a 25 MB."
+    },
+    "merge": {
+      "title": "Unisci “{{title}}” a…",
+      "description": "Scegli l'argomento che conserva tutto: le domande, le flashcard (con il loro calendario di ripasso) e gli appunti si spostano lì, e questo argomento viene eliminato. Puoi unire argomenti di documenti diversi della stessa materia.",
+      "examBadge": "Esame",
+      "consolidate": "Riscrivi gli appunti uniti con l'IA",
+      "consolidateHint": "Una sola chiamata al modello elimina i duplicati negli appunti uniti. Se nessun provider è disponibile, gli appunti vengono semplicemente accodati.",
+      "merging": "Unione in corso…",
+      "confirm": "Unisci",
+      "failed": "Unione non riuscita. Riprova.",
+      "loadFailed": "Impossibile caricare gli argomenti della materia."
     }
   },
   "upload": {
@@ -209,7 +223,8 @@
       "confirming": "Conferma…",
       "confirm": "Conferma e avvia",
       "backToExam": "Torna alla preparazione esame",
-      "backToLibrary": "Torna alla libreria"
+      "backToLibrary": "Torna alla libreria",
+      "mergeTopicUp": "Unisci all'argomento precedente"
     },
     "priority": {
       "examCritical": "Cruciale per l'esame",

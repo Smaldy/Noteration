@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { TopicSelectDialog } from "@/features/practice/TopicSelectDialog";
 import { useStudyStore } from "@/stores/study";
 
+import { MergeTopicDialog } from "./MergeTopicDialog";
 import { StudySidebar } from "./StudySidebar";
 import { TopicContentPanel } from "./TopicContentPanel";
 
@@ -16,6 +17,10 @@ export function StudyPage() {
   const documentId = Number(id);
   const selectedTopicId = topicId ? Number(topicId) : null;
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [mergeSource, setMergeSource] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
 
   const {
     tree,
@@ -27,6 +32,7 @@ export function StudyPage() {
     fetchTree,
     fetchTopic,
     deleteTopic,
+    mergeTopic,
     toggleTopicBookmark,
     reorderTopics,
     clearContent,
@@ -43,6 +49,26 @@ export function StudyPage() {
 
   function selectTopic(nextTopicId: number) {
     navigate(`/documents/${documentId}/study/${nextTopicId}`);
+  }
+
+  async function handleMerge(targetId: number, consolidate: boolean) {
+    const sourceId = mergeSource?.id ?? null;
+    if (sourceId === null) return;
+    await mergeTopic(sourceId, targetId, consolidate, documentId);
+    setMergeSource(null);
+    // The folded topic is gone; follow its content to the merge target when it
+    // was the open topic (the target may live in another document — the tree
+    // lookup below only finds same-document targets, so fall back home).
+    if (sourceId !== selectedTopicId) return;
+    const { tree: nextTree } = useStudyStore.getState();
+    const inThisDoc = nextTree?.chapters.some((chapter) =>
+      chapter.topics.some((topic) => topic.id === targetId),
+    );
+    navigate(
+      inThisDoc
+        ? `/documents/${documentId}/study/${targetId}`
+        : `/documents/${documentId}/study`,
+    );
   }
 
   async function handleDeleteTopic(deleteId: number, title: string) {
@@ -83,6 +109,7 @@ export function StudyPage() {
             selectedTopicId={selectedTopicId}
             onSelectTopic={selectTopic}
             onDeleteTopic={handleDeleteTopic}
+            onMergeTopic={(topicId, title) => setMergeSource({ id: topicId, title })}
             onToggleBookmark={(tId, b) => void toggleTopicBookmark(tId, b)}
             onReorderTopics={(chapterId, ids) => void reorderTopics(chapterId, ids)}
             onPractice={(scope, practiceId, tab) =>
@@ -101,6 +128,19 @@ export function StudyPage() {
           onOpenChange={setSelectorOpen}
           subjectId={tree.subject_id}
           mode={tree.mode}
+        />
+      )}
+
+      {treeStatus === "loaded" && tree && mergeSource && (
+        <MergeTopicDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setMergeSource(null);
+          }}
+          subjectId={tree.subject_id}
+          sourceTopicId={mergeSource.id}
+          sourceTopicTitle={mergeSource.title}
+          onMerge={handleMerge}
         />
       )}
 

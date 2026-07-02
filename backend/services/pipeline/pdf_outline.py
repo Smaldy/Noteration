@@ -29,6 +29,7 @@ from backend.services.pipeline.structure import (
     ProposedChapter,
     ProposedStructure,
     ProposedTopic,
+    SlideRun,
     _build_tree,
     _clean_title,
 )
@@ -185,18 +186,22 @@ def extract_pdf_structure(pdf_path: str | Path) -> ProposedStructure | None:
                 method = "pdf_headings"
             if not headings:
                 return None
-            chapters = _assemble(headings, _deck_title(doc))
+            chapters, slides = _assemble(headings, _deck_title(doc), doc.page_count)
     except Exception:  # noqa: BLE001 - any reader error → no fallback, not a crash
         return None
 
     if not chapters:
         return None
-    return ProposedStructure(chapters=chapters, needs_manual=False, method=method)
+    return ProposedStructure(
+        chapters=chapters, needs_manual=False, method=method, slides=slides
+    )
 
 
 def _assemble(
-    headings: list[tuple[int, str]], deck_title: str | None
-) -> list[ProposedChapter]:
+    headings: list[tuple[int, str, list[int]]],
+    deck_title: str | None,
+    total_pages: int,
+) -> tuple[list[ProposedChapter], list[SlideRun] | None]:
     """Map recovered headings to a tree, grouping slide decks into one unit.
 
     A book (or a deck with named sections) carries hierarchy — more than one
@@ -207,23 +212,53 @@ def _assemble(
     chapter (named from the file when it carries a real title) with every slide as
     a topic. A flat list that still looks like real chapter headings ("Chapter N",
     "Part N") is kept as chapters — that's a book with a flat outline, not slides.
+
+    Returns ``(chapters, slides)``: ``slides`` is the raw ``(title, page)`` list
+    when the deck path was taken (so the service layer can offer the AI grouping
+    pass), ``None`` for book-shaped trees.
     """
-    levels = {level for level, _ in headings}
-    titles = [title for _, title in headings]
+    levels = {level for level, _, _ in headings}
+    titles = [title for _, title, _ in headings]
     if len(levels) > 1 or _looks_chaptered(titles):
-        return _build_tree(headings)
-    merged = _merge_consecutive_related(titles)
-    return [
+        return _build_tree([(level, title) for level, title, _ in headings]), None
+    slides = _fill_page_gaps(
+        [(title, pages) for _, title, pages in headings], total_pages
+    )
+    merged = _merge_consecutive_related(slides)
+    chapters = [
         ProposedChapter(
             title=deck_title or _DEFAULT_DECK_CHAPTER,
             order_index=0,
-            topics=[ProposedTopic(title=t, order_index=i) for i, t in enumerate(merged)],
+            topics=[
+                ProposedTopic(title=title, order_index=i, pages=pages)
+                for i, (title, pages) in enumerate(merged)
+            ],
         )
     ]
+    return chapters, slides
 
 
-def _merge_consecutive_related(titles: list[str]) -> list[str]:
-    """Fold runs of consecutive slides on the same subject into one topic title.
+def _fill_page_gaps(slides: list[SlideRun], total_pages: int) -> list[SlideRun]:
+    """Extend each slide's pages up to the next slide's first page (exclusive).
+
+    Slides whose title wasn't detected (body-only continuation slides) belong to
+    the preceding titled slide, so its page list absorbs the gap; the last slide
+    runs to the end of the deck. Pages before the first titled slide (a bare title
+    page) are deliberately not covered — they carry no study content.
+    """
+    filled: list[tuple[str, list[int]]] = []
+    for index, (title, pages) in enumerate(slides):
+        start = min(pages)
+        if index + 1 < len(slides):
+            end = max(start, min(slides[index + 1][1]) - 1)
+        else:
+            end = max(start, total_pages)
+        filled.append((title, list(range(start, end + 1))))
+    return filled
+
+
+def _merge_consecutive_related(slides: list[SlideRun]) -> list[SlideRun]:
+    """Fold runs of consecutive slides on the same subject into one topic.
 
     Two adjacent slides belong together when their titles share enough significant
     words (overlap coefficient ≥ ``_MERGE_OVERLAP``) — e.g. "Forces and Kinetic
@@ -231,17 +266,19 @@ def _merge_consecutive_related(titles: list[str]) -> list[str]:
     *first* slide of the current run (not the previous one) so a single shared word
     can't let the run drift across unrelated subjects, and a run spans at most
     ``_MERGE_MAX_RUN`` slides. The kept title is the run's first slide; the user
-    refines in review.
+    refines in review. Each merged topic keeps the pages of every slide in its
+    run, so generation can slice exactly that content.
     """
-    merged: list[str] = []
+    merged: list[tuple[str, list[int]]] = []
     anchor_words: set[str] = set()
     run_length = 0
-    for title in titles:
+    for title, pages in slides:
         words = _content_words(title)
         if merged and run_length < _MERGE_MAX_RUN and _related(anchor_words, words):
+            merged[-1][1].extend(pages)
             run_length += 1
             continue
-        merged.append(title)
+        merged.append((title, list(pages)))
         anchor_words = words
         run_length = 1
     return merged
@@ -290,13 +327,16 @@ def _deck_title(doc) -> str | None:  # noqa: ANN001 - fitz.Document
 # --- embedded outline / bookmarks -------------------------------------------
 
 
-def _toc_headings(doc) -> list[tuple[int, str]] | None:  # noqa: ANN001 - fitz.Document
+def _toc_headings(
+    doc,  # noqa: ANN001 - fitz.Document
+) -> list[tuple[int, str, list[int]]] | None:
     """Headings from the PDF bookmarks, or ``None`` if too few are meaningful.
 
     Auto-numbered "Slide N" / "Diapositiva N" bookmarks are stripped to their real
     title (and dropped when nothing remains). If most entries are generic — a deck
     exported as "Slide 1..N" with no titles — the outline is worthless and we let
-    the font-size pass take over.
+    the font-size pass take over. Each heading carries its (1-indexed) pages;
+    consecutive repeats fold their pages into the first occurrence.
     """
     try:
         toc = doc.get_toc(simple=True)  # [[level, title, page], ...]
@@ -305,18 +345,18 @@ def _toc_headings(doc) -> list[tuple[int, str]] | None:  # noqa: ANN001 - fitz.D
     if not toc:
         return None
 
-    headings: list[tuple[int, str]] = []
-    for level, raw_title, *_ in toc:
+    headings: list[tuple[int, str, int]] = []
+    for level, raw_title, page, *_ in toc:
         title = _meaningful_toc_title(raw_title)
         if title:
-            headings.append((max(1, int(level)), title))
-    headings = _collapse_consecutive(headings)
+            headings.append((max(1, int(level)), title, max(1, int(page))))
+    collapsed = _collapse_consecutive(headings)
 
     # Require a real majority of titled entries; otherwise the bookmarks are just
     # generated slide markers and font sizes are the better signal.
-    if len(headings) < 2 or len(headings) < 0.2 * len(toc):
+    if len(collapsed) < 2 or len(collapsed) < 0.2 * len(toc):
         return None
-    return headings
+    return collapsed
 
 
 def _meaningful_toc_title(raw_title: str) -> str | None:
@@ -332,20 +372,23 @@ def _meaningful_toc_title(raw_title: str) -> str | None:
 # --- font-size heading detection --------------------------------------------
 
 
-def _font_headings(doc) -> list[tuple[int, str]]:  # noqa: ANN001 - fitz.Document
+def _font_headings(
+    doc,  # noqa: ANN001 - fitz.Document
+) -> list[tuple[int, str, list[int]]]:
     """Lines whose font is meaningfully larger than body text become headings.
 
     Body size is the size carrying the most characters; lines at least
     ``_HEADING_SIZE_RATIO``× larger and word-like are headings. Distinct heading
     sizes map to levels (largest → chapters, next → topics), and consecutive
-    repeats — the same slide title spanning continuation slides — are collapsed.
+    repeats — the same slide title spanning continuation slides — are collapsed,
+    folding the continuation pages into the first slide's page list.
     """
     lines = _collect_lines(doc)
     if not lines:
         return []
 
     char_counts: Counter[int] = Counter()
-    for size, text in lines:
+    for size, text, _ in lines:
         char_counts[size] += len(text.replace(" ", ""))
     if not char_counts:
         return []
@@ -353,35 +396,43 @@ def _font_headings(doc) -> list[tuple[int, str]]:  # noqa: ANN001 - fitz.Documen
     threshold = body_size * _HEADING_SIZE_RATIO
 
     candidates = [
-        (size, text)
-        for size, text in lines
+        (size, text, page)
+        for size, text, page in lines
         if size >= threshold and _is_wordlike_heading(text)
     ]
     if not candidates:
         return []
 
     # Largest distinct heading size → level 1, next → level 2, ...
-    distinct = sorted({size for size, _ in candidates}, reverse=True)
+    distinct = sorted({size for size, _, _ in candidates}, reverse=True)
     level_of = {size: index + 1 for index, size in enumerate(distinct)}
 
-    leveled = [(level_of[size], text) for size, text in candidates]
+    leveled = [(level_of[size], text, page) for size, text, page in candidates]
     return _collapse_consecutive(leveled)[:_MAX_HEADINGS]
 
 
-def _collapse_consecutive(headings: list[tuple[int, str]]) -> list[tuple[int, str]]:
-    """Drop a heading identical to the one just before it (continuation slides)."""
-    collapsed: list[tuple[int, str]] = []
-    for level, title in headings:
+def _collapse_consecutive(
+    headings: list[tuple[int, str, int]],
+) -> list[tuple[int, str, list[int]]]:
+    """Fold a heading identical to the one just before it (continuation slides).
+
+    The repeat's page joins the first occurrence's page list, so a title spanning
+    several slides yields ONE heading that still covers every slide's content.
+    """
+    collapsed: list[tuple[int, str, list[int]]] = []
+    for level, title, page in headings:
         if collapsed and collapsed[-1][1].lower() == title.lower():
+            if page not in collapsed[-1][2]:
+                collapsed[-1][2].append(page)
             continue
-        collapsed.append((level, title))
+        collapsed.append((level, title, [page]))
     return collapsed
 
 
-def _collect_lines(doc) -> list[tuple[int, str]]:  # noqa: ANN001 - fitz.Document
-    """``(rounded_size, line_text)`` for every non-empty text line, in reading order."""
-    lines: list[tuple[int, str]] = []
-    for page in doc:
+def _collect_lines(doc) -> list[tuple[int, str, int]]:  # noqa: ANN001 - fitz.Document
+    """``(rounded_size, line_text, 1-indexed page)`` for every non-empty text line."""
+    lines: list[tuple[int, str, int]] = []
+    for page_index, page in enumerate(doc, start=1):
         data = page.get_text("dict")
         for block in data.get("blocks", []):
             for line in block.get("lines", []):
@@ -392,7 +443,7 @@ def _collect_lines(doc) -> list[tuple[int, str]]:  # noqa: ANN001 - fitz.Documen
                 size = max(
                     (round(span.get("size", 0.0)) for span in spans), default=0
                 )
-                lines.append((size, text))
+                lines.append((size, text, page_index))
     return lines
 
 

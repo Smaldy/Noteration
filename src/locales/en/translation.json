@@ -2,7 +2,8 @@
   "common": {
     "retry": "Retry",
     "loading": "Loading…",
-    "library": "Library"
+    "library": "Library",
+    "cancel": "Cancel"
   },
   "nav": {
     "examPrep": "Exam Prep",
@@ -65,7 +66,9 @@
       "flashcardsChapter": "Flashcards for this chapter",
       "dragToReorder": "Drag to reorder",
       "deleteTopic": "Delete topic",
-      "deleteTopicAria": "Delete topic {{title}}"
+      "deleteTopicAria": "Delete topic {{title}}",
+      "mergeTopic": "Merge into another topic…",
+      "mergeTopicAria": "Merge topic {{title}} into another topic"
     },
     "tabs": {
       "notes": "Notes",
@@ -152,6 +155,17 @@
       "remove": "Remove attachment",
       "removeConfirm": "Remove this attachment?",
       "failed": "Couldn't add that file. Images and audio up to 25 MB are accepted."
+    },
+    "merge": {
+      "title": "Merge “{{title}}” into…",
+      "description": "Pick the topic that keeps everything: quiz questions, flashcards (with their review schedule), and notes move there, and this topic is removed. You can merge across documents of the same subject.",
+      "examBadge": "Exam",
+      "consolidate": "Rewrite the combined notes with AI",
+      "consolidateHint": "One model call deduplicates the merged notes. If no provider is available the notes are simply appended.",
+      "merging": "Merging…",
+      "confirm": "Merge",
+      "failed": "The merge failed. Please try again.",
+      "loadFailed": "Could not load the subject's topics."
     }
   },
   "upload": {
@@ -209,7 +223,8 @@
       "confirming": "Confirming…",
       "confirm": "Confirm & start",
       "backToExam": "Back to exam prep",
-      "backToLibrary": "Back to library"
+      "backToLibrary": "Back to library",
+      "mergeTopicUp": "Merge into the topic above"
     },
     "priority": {
       "examCritical": "Exam-critical",
