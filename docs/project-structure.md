@@ -12,8 +12,6 @@ Noteration/
 ├── packaging/          ← desktop packaging: launcher, PyInstaller spec, installers, user guide
 ├── docs/               ← project documentation (this file + architecture.md)
 ├── scripts/            ← PowerShell dev/run helpers + README screenshots (shots/)
-├── WindowsRun/         ← one-click .bat launchers (build/start/stop) for running from source
-├── MacRun/             ← one-click .command launchers (macOS equivalent)
 ├── .github/workflows/  ← CI: Windows/macOS/Linux/Arch installer builds + release uploads
 ├── index.html          ← Vite entry HTML
 ├── package.json        ← frontend deps + scripts (build = tsc -b && vite build)

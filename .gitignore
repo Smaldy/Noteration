@@ -42,3 +42,12 @@ secrets.*
 .idea/
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+# LibreOffice/office lock files (leak username + hostname + home path)
+.~lock.*#
+
+# ───── Local AI-assistant state (machine-local; may hold personal config) ─────
+.claude/
+.claude-flow/

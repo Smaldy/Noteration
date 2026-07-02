@@ -27,9 +27,8 @@ desktop installers.
 3. `uvicorn backend.main:app` serves the REST API under `/api` and the bundle
    (with an SPA fallback) on `localhost:8000`.
 
-One-click wrappers exist per platform: `WindowsRun/Noteration.bat`,
-`MacRun/Noteration.command`, and `scripts/run.ps1` / `scripts/dev.ps1` (build +
-migrate + serve + open the browser).
+`scripts/run.ps1` / `scripts/dev.ps1` wrap the same build + migrate + serve +
+open-browser sequence on Windows.
 
 **Packaged (end users):** `packaging/launcher.py` (PyInstaller entry point)
 migrates the DB, starts uvicorn on a free localhost port in a thread, waits for
