@@ -96,6 +96,17 @@ def test_search_blank_query_returns_nothing(session: Session) -> None:
     assert search_service.search(session, query="   ") == []
 
 
+def test_search_subject_only_lists_everything_in_scope(session: Session) -> None:
+    """A blank query with a subject_id is a subject-only filter, not a no-op."""
+    ids = _seed(session)
+    hits = search_service.search(session, query="", subject_id=ids["physics"])
+    titles = {h.title for h in hits}
+    assert "Standing waves" in titles
+    assert "Kinematics" in titles
+    assert "Wave mechanics" in titles
+    assert "Wavelet transforms" not in titles  # under Maths, out of scope
+
+
 def test_search_wildcards_are_literal(session: Session) -> None:
     _seed(session)
     # '%' must not behave as a wildcard; nothing literally contains it.
@@ -117,8 +128,24 @@ def test_http_search_returns_hits(client: TestClient, db_factory: sessionmaker) 
     assert any(r["kind"] == "chapter" for r in body)
 
 
-def test_http_search_requires_query(client: TestClient) -> None:
-    assert client.get("/api/search").status_code == 422  # q is required
+def test_http_search_no_params_returns_empty(client: TestClient) -> None:
+    # No q and no subject_id: nothing to scope by, but it's a valid request.
+    response = client.get("/api/search")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_http_search_subject_only(client: TestClient, db_factory: sessionmaker) -> None:
+    seed = db_factory()
+    ids = _seed(seed)
+    seed.close()
+
+    response = client.get("/api/search", params={"subject_id": ids["physics"]})
+    assert response.status_code == 200, response.text
+    titles = {r["title"] for r in response.json()}
+    assert "Standing waves" in titles
+    assert "Kinematics" in titles
+    assert "Wavelet transforms" not in titles
 
 
 def test_http_search_limit_is_capped(client: TestClient) -> None:

@@ -26,8 +26,21 @@
       "description": "Upload an engineering PDF to generate notes, MCQs, flashcards, and a study schedule.",
       "cta": "Upload PDF"
     },
+    "newSubject": "New subject",
+    "newSubjectDialog": {
+      "title": "New subject",
+      "desc": "Create a subject to organize your notes under, then upload a PDF or audio to it whenever you're ready.",
+      "create": "Create",
+      "failed": "Couldn't create that subject. Please try again."
+    },
+    "emptySubject": {
+      "noDocuments": "No documents yet.",
+      "upload": "Upload a document"
+    },
     "deleteConfirm": "Delete the subject \"{{name}}\" and all of its documents, topics, notes, and schedule? This can't be undone.",
     "deleteFailed": "Couldn't delete that subject. Please try again.",
+    "deleteDocConfirm": "Delete the document \"{{name}}\" and its topics, notes, and schedule? Other documents in this subject are kept. This can't be undone.",
+    "deleteDocFailed": "Couldn't delete that document. Please try again.",
     "card": {
       "noExamDate": "No exam date",
       "noTopicsYet": "No topics yet",
@@ -36,6 +49,8 @@
       "dragToReorder": "Drag to reorder",
       "deleteSubject": "Delete subject",
       "deleteSubjectAria": "Delete {{name}}",
+      "deleteDocument": "Delete document",
+      "deleteDocumentAria": "Delete {{name}}",
       "transcribing": "Transcribing audio…",
       "transcriptionFailed": "Transcription failed.",
       "retryTranscription": "Retry transcription",
@@ -239,6 +254,7 @@
     "allSubjects": "All subjects",
     "clear": "Clear",
     "noMatches": "No matches for “{{query}}”.",
+    "noMatchesSubject": "Nothing in this subject yet.",
     "kind": {
       "topic": "topic",
       "chapter": "chapter"
@@ -441,8 +457,8 @@
     "chooseTopics": "Choose topics…",
     "quiz": "Quiz",
     "flashcards": "Flashcards",
-    "deleteConfirm": "Delete the subject \"{{name}}\" and all of its documents, topics, and flashcards? This can't be undone.",
-    "deleteFailed": "Couldn't delete that subject. Please try again.",
+    "deleteConfirm": "Delete the document \"{{name}}\" and its topics and flashcards? Other documents in this subject are kept. This can't be undone.",
+    "deleteFailed": "Couldn't delete that document. Please try again.",
     "practice": {
       "back": "Back",
       "invalidLink": "Invalid practice link.",

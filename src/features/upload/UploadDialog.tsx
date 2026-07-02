@@ -36,6 +36,8 @@ interface UploadDialogProps {
   store?: DocumentsStoreHook;
   /** Whether this is the Exam Prep section (tweaks the dialog copy). */
   exam?: boolean;
+  /** Pre-select this subject on open (e.g. "upload a document" from an empty subject card). */
+  initialSubjectId?: number;
 }
 
 export function UploadDialog({
@@ -44,6 +46,7 @@ export function UploadDialog({
   onUploaded,
   store = useLibraryStore,
   exam = false,
+  initialSubjectId,
 }: UploadDialogProps) {
   const { t } = useTranslation();
   const { subjects, fetchSubjects } = useSubjectsStore();
@@ -65,6 +68,9 @@ export function UploadDialog({
   useEffect(() => {
     if (open) {
       void fetchSubjects();
+      setSubjectChoice(
+        initialSubjectId != null ? String(initialSubjectId) : NEW_SUBJECT,
+      );
     } else {
       setNewSubjectName("");
       setFile(null);
@@ -73,7 +79,7 @@ export function UploadDialog({
       setUploadPct(0);
       setResult(null);
     }
-  }, [open, fetchSubjects]);
+  }, [open, fetchSubjects, initialSubjectId]);
 
   // Clean up the auto-route timer on unmount.
   useEffect(

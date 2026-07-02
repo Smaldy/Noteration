@@ -9,6 +9,8 @@ export interface Subject {
   bookmarked: boolean;
   /** ISO datetime. */
   created_at: string;
+  /** How many documents this subject has (0 for a freshly created, empty subject). */
+  document_count: number;
 }
 
 export interface SubjectCreate {

@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
 import backend.models  # noqa: F401 - register models on Base.metadata
-from backend.models import Document, Subject
+from backend.models import Chapter, Document, Note, Subject, Topic
 from backend.services import documents as docsvc
 from backend.services.pipeline.ingestion import IngestionResult
 from backend.services.pipeline.structure import (
@@ -266,6 +266,63 @@ def test_upload_unknown_subject_returns_404(
 
 def test_structure_unknown_document_returns_404(client: TestClient) -> None:
     assert client.get("/api/documents/999/structure").status_code == 404
+
+
+# --- delete one document (the subject and its other documents survive) -------
+
+
+def _seed_two_docs(session: Session) -> tuple[int, int, int]:
+    """One subject with two documents; the first has a chapter→topic→note."""
+    subject = Subject(name="Physics")
+    doomed = Document(subject=subject, filename="a.pdf", file_hash="h1")
+    sibling = Document(subject=subject, filename="b.pdf", file_hash="h2")
+    session.add_all([subject, doomed, sibling])
+    session.flush()
+    chapter = Chapter(
+        document_id=doomed.id, subject_id=subject.id, title="Mechanics", order_index=0
+    )
+    session.add(chapter)
+    session.flush()
+    topic = Topic(chapter_id=chapter.id, title="Kinematics", order_index=0)
+    session.add(topic)
+    session.flush()
+    session.add(Note(topic_id=topic.id, content_md="x"))
+    session.commit()
+    return subject.id, doomed.id, sibling.id
+
+
+def test_delete_document_keeps_subject_and_siblings(session: Session) -> None:
+    subject_id, doomed_id, sibling_id = _seed_two_docs(session)
+
+    docsvc.delete_document(session, doomed_id)
+
+    assert session.get(Document, doomed_id) is None
+    assert session.query(Chapter).count() == 0
+    assert session.query(Topic).count() == 0
+    assert session.query(Note).count() == 0
+    assert session.get(Subject, subject_id) is not None
+    assert session.get(Document, sibling_id) is not None
+
+
+def test_delete_document_unknown_raises(session: Session) -> None:
+    with pytest.raises(docsvc.DocumentNotFoundError):
+        docsvc.delete_document(session, 999)
+
+
+def test_http_delete_document(client: TestClient, db_factory: sessionmaker) -> None:
+    with db_factory() as db:
+        subject_id, doomed_id, sibling_id = _seed_two_docs(db)
+
+    assert client.delete(f"/api/documents/{doomed_id}").status_code == 204
+
+    with db_factory() as db:
+        assert db.get(Document, doomed_id) is None
+        assert db.get(Document, sibling_id) is not None
+        assert db.get(Subject, subject_id) is not None
+
+
+def test_http_delete_document_404(client: TestClient) -> None:
+    assert client.delete("/api/documents/999").status_code == 404
 
 
 def _upload_real_doc(client: TestClient, db_factory: sessionmaker, tmp_path: Path) -> int:

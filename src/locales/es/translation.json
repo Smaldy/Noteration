@@ -26,8 +26,21 @@
       "description": "Sube un PDF de ingeniería para generar apuntes, preguntas tipo test, tarjetas y un plan de estudio.",
       "cta": "Subir PDF"
     },
+    "newSubject": "Nueva asignatura",
+    "newSubjectDialog": {
+      "title": "Nueva asignatura",
+      "desc": "Crea una asignatura para organizar tus apuntes y sube un PDF o audio cuando quieras.",
+      "create": "Crear",
+      "failed": "No se pudo crear la asignatura. Inténtalo de nuevo."
+    },
+    "emptySubject": {
+      "noDocuments": "Aún no hay documentos.",
+      "upload": "Subir un documento"
+    },
     "deleteConfirm": "¿Eliminar la asignatura \"{{name}}\" y todos sus documentos, temas, apuntes y planificación? Esta acción no se puede deshacer.",
     "deleteFailed": "No se pudo eliminar la asignatura. Inténtalo de nuevo.",
+    "deleteDocConfirm": "¿Eliminar el documento \"{{name}}\" y sus temas, apuntes y planificación? Los demás documentos de la asignatura se conservan. Esta acción no se puede deshacer.",
+    "deleteDocFailed": "No se pudo eliminar el documento. Inténtalo de nuevo.",
     "card": {
       "noExamDate": "Sin fecha de examen",
       "noTopicsYet": "Aún no hay temas",
@@ -36,6 +49,8 @@
       "dragToReorder": "Arrastra para reordenar",
       "deleteSubject": "Eliminar asignatura",
       "deleteSubjectAria": "Eliminar {{name}}",
+      "deleteDocument": "Eliminar documento",
+      "deleteDocumentAria": "Eliminar {{name}}",
       "transcribing": "Transcribiendo audio…",
       "transcriptionFailed": "La transcripción falló.",
       "retryTranscription": "Reintentar transcripción",
@@ -239,6 +254,7 @@
     "allSubjects": "Todas las asignaturas",
     "clear": "Borrar",
     "noMatches": "Sin resultados para “{{query}}”.",
+    "noMatchesSubject": "Todavía no hay nada en esta asignatura.",
     "kind": {
       "topic": "tema",
       "chapter": "capítulo"
@@ -441,8 +457,8 @@
     "chooseTopics": "Elegir temas…",
     "quiz": "Cuestionario",
     "flashcards": "Tarjetas",
-    "deleteConfirm": "¿Eliminar la asignatura \"{{name}}\" y todos sus documentos, temas y tarjetas? Esta acción no se puede deshacer.",
-    "deleteFailed": "No se pudo eliminar la asignatura. Inténtalo de nuevo.",
+    "deleteConfirm": "¿Eliminar el documento \"{{name}}\" y sus temas y tarjetas? Los demás documentos de la asignatura se conservan. Esta acción no se puede deshacer.",
+    "deleteFailed": "No se pudo eliminar el documento. Inténtalo de nuevo.",
     "practice": {
       "back": "Atrás",
       "invalidLink": "Enlace de práctica no válido.",

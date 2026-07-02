@@ -32,6 +32,12 @@ class SubjectOut(BaseModel):
     exam_date: date | None
     bookmarked: bool
     created_at: datetime
+    # Not a mapped column — attached transiently by list_subjects() so the
+    # library can tell a subject with no documents yet from one with content.
+    # Defaults to 0 for the create/bookmark endpoints, which build this from a
+    # plain ORM Subject (a just-created subject has 0 documents anyway; the
+    # bookmark response's count isn't read by the frontend).
+    document_count: int = 0
 
 
 # --- subject-wide topic tree (custom practice selector) ---------------------

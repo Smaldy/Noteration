@@ -23,7 +23,9 @@ export const useSearchStore = create<SearchStore>((set) => ({
 
   search: async (query, subjectId) => {
     const q = query.trim();
-    if (!q) {
+    // A subject picked with no query text is still a valid filter (browse
+    // everything in that subject); only bail when there's nothing to scope by.
+    if (!q && subjectId == null) {
       seq++;
       set({ results: [], loading: false, error: null });
       return;
@@ -31,7 +33,8 @@ export const useSearchStore = create<SearchStore>((set) => ({
     const mine = ++seq;
     set({ loading: true, error: null });
     try {
-      const params = new URLSearchParams({ q });
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
       if (subjectId != null) params.set("subject_id", String(subjectId));
       const results = await api.get<SearchResult[]>(`/search?${params.toString()}`);
       if (mine === seq) set({ results, loading: false });

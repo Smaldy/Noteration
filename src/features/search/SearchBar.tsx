@@ -4,6 +4,7 @@ import {
   FileText,
   Layers,
   Loader2,
+  Plus,
   Search,
   X,
 } from "lucide-react";
@@ -24,7 +25,12 @@ const STATUS_DOT: Record<TopicStatus, string> = {
   error: "bg-destructive",
 };
 
-export function SearchBar() {
+export function SearchBar({
+  onCreateSubject,
+}: {
+  /** When set, the subject filter grows a "+" segment that opens subject creation. */
+  onCreateSubject?: () => void;
+}) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { subjects, fetchSubjects } = useSubjectsStore();
@@ -72,7 +78,7 @@ export function SearchBar() {
     reset();
   }
 
-  const showPanel = open && query.trim().length > 0;
+  const showPanel = open && (query.trim().length > 0 || subjectId != null);
 
   return (
     <div ref={wrapRef} className="relative">
@@ -110,23 +116,43 @@ export function SearchBar() {
           )}
         </div>
 
-        {/* Subject filter */}
-        <div className="relative">
-          <select
-            value={subjectId ?? ""}
-            onChange={(e) =>
-              setSubjectId(e.target.value === "" ? null : Number(e.target.value))
-            }
-            className="h-11 w-full appearance-none rounded-xl border bg-card/70 pl-3.5 pr-9 text-sm shadow-sm outline-none transition-all hover:border-ring/40 focus:border-primary focus:ring-2 focus:ring-ring/40 sm:w-52"
-          >
-            <option value="">{t("search.allSubjects")}</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        {/* Subject filter (+ attached "new subject" segment) */}
+        <div className="flex">
+          <div className="relative flex-1 sm:flex-none">
+            <select
+              value={subjectId ?? ""}
+              onChange={(e) => {
+                const next = e.target.value === "" ? null : Number(e.target.value);
+                setSubjectId(next);
+                // Picking a subject is itself a filter action — open the results
+                // panel even if the user never focused the text input.
+                if (next != null) setOpen(true);
+              }}
+              className={cn(
+                "h-11 w-full appearance-none rounded-xl border bg-card/70 pl-3.5 pr-9 text-sm shadow-sm outline-none transition-all hover:border-ring/40 focus:border-primary focus:ring-2 focus:ring-ring/40 sm:w-52",
+                onCreateSubject && "rounded-r-none border-r-0",
+              )}
+            >
+              <option value="">{t("search.allSubjects")}</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          {onCreateSubject && (
+            <button
+              type="button"
+              onClick={onCreateSubject}
+              title={t("library.newSubject")}
+              aria-label={t("library.newSubject")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-r-xl border bg-card/70 text-muted-foreground shadow-sm outline-none transition-all hover:border-ring/40 hover:text-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <Plus className="size-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -144,7 +170,9 @@ export function SearchBar() {
               <p className="px-3 py-6 text-center text-sm text-destructive">{error}</p>
             ) : results.length === 0 && !loading ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                {t("search.noMatches", { query: query.trim() })}
+                {query.trim()
+                  ? t("search.noMatches", { query: query.trim() })
+                  : t("search.noMatchesSubject")}
               </p>
             ) : (
               <ul className="space-y-0.5">

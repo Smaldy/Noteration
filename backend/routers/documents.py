@@ -48,6 +48,19 @@ def reorder_documents(
     return Response(status_code=204)
 
 
+@router.delete("/{document_id}", status_code=204)
+def delete_document(
+    document_id: int,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Delete one document (its chapters/topics/notes cascade); the subject stays."""
+    try:
+        docsvc.delete_document(session, document_id)
+    except docsvc.DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return Response(status_code=204)
+
+
 @router.post("", response_model=UploadResult, status_code=201)
 async def upload_document(
     subject_id: int = Form(...),

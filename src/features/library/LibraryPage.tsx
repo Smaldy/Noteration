@@ -35,10 +35,14 @@ import { cn } from "@/lib/utils";
 import { useArcadeStore } from "@/stores/arcade";
 import { useEasterEggStore } from "@/stores/easterEgg";
 import { useLibraryStore } from "@/stores/library";
+import { useSubjectsStore } from "@/stores/subjects";
 
 import type { DocumentSummary } from "@/types/library";
+import type { Subject } from "@/types/subject";
 
+import { CreateSubjectDialog } from "./CreateSubjectDialog";
 import { DocumentCard } from "./DocumentCard";
+import { EmptySubjectCard } from "./EmptySubjectCard";
 
 export function LibraryPage() {
   const {
@@ -46,12 +50,21 @@ export function LibraryPage() {
     status,
     error,
     fetchDocuments,
-    deleteSubject,
+    deleteDocument,
     reorderDocuments,
     toggleSubjectBookmark,
     retryTranscription,
   } = useLibraryStore();
+  const {
+    subjects,
+    loaded: subjectsLoaded,
+    fetchSubjects,
+    deleteSubject: deleteEmptySubject,
+    toggleBookmark: toggleEmptySubjectBookmark,
+  } = useSubjectsStore();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [createSubjectOpen, setCreateSubjectOpen] = useState(false);
+  const [uploadTargetSubjectId, setUploadTargetSubjectId] = useState<number | undefined>();
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -71,7 +84,8 @@ export function LibraryPage() {
 
   useEffect(() => {
     void fetchDocuments();
-  }, [fetchDocuments]);
+    void fetchSubjects();
+  }, [fetchDocuments, fetchSubjects]);
 
   // While anything is mid-flight (audio transcribing or topics generating), poll
   // so the cards update without a manual refresh. Stops once everything settles.
@@ -92,20 +106,45 @@ export function LibraryPage() {
 
   async function handleDelete(doc: DocumentSummary) {
     const ok = window.confirm(
-      t("library.deleteConfirm", { name: doc.subject_name }),
+      t("library.deleteDocConfirm", { name: doc.filename }),
     );
     if (!ok) return;
     try {
-      await deleteSubject(doc.subject_id);
+      await deleteDocument(doc.id);
+      // The subject may have just lost its last document — refresh so it
+      // reappears as an empty subject card instead of vanishing.
+      await fetchSubjects();
+    } catch {
+      window.alert(t("library.deleteDocFailed"));
+    }
+  }
+
+  async function handleDeleteEmptySubject(subject: Subject) {
+    const ok = window.confirm(t("library.deleteConfirm", { name: subject.name }));
+    if (!ok) return;
+    try {
+      await deleteEmptySubject(subject.id);
     } catch {
       window.alert(t("library.deleteFailed"));
     }
+  }
+
+  function handleUploadForSubject(subject: Subject) {
+    setUploadTargetSubjectId(subject.id);
+    setUploadOpen(true);
   }
 
   // When the bookmarked-only filter is on, show just the bookmarked subjects.
   const visible = bookmarkedOnly
     ? documents.filter((d) => d.subject_bookmarked)
     : documents;
+
+  // Subjects created standalone (no PDF/audio yet) don't have a document row
+  // to appear as, so they get their own lightweight cards.
+  const emptySubjects = subjects.filter(
+    (s) => s.document_count === 0 && (!bookmarkedOnly || s.bookmarked),
+  );
+  const visibleCount = visible.length + emptySubjects.length;
 
   const renderCard = (doc: DocumentSummary) => (
     <DocumentCard
@@ -187,7 +226,12 @@ export function LibraryPage() {
             <Settings />
             {locked("settings") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
           </Button>
-          <Button onClick={() => setUploadOpen(true)}>
+          <Button
+            onClick={() => {
+              setUploadTargetSubjectId(undefined);
+              setUploadOpen(true);
+            }}
+          >
             <Plus />
             {t("nav.upload")}
           </Button>
@@ -197,12 +241,15 @@ export function LibraryPage() {
       <UploadDialog
         open={uploadOpen}
         onOpenChange={setUploadOpen}
+        initialSubjectId={uploadTargetSubjectId}
         onUploaded={(documentId) => navigate(`/documents/${documentId}/review`)}
       />
 
+      <CreateSubjectDialog open={createSubjectOpen} onOpenChange={setCreateSubjectOpen} />
+
       <div className="mb-8 flex flex-col gap-2 animate-rise sm:flex-row sm:items-start">
         <div className="flex-1">
-          <SearchBar />
+          <SearchBar onCreateSubject={() => setCreateSubjectOpen(true)} />
         </div>
         <Button
           variant={bookmarkedOnly ? "default" : "outline"}
@@ -235,14 +282,20 @@ export function LibraryPage() {
         </div>
       )}
 
-      {status === "loaded" && documents.length === 0 && (
+      {status === "loaded" && subjectsLoaded && documents.length === 0 && subjects.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
           <BookOpen className="mb-4 size-10 text-muted-foreground" />
           <h2 className="text-lg font-medium">{t("library.empty.title")}</h2>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             {t("library.empty.description")}
           </p>
-          <Button className="mt-5" onClick={() => setUploadOpen(true)}>
+          <Button
+            className="mt-5"
+            onClick={() => {
+              setUploadTargetSubjectId(undefined);
+              setUploadOpen(true);
+            }}
+          >
             <Plus />
             {t("library.empty.cta")}
           </Button>
@@ -251,9 +304,9 @@ export function LibraryPage() {
 
       {/* Filter is on but nothing is bookmarked yet. */}
       {status === "loaded" &&
-        documents.length > 0 &&
+        (documents.length > 0 || subjects.length > 0) &&
         bookmarkedOnly &&
-        visible.length === 0 && (
+        visibleCount === 0 && (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
             <Bookmark className="mb-4 size-10 text-muted-foreground" />
             <h2 className="text-lg font-medium">{t("library.noBookmarked")}</h2>
@@ -262,6 +315,24 @@ export function LibraryPage() {
             </p>
           </div>
         )}
+
+      {/* Subjects with no documents yet get their own plain grid — they have
+          no document row to drag-reorder alongside. */}
+      {status === "loaded" && emptySubjects.length > 0 && (
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {emptySubjects.map((subject) => (
+            <EmptySubjectCard
+              key={`subject-${subject.id}`}
+              subject={subject}
+              onUpload={handleUploadForSubject}
+              onDelete={(s) => void handleDeleteEmptySubject(s)}
+              onToggleBookmark={(id, bookmarked) =>
+                void toggleEmptySubjectBookmark(id, bookmarked)
+              }
+            />
+          ))}
+        </div>
+      )}
 
       {/* Drag-reorder only in the full view; the filtered view is a plain grid
           so a partial order can't clobber the saved global order. */}

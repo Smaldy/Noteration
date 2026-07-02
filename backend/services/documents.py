@@ -212,6 +212,19 @@ def reorder_documents(session: Session, ids: list[int]) -> None:
     session.commit()
 
 
+def delete_document(session: Session, document_id: int) -> None:
+    """Delete one document and everything under it (chapters → topics → …).
+
+    The parent subject stays — with no documents left it shows as an empty
+    subject card. Raises ``DocumentNotFoundError`` if it does not exist.
+    """
+    document = session.get(Document, document_id)
+    if document is None:
+        raise DocumentNotFoundError(document_id)
+    session.delete(document)
+    session.commit()
+
+
 def create_document(
     session: Session,
     *,

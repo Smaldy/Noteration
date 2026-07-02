@@ -67,7 +67,7 @@ export function ExamPrepPage() {
     status,
     error,
     fetchDocuments,
-    deleteSubject,
+    deleteDocument,
     reorderDocuments,
     toggleSubjectBookmark,
   } = useExamStore();
@@ -80,10 +80,10 @@ export function ExamPrepPage() {
   }, [fetchDocuments]);
 
   async function handleDelete(doc: DocumentSummary) {
-    const ok = window.confirm(t("exam.deleteConfirm", { name: doc.subject_name }));
+    const ok = window.confirm(t("exam.deleteConfirm", { name: doc.filename }));
     if (!ok) return;
     try {
-      await deleteSubject(doc.subject_id);
+      await deleteDocument(doc.id);
     } catch {
       window.alert(t("exam.deleteFailed"));
     }

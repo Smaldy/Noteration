@@ -19,12 +19,27 @@ from backend.services.pipeline.pdf_outline import is_trash
 
 
 def list_subjects(session: Session) -> list[Subject]:
-    """All subjects, name-sorted (case-insensitive) for the picker."""
-    return list(
+    """All subjects, name-sorted (case-insensitive) for the picker.
+
+    Each subject gets a transient ``document_count`` attribute (not a mapped
+    column, one grouped query) so the library can distinguish a freshly
+    created subject with no documents yet from one with content.
+    """
+    subjects = list(
         session.execute(
             select(Subject).order_by(func.lower(Subject.name), Subject.id)
         ).scalars()
     )
+    counts = dict(
+        session.execute(
+            select(Document.subject_id, func.count(Document.id)).group_by(
+                Document.subject_id
+            )
+        ).all()
+    )
+    for subject in subjects:
+        subject.document_count = counts.get(subject.id, 0)  # type: ignore[attr-defined]
+    return subjects
 
 
 def create_subject(

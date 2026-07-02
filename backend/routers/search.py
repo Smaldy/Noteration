@@ -14,10 +14,14 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 @router.get("", response_model=list[SearchResultOut])
 def search(
-    q: str = Query(min_length=1, max_length=200),
+    q: str = Query(default="", max_length=200),
     subject_id: int | None = Query(default=None),
     limit: int = Query(default=30, ge=1, le=100),
     session: Session = Depends(get_session),
 ) -> list[search_service.SearchHit]:
-    """Find topics (then chapters) whose title contains ``q``."""
+    """Find topics (then chapters) whose title contains ``q``.
+
+    ``q`` may be omitted when ``subject_id`` is given, which lists every
+    topic/chapter in that subject (a subject-only filter).
+    """
     return search_service.search(session, query=q, subject_id=subject_id, limit=limit)

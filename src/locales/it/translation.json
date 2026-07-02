@@ -26,8 +26,21 @@
       "description": "Carica un PDF tecnico per generare appunti, quiz a risposta multipla, flashcard e un piano di studio.",
       "cta": "Carica PDF"
     },
+    "newSubject": "Nuova materia",
+    "newSubjectDialog": {
+      "title": "Nuova materia",
+      "desc": "Crea una materia per organizzare i tuoi appunti, poi caricaci un PDF o un audio quando vuoi.",
+      "create": "Crea",
+      "failed": "Impossibile creare la materia. Riprova."
+    },
+    "emptySubject": {
+      "noDocuments": "Ancora nessun documento.",
+      "upload": "Carica un documento"
+    },
     "deleteConfirm": "Eliminare la materia \"{{name}}\" e tutti i suoi documenti, argomenti, appunti e pianificazione? L'operazione non può essere annullata.",
     "deleteFailed": "Impossibile eliminare la materia. Riprova.",
+    "deleteDocConfirm": "Eliminare il documento \"{{name}}\" con i suoi argomenti, appunti e pianificazione? Gli altri documenti della materia restano. L'operazione non può essere annullata.",
+    "deleteDocFailed": "Impossibile eliminare il documento. Riprova.",
     "card": {
       "noExamDate": "Nessuna data d'esame",
       "noTopicsYet": "Ancora nessun argomento",
@@ -36,6 +49,8 @@
       "dragToReorder": "Trascina per riordinare",
       "deleteSubject": "Elimina materia",
       "deleteSubjectAria": "Elimina {{name}}",
+      "deleteDocument": "Elimina documento",
+      "deleteDocumentAria": "Elimina {{name}}",
       "transcribing": "Trascrizione audio…",
       "transcriptionFailed": "Trascrizione non riuscita.",
       "retryTranscription": "Riprova trascrizione",
@@ -239,6 +254,7 @@
     "allSubjects": "Tutte le materie",
     "clear": "Cancella",
     "noMatches": "Nessun risultato per “{{query}}”.",
+    "noMatchesSubject": "Ancora niente in questa materia.",
     "kind": {
       "topic": "argomento",
       "chapter": "capitolo"
@@ -441,8 +457,8 @@
     "chooseTopics": "Scegli argomenti…",
     "quiz": "Quiz",
     "flashcards": "Flashcard",
-    "deleteConfirm": "Eliminare la materia \"{{name}}\" e tutti i suoi documenti, argomenti e flashcard? L'operazione non può essere annullata.",
-    "deleteFailed": "Impossibile eliminare la materia. Riprova.",
+    "deleteConfirm": "Eliminare il documento \"{{name}}\" con i suoi argomenti e flashcard? Gli altri documenti della materia restano. L'operazione non può essere annullata.",
+    "deleteFailed": "Impossibile eliminare il documento. Riprova.",
     "practice": {
       "back": "Indietro",
       "invalidLink": "Link di pratica non valido.",

@@ -171,9 +171,9 @@ export function DocumentCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  title={t("library.card.deleteSubject")}
-                  aria-label={t("library.card.deleteSubjectAria", {
-                    name: doc.subject_name,
+                  title={t("library.card.deleteDocument")}
+                  aria-label={t("library.card.deleteDocumentAria", {
+                    name: doc.filename,
                   })}
                   className="size-7 text-muted-foreground hover:text-destructive"
                   onClick={(e) => {

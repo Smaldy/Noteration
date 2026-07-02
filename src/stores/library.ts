@@ -21,6 +21,8 @@ export interface LibraryStore {
   ) => Promise<UploadResult>;
   /** Delete a subject (and all its documents/topics), then refresh the list. */
   deleteSubject: (subjectId: number) => Promise<void>;
+  /** Delete one document (its subject and sibling documents stay), then refresh. */
+  deleteDocument: (documentId: number) => Promise<void>;
   /** Bookmark/unbookmark a subject (optimistic; reverts on failure). */
   toggleSubjectBookmark: (subjectId: number, bookmarked: boolean) => Promise<void>;
   /** Persist a new manual order of the cards (optimistic). */
@@ -78,6 +80,10 @@ function createDocumentsStore(mode: DocumentMode) {
     },
   deleteSubject: async (subjectId) => {
     await api.del(`/subjects/${subjectId}`);
+    await get().fetchDocuments();
+  },
+  deleteDocument: async (documentId) => {
+    await api.del(`/documents/${documentId}`);
     await get().fetchDocuments();
   },
   toggleSubjectBookmark: async (subjectId, bookmarked) => {
