@@ -29,6 +29,7 @@ from backend.routers import (
     subjects,
     topics,
 )
+from backend.migrate import run_migrations
 from backend.security import install_local_origin_guard
 from backend.services.pipeline.ingestion import purge_legacy_chapter_cache
 from backend.services.transcription_worker import TranscriptionWorker
@@ -49,6 +50,9 @@ async def lifespan(_app: FastAPI):
     """Start/stop the background workers alongside the app (unless disabled)."""
     started = False
     if os.environ.get("NOTERATION_DISABLE_WORKER") != "1":
+        # Schema first: bare `uvicorn backend.main:app` skips the desktop
+        # launcher, so this is the only upgrade path in dev.
+        run_migrations()
         # One-time reclaim of chapter caches keyed by the old index format
         # (guarded here so tests never touch the real cache directory).
         purge_legacy_chapter_cache()
