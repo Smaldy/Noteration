@@ -30,6 +30,7 @@ from backend.routers import (
     topics,
 )
 from backend.security import install_local_origin_guard
+from backend.services.pipeline.ingestion import purge_legacy_chapter_cache
 from backend.services.transcription_worker import TranscriptionWorker
 from backend.services.worker import QueueWorker
 
@@ -48,6 +49,9 @@ async def lifespan(_app: FastAPI):
     """Start/stop the background workers alongside the app (unless disabled)."""
     started = False
     if os.environ.get("NOTERATION_DISABLE_WORKER") != "1":
+        # One-time reclaim of chapter caches keyed by the old index format
+        # (guarded here so tests never touch the real cache directory).
+        purge_legacy_chapter_cache()
         worker.start()
         transcription_worker.start()
         started = True

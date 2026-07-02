@@ -292,6 +292,26 @@ def get_chapter_markdown(
     )
 
 
+def purge_legacy_chapter_cache(cache_root: str | Path = CACHE_ROOT) -> int:
+    """Delete pre-page-range chapter cache files (``chapters/<idx>.md``).
+
+    The chapter cache used to be keyed by chapter order-index, which could
+    serve the wrong page range after a re-confirm; it is now keyed by the
+    range itself (``p<start>-<end>.md``). Old-format files are never read
+    again, so this one-time startup sweep reclaims them. Returns the count
+    removed; unreadable entries are skipped, never fatal.
+    """
+    removed = 0
+    for path in Path(cache_root).glob(f"*/{CHAPTERS_DIRNAME}/*.md"):
+        if path.stem.isdigit():
+            try:
+                path.unlink()
+                removed += 1
+            except OSError:
+                continue
+    return removed
+
+
 def get_pages_markdown(
     pdf_path: str | Path,
     file_hash: str,

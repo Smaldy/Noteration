@@ -13,7 +13,11 @@ from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Document, Subject, Topic
 from backend.services.pipeline import generation
-from backend.services.pipeline.ingestion import get_chapter_markdown, ingest
+from backend.services.pipeline.ingestion import (
+    get_chapter_markdown,
+    ingest,
+    purge_legacy_chapter_cache,
+)
 
 
 def _make_toc_pdf(path: Path, pages: int, toc) -> Path:
@@ -93,6 +97,21 @@ def test_cache_miss_converts_page_range_and_writes_cache(tmp_path: Path) -> None
     # Result cached for next time at chapters/p<start>-<end>.md.
     cached = (cache_root / "hh" / "chapters" / "p3-6.md").read_text(encoding="utf-8")
     assert cached == "CHAPTER MARKDOWN"
+
+
+def test_purge_legacy_chapter_cache_removes_only_index_keyed_files(
+    tmp_path: Path,
+) -> None:
+    chapters = tmp_path / "h1" / "chapters"
+    chapters.mkdir(parents=True)
+    (chapters / "0.md").write_text("old", encoding="utf-8")
+    (chapters / "12.md").write_text("old", encoding="utf-8")
+    (chapters / "p1-5.md").write_text("new", encoding="utf-8")
+
+    assert purge_legacy_chapter_cache(tmp_path) == 2
+    assert sorted(p.name for p in chapters.iterdir()) == ["p1-5.md"]
+    # Idempotent: a second sweep finds nothing.
+    assert purge_legacy_chapter_cache(tmp_path) == 0
 
 
 def test_chapter_slice_is_small_fraction_of_full_doc(tmp_path: Path) -> None:
