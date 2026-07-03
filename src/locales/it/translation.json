@@ -16,7 +16,6 @@
   },
   "library": {
     "title": "Libreria",
-    "subtitle": "I tuoi documenti caricati e i progressi di studio.",
     "loading": "Caricamento della libreria…",
     "filterBookmarkedAria": "Mostra solo le materie nei preferiti",
     "noBookmarked": "Nessuna materia nei preferiti",
@@ -632,7 +631,6 @@
   },
   "settings": {
     "title": "Impostazioni",
-    "subtitle": "Configura i provider, il ritmo di studio e l'aspetto di Noteration.",
     "headerTag": "Impostazioni",
     "save": {
       "discard": "Annulla",
@@ -649,7 +647,10 @@
       "language": "Lingua",
       "pomodoro": "Pomodoro",
       "calendar": "Calendario",
-      "appearance": "Aspetto"
+      "appearance": "Aspetto",
+      "reorder": "Trascina per riordinare le sezioni",
+      "hideSection": "Nascondi questa sezione",
+      "showSection": "Mostra questa sezione"
     },
     "number": {
       "decrease": "Diminuisci",
@@ -772,6 +773,8 @@
       "accentDefault": "Predefinito del tema",
       "accentCustom": "Colore personalizzato",
       "font": "Carattere",
+      "fontTitles": "Titoli",
+      "fontText": "Testo",
       "baseFontSize": "Dimensione base del testo: {{size}}px",
       "colors": {
         "indigo": "Indaco",

@@ -153,7 +153,7 @@ export function TopicContentPanel({
       <div
         className={cn(
           fullscreen &&
-            "fullscreen-zoom animate-rise relative z-10 mx-auto max-w-3xl px-6 py-12 sm:py-16",
+            "fullscreen-zoom animate-rise relative z-10 mx-auto max-w-[70rem] px-6 py-12 sm:py-16",
         )}
       >
         {body}

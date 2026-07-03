@@ -175,8 +175,9 @@ export function LibraryPage() {
   ] as const;
 
   return (
-    <PageShell>
+    <PageShell width="wide">
       <PageHeader
+        className="items-center"
         title={
           /* Looks like a plain heading, but tapping it 4× quickly is the secret
              door to the credits (handled by the easter-egg store). */
@@ -184,7 +185,6 @@ export function LibraryPage() {
             {t("library.title")}
           </span>
         }
-        subtitle={t("library.subtitle")}
         actions={
           <>
             {navItems.map(({ sector, icon: Icon, label, to }) => (
@@ -238,7 +238,7 @@ export function LibraryPage() {
 
       <CreateSubjectDialog open={createSubjectOpen} onOpenChange={setCreateSubjectOpen} />
 
-      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start">
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex-1">
           <SearchBar
             onCreateSubject={() => setCreateSubjectOpen(true)}

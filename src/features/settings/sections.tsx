@@ -12,7 +12,7 @@ import {
   Sparkles,
   Timer,
 } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ import {
   FONT_OPTIONS,
   FONT_PREVIEW,
   GEMINI_MODELS,
+  HEADING_FONT_OPTIONS,
   PRESET_ACCENTS,
   ROTATION_ORDER,
   SLOT_OPTIONS,
@@ -71,7 +72,7 @@ export function ApiKeysSection({
       icon={KeyRound}
       title={t("settings.apiKeys.title")}
       description={t("settings.apiKeys.description")}
-      delay={40}
+      delay={200}
     >
       <Field
         label={t("settings.apiKeys.geminiKey")}
@@ -121,7 +122,7 @@ export function ProvidersSection({
       icon={Sparkles}
       title={t("settings.providers.title")}
       description={t("settings.providers.description")}
-      delay={100}
+      delay={240}
     >
       <Toggle
         label={t("settings.providers.gemini.label")}
@@ -282,7 +283,7 @@ function ChoiceGrid<V extends string>({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={cn("grid gap-2 sm:max-w-xl", columns)}>
+    <div className={cn("grid gap-2 sm:max-w-2xl", columns)}>
       {values.map((v) => {
         const active = v === value;
         return (
@@ -291,7 +292,7 @@ function ChoiceGrid<V extends string>({
             type="button"
             onClick={() => onChange(v)}
             className={cn(
-              "rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
+              "rounded-xl border px-3 py-2 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
               active
                 ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
                 : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
@@ -300,7 +301,7 @@ function ChoiceGrid<V extends string>({
             <span className="block text-sm font-medium">
               {t(`${i18nBase}.${v}.label`)}
             </span>
-            <span className="mt-0.5 block text-xs opacity-70">
+            <span className="mt-0.5 block text-[11px] leading-snug opacity-70">
               {t(`${i18nBase}.${v}.hint`)}
             </span>
           </button>
@@ -324,7 +325,7 @@ export function GenerationSection({
       icon={FileText}
       title={t("settings.generation.title")}
       description={t("settings.generation.description")}
-      delay={150}
+      delay={280}
     >
       <Field label={t("settings.generation.studyFieldLabel")}>
         <ChoiceGrid<StudyField>
@@ -393,7 +394,7 @@ export function LanguageSection({
       icon={Globe}
       title={t("settings.language.title")}
       description={t("settings.language.description")}
-      delay={155}
+      delay={120}
     >
       <Field label={t("settings.language.fieldLabel")}>
         <Segmented
@@ -426,7 +427,7 @@ export function PomodoroSection({
       id="pomodoro"
       icon={Timer}
       title={t("settings.pomodoro.title")}
-      delay={160}
+      delay={80}
     >
       <div className="flex flex-wrap gap-6">
         <Field label={t("settings.pomodoro.workMinutes")}>
@@ -466,7 +467,7 @@ export function CalendarSection({
       icon={CalendarClock}
       title={t("settings.calendar.title")}
       description={t("settings.calendar.description")}
-      delay={220}
+      delay={160}
     >
       <div className="flex flex-wrap gap-6">
         <Field label={t("settings.calendar.dayStartsAt")}>
@@ -512,6 +513,50 @@ export function CalendarSection({
   );
 }
 
+/** Two-target font picker: a Titles/Text switch chooses which role you're
+ *  customizing (the active one is colored), and the grid below lists the faces
+ *  for that role, each previewed in its own typeface. */
+function FontPicker({ form, set }: { form: FormState; set: SetField }) {
+  const { t } = useTranslation();
+  const [target, setTarget] = useState<"titles" | "text">("titles");
+  const forTitles = target === "titles";
+  const options = forTitles ? HEADING_FONT_OPTIONS : FONT_OPTIONS;
+  const current = forTitles ? form.font_family_heading : form.font_family;
+
+  return (
+    <div className="space-y-3">
+      <Segmented
+        group="font-target"
+        value={target}
+        onChange={(v) => setTarget(v)}
+        options={[
+          { value: "titles", label: t("settings.appearance.fontTitles") },
+          { value: "text", label: t("settings.appearance.fontText") },
+        ]}
+      />
+      <div className="inline-flex flex-wrap gap-2">
+        {options.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => set(forTitles ? "font_family_heading" : "font_family", f.value)}
+            style={{ fontFamily: FONT_PREVIEW[f.value] }}
+            className={cn(
+              "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95",
+              forTitles && "font-semibold",
+              current === f.value
+                ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
+                : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AppearanceSection({
   form,
   set,
@@ -526,7 +571,7 @@ export function AppearanceSection({
       icon={Palette}
       title={t("settings.appearance.title")}
       description={t("settings.appearance.description")}
-      delay={280}
+      delay={40}
     >
       <Field label={t("settings.appearance.theme")}>
         <Segmented
@@ -573,24 +618,7 @@ export function AppearanceSection({
       </Field>
 
       <Field label={t("settings.appearance.font")}>
-        <div className="inline-flex flex-wrap gap-2">
-          {FONT_OPTIONS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => set("font_family", f.value)}
-              style={{ fontFamily: FONT_PREVIEW[f.value] }}
-              className={cn(
-                "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95",
-                form.font_family === f.value
-                  ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
-                  : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <FontPicker form={form} set={set} />
       </Field>
 
       <Field

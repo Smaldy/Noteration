@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ChevronDown,
   FileText,
   Layers,
   Loader2,
@@ -12,6 +11,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useSearchStore } from "@/stores/search";
 import { useSubjectsStore } from "@/stores/subjects";
@@ -120,30 +126,31 @@ export function SearchBar({
           )}
         </div>
 
-        {/* Subject filter (+ attached "new subject" segment) */}
+        {/* Subject filter (+ attached "new subject" segment). The page filters
+            its own content on this, so don't pop the results panel over the
+            freshly filtered cards. */}
         <div className="flex">
-          <div className="relative flex-1 sm:flex-none">
-            <select
-              value={subjectId ?? ""}
-              onChange={(e) => {
-                // The page filters its own content on this, so don't pop the
-                // results panel over the freshly filtered cards.
-                onSubjectChange(e.target.value === "" ? null : Number(e.target.value));
-              }}
+          <Select
+            value={subjectId == null ? "all" : String(subjectId)}
+            onValueChange={(v) => onSubjectChange(v === "all" ? null : Number(v))}
+          >
+            <SelectTrigger
               className={cn(
-                "h-11 w-full appearance-none rounded-xl border bg-card/70 pl-3.5 pr-9 text-sm shadow-sm outline-none transition-all hover:border-ring/40 focus:border-primary focus:ring-2 focus:ring-ring/40 sm:w-52",
+                "h-11 flex-1 rounded-xl sm:w-52 sm:flex-none",
                 onCreateSubject && "rounded-r-none border-r-0",
               )}
             >
-              <option value="">{t("search.allSubjects")}</option>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("search.allSubjects")}</SelectItem>
               {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
+                <SelectItem key={s.id} value={String(s.id)}>
                   {s.name}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
+            </SelectContent>
+          </Select>
           {onCreateSubject && (
             <button
               type="button"

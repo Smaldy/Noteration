@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
 import { type LibraryStore, useLibraryStore } from "@/stores/library";
 import { useSubjectsStore } from "@/stores/subjects";
@@ -165,20 +172,19 @@ export function UploadDialog({
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="subject">{t("upload.subject")}</Label>
-            <select
-              id="subject"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={subjectChoice}
-              onChange={(e) => setSubjectChoice(e.target.value)}
-              disabled={busy}
-            >
-              <option value={NEW_SUBJECT}>{t("upload.newSubjectOption")}</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={String(s.id)}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            <Select value={subjectChoice} onValueChange={setSubjectChoice} disabled={busy}>
+              <SelectTrigger id="subject">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NEW_SUBJECT}>{t("upload.newSubjectOption")}</SelectItem>
+                {subjects.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {creatingNew && (

@@ -2,7 +2,7 @@
  *  discard flow, and composes the section cards (sections.tsx) inside the page
  *  chrome (chrome.tsx). The form model + option tables live in form.ts. */
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -10,7 +10,14 @@ import { setLanguage } from "@/i18n";
 import { applyAppearance, useSettingsStore } from "@/stores/settings";
 
 import { ActionBar, SectionNav, Shell } from "./chrome";
-import { SECTIONS, toForm, type FormState } from "./form";
+import {
+  loadSectionPrefs,
+  saveSectionPrefs,
+  SECTIONS,
+  toForm,
+  type FormState,
+  type SectionPrefs,
+} from "./form";
 import {
   ApiKeysSection,
   AppearanceSection,
@@ -32,6 +39,15 @@ export function SettingsPage() {
   const [claudeKey, setClaudeKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [active, setActive] = useState(SECTIONS[0].id);
+  const [sectionPrefs, setSectionPrefs] = useState<SectionPrefs>(loadSectionPrefs);
+  const visibleIds = sectionPrefs.order.filter((id) => !sectionPrefs.hidden.includes(id));
+  // Stable scroll-spy key: re-observe when the rendered set changes, not on
+  // every render from the filtered array's fresh identity.
+  const visibleKey = visibleIds.join(",");
+
+  useEffect(() => {
+    saveSectionPrefs(sectionPrefs);
+  }, [sectionPrefs]);
 
   useEffect(() => {
     void fetchSettings();
@@ -49,6 +65,7 @@ export function SettingsPage() {
       font_size: form.font_size,
       accent_color: form.accent_color || null,
       font_family: form.font_family || null,
+      font_family_heading: form.font_family_heading || null,
     });
     setLanguage(form.language);
   }, [form]);
@@ -63,6 +80,7 @@ export function SettingsPage() {
           font_size: s.font_size,
           accent_color: s.accent_color,
           font_family: s.font_family,
+          font_family_heading: s.font_family_heading,
         });
         setLanguage(s.language);
       }
@@ -82,12 +100,12 @@ export function SettingsPage() {
       },
       { rootMargin: "-18% 0px -72% 0px", threshold: 0 },
     );
-    for (const s of SECTIONS) {
-      const el = document.getElementById(s.id);
+    for (const id of visibleKey.split(",")) {
+      const el = document.getElementById(id);
       if (el) observer.observe(el);
     }
     return () => observer.disconnect();
-  }, [form]);
+  }, [form, visibleKey]);
 
   const baseline = useMemo(() => (settings ? toForm(settings) : null), [settings]);
   const dirty =
@@ -125,8 +143,30 @@ export function SettingsPage() {
   }
 
   function jumpTo(id: string) {
+    if (sectionPrefs.hidden.includes(id)) {
+      // Jumping to a hidden section reveals it, then scrolls once it mounts.
+      toggleHidden(id);
+      setTimeout(() => {
+        setActive(id);
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+      return;
+    }
     setActive(id);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function toggleHidden(id: string) {
+    setSectionPrefs((p) => ({
+      ...p,
+      hidden: p.hidden.includes(id)
+        ? p.hidden.filter((h) => h !== id)
+        : [...p.hidden, id],
+    }));
+  }
+
+  function reorderSections(order: string[]) {
+    setSectionPrefs((p) => ({ ...p, order }));
   }
 
   async function handleSave() {
@@ -151,6 +191,7 @@ export function SettingsPage() {
         theme: form.theme,
         accent_color: form.accent_color || null,
         font_family: form.font_family,
+        font_family_heading: form.font_family_heading,
         font_size: form.font_size,
         language: form.language,
         ...(geminiKey.trim() ? { api_key_gemini: geminiKey.trim() } : {}),
@@ -163,6 +204,31 @@ export function SettingsPage() {
       // saveError surfaced from the store
     }
   }
+
+  // One card per section id; visibleIds picks and orders them at render time.
+  const sectionCards: Record<string, ReactNode> = {
+    "api-keys": (
+      <ApiKeysSection
+        settings={settings}
+        geminiKey={geminiKey}
+        claudeKey={claudeKey}
+        onGeminiKey={(v) => {
+          setGeminiKey(v);
+          setSaved(false);
+        }}
+        onClaudeKey={(v) => {
+          setClaudeKey(v);
+          setSaved(false);
+        }}
+      />
+    ),
+    providers: <ProvidersSection form={form} set={set} />,
+    generation: <GenerationSection form={form} set={set} />,
+    language: <LanguageSection form={form} set={set} />,
+    pomodoro: <PomodoroSection form={form} set={set} />,
+    calendar: <CalendarSection form={form} set={set} />,
+    appearance: <AppearanceSection form={form} set={set} />,
+  };
 
   return (
     <Shell
@@ -178,38 +244,26 @@ export function SettingsPage() {
         />
       }
     >
-      <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[180px_minmax(0,1fr)]">
-        <SectionNav active={active} onJump={jumpTo} />
+      <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <SectionNav
+          order={sectionPrefs.order}
+          hidden={sectionPrefs.hidden}
+          active={active}
+          onJump={jumpTo}
+          onToggleHidden={toggleHidden}
+          onReorder={reorderSections}
+        />
 
         <div className="min-w-0 space-y-7">
-          <header className="animate-rise space-y-1.5">
+          <header className="animate-rise">
             <h1 className="text-3xl font-bold tracking-tight">
               {t("settings.title")}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {t("settings.subtitle")}
-            </p>
           </header>
 
-          <ApiKeysSection
-            settings={settings}
-            geminiKey={geminiKey}
-            claudeKey={claudeKey}
-            onGeminiKey={(v) => {
-              setGeminiKey(v);
-              setSaved(false);
-            }}
-            onClaudeKey={(v) => {
-              setClaudeKey(v);
-              setSaved(false);
-            }}
-          />
-          <ProvidersSection form={form} set={set} />
-          <GenerationSection form={form} set={set} />
-          <LanguageSection form={form} set={set} />
-          <PomodoroSection form={form} set={set} />
-          <CalendarSection form={form} set={set} />
-          <AppearanceSection form={form} set={set} />
+          {visibleIds.map((id) => (
+            <Fragment key={id}>{sectionCards[id]}</Fragment>
+          ))}
         </div>
       </div>
     </Shell>

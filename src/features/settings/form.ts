@@ -13,6 +13,7 @@ import {
 import type { ComponentType } from "react";
 
 import type { Language } from "@/i18n";
+import { FONT_STACKS } from "@/stores/settings";
 import type {
   AIStyle,
   CalendarSlot,
@@ -41,6 +42,7 @@ export interface FormState {
   theme: Theme;
   accent_color: string; // "" = follow theme default
   font_family: string;
+  font_family_heading: string;
   font_size: number;
   language: Language;
 }
@@ -163,22 +165,28 @@ export const PRESET_ACCENTS: { key: string; hex: string }[] = [
   { key: "slate", hex: "#475569" },
 ];
 
+// Body-text faces: popular, readable, all bundled via @fontsource.
 export const FONT_OPTIONS: { value: string; label: string }[] = [
   { value: "sans", label: "Jakarta" },
   { value: "system", label: "System" },
   { value: "inter", label: "Inter" },
-  { value: "serif", label: "Newsreader" },
+  { value: "roboto", label: "Roboto" },
+  { value: "opensans", label: "Open Sans" },
+  { value: "nunito", label: "Nunito" },
+  { value: "sourcesans", label: "Source Sans" },
   { value: "mono", label: "Mono" },
 ];
 
-// Render each font button in its own typeface as a preview.
-export const FONT_PREVIEW: Record<string, string> = {
-  sans: '"Plus Jakarta Sans Variable", system-ui, sans-serif',
-  system: "system-ui, sans-serif",
-  inter: '"Inter Variable", system-ui, sans-serif',
-  serif: '"Newsreader Variable", Georgia, serif',
-  mono: '"JetBrains Mono", ui-monospace, monospace',
-};
+// Heading faces: the built-in display font first, then the body list (minus
+// Mono, which reads poorly at title sizes).
+export const HEADING_FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: "montserrat", label: "Montserrat" },
+  ...FONT_OPTIONS.filter((f) => f.value !== "mono"),
+];
+
+// Render each font button in its own typeface as a preview (the app-wide
+// stacks double as the preview stacks).
+export const FONT_PREVIEW: Record<string, string> = FONT_STACKS;
 
 // Section registry powers both the scroll-spy sidebar and the rendered cards,
 // so the nav can never drift out of sync with the content.
@@ -188,14 +196,56 @@ export const SECTIONS: {
   labelKey: string;
   icon: ComponentType<{ className?: string }>;
 }[] = [
+  { id: "appearance", labelKey: "settings.nav.appearance", icon: Palette },
+  { id: "pomodoro", labelKey: "settings.nav.pomodoro", icon: Timer },
+  { id: "language", labelKey: "settings.nav.language", icon: Globe },
+  { id: "calendar", labelKey: "settings.nav.calendar", icon: CalendarClock },
   { id: "api-keys", labelKey: "settings.nav.apiKeys", icon: KeyRound },
   { id: "providers", labelKey: "settings.nav.providers", icon: Sparkles },
   { id: "generation", labelKey: "settings.nav.generation", icon: FileText },
-  { id: "language", labelKey: "settings.nav.language", icon: Globe },
-  { id: "pomodoro", labelKey: "settings.nav.pomodoro", icon: Timer },
-  { id: "calendar", labelKey: "settings.nav.calendar", icon: CalendarClock },
-  { id: "appearance", labelKey: "settings.nav.appearance", icon: Palette },
 ];
+
+/** Per-browser prefs for the section list: display order + hidden sections.
+ *  Pure UI taste, so it lives in localStorage rather than the settings API.
+ *  Loading reconciles against SECTIONS so added/removed sections stay sound. */
+// v2: bumped when the default order changed (appearance-first), so installs
+// that stored the old default pick up the new one.
+const SECTION_PREFS_KEY = "noteration-settings-sections-v2";
+
+export interface SectionPrefs {
+  order: string[];
+  hidden: string[];
+}
+
+export function loadSectionPrefs(): SectionPrefs {
+  const ids = SECTIONS.map((s) => s.id);
+  try {
+    const raw = localStorage.getItem(SECTION_PREFS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<SectionPrefs>;
+      const stored = Array.isArray(parsed.order)
+        ? parsed.order.filter((id) => ids.includes(id))
+        : [];
+      return {
+        order: [...stored, ...ids.filter((id) => !stored.includes(id))],
+        hidden: Array.isArray(parsed.hidden)
+          ? parsed.hidden.filter((id) => ids.includes(id))
+          : [],
+      };
+    }
+  } catch {
+    // Unreadable JSON or storage denied: fall back to defaults.
+  }
+  return { order: ids, hidden: [] };
+}
+
+export function saveSectionPrefs(prefs: SectionPrefs) {
+  try {
+    localStorage.setItem(SECTION_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // Storage unavailable (private mode); the prefs just won't persist.
+  }
+}
 
 export function toForm(s: Settings): FormState {
   return {
@@ -216,7 +266,13 @@ export function toForm(s: Settings): FormState {
     calendar_slot_minutes: toSlot(s.calendar_slot_minutes),
     theme: (s.theme as Theme) ?? "system",
     accent_color: s.accent_color ?? "",
-    font_family: s.font_family ?? "sans",
+    // A stored face that no longer exists (e.g. the removed Newsreader) snaps
+    // back to the built-in default so the picker always has a valid selection.
+    font_family: s.font_family && FONT_STACKS[s.font_family] ? s.font_family : "sans",
+    font_family_heading:
+      s.font_family_heading && FONT_STACKS[s.font_family_heading]
+        ? s.font_family_heading
+        : "montserrat",
     font_size: s.font_size,
     language: (s.language as Language) ?? "en",
   };

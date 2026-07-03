@@ -16,7 +16,6 @@
   },
   "library": {
     "title": "Library",
-    "subtitle": "Your uploaded documents and their study progress.",
     "loading": "Loading your library…",
     "filterBookmarkedAria": "Show only bookmarked subjects",
     "noBookmarked": "No bookmarked subjects",
@@ -632,7 +631,6 @@
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Tune the providers, study rhythm, and how Noteration looks.",
     "headerTag": "Settings",
     "save": {
       "discard": "Discard",
@@ -649,7 +647,10 @@
       "language": "Language",
       "pomodoro": "Pomodoro",
       "calendar": "Calendar",
-      "appearance": "Appearance"
+      "appearance": "Appearance",
+      "reorder": "Drag to reorder sections",
+      "hideSection": "Hide this section",
+      "showSection": "Show this section"
     },
     "number": {
       "decrease": "Decrease",
@@ -772,6 +773,8 @@
       "accentDefault": "Theme default",
       "accentCustom": "Custom color",
       "font": "Font",
+      "fontTitles": "Titles",
+      "fontText": "Text",
       "baseFontSize": "Base font size: {{size}}px",
       "colors": {
         "indigo": "Indigo",

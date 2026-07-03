@@ -4,8 +4,11 @@ import { BrowserRouter } from "react-router-dom";
 
 import "@fontsource-variable/inter";
 import "@fontsource-variable/montserrat";
+import "@fontsource-variable/nunito";
+import "@fontsource-variable/open-sans";
 import "@fontsource-variable/plus-jakarta-sans";
-import "@fontsource-variable/newsreader";
+import "@fontsource-variable/roboto";
+import "@fontsource-variable/source-sans-3";
 import "@fontsource/press-start-2p"; // arcade minigame pixel font
 
 import "katex/dist/katex.min.css";

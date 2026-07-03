@@ -16,7 +16,6 @@
   },
   "library": {
     "title": "Biblioteca",
-    "subtitle": "Tus documentos subidos y su progreso de estudio.",
     "loading": "Cargando tu biblioteca…",
     "filterBookmarkedAria": "Mostrar solo las asignaturas marcadas",
     "noBookmarked": "No hay asignaturas marcadas",
@@ -632,7 +631,6 @@
   },
   "settings": {
     "title": "Ajustes",
-    "subtitle": "Configura los proveedores, el ritmo de estudio y el aspecto de Noteration.",
     "headerTag": "Ajustes",
     "save": {
       "discard": "Descartar",
@@ -649,7 +647,10 @@
       "language": "Idioma",
       "pomodoro": "Pomodoro",
       "calendar": "Calendario",
-      "appearance": "Apariencia"
+      "appearance": "Apariencia",
+      "reorder": "Arrastra para reordenar las secciones",
+      "hideSection": "Ocultar esta sección",
+      "showSection": "Mostrar esta sección"
     },
     "number": {
       "decrease": "Disminuir",
@@ -772,6 +773,8 @@
       "accentDefault": "Predeterminado del tema",
       "accentCustom": "Color personalizado",
       "font": "Fuente",
+      "fontTitles": "Títulos",
+      "fontText": "Texto",
       "baseFontSize": "Tamaño base del texto: {{size}}px",
       "colors": {
         "indigo": "Índigo",

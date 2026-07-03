@@ -44,7 +44,7 @@ export function Section({
           )}
         </div>
       </div>
-      <div className="mt-5 space-y-5">{children}</div>
+      <div className="mt-4 space-y-5 border-t border-border/60 pt-5">{children}</div>
     </section>
   );
 }

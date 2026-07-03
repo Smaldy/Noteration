@@ -86,7 +86,9 @@ export function StudyPage() {
   }
 
   return (
-    <PageShell width="wide" className="flex gap-6">
+    // Off-scale width: the notes column needs ~20% more room than the shared
+    // "wide" shell gives once the sidebar takes its 16rem.
+    <PageShell width="xl" className="flex max-w-[83rem] gap-6">
       <aside className="w-64 shrink-0">
         <BackLink className="mb-4" />
 

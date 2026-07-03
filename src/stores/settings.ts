@@ -6,12 +6,18 @@ import type { Settings, SettingsUpdate } from "@/types/settings";
 
 type Load = "idle" | "loading" | "loaded" | "error";
 
-/** Font-family options → CSS font stacks (all bundled via @fontsource). */
+/** Font-family options → CSS font stacks (all bundled via @fontsource). Used
+ *  for both the body text and heading pickers; "montserrat" is the built-in
+ *  display face, "sans" (Jakarta) the built-in body face. */
 export const FONT_STACKS: Record<string, string> = {
   sans: '"Plus Jakarta Sans Variable", system-ui, -apple-system, sans-serif',
   system: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   inter: '"Inter Variable", system-ui, sans-serif',
-  serif: '"Newsreader Variable", Georgia, "Times New Roman", serif',
+  roboto: '"Roboto Variable", system-ui, sans-serif',
+  opensans: '"Open Sans Variable", system-ui, sans-serif',
+  nunito: '"Nunito Variable", system-ui, sans-serif',
+  sourcesans: '"Source Sans 3 Variable", system-ui, sans-serif',
+  montserrat: '"Montserrat Variable", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
 };
 
@@ -137,6 +143,7 @@ export interface Appearance {
   font_size: number;
   accent_color: string | null;
   font_family: string | null;
+  font_family_heading: string | null;
 }
 
 // The appearance currently on the document, so the OS-scheme listener can
@@ -179,6 +186,14 @@ export function applyAppearance(a: Appearance): void {
   const stack = a.font_family ? FONT_STACKS[a.font_family] : null;
   if (stack) root.style.setProperty("--app-font", stack);
   else root.style.removeProperty("--app-font");
+
+  // Heading font: overrides --font-display inline; removing it falls back to
+  // the stylesheet's built-in display face (Montserrat).
+  const headingStack = a.font_family_heading
+    ? FONT_STACKS[a.font_family_heading]
+    : null;
+  if (headingStack) root.style.setProperty("--font-display", headingStack);
+  else root.style.removeProperty("--font-display");
 }
 
 interface SettingsStore {

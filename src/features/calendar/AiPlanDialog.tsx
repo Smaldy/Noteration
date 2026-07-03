@@ -12,6 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
 import { useCalendarStore } from "@/stores/calendar";
 
@@ -112,20 +119,18 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="plan-subject">{t("calendar.dialog.subject")}</Label>
-            <select
-              id="plan-subject"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={subjectId}
-              onChange={(e) => selectSubject(e.target.value)}
-              disabled={busy}
-            >
-              <option value="">{t("calendar.dialog.selectSubject")}</option>
-              {catalog.map((s) => (
-                <option key={s.id} value={String(s.id)}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            <Select value={subjectId || undefined} onValueChange={selectSubject} disabled={busy}>
+              <SelectTrigger id="plan-subject">
+                <SelectValue placeholder={t("calendar.dialog.selectSubject")} />
+              </SelectTrigger>
+              <SelectContent>
+                {catalog.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {subjectId && topics.length > 0 && (

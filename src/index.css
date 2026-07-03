@@ -3,7 +3,8 @@
 @plugin "@tailwindcss/typography";
 
 /* Noteration design system (Tailwind v4 / CSS-variable theme).
-   - Type: Montserrat (display) + Plus Jakarta Sans (UI body) + Newsreader (notes).
+   - Type: Montserrat (display) + Plus Jakarta Sans (UI body); both are
+     user-overridable from Settings → Appearance (see stores/settings.ts).
    - Color: a tinted, accent-derived palette. The static values below are the
      indigo default + first-paint fallback; `applyAppearance` (stores/settings.ts)
      recomputes every token live from the chosen accent so the whole UI carries
@@ -23,7 +24,6 @@
 
   --font-display: "Montserrat Variable", system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans Variable", system-ui, -apple-system, sans-serif;
-  --font-reading: "Newsreader Variable", Georgia, "Times New Roman", serif;
 
   /* Light, indigo-tinted defaults (hue 239). */
   --background: hsl(240 36% 98.5%);
@@ -307,10 +307,10 @@
       0 6px 18px -10px rgb(0 0 0 / 0.12);
   }
 
-  /* Zoomed, more spacious notes when reading in full screen. */
+  /* Gently zoomed, more spacious notes when reading in full screen. */
   .fullscreen-zoom .prose {
-    font-size: 1.12rem;
-    line-height: 1.8;
+    font-size: 1.05rem;
+    line-height: 1.5;
   }
 }
 

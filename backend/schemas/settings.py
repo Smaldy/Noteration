@@ -64,6 +64,7 @@ class SettingsOut(BaseModel):
     theme: str
     accent_color: str | None
     font_family: str | None
+    font_family_heading: str | None
     font_size: int
     language: str
     study_field: str
@@ -92,6 +93,7 @@ class SettingsOut(BaseModel):
             theme=settings.theme,
             accent_color=settings.accent_color,
             font_family=settings.font_family,
+            font_family_heading=settings.font_family_heading,
             font_size=settings.font_size,
             language=settings.language,
             study_field=settings.study_field,
@@ -131,6 +133,7 @@ class SettingsUpdate(BaseModel):
     theme: Theme | None = None
     accent_color: str | None = None
     font_family: str | None = None
+    font_family_heading: str | None = None
     font_size: int | None = Field(default=None, ge=10, le=32)
     language: Language | None = None
     study_field: StudyField | None = None

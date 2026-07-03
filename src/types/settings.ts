@@ -48,6 +48,7 @@ export interface Settings {
   theme: string;
   accent_color: string | null;
   font_family: string | null;
+  font_family_heading: string | null;
   font_size: number;
   language: string;
   study_field: string;
@@ -78,6 +79,7 @@ export interface SettingsUpdate {
   theme?: Theme;
   accent_color?: string | null;
   font_family?: string | null;
+  font_family_heading?: string | null;
   font_size?: number;
   language?: Language;
   study_field?: StudyField;

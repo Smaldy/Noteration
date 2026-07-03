@@ -164,7 +164,8 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
 const FONT_OPTIONS: { label: string; value: string | null }[] = [
   { label: "Default (settings font)", value: null },
   { label: "Sans", value: FONT_STACKS.sans },
-  { label: "Serif", value: FONT_STACKS.serif },
+  // System serif: notes saved when Newsreader was bundled fall back to Georgia.
+  { label: "Serif", value: 'Georgia, "Times New Roman", serif' },
   { label: "Mono", value: FONT_STACKS.mono },
   { label: "Inter", value: FONT_STACKS.inter },
   { label: "System", value: FONT_STACKS.system },

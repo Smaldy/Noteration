@@ -58,6 +58,8 @@ class Settings(Base):
     theme: Mapped[str] = mapped_column(default="system")
     accent_color: Mapped[str | None] = mapped_column(default=None)
     font_family: Mapped[str | None] = mapped_column(default=None)
+    # Display face for headings; NULL keeps the built-in one (Montserrat).
+    font_family_heading: Mapped[str | None] = mapped_column(default=None)
     font_size: Mapped[int] = mapped_column(default=16)
     # UI + AI-content language: "en" (default), "it", or "es". Drives the
     # frontend i18n and is injected into the generation prompts so new notes,
