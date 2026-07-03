@@ -72,6 +72,7 @@ def _selftest() -> int:
         "imageio_ffmpeg",
         "google.genai",
         "anthropic",
+        "ollama",  # local provider — imported lazily, so easy to miss in the freeze
         "uvicorn",
         "webview",
         "backend.main",
@@ -87,11 +88,20 @@ def _selftest() -> int:
     ffmpeg = Path(imageio_ffmpeg.get_ffmpeg_exe())
     print(f"  ffmpeg -> {ffmpeg.name} ({'exists' if ffmpeg.is_file() else 'MISSING'})")
 
-    # The built frontend bundle must ship with the app.
+    # The built frontend bundle must ship with the app — and not just the HTML
+    # shell: a truncated build with index.html but no assets/ would serve a blank
+    # window. Assert the emitted JS and the bundled fonts are actually present.
     from backend.main import FRONTEND_DIST
 
     index = FRONTEND_DIST / "index.html"
-    print(f"  frontend -> {index} ({'exists' if index.is_file() else 'MISSING'})")
+    assets = FRONTEND_DIST / "assets"
+    js_files = list(assets.glob("*.js")) if assets.is_dir() else []
+    font_files = list(assets.glob("*.woff2")) if assets.is_dir() else []
+    frontend_ok = index.is_file() and bool(js_files) and bool(font_files)
+    print(
+        f"  frontend -> {index.name} + {len(js_files)} js, {len(font_files)} fonts "
+        f"({'OK' if frontend_ok else 'INCOMPLETE'})"
+    )
 
     from backend.migrate import run_migrations
 
@@ -120,7 +130,7 @@ def _selftest() -> int:
     pipeline_ok = pix.width > 0 and "selftest" in md.lower()
     print(f"  ingest (render+markdown): {'OK' if pipeline_ok else 'FAILED'}")
 
-    if not (ffmpeg.is_file() and index.is_file() and DB_PATH.is_file() and pipeline_ok):
+    if not (ffmpeg.is_file() and frontend_ok and DB_PATH.is_file() and pipeline_ok):
         print("SELFTEST FAILED")
         return 1
     print("SELFTEST OK")
