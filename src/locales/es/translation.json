@@ -708,7 +708,30 @@
     },
     "generation": {
       "title": "Generación de apuntes",
-      "description": "Cuánto contenido genera la IA por tema.",
+      "description": "En qué se especializa el tutor de IA, cómo escribe y cuánto contenido genera por tema.",
+      "studyFieldLabel": "Campo de estudio",
+      "studyFieldHint": "Adapta el tutor de IA a tu disciplina: los apuntes de ingeniería se centran en fórmulas, los de literatura en temas y contexto, y los de derecho en casos.",
+      "fields": {
+        "general": { "label": "General", "hint": "Tutor neutro, sirve para cualquier materia" },
+        "engineering": { "label": "Ingeniería y tecnología", "hint": "Fórmulas, definiciones, aplicaciones" },
+        "mathematics": { "label": "Matemáticas", "hint": "Teoremas, demostraciones, ejemplos resueltos" },
+        "natural_sciences": { "label": "Ciencias naturales", "hint": "Mecanismos, procesos, evidencia" },
+        "medicine": { "label": "Medicina y salud", "hint": "Mecanismos, clasificaciones, relevancia clínica" },
+        "law": { "label": "Derecho", "hint": "Principios, normas, casos, excepciones" },
+        "economics": { "label": "Economía y empresa", "hint": "Modelos, supuestos, ejemplos reales" },
+        "humanities": { "label": "Humanidades", "hint": "Temas, autores y contexto histórico para literatura, historia y filosofía" },
+        "languages": { "label": "Idiomas", "hint": "Vocabulario, gramática, ejemplos de uso" }
+      },
+      "styleLabel": "Estilo de las explicaciones",
+      "styleHint": "Cómo redacta la IA los apuntes, las explicaciones de los cuestionarios y las flashcards.",
+      "styles": {
+        "balanced": { "label": "Equilibrado", "hint": "Claro y orientado al examen (predeterminado)" },
+        "simple": { "label": "Lenguaje sencillo", "hint": "Palabras simples, cada término explicado, analogías" },
+        "technical": { "label": "Técnico", "hint": "Terminología precisa, rigor completo, sin simplificar" },
+        "discursive": { "label": "Discursivo", "hint": "Prosa fluida que recorre el razonamiento" },
+        "concise": { "label": "Conciso", "hint": "Viñetas compactas, cero relleno" },
+        "academic": { "label": "Académico", "hint": "Registro formal y profesional" }
+      },
       "notesLength_one": "Longitud de apuntes: {{count}} página por tema",
       "notesLength_other": "Longitud de apuntes: {{count}} páginas por tema",
       "brief": "Breve",

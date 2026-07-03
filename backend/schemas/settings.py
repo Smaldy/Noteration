@@ -26,6 +26,22 @@ GeminiModel = Literal[
 # UI + AI-content language. "en" is the default; the AI is asked to generate new
 # notes/MCQs/flashcards in the chosen language (see services/pipeline/generation.py).
 Language = Literal["en", "it", "es"]
+# The student's field of study — sets the AI tutor persona and what the notes
+# emphasise. Mirrors STUDY_FIELDS in services/pipeline/generation.py.
+StudyField = Literal[
+    "general",
+    "engineering",
+    "mathematics",
+    "natural_sciences",
+    "medicine",
+    "law",
+    "economics",
+    "humanities",
+    "languages",
+]
+# How the AI words the generated content. Mirrors AI_STYLES in
+# services/pipeline/generation.py; "balanced" adds no directive.
+AIStyle = Literal["balanced", "simple", "technical", "discursive", "concise", "academic"]
 
 
 class SettingsOut(BaseModel):
@@ -50,6 +66,8 @@ class SettingsOut(BaseModel):
     font_family: str | None
     font_size: int
     language: str
+    study_field: str
+    ai_style: str
     # Derived — keys are never echoed back.
     gemini_key_set: bool
     claude_key_set: bool
@@ -76,6 +94,8 @@ class SettingsOut(BaseModel):
             font_family=settings.font_family,
             font_size=settings.font_size,
             language=settings.language,
+            study_field=settings.study_field,
+            ai_style=settings.ai_style,
             gemini_key_set=bool(settings.api_key_gemini),
             claude_key_set=bool(settings.api_key_claude),
         )
@@ -113,6 +133,8 @@ class SettingsUpdate(BaseModel):
     font_family: str | None = None
     font_size: int | None = Field(default=None, ge=10, le=32)
     language: Language | None = None
+    study_field: StudyField | None = None
+    ai_style: AIStyle | None = None
 
     @model_validator(mode="after")
     def _day_window_ordered(self) -> SettingsUpdate:

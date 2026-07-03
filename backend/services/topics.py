@@ -37,7 +37,9 @@ from backend.services.pipeline.generation import (
     clamp_note_length,
     get_or_create_ai_note,
     load_topic_source,
+    normalize_ai_style,
     normalize_language,
+    normalize_study_field,
     notes_only_max_tokens,
     parse_more_flashcards,
     parse_more_mcqs,
@@ -161,13 +163,22 @@ def generate_more(
     if waterfall is None:
         waterfall = build_waterfall_from_settings(settings)
     language = normalize_language(settings.language)
+    study_field = normalize_study_field(settings.study_field)
+    ai_style = normalize_ai_style(settings.ai_style)
 
     source = load_topic_source(session, topic)
     if kind == "mcqs":
         existing = list(
             session.scalars(select(MCQ.question).where(MCQ.topic_id == topic_id))
         )
-        prompt = build_more_mcqs_prompt(topic.title, source, existing, language=language)
+        prompt = build_more_mcqs_prompt(
+            topic.title,
+            source,
+            existing,
+            language=language,
+            study_field=study_field,
+            ai_style=ai_style,
+        )
         result = waterfall.generate(
             prompt, max_tokens=GENERATE_MORE_MAX_TOKENS, response_schema=MORE_MCQS_SCHEMA
         )
@@ -189,7 +200,12 @@ def generate_more(
             session.scalars(select(Flashcard.front).where(Flashcard.topic_id == topic_id))
         )
         prompt = build_more_flashcards_prompt(
-            topic.title, source, existing, language=language
+            topic.title,
+            source,
+            existing,
+            language=language,
+            study_field=study_field,
+            ai_style=ai_style,
         )
         result = waterfall.generate(
             prompt,
@@ -248,7 +264,13 @@ def regenerate_notes(
 
     source = load_topic_source(session, topic, max_chars=source_cap_for(length))
     prompt = build_regenerate_notes_prompt(
-        topic.title, source, note_length=length, language=language, instructions=instructions
+        topic.title,
+        source,
+        note_length=length,
+        language=language,
+        study_field=normalize_study_field(settings.study_field),
+        ai_style=normalize_ai_style(settings.ai_style),
+        instructions=instructions,
     )
     result = waterfall.generate(
         prompt, max_tokens=notes_only_max_tokens(length), response_schema=NOTES_ONLY_SCHEMA
@@ -455,6 +477,8 @@ def _consolidate_notes(
         target.title,
         note.content_md,
         language=normalize_language(settings.language),
+        study_field=normalize_study_field(settings.study_field),
+        ai_style=normalize_ai_style(settings.ai_style),
     )
     try:
         result = waterfall.generate(

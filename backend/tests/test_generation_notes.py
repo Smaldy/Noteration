@@ -19,7 +19,9 @@ from backend.services.pipeline.generation import (
     language_directive,
     load_topic_source,
     make_generation_processor,
+    normalize_ai_style,
     normalize_language,
+    normalize_study_field,
     slice_section,
     source_cap_for,
     study_max_tokens,
@@ -233,6 +235,77 @@ def test_generation_processor_uses_configured_language(
     assert outcome is JobOutcome.done
     assert provider.last_prompt is not None
     assert "Italian" in provider.last_prompt
+
+
+# --- study field (tutor persona + notes coverage) ----------------------------
+
+
+def test_normalize_study_field_defaults_unknown_to_general() -> None:
+    assert normalize_study_field("engineering") == "engineering"
+    assert normalize_study_field("humanities") == "humanities"
+    assert normalize_study_field("astrology") == "general"  # unsupported → default
+    assert normalize_study_field(None) == "general"
+
+
+def test_default_prompt_uses_neutral_tutor_persona() -> None:
+    prompt = build_generation_prompt("T", "s")
+    assert "You are an expert tutor." in prompt
+    assert "engineering" not in prompt
+
+
+def test_study_field_sets_persona_and_coverage() -> None:
+    eng = build_generation_prompt("T", "s", study_field="engineering")
+    assert "expert engineering tutor" in eng
+    assert "formulas" in eng
+    hum = build_generation_prompt("T", "s", study_field="humanities")
+    assert "humanities tutor" in hum
+    assert "themes" in hum
+    assert "formulas" not in hum
+    # Exam mode carries the persona too.
+    exam = build_generation_prompt(
+        "T", "s", mode=DocumentMode.exam, study_field="law"
+    )
+    assert "expert law tutor" in exam
+
+
+# --- writing style ------------------------------------------------------------
+
+
+def test_normalize_ai_style_defaults_unknown_to_balanced() -> None:
+    assert normalize_ai_style("simple") == "simple"
+    assert normalize_ai_style("shakespearean") == "balanced"
+    assert normalize_ai_style(None) == "balanced"
+
+
+def test_balanced_style_adds_no_directive() -> None:
+    assert "Writing style" not in build_generation_prompt("T", "s")
+
+
+def test_ai_style_adds_writing_style_block() -> None:
+    simple = build_generation_prompt("T", "s", ai_style="simple")
+    assert "# Writing style" in simple
+    assert "plain, everyday wording" in simple
+    exam = build_generation_prompt(
+        "T", "s", mode=DocumentMode.exam, ai_style="technical"
+    )
+    assert "# Writing style" in exam
+
+
+def test_generation_processor_uses_configured_field_and_style(
+    session: Session, tmp_path: Path
+) -> None:
+    # The processor reads Settings.study_field / Settings.ai_style per job.
+    update_settings(session, {"study_field": "humanities", "ai_style": "discursive"})
+    queue, job = _gen_job(session, tmp_path)
+    provider = MockProvider("gemini_free", text=_GEN_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    outcome = queue.process_job(job, processor)
+
+    assert outcome is JobOutcome.done
+    assert provider.last_prompt is not None
+    assert "humanities tutor" in provider.last_prompt
+    assert "# Writing style" in provider.last_prompt
 
 
 # --- notes length (pages of content per topic) ------------------------------

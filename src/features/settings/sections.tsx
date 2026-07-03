@@ -18,7 +18,14 @@ import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, type Language } from "@/i18n";
 import { cn } from "@/lib/utils";
-import type { CalendarSlot, GeminiModel, Settings, Theme } from "@/types/settings";
+import type {
+  AIStyle,
+  CalendarSlot,
+  GeminiModel,
+  Settings,
+  StudyField,
+  Theme,
+} from "@/types/settings";
 
 import {
   Field,
@@ -30,12 +37,14 @@ import {
   Toggle,
 } from "./controls";
 import {
+  AI_STYLE_VALUES,
   FONT_OPTIONS,
   FONT_PREVIEW,
   GEMINI_MODELS,
   PRESET_ACCENTS,
   ROTATION_ORDER,
   SLOT_OPTIONS,
+  STUDY_FIELD_VALUES,
   hourLabel,
   modelLabel,
   type FormState,
@@ -255,6 +264,52 @@ function ModelGrid({
   );
 }
 
+/** Grid of selectable option cards (label + localized hint) — the ModelGrid
+ *  styling generalized for the study-field and writing-style pickers. */
+function ChoiceGrid<V extends string>({
+  values,
+  value,
+  onChange,
+  i18nBase,
+  columns = "grid-cols-2 sm:grid-cols-3",
+}: {
+  values: readonly V[];
+  value: V;
+  onChange: (v: V) => void;
+  /** i18n prefix; each value reads `${i18nBase}.${value}.label` / `.hint`. */
+  i18nBase: string;
+  columns?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className={cn("grid gap-2 sm:max-w-xl", columns)}>
+      {values.map((v) => {
+        const active = v === value;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            className={cn(
+              "rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
+              active
+                ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
+                : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+            )}
+          >
+            <span className="block text-sm font-medium">
+              {t(`${i18nBase}.${v}.label`)}
+            </span>
+            <span className="mt-0.5 block text-xs opacity-70">
+              {t(`${i18nBase}.${v}.hint`)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function GenerationSection({
   form,
   set,
@@ -271,6 +326,28 @@ export function GenerationSection({
       description={t("settings.generation.description")}
       delay={150}
     >
+      <Field label={t("settings.generation.studyFieldLabel")}>
+        <ChoiceGrid<StudyField>
+          values={STUDY_FIELD_VALUES}
+          value={form.study_field}
+          onChange={(v) => set("study_field", v)}
+          i18nBase="settings.generation.fields"
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("settings.generation.studyFieldHint")}
+        </p>
+      </Field>
+      <Field label={t("settings.generation.styleLabel")}>
+        <ChoiceGrid<AIStyle>
+          values={AI_STYLE_VALUES}
+          value={form.ai_style}
+          onChange={(v) => set("ai_style", v)}
+          i18nBase="settings.generation.styles"
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("settings.generation.styleHint")}
+        </p>
+      </Field>
       <Field
         label={t("settings.generation.notesLength", {
           count: form.note_length,

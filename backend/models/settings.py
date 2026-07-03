@@ -64,3 +64,13 @@ class Settings(Base):
     # MCQs, and flashcards are produced in the chosen language. See
     # services/pipeline/generation.py.
     language: Mapped[str] = mapped_column(default="en")
+    # The student's field of study — sets the AI tutor persona and what the
+    # generated notes emphasise (formulas vs. themes vs. cases, …). One of
+    # STUDY_FIELDS in services/pipeline/generation.py; "general" is neutral.
+    # (The migration backfills pre-existing installs to "engineering", the
+    # behavior they had when the persona was hardcoded.)
+    study_field: Mapped[str] = mapped_column(default="general")
+    # How the AI words the generated content: "balanced" (default, no extra
+    # directive), "simple", "technical", "discursive", "concise", "academic".
+    # See AI_STYLES in services/pipeline/generation.py.
+    ai_style: Mapped[str] = mapped_column(default="balanced")

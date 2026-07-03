@@ -122,6 +122,149 @@ def language_directive(language: str) -> str:
     )
 
 
+# --- student profile (field of study) ---------------------------------------
+# The prompts used to hardcode "an expert engineering tutor", which skews the
+# output toward formulas and derivations even for a literature or law student.
+# ``Settings.study_field`` now picks a discipline profile: the tutor persona
+# opening every prompt, plus what "complete notes" means in that field (the
+# coverage line — an engineering topic wants formulas; a humanities topic wants
+# themes, authors, and context). "general" is deliberately neutral.
+
+
+@dataclass(frozen=True)
+class FieldProfile:
+    """One discipline's prompt flavor: the tutor persona + notes coverage."""
+
+    persona: str  # "an expert engineering tutor" — opens every prompt
+    coverage: str  # what the notes must cover in this field
+
+
+DEFAULT_STUDY_FIELD = "general"
+
+STUDY_FIELDS: dict[str, FieldProfile] = {
+    "general": FieldProfile(
+        persona="an expert tutor",
+        coverage="the key concepts, definitions, and essential facts",
+    ),
+    "engineering": FieldProfile(
+        # Matches the previously hardcoded persona/coverage exactly, so an
+        # engineering student's prompts are unchanged by this feature.
+        persona="an expert engineering tutor",
+        coverage="the key concepts, definitions, and formulas",
+    ),
+    "mathematics": FieldProfile(
+        persona="an expert mathematics tutor",
+        coverage="the key definitions, theorems, proofs, and worked examples",
+    ),
+    "natural_sciences": FieldProfile(
+        persona="an expert natural-sciences tutor",
+        coverage="the key concepts, mechanisms, processes, and experimental evidence",
+    ),
+    "medicine": FieldProfile(
+        persona="an expert medicine and health-sciences tutor",
+        coverage=(
+            "the key concepts, mechanisms, classifications, and their clinical "
+            "relevance"
+        ),
+    ),
+    "law": FieldProfile(
+        persona="an expert law tutor",
+        coverage=(
+            "the key principles, definitions, statutes, leading cases, and "
+            "exceptions"
+        ),
+    ),
+    "economics": FieldProfile(
+        persona="an expert economics and business tutor",
+        coverage="the key concepts, models, assumptions, and real-world examples",
+    ),
+    "humanities": FieldProfile(
+        persona="an expert humanities tutor (literature, history, philosophy)",
+        coverage=(
+            "the key themes, arguments, authors, works, dates, and historical "
+            "context"
+        ),
+    ),
+    "languages": FieldProfile(
+        persona="an expert language tutor",
+        coverage=(
+            "the key vocabulary, grammar rules, usage patterns, and example "
+            "sentences"
+        ),
+    ),
+}
+
+
+def normalize_study_field(field: str | None) -> str:
+    """Coerce a study field to a supported one, defaulting to "general"."""
+    return field if field in STUDY_FIELDS else DEFAULT_STUDY_FIELD
+
+
+def field_profile(study_field: str | None) -> FieldProfile:
+    """The discipline profile for a (possibly unknown) study field."""
+    return STUDY_FIELDS[normalize_study_field(study_field)]
+
+
+# --- writing style ------------------------------------------------------------
+# ``Settings.ai_style`` steers HOW the model words everything it generates —
+# notes, MCQ explanations, flashcards. "balanced" is the default and adds no
+# directive (prompts identical to before the setting existed); every other
+# style appends a "# Writing style" block, mirroring ``language_directive``.
+
+DEFAULT_AI_STYLE = "balanced"
+
+AI_STYLES: dict[str, str] = {
+    "balanced": "",
+    "simple": (
+        "Explain everything in plain, everyday wording as if to a beginner: "
+        "short sentences, define each technical term the first time it "
+        "appears, and use intuitive examples or analogies. Prefer clarity "
+        "over brevity."
+    ),
+    "technical": (
+        "Write for an advanced student: use precise, field-standard "
+        "terminology and rigorous, formal statements; keep full technical "
+        "depth and do not simplify detail away. Skip beginner analogies."
+    ),
+    "discursive": (
+        "Write in a discursive, flowing style: connected paragraphs that walk "
+        "through the reasoning and link ideas together, as if explaining "
+        "aloud. Prefer prose over bullet lists (this overrides the list-first "
+        "formatting rule); keep lists only for genuinely enumerable items."
+    ),
+    "concise": (
+        "Be as compact as possible: prefer bullet points and short "
+        "declarative sentences over prose; no filler, hedging, or "
+        "restatement — every line must carry new information."
+    ),
+    "academic": (
+        "Write in a formal academic register: professional, impersonal tone, "
+        "precise wording, and well-structured argumentation; no "
+        "colloquialisms."
+    ),
+}
+
+
+def normalize_ai_style(style: str | None) -> str:
+    """Coerce a writing style to a supported one, defaulting to "balanced"."""
+    return style if style in AI_STYLES else DEFAULT_AI_STYLE
+
+
+def style_directive(ai_style: str | None) -> str:
+    """Prompt block steering the writing style, or "" for the default.
+
+    Applies to ALL generated human-readable content — the wording of notes,
+    questions, explanations, and flashcards — not to the JSON structure.
+    """
+    text = AI_STYLES[normalize_ai_style(ai_style)]
+    if not text:
+        return ""
+    return (
+        "\n# Writing style\nApply this style to all generated content (notes, "
+        f"explanations, flashcards):\n{text}\n"
+    )
+
+
 def clamp_note_length(note_length: int) -> int:
     """Clamp a requested note length into the supported 1-10 page range."""
     return max(MIN_NOTE_LENGTH, min(MAX_NOTE_LENGTH, note_length))
@@ -239,6 +382,8 @@ def build_generation_prompt(
     mode: DocumentMode = DocumentMode.study,
     note_length: int = DEFAULT_NOTE_LENGTH,
     language: str = DEFAULT_LANGUAGE,
+    study_field: str = DEFAULT_STUDY_FIELD,
+    ai_style: str = DEFAULT_AI_STYLE,
 ) -> str:
     """Prompt for the single generation call, grounded in the topic's source.
 
@@ -249,13 +394,17 @@ def build_generation_prompt(
     is ignored) and asks for a denser assessment. The shape is spelled out inline
     so providers without native JSON-schema support still return the right
     structure. ``language`` (en|it|es) sets the language of the generated content;
-    English adds no directive.
+    English adds no directive. ``study_field`` picks the tutor persona and notes
+    coverage for the student's discipline; ``ai_style`` steers the wording
+    ("balanced" adds no directive).
     """
     lang_rule = language_directive(language)
     length_rule = _notes_length_rule(note_length)
+    profile = field_profile(study_field)
+    style_rule = style_directive(ai_style)
     if mode is DocumentMode.exam:
         return (
-            "You are an expert engineering tutor preparing a student for an exam. "
+            f"You are {profile.persona} preparing a student for an exam. "
             "From the source material for ONE topic, produce a thorough assessment "
             "of the material as a single JSON object.\n\n"
             "Respond with ONLY a JSON object of this exact shape (no prose, no code "
@@ -269,12 +418,12 @@ def build_generation_prompt(
             "- flashcards: 10-15 flashcards grounded in the source.\n"
             f"{_ASSESSMENT_MATH_RULE}"
             "- Do not invent material the source does not support.\n"
-            f"{lang_rule}\n"
+            f"{style_rule}{lang_rule}\n"
             f"# Topic\n{topic_title}\n\n"
             f"# Source material\n{source_text}\n"
         )
     return (
-        "You are an expert engineering tutor. From the source material for ONE "
+        f"You are {profile.persona}. From the source material for ONE "
         "topic, produce BOTH dense, exam-useful study notes AND an assessment of "
         "the material, in a single JSON object.\n\n"
         "Respond with ONLY a JSON object of this exact shape (no prose, no code "
@@ -283,8 +432,8 @@ def build_generation_prompt(
         '"mcqs": [{"question": str, "options": [str, ...], '
         '"correct_index": int, "explanation": str}], '
         '"flashcards": [{"front": str, "back": str}]}\n'
-        "- notes_md: Well-structured Markdown notes covering the key concepts, "
-        "definitions, and formulas; concise but complete; do not invent material "
+        f"- notes_md: Well-structured Markdown notes covering {profile.coverage}; "
+        "concise but complete; do not invent material "
         "the source does not support. Formatting rules (follow exactly):\n"
         f"{length_rule}"
         f"{_NOTES_FORMAT_RULES}"
@@ -292,7 +441,7 @@ def build_generation_prompt(
         "at least 2 options and a correct_index pointing to the right option.\n"
         "- flashcards: 5-10 flashcards grounded in the notes.\n"
         f"{_ASSESSMENT_MATH_RULE}"
-        f"{lang_rule}\n"
+        f"{style_rule}{lang_rule}\n"
         f"# Topic\n{topic_title}\n\n"
         f"# Source material\n{source_text}\n"
     )
@@ -588,10 +737,12 @@ def build_more_mcqs_prompt(
     existing_questions: list[str],
     *,
     language: str = DEFAULT_LANGUAGE,
+    study_field: str = DEFAULT_STUDY_FIELD,
+    ai_style: str = DEFAULT_AI_STYLE,
 ) -> str:
     """Prompt for ADDITIONAL MCQs only, distinct from the existing ones."""
     return (
-        "You are an expert engineering tutor. Write ADDITIONAL exam-style "
+        f"You are {field_profile(study_field).persona}. Write ADDITIONAL exam-style "
         "multiple-choice questions for ONE topic, grounded in the source material "
         "and DISTINCT from the questions already written.\n\n"
         "Respond with ONLY a JSON object of this exact shape (no prose, no code "
@@ -600,6 +751,7 @@ def build_more_mcqs_prompt(
         "- 8-12 NEW questions; each with at least 2 options, a correct_index "
         "pointing to the right option, and a clear explanation.\n"
         "- Do not invent material the source does not support.\n"
+        f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"{_existing_block('questions', existing_questions)}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
@@ -612,16 +764,19 @@ def build_more_flashcards_prompt(
     existing_fronts: list[str],
     *,
     language: str = DEFAULT_LANGUAGE,
+    study_field: str = DEFAULT_STUDY_FIELD,
+    ai_style: str = DEFAULT_AI_STYLE,
 ) -> str:
     """Prompt for ADDITIONAL flashcards only, distinct from the existing ones."""
     return (
-        "You are an expert engineering tutor. Write ADDITIONAL flashcards for ONE "
+        f"You are {field_profile(study_field).persona}. Write ADDITIONAL flashcards for ONE "
         "topic, grounded in the source material and DISTINCT from the flashcards "
         "already written.\n\n"
         "Respond with ONLY a JSON object of this exact shape (no prose, no code "
         'fences):\n{"flashcards": [{"front": str, "back": str}]}\n'
         "- 8-12 NEW flashcards.\n"
         "- Do not invent material the source does not support.\n"
+        f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"{_existing_block('flashcard fronts', existing_fronts)}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
@@ -655,6 +810,8 @@ def build_regenerate_notes_prompt(
     *,
     note_length: int = DEFAULT_NOTE_LENGTH,
     language: str = DEFAULT_LANGUAGE,
+    study_field: str = DEFAULT_STUDY_FIELD,
+    ai_style: str = DEFAULT_AI_STYLE,
     instructions: str | None = None,
 ) -> str:
     """Prompt to rewrite ONE topic's notes from its source, optionally guided.
@@ -672,17 +829,19 @@ def build_regenerate_notes_prompt(
             "source and never inventing material the source does not support:\n"
             f"{instructions.strip()}\n"
         )
+    profile = field_profile(study_field)
     return (
-        "You are an expert engineering tutor. Rewrite the study notes for ONE "
+        f"You are {profile.persona}. Rewrite the study notes for ONE "
         "topic from the source material as a fresh, improved version, returned as "
         "a single JSON object.\n\n"
         "Respond with ONLY a JSON object of this exact shape (no prose, no code "
         'fences):\n{"notes_md": str}\n'
-        "- notes_md: Well-structured Markdown notes covering the key concepts, "
-        "definitions, and formulas; concise but complete; do not invent material "
+        f"- notes_md: Well-structured Markdown notes covering {profile.coverage}; "
+        "concise but complete; do not invent material "
         "the source does not support. Formatting rules (follow exactly):\n"
         f"{_notes_length_rule(note_length)}"
         f"{_NOTES_FORMAT_RULES}"
+        f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"{feedback_block}"
         f"\n# Topic\n{topic_title}\n\n# Source material\n{source_text}\n"
@@ -700,6 +859,8 @@ def build_consolidate_notes_prompt(
     notes_md: str,
     *,
     language: str = DEFAULT_LANGUAGE,
+    study_field: str = DEFAULT_STUDY_FIELD,
+    ai_style: str = DEFAULT_AI_STYLE,
 ) -> str:
     """Prompt to rewrite a merged topic's concatenated notes as ONE document.
 
@@ -711,7 +872,7 @@ def build_consolidate_notes_prompt(
     regeneration call (``NOTES_ONLY_SCHEMA`` / ``parse_notes_only``).
     """
     return (
-        "You are an expert engineering tutor. The study notes below were merged "
+        f"You are {field_profile(study_field).persona}. The study notes below were merged "
         "from several overlapping note sets about the same subject. Rewrite them "
         "as ONE coherent, deduplicated set of notes, returned as a single JSON "
         "object.\n\n"
@@ -722,6 +883,7 @@ def build_consolidate_notes_prompt(
         "formula, and example that appears in ANY of the note sets; do not "
         "invent new material. Formatting rules (follow exactly):\n"
         f"{_NOTES_FORMAT_RULES}"
+        f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"\n# Topic\n{topic_title}\n\n# Notes to merge\n{notes_md}\n"
     )
@@ -778,12 +940,24 @@ def _resolve_language(session: Session) -> str:
     return normalize_language(get_settings(session).language)
 
 
+def _resolve_study_field(session: Session) -> str:
+    """The user's configured field of study, normalized."""
+    return normalize_study_field(get_settings(session).study_field)
+
+
+def _resolve_ai_style(session: Session) -> str:
+    """The user's configured writing style, normalized."""
+    return normalize_ai_style(get_settings(session).ai_style)
+
+
 def make_generation_processor(
     waterfall: Waterfall,
     *,
     source_loader: SourceLoader = load_topic_source,
     note_length: int | None = None,
     language: str | None = None,
+    study_field: str | None = None,
+    ai_style: str | None = None,
     max_tokens: int | None = None,
     exam_max_tokens: int = EXAM_GENERATION_MAX_TOKENS,
 ) -> Callable[[QueueJob, Session], ProviderResult]:
@@ -802,6 +976,8 @@ def make_generation_processor(
     without rebuilding the processor. ``language`` (en|it|es) sets the generated
     content's language; ``None`` reads it from ``Settings`` per job (same rationale
     as ``note_length`` — not a provider-identity concern, so no cache rebuild).
+    ``study_field`` and ``ai_style`` steer the tutor persona / notes coverage and
+    the writing style; ``None`` likewise reads them from ``Settings`` per job.
     ``max_tokens`` overrides the computed study ceiling when given.
     """
 
@@ -811,6 +987,8 @@ def make_generation_processor(
         is_exam = mode is DocumentMode.exam
         length = note_length if note_length is not None else _resolve_note_length(session)
         lang = language if language is not None else _resolve_language(session)
+        field = study_field if study_field is not None else _resolve_study_field(session)
+        style = ai_style if ai_style is not None else _resolve_ai_style(session)
         # Exam mode has no notes, so its source window stays at the fixed default;
         # study mode scales the window with the requested note length.
         if source_loader is load_topic_source:
@@ -819,7 +997,13 @@ def make_generation_processor(
         else:
             source = source_loader(session, topic)
         prompt = build_generation_prompt(
-            topic.title, source, mode=mode, note_length=length, language=lang
+            topic.title,
+            source,
+            mode=mode,
+            note_length=length,
+            language=lang,
+            study_field=field,
+            ai_style=style,
         )
         study_cap = max_tokens if max_tokens is not None else study_max_tokens(length)
         result = waterfall.generate(

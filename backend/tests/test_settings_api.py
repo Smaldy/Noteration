@@ -112,6 +112,36 @@ def test_http_patch_rejects_out_of_range_note_length(client: TestClient) -> None
     assert client.patch("/api/settings", json={"note_length": 11}).status_code == 422
 
 
+# --- study field + writing style --------------------------------------------- #
+
+
+def test_http_get_study_field_and_style_defaults(client: TestClient) -> None:
+    settings = client.get("/api/settings").json()
+    assert settings["study_field"] == "general"
+    assert settings["ai_style"] == "balanced"
+
+
+def test_http_patch_sets_study_field_and_style(client: TestClient) -> None:
+    response = client.patch(
+        "/api/settings", json={"study_field": "humanities", "ai_style": "discursive"}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["study_field"] == "humanities"
+    assert body["ai_style"] == "discursive"
+
+
+def test_http_patch_rejects_unknown_study_field_and_style(client: TestClient) -> None:
+    assert (
+        client.patch("/api/settings", json={"study_field": "astrology"}).status_code
+        == 422
+    )
+    assert (
+        client.patch("/api/settings", json={"ai_style": "shakespearean"}).status_code
+        == 422
+    )
+
+
 # --- Gemini rotation + enable, Ollama model --------------------------------- #
 
 

@@ -13,7 +13,14 @@ import {
 import type { ComponentType } from "react";
 
 import type { Language } from "@/i18n";
-import type { CalendarSlot, GeminiModel, Settings, Theme } from "@/types/settings";
+import type {
+  AIStyle,
+  CalendarSlot,
+  GeminiModel,
+  Settings,
+  StudyField,
+  Theme,
+} from "@/types/settings";
 
 export interface FormState {
   allow_paid: boolean;
@@ -24,6 +31,8 @@ export interface FormState {
   gemini_model: GeminiModel;
   per_document_token_budget: number;
   note_length: number;
+  study_field: StudyField;
+  ai_style: AIStyle;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   calendar_day_start_hour: number;
@@ -107,6 +116,39 @@ export function modelLabel(value: GeminiModel): string {
   return GEMINI_MODELS.find((m) => m.value === value)?.label ?? value;
 }
 
+// Fields of study the AI tutor can be tuned to (mirrors backend STUDY_FIELDS).
+// Labels + hints are localized under settings.generation.fields.<value>.
+export const STUDY_FIELD_VALUES: StudyField[] = [
+  "general",
+  "engineering",
+  "mathematics",
+  "natural_sciences",
+  "medicine",
+  "law",
+  "economics",
+  "humanities",
+  "languages",
+];
+
+// Writing styles for generated content (mirrors backend AI_STYLES). Labels +
+// hints are localized under settings.generation.styles.<value>.
+export const AI_STYLE_VALUES: AIStyle[] = [
+  "balanced",
+  "simple",
+  "technical",
+  "discursive",
+  "concise",
+  "academic",
+];
+
+function isStudyField(v: string): v is StudyField {
+  return (STUDY_FIELD_VALUES as string[]).includes(v);
+}
+
+function isAIStyle(v: string): v is AIStyle {
+  return (AI_STYLE_VALUES as string[]).includes(v);
+}
+
 // Curated accent palette (hex drives the whole derived palette live). `key`
 // indexes the localized color name under settings.appearance.colors.
 export const PRESET_ACCENTS: { key: string; hex: string }[] = [
@@ -165,6 +207,8 @@ export function toForm(s: Settings): FormState {
     gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",
     per_document_token_budget: s.per_document_token_budget,
     note_length: s.note_length ?? 3,
+    study_field: isStudyField(s.study_field) ? s.study_field : "general",
+    ai_style: isAIStyle(s.ai_style) ? s.ai_style : "balanced",
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
     calendar_day_start_hour: s.calendar_day_start_hour,

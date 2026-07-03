@@ -708,7 +708,30 @@
     },
     "generation": {
       "title": "Note generation",
-      "description": "How much content the AI generates per topic.",
+      "description": "What the AI tutor specialises in, how it writes, and how much it generates per topic.",
+      "studyFieldLabel": "Field of study",
+      "studyFieldHint": "Adapts the AI tutor to your discipline, so engineering notes focus on formulas, literature notes on themes and context, and law notes on cases.",
+      "fields": {
+        "general": { "label": "General", "hint": "Neutral tutor, works for any subject" },
+        "engineering": { "label": "Engineering & tech", "hint": "Formulas, definitions, applications" },
+        "mathematics": { "label": "Mathematics", "hint": "Theorems, proofs, worked examples" },
+        "natural_sciences": { "label": "Natural sciences", "hint": "Mechanisms, processes, evidence" },
+        "medicine": { "label": "Medicine & health", "hint": "Mechanisms, classifications, clinical relevance" },
+        "law": { "label": "Law", "hint": "Principles, statutes, cases, exceptions" },
+        "economics": { "label": "Economics & business", "hint": "Models, assumptions, real-world examples" },
+        "humanities": { "label": "Humanities", "hint": "Themes, authors and historical context for literature, history and philosophy" },
+        "languages": { "label": "Languages", "hint": "Vocabulary, grammar, usage examples" }
+      },
+      "styleLabel": "Explanation style",
+      "styleHint": "How the AI words the notes, quiz explanations, and flashcards.",
+      "styles": {
+        "balanced": { "label": "Balanced", "hint": "Clear and exam-focused (default)" },
+        "simple": { "label": "Easy wording", "hint": "Plain language, every term explained, analogies" },
+        "technical": { "label": "Technical", "hint": "Precise terminology, full rigor, no simplifying" },
+        "discursive": { "label": "Discursive", "hint": "Flowing prose that walks through the reasoning" },
+        "concise": { "label": "Concise", "hint": "Compact bullet points, zero filler" },
+        "academic": { "label": "Academic", "hint": "Formal, professional register" }
+      },
       "notesLength_one": "Notes length: {{count}} page per topic",
       "notesLength_other": "Notes length: {{count}} pages per topic",
       "brief": "Brief",

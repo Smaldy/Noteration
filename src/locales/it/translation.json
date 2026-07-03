@@ -708,7 +708,30 @@
     },
     "generation": {
       "title": "Generazione appunti",
-      "description": "Quanto contenuto genera l'IA per ogni argomento.",
+      "description": "In cosa è specializzato il tutor IA, come scrive e quanto contenuto genera per argomento.",
+      "studyFieldLabel": "Campo di studio",
+      "studyFieldHint": "Adatta il tutor IA alla tua disciplina: gli appunti di ingegneria puntano sulle formule, quelli di letteratura su temi e contesto, quelli di giurisprudenza sui casi.",
+      "fields": {
+        "general": { "label": "Generale", "hint": "Tutor neutro, adatto a qualsiasi materia" },
+        "engineering": { "label": "Ingegneria e tecnologia", "hint": "Formule, definizioni, applicazioni" },
+        "mathematics": { "label": "Matematica", "hint": "Teoremi, dimostrazioni, esempi svolti" },
+        "natural_sciences": { "label": "Scienze naturali", "hint": "Meccanismi, processi, evidenze" },
+        "medicine": { "label": "Medicina e salute", "hint": "Meccanismi, classificazioni, rilevanza clinica" },
+        "law": { "label": "Giurisprudenza", "hint": "Principi, norme, casi, eccezioni" },
+        "economics": { "label": "Economia e impresa", "hint": "Modelli, ipotesi, esempi reali" },
+        "humanities": { "label": "Discipline umanistiche", "hint": "Temi, autori e contesto storico per letteratura, storia e filosofia" },
+        "languages": { "label": "Lingue", "hint": "Vocabolario, grammatica, esempi d'uso" }
+      },
+      "styleLabel": "Stile delle spiegazioni",
+      "styleHint": "Come l'IA formula appunti, spiegazioni dei quiz e flashcard.",
+      "styles": {
+        "balanced": { "label": "Equilibrato", "hint": "Chiaro e orientato all'esame (predefinito)" },
+        "simple": { "label": "Linguaggio semplice", "hint": "Parole semplici, ogni termine spiegato, analogie" },
+        "technical": { "label": "Tecnico", "hint": "Terminologia precisa, massimo rigore, nessuna semplificazione" },
+        "discursive": { "label": "Discorsivo", "hint": "Prosa fluida che accompagna il ragionamento" },
+        "concise": { "label": "Conciso", "hint": "Elenchi puntati compatti, zero riempitivi" },
+        "academic": { "label": "Accademico", "hint": "Registro formale e professionale" }
+      },
       "notesLength_one": "Lunghezza appunti: {{count}} pagina per argomento",
       "notesLength_other": "Lunghezza appunti: {{count}} pagine per argomento",
       "brief": "Breve",

@@ -8,6 +8,25 @@ export type GeminiModel =
   | "gemini-3.5-flash";
 export type CalendarSlot = 15 | 30 | 60 | 90 | 120;
 export type Language = "en" | "it" | "es";
+/** The student's field of study — sets the AI tutor persona and notes coverage. */
+export type StudyField =
+  | "general"
+  | "engineering"
+  | "mathematics"
+  | "natural_sciences"
+  | "medicine"
+  | "law"
+  | "economics"
+  | "humanities"
+  | "languages";
+/** How the AI words generated content; "balanced" adds no directive. */
+export type AIStyle =
+  | "balanced"
+  | "simple"
+  | "technical"
+  | "discursive"
+  | "concise"
+  | "academic";
 
 export interface Settings {
   allow_paid: boolean;
@@ -31,6 +50,8 @@ export interface Settings {
   font_family: string | null;
   font_size: number;
   language: string;
+  study_field: string;
+  ai_style: string;
   gemini_key_set: boolean;
   claude_key_set: boolean;
 }
@@ -59,4 +80,6 @@ export interface SettingsUpdate {
   font_family?: string | null;
   font_size?: number;
   language?: Language;
+  study_field?: StudyField;
+  ai_style?: AIStyle;
 }
