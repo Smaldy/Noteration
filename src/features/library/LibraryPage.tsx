@@ -170,7 +170,6 @@ export function LibraryPage() {
   // Top-level destinations, rendered identically; settings collapses to icon-only.
   const navItems = [
     { sector: "exam", icon: GraduationCap, label: t("nav.examPrep"), to: "/exam" },
-    { sector: "bookmarks", icon: Bookmark, label: t("nav.bookmarks"), to: "/bookmarks" },
     { sector: "calendar", icon: CalendarDays, label: t("nav.calendar"), to: "/calendar" },
     { sector: "queue", icon: ListChecks, label: t("nav.queue"), to: "/queue" },
   ] as const;

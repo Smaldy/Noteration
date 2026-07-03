@@ -23,7 +23,6 @@ function named<K extends string>(
 const LibraryPage = named(() => import("@/features/library/LibraryPage"), "LibraryPage");
 const ExamPrepPage = named(() => import("@/features/exam/ExamPrepPage"), "ExamPrepPage");
 const ExamPracticePage = named(() => import("@/features/exam/ExamPracticePage"), "ExamPracticePage");
-const BookmarksPage = named(() => import("@/features/bookmarks/BookmarksPage"), "BookmarksPage");
 const CalendarPage = named(() => import("@/features/calendar/CalendarPage"), "CalendarPage");
 const QueuePage = named(() => import("@/features/queue/QueuePage"), "QueuePage");
 const SettingsPage = named(() => import("@/features/settings/SettingsPage"), "SettingsPage");
@@ -61,7 +60,6 @@ export default function App() {
               <Route path="/exam" element={<ExamPrepPage />} />
               <Route path="/duplicator" element={<DuplicatorPage />} />
               <Route path="/exam/practice/:scope/:id" element={<ExamPracticePage />} />
-              <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/queue" element={<QueuePage />} />
               <Route path="/settings" element={<SettingsPage />} />

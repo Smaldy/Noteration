@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 /** One container per page: centered, fixed side padding, entrance rise.
  *  Widths are semantic — reading columns are narrow, grids/boards go wider. */
 const WIDTHS = {
-  narrow: "max-w-3xl", // single reading column (queue, bookmarks, review)
+  narrow: "max-w-3xl", // single reading column (queue, review)
   default: "max-w-5xl", // card grids (library, exam prep)
   wide: "max-w-6xl", // sidebar + content (study)
   xl: "max-w-7xl", // dense boards (duplicator)

@@ -254,7 +254,7 @@ Grouped by aggregate, all re-exported from `models/__init__.py`:
 - **content** — `Note` (markdown; `is_manual`/`locked`/`stale`), `Formula`
   (LaTeX, `pending`/`reconstructed`/`verified`, bbox), `MCQ`, `Flashcard`
   (SM-2 fields: ease factor, interval, repetitions, due date), `SourcePage`,
-  `NoteAttachment`, `Bookmark`.
+  `NoteAttachment`.
 - **processing** — `QueueJob` (persistent queue state: stage, attempts,
   `assigned_provider`, `resume_after`, tokens; nullable topic + `exercise_id`
   for search jobs), `ProviderState` (accumulated cost/tokens), `HistoryEvent`.

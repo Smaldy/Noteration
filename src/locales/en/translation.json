@@ -7,7 +7,6 @@
   },
   "nav": {
     "examPrep": "Exam Prep",
-    "bookmarks": "Bookmarks",
     "calendar": "Calendar",
     "queue": "Queue",
     "settings": "Settings",
@@ -262,12 +261,6 @@
     }
   },
   "bookmarks": {
-    "title": "Bookmarks",
-    "subtitle": "Your saved subjects and topics, ready to jump back into.",
-    "emptyTitle": "No bookmarks yet",
-    "emptyDesc": "Tap the bookmark icon on a subject in your library or a topic in the study view to pin it here.",
-    "subjects": "Subjects",
-    "topics": "Topics",
     "remove": "Remove bookmark",
     "add": "Bookmark",
     "removeFrom": "Remove bookmark from {{label}}",

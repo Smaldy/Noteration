@@ -13,11 +13,11 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.migrate import run_migrations
 from backend.routers import (
     arcade,
     assessment,
     attachments,
-    bookmarks,
     chapters,
     documents,
     duplicator,
@@ -29,7 +29,6 @@ from backend.routers import (
     subjects,
     topics,
 )
-from backend.migrate import run_migrations
 from backend.security import install_local_origin_guard
 from backend.services.pipeline.ingestion import purge_legacy_chapter_cache
 from backend.services.transcription_worker import TranscriptionWorker
@@ -90,7 +89,6 @@ api.include_router(queue.router)
 api.include_router(study.router)
 api.include_router(settings.router)
 api.include_router(search.router)
-api.include_router(bookmarks.router)
 api.include_router(assessment.router)
 api.include_router(attachments.router)
 api.include_router(duplicator.router)

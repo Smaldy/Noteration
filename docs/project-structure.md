@@ -32,7 +32,7 @@ backend/
 ├── alembic.ini
 ├── requirements.txt
 ├── routers/            ← thin HTTP handlers, one per domain (documents, topics, notes,
-│                         study, queue, settings, subjects, chapters, search, bookmarks,
+│                         study, queue, settings, subjects, chapters, search,
 │                         assessment, attachments, arcade, duplicator)
 ├── schemas/            ← Pydantic request/response models, mirroring the routers
 ├── services/           ← all business logic
@@ -47,7 +47,7 @@ backend/
 │   ├── scheduler.py    ← pure SM-2 + deadline mode
 │   ├── planner.py      ← AI study-plan generation
 │   └── …               ← documents, topics, notes, study, settings, subjects,
-│                         search, bookmarks, attachments, assessment, arcade,
+│                         search, attachments, assessment, arcade,
 │                         history, queue_view
 ├── models/             ← SQLAlchemy ORM, grouped by aggregate: hierarchy, content,
 │                         processing, schedule, settings, arcade, duplicator, enums
@@ -78,7 +78,7 @@ src/
 │   ├── exam/           ← exam prep + practice pages
 │   ├── duplicator/     ← exercise duplicator page, renderers/ (Plotly, matter-js,
 │   │                     force diagrams), latex.ts normalization
-│   ├── bookmarks/      ← bookmarks page + button
+│   ├── bookmarks/      ← shared bookmark toggle button
 │   ├── search/         ← full-text search bar
 │   ├── settings/       ← settings page (keys, providers, appearance)
 │   ├── pomodoro/       ← floating timer + synthesized audio

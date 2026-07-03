@@ -52,7 +52,7 @@ export type EnemyKind =
  * page and the sector together. Calendar and Queue are the themed sectors;
  * Pomodoro is intentionally absent (it's a main-tab overlay, not a page).
  */
-export type ArenaId = "library" | "exam" | "bookmarks" | "calendar" | "queue" | "settings";
+export type ArenaId = "library" | "exam" | "calendar" | "queue" | "settings";
 
 export interface Enemy {
   id: number;
@@ -296,14 +296,13 @@ export interface ArenaDef {
 /**
  * Every sector and the real route it maps to (`/` is the Library hub). Order is
  * the **unlock order**: library is always open, each later sector unlocks every
- * 5 waves (calendar@5, queue@10, exam@15, bookmarks@20, settings@25).
+ * 5 waves (calendar@5, queue@10, exam@15, settings@20).
  */
 export const ARENAS: ArenaDef[] = [
   { id: "library", label: "LIBRARY", route: "/", color: COLORS.green },
   { id: "calendar", label: "CALENDAR", route: "/calendar", color: COLORS.pink },
   { id: "queue", label: "QUEUE", route: "/queue", color: COLORS.yellow },
   { id: "exam", label: "EXAM PREP", route: "/exam", color: COLORS.cyan },
-  { id: "bookmarks", label: "BOOKMARKS", route: "/bookmarks", color: "#ffa94d" },
   { id: "settings", label: "SETTINGS", route: "/settings", color: "#b69cff" },
 ];
 
@@ -327,16 +326,14 @@ export function unlockedSectorIds(wave: number): ArenaId[] {
  * Which enemy types spawn in each sector. Library (always open) breeds the plain
  * cursor-hunting **hunter**; each unlocked sector adds its own special:
  * Calendar → Clock (spike rings), Queue → Hourglass (splitter), Exam → Beamer
- * (charged laser), Bookmarks → Dasher (telegraphed lunge), Settings → a Beamer/
- * Dasher/Clock mix. Each sector's first entry is its boss kind. (`shard` only
- * appears from a hourglass's death.)
+ * (charged laser), Settings → a Beamer/Dasher/Clock mix. Each sector's first
+ * entry is its boss kind. (`shard` only appears from a hourglass's death.)
  */
 export const ARENA_POOL: Record<ArenaId, EnemyKind[]> = {
   library: ["hunter"],
   calendar: ["clock", "hunter"],
   queue: ["hourglass", "hunter"],
   exam: ["beamer", "shooter"], // Exam Prep — laser sentinels (boss = beamer)
-  bookmarks: ["dasher", "hunter"], // Bookmarks — lunging stalkers (boss = dasher)
   settings: ["beamer", "dasher", "clock"],
 };
 

@@ -7,7 +7,6 @@
   },
   "nav": {
     "examPrep": "Preparación de examen",
-    "bookmarks": "Favoritos",
     "calendar": "Calendario",
     "queue": "Cola",
     "settings": "Ajustes",
@@ -262,12 +261,6 @@
     }
   },
   "bookmarks": {
-    "title": "Favoritos",
-    "subtitle": "Tus asignaturas y temas guardados, listos para retomar.",
-    "emptyTitle": "Aún no hay favoritos",
-    "emptyDesc": "Toca el icono de favorito en una asignatura de tu biblioteca o en un tema de la vista de estudio para fijarlo aquí.",
-    "subjects": "Asignaturas",
-    "topics": "Temas",
     "remove": "Quitar de favoritos",
     "add": "Añadir a favoritos",
     "removeFrom": "Quitar {{label}} de favoritos",

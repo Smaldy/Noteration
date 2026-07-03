@@ -7,7 +7,6 @@
   },
   "nav": {
     "examPrep": "Preparazione esame",
-    "bookmarks": "Preferiti",
     "calendar": "Calendario",
     "queue": "Coda",
     "settings": "Impostazioni",
@@ -262,12 +261,6 @@
     }
   },
   "bookmarks": {
-    "title": "Preferiti",
-    "subtitle": "Le tue materie e i tuoi argomenti salvati, pronti per riprendere.",
-    "emptyTitle": "Ancora nessun preferito",
-    "emptyDesc": "Tocca l'icona del segnalibro su una materia nella libreria o su un argomento nella vista di studio per aggiungerlo qui.",
-    "subjects": "Materie",
-    "topics": "Argomenti",
     "remove": "Rimuovi dai preferiti",
     "add": "Aggiungi ai preferiti",
     "removeFrom": "Rimuovi {{label}} dai preferiti",
