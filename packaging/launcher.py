@@ -15,6 +15,7 @@ sets ``sys.frozen``); ``backend.paths`` decides where data lives in each case.
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 import threading
@@ -160,8 +161,39 @@ def _setup_logging() -> None:
     print(f"\n--- Noteration launch {time.strftime('%Y-%m-%d %H:%M:%S')} (data: {DATA_DIR}) ---")
 
 
+def _redirect_std_if_detached(path: str | None) -> None:
+    """Guarantee ``sys.stdout``/``sys.stderr`` are writable before the selftest.
+
+    The shipped build is windowed, and on Windows a windowed PyInstaller app
+    detaches the standard streams — they come back as ``None``. ``_selftest``
+    prints as it goes, so that first ``print`` would raise ``AttributeError``
+    and the process would exit non-zero before running a single check (which is
+    exactly why the frozen ``--selftest`` failed on Windows with no output).
+    macOS/Linux keep the streams attached, so this is a no-op there.
+
+    Prefer a caller-supplied log path (CI points ``NOTERATION_SELFTEST_LOG`` at
+    a file it reads back for diagnostics); fall back to devnull so a bad path
+    can never turn a healthy build red.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        stream = (
+            open(path, "a", buffering=1, encoding="utf-8")
+            if path
+            else open(os.devnull, "w", encoding="utf-8")
+        )
+    except OSError:
+        stream = open(os.devnull, "w", encoding="utf-8")
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
+
+
 def main() -> int:
     if "--selftest" in sys.argv:
+        _redirect_std_if_detached(os.environ.get("NOTERATION_SELFTEST_LOG"))
         return _selftest()
 
     _setup_logging()

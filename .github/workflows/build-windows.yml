@@ -57,8 +57,13 @@ jobs:
         run: |
           $exe = "packaging/dist/Noteration/Noteration.exe"
           if (-not (Test-Path $exe)) { throw "App binary missing at $exe" }
+          # The windowed build has no stdout on Windows, so point the selftest
+          # at a log file and echo it — otherwise a failure is invisible here.
+          $env:NOTERATION_SELFTEST_LOG = "$PWD/selftest.log"
           & $exe --selftest
-          if ($LASTEXITCODE -ne 0) { throw "Self-test failed" }
+          $code = $LASTEXITCODE
+          if (Test-Path $env:NOTERATION_SELFTEST_LOG) { Get-Content $env:NOTERATION_SELFTEST_LOG }
+          if ($code -ne 0) { throw "Self-test failed" }
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
