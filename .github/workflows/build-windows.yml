@@ -57,13 +57,14 @@ jobs:
         run: |
           $exe = "packaging/dist/Noteration/Noteration.exe"
           if (-not (Test-Path $exe)) { throw "App binary missing at $exe" }
-          # The windowed build has no stdout on Windows, so point the selftest
-          # at a log file and echo it — otherwise a failure is invisible here.
+          # The bundle is a windowed (GUI-subsystem) app: `& $exe` does not wait
+          # for it and never captures its real exit code, so use Start-Process
+          # -Wait -PassThru. And since a windowed app has no stdout on Windows,
+          # point the selftest at a log file and echo it for diagnostics.
           $env:NOTERATION_SELFTEST_LOG = "$PWD/selftest.log"
-          & $exe --selftest
-          $code = $LASTEXITCODE
+          $proc = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow
           if (Test-Path $env:NOTERATION_SELFTEST_LOG) { Get-Content $env:NOTERATION_SELFTEST_LOG }
-          if ($code -ne 0) { throw "Self-test failed" }
+          if ($proc.ExitCode -ne 0) { throw "Self-test failed (exit $($proc.ExitCode))" }
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
