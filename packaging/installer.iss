@@ -8,7 +8,7 @@
 ; left behind on uninstall (notes/DB), with an optional checkbox to wipe it.
 
 #define AppName "Noteration"
-#define AppVersion "0.1.2"
+#define AppVersion "0.2.0"
 #define AppPublisher "Noteration"
 #define AppExeName "Noteration.exe"
 #define BundleDir "dist\Noteration"
