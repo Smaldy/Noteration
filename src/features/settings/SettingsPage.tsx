@@ -143,17 +143,17 @@ export function SettingsPage() {
   }
 
   function jumpTo(id: string) {
+    const scrollToSection = () => {
+      setActive(id);
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
     if (sectionPrefs.hidden.includes(id)) {
       // Jumping to a hidden section reveals it, then scrolls once it mounts.
       toggleHidden(id);
-      setTimeout(() => {
-        setActive(id);
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 60);
+      setTimeout(scrollToSection, 60);
       return;
     }
-    setActive(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToSection();
   }
 
   function toggleHidden(id: string) {

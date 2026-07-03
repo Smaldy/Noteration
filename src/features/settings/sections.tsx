@@ -52,6 +52,13 @@ import {
   type SetField,
 } from "./form";
 
+// Selected vs. unselected styling shared by every option-card picker below
+// (model grid, study-field/style grids, font picker).
+const cardState = (active: boolean) =>
+  active
+    ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
+    : "text-muted-foreground hover:border-ring/40 hover:text-foreground";
+
 export function ApiKeysSection({
   settings,
   geminiKey,
@@ -251,9 +258,7 @@ function ModelGrid({
             onClick={() => onChange(m.value)}
             className={cn(
               "rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
-              active
-                ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
-                : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+              cardState(active),
             )}
           >
             <span className="block text-sm font-medium">{m.label}</span>
@@ -293,9 +298,7 @@ function ChoiceGrid<V extends string>({
             onClick={() => onChange(v)}
             className={cn(
               "rounded-xl border px-3 py-2 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
-              active
-                ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
-                : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+              cardState(active),
             )}
           >
             <span className="block text-sm font-medium">
@@ -528,7 +531,7 @@ function FontPicker({ form, set }: { form: FormState; set: SetField }) {
       <Segmented
         group="font-target"
         value={target}
-        onChange={(v) => setTarget(v)}
+        onChange={setTarget}
         options={[
           { value: "titles", label: t("settings.appearance.fontTitles") },
           { value: "text", label: t("settings.appearance.fontText") },
@@ -544,9 +547,7 @@ function FontPicker({ form, set }: { form: FormState; set: SetField }) {
             className={cn(
               "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95",
               forTitles && "font-semibold",
-              current === f.value
-                ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
-                : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+              cardState(current === f.value),
             )}
           >
             {f.label}
