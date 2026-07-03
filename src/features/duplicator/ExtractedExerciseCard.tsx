@@ -1,4 +1,6 @@
 import { ChevronRight, Loader2, Maximize2, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import { MarkdownView } from "@/components/MarkdownView";
 import { Badge } from "@/components/ui/badge";
@@ -10,23 +12,30 @@ import { formatProblem } from "./latex";
 import { VizRouter } from "./renderers/VizRouter";
 
 /** A short, glanceable summary of the variant-search state for the card footer. */
-function variantSummary(exercise: ExtractedExercise) {
+function variantSummary(exercise: ExtractedExercise, t: TFunction) {
   const n = exercise.results.length;
   switch (exercise.status) {
     case "pending":
-      return { label: "Queued for variants", tone: "muted", spinning: false };
+      return { label: t("duplicator.card.queued"), tone: "muted", spinning: false };
     case "searching":
       return {
-        label: n > 0 ? `${n} so far · searching` : "Searching variants",
+        label:
+          n > 0
+            ? t("duplicator.card.searchingCount", { count: n })
+            : t("duplicator.card.searching"),
         tone: "muted",
         spinning: true,
       };
     case "error":
-      return { label: "Variant search failed", tone: "error", spinning: false };
+      return { label: t("duplicator.card.searchFailed"), tone: "error", spinning: false };
     default:
       return n > 0
-        ? { label: `${n} variant${n === 1 ? "" : "s"}`, tone: "accent", spinning: false }
-        : { label: "No variants found", tone: "muted", spinning: false };
+        ? {
+            label: t("duplicator.card.variantCount", { count: n }),
+            tone: "accent",
+            spinning: false,
+          }
+        : { label: t("duplicator.card.noVariants"), tone: "muted", spinning: false };
   }
 }
 
@@ -48,7 +57,8 @@ export function ExtractedExerciseCard({
   onFocus: () => void;
   onRemove: () => void;
 }) {
-  const summary = variantSummary(exercise);
+  const { t } = useTranslation();
+  const summary = variantSummary(exercise, t);
 
   return (
     <Card className="group flex flex-col overflow-hidden transition-shadow hover:shadow-md">
@@ -67,21 +77,21 @@ export function ExtractedExerciseCard({
             <button
               type="button"
               onClick={onRemove}
-              title="Remove exercise"
-              aria-label="Remove exercise"
-              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              title={t("duplicator.actions.removeExercise")}
+              aria-label={t("duplicator.actions.removeExercise")}
+              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
               onClick={onFocus}
-              title="Open full screen"
-              aria-label="Open full screen"
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              title={t("duplicator.actions.openFullScreen")}
+              aria-label={t("duplicator.actions.openFullScreen")}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Maximize2 className="h-3.5 w-3.5" />
-              Focus
+              {t("duplicator.actions.focus")}
             </button>
           </div>
         </div>
@@ -113,7 +123,7 @@ export function ExtractedExerciseCard({
         <button
           type="button"
           onClick={onFocus}
-          className="mt-auto flex items-center justify-between gap-2 rounded-lg border border-border bg-background/60 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+          className="mt-auto flex items-center justify-between gap-2 rounded-lg border border-border bg-background/60 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span
             className={cn(

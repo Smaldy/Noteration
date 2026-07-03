@@ -7,6 +7,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { MarkdownView } from "@/components/MarkdownView";
 import { Button } from "@/components/ui/button";
@@ -29,9 +30,10 @@ interface Props {
 
 /** Difficulty meter, shared between the header and the body. */
 function DifficultyBar({ score }: { score: number }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground">Difficulty</span>
+      <span className="text-xs text-muted-foreground">{t("duplicator.result.difficulty")}</span>
       <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-primary"
@@ -57,6 +59,7 @@ function VariantBody({
   subtopic: string | null;
   yearLevel: number;
 }) {
+  const { t } = useTranslation();
   const { saved, saving, save } = useCalibrationSave(
     result,
     topic,
@@ -71,7 +74,7 @@ function VariantBody({
         <section className="focus-card focus-float fullscreen-zoom rounded-2xl p-6 sm:p-8">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Variant problem
+              {t("duplicator.focus.variantProblemHeading")}
             </span>
             {result.difficulty_score !== null && (
               <DifficultyBar score={result.difficulty_score} />
@@ -90,7 +93,7 @@ function VariantBody({
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View source
+                {t("duplicator.result.viewSource")}
               </a>
             ) : (
               <span />
@@ -104,11 +107,11 @@ function VariantBody({
             >
               {saved ? (
                 <>
-                  <Check className="h-3.5 w-3.5" /> Saved
+                  <Check className="h-3.5 w-3.5" /> {t("duplicator.result.saved")}
                 </>
               ) : (
                 <>
-                  <BookmarkPlus className="h-3.5 w-3.5" /> Save to calibration
+                  <BookmarkPlus className="h-3.5 w-3.5" /> {t("duplicator.result.saveToCalibration")}
                 </>
               )}
             </Button>
@@ -118,7 +121,7 @@ function VariantBody({
         {hasViz && (
           <section className="focus-card focus-float rounded-2xl p-4 sm:p-5 lg:sticky lg:top-6">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Visualization
+              {t("duplicator.focus.visualizationHeading")}
             </div>
             <VizRouter viz={result.viz} height={440} />
           </section>
@@ -142,6 +145,7 @@ export function VariantFocusDialog({
   onNavigate,
   onClose,
 }: Props) {
+  const { t } = useTranslation();
   const result = results[index];
   const total = results.length;
 
@@ -170,7 +174,7 @@ export function VariantFocusDialog({
     <div className="fullscreen-stage fixed inset-0 z-[60] flex flex-col" role="dialog" aria-modal="true">
       <header className="glass relative z-10 flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5 sm:px-6">
         <span className="text-sm font-semibold tabular-nums">
-          Variant {index + 1}
+          {t("duplicator.focus.variant", { current: index + 1 })}
           <span className="text-muted-foreground"> / {total}</span>
         </span>
         <div className="flex shrink-0 items-center gap-1">
@@ -179,7 +183,7 @@ export function VariantFocusDialog({
             size="icon"
             disabled={index === 0}
             onClick={() => onNavigate(index - 1)}
-            aria-label="Previous variant"
+            aria-label={t("duplicator.focus.previousVariant")}
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -188,11 +192,11 @@ export function VariantFocusDialog({
             size="icon"
             disabled={index === total - 1}
             onClick={() => onNavigate(index + 1)}
-            aria-label="Next variant"
+            aria-label={t("duplicator.focus.nextVariant")}
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close variant focus">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t("duplicator.focus.closeVariant")}>
             <X className="h-5 w-5" />
           </Button>
         </div>

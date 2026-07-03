@@ -6,6 +6,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { MarkdownView } from "@/components/MarkdownView";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export function ExerciseFocusDialog({
   onRemove,
   onFindMore,
 }: Props) {
+  const { t } = useTranslation();
   const exercise = exercises[index];
   const total = exercises.length;
 
@@ -72,7 +74,7 @@ export function ExerciseFocusDialog({
       <header className="glass relative z-10 flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-sm font-semibold tabular-nums">
-            Exercise {index + 1}
+            {t("duplicator.focus.exercise", { current: index + 1 })}
             <span className="text-muted-foreground"> / {total}</span>
           </span>
           <Badge variant="secondary" className="truncate">{exercise.topic}</Badge>
@@ -92,7 +94,7 @@ export function ExerciseFocusDialog({
             onClick={() => onFindMore(exercise.id)}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", searching && "animate-spin")} />
-            <span className="hidden sm:inline">Find more</span>
+            <span className="hidden sm:inline">{t("duplicator.focus.findMore")}</span>
           </Button>
           <Button
             variant="ghost"
@@ -101,7 +103,7 @@ export function ExerciseFocusDialog({
             onClick={() => onRemove(exercise.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Remove</span>
+            <span className="hidden sm:inline">{t("duplicator.focus.remove")}</span>
           </Button>
           <div className="mx-1 h-5 w-px bg-border" />
           <Button
@@ -109,7 +111,7 @@ export function ExerciseFocusDialog({
             size="icon"
             disabled={index === 0}
             onClick={() => onNavigate(index - 1)}
-            aria-label="Previous exercise"
+            aria-label={t("duplicator.focus.previousExercise")}
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -118,11 +120,11 @@ export function ExerciseFocusDialog({
             size="icon"
             disabled={index === total - 1}
             onClick={() => onNavigate(index + 1)}
-            aria-label="Next exercise"
+            aria-label={t("duplicator.focus.nextExercise")}
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close focus mode">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t("duplicator.focus.close")}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -140,7 +142,7 @@ export function ExerciseFocusDialog({
             {/* Description pane */}
             <section className="focus-card focus-float fullscreen-zoom rounded-2xl p-6 sm:p-8">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Problem
+                {t("duplicator.focus.problemHeading")}
               </div>
               {exercise.difficulty_signals.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-1.5">
@@ -163,7 +165,7 @@ export function ExerciseFocusDialog({
             {hasViz && (
               <section className="focus-card focus-float rounded-2xl p-4 sm:p-5 lg:sticky lg:top-6">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Visualization
+                  {t("duplicator.focus.visualizationHeading")}
                 </div>
                 <VizRouter viz={exercise.viz} height={440} />
               </section>

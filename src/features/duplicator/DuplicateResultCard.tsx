@@ -1,4 +1,5 @@
 import { BookmarkPlus, Check, ExternalLink, Maximize2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { MarkdownView } from "@/components/MarkdownView";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export function DuplicateResultCard({
   yearLevel,
   onFocus,
 }: Props) {
+  const { t } = useTranslation();
   const { saved, saving, save } = useCalibrationSave(
     result,
     topic,
@@ -37,12 +39,12 @@ export function DuplicateResultCard({
         <button
           type="button"
           onClick={onFocus}
-          title="Open variant full screen"
-          aria-label="Open variant full screen"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 group-hover:opacity-100"
+          title={t("duplicator.actions.openVariantFullScreen")}
+          aria-label={t("duplicator.actions.openVariantFullScreen")}
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
         >
           <Maximize2 className="h-3.5 w-3.5" />
-          Focus
+          {t("duplicator.actions.focus")}
         </button>
       </div>
 
@@ -56,7 +58,7 @@ export function DuplicateResultCard({
 
       {score !== null && (
         <div className="mt-3 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Difficulty</span>
+          <span className="text-xs text-muted-foreground">{t("duplicator.result.difficulty")}</span>
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary"
@@ -78,7 +80,7 @@ export function DuplicateResultCard({
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
           >
             <ExternalLink className="h-3 w-3" />
-            Source
+            {t("duplicator.result.source")}
           </a>
         ) : (
           <span />
@@ -92,11 +94,11 @@ export function DuplicateResultCard({
         >
           {saved ? (
             <>
-              <Check className="h-3 w-3" /> Saved
+              <Check className="h-3 w-3" /> {t("duplicator.result.saved")}
             </>
           ) : (
             <>
-              <BookmarkPlus className="h-3 w-3" /> Save to calibration
+              <BookmarkPlus className="h-3 w-3" /> {t("duplicator.result.saveToCalibration")}
             </>
           )}
         </Button>

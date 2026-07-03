@@ -7,6 +7,7 @@ import {
   Upload,
 } from "lucide-react";
 import { type DragEvent, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,6 @@ import { ExtractedExerciseCard } from "./ExtractedExerciseCard";
 
 const YEAR_KEY = "duplicator_year_level";
 const YEARS = [1, 2, 3, 4, 5];
-const ORDINAL = ["1st", "2nd", "3rd", "4th", "5th"];
 
 function initialYear(): number {
   const stored = Number(localStorage.getItem(YEAR_KEY));
@@ -29,6 +29,7 @@ function initialYear(): number {
 
 export function DuplicatorPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { session, loading, error, upload, removeExercise, findMore } =
     useDuplicatorStore();
   const [file, setFile] = useState<File | null>(null);
@@ -94,8 +95,16 @@ export function DuplicatorPage() {
           variant="ghost"
           size="icon"
           onClick={() => setSidebarOpen((v) => !v)}
-          aria-label={sidebarOpen ? "Hide upload panel" : "Show upload panel"}
-          title={sidebarOpen ? "Hide panel" : "Show panel"}
+          aria-label={
+            sidebarOpen
+              ? t("duplicator.upload.hideAria")
+              : t("duplicator.upload.showAria")
+          }
+          title={
+            sidebarOpen
+              ? t("duplicator.upload.hideTitle")
+              : t("duplicator.upload.showTitle")
+          }
         >
           {sidebarOpen ? (
             <PanelLeftClose className="h-5 w-5" />
@@ -103,13 +112,13 @@ export function DuplicatorPage() {
             <PanelLeftOpen className="h-5 w-5" />
           )}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => navigate("/exam")}>
-          <ArrowLeft className="h-4 w-4" /> Exam Prep
+        <Button variant="ghost" size="sm" data-arcade-sector="exam" onClick={() => navigate("/exam")}>
+          <ArrowLeft className="h-4 w-4" /> {t("nav.examPrep")}
         </Button>
-        <h1 className="font-display text-2xl font-semibold">Exercise Duplicator</h1>
+        <h1 className="font-display text-2xl font-semibold">{t("nav.duplicator")}</h1>
         {exercises.length > 0 && (
           <span className="ml-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            {exercises.length} exercise{exercises.length === 1 ? "" : "s"}
+            {t("duplicator.header.exerciseCount", { count: exercises.length })}
           </span>
         )}
       </div>
@@ -148,36 +157,38 @@ export function DuplicatorPage() {
                   <FileText className="mb-2 h-6 w-6 text-primary" />
                   <span className="text-sm font-medium">{file.name}</span>
                   <span className="mt-1 text-xs text-muted-foreground">
-                    Click to choose a different file
+                    {t("duplicator.upload.changeFile")}
                   </span>
                 </>
               ) : (
                 <>
                   <Upload className="mb-2 h-6 w-6 text-muted-foreground" />
-                  <span className="text-sm font-medium">Drop a PDF or click to browse</span>
+                  <span className="text-sm font-medium">
+                    {t("duplicator.upload.dropHint")}
+                  </span>
                   <span className="mt-1 text-xs text-muted-foreground">
-                    University math / physics exercises
+                    {t("duplicator.upload.subtitle")}
                   </span>
                 </>
               )}
             </div>
 
             <div>
-              <Label className="mb-2 block text-xs">Year level</Label>
+              <Label className="mb-2 block text-xs">{t("duplicator.upload.yearLevel")}</Label>
               <div className="flex gap-1">
-                {YEARS.map((y, i) => (
+                {YEARS.map((y) => (
                   <button
                     key={y}
                     type="button"
                     onClick={() => pickYear(y)}
                     className={cn(
-                      "flex-1 rounded-md py-1.5 text-xs font-medium transition-colors",
+                      "flex-1 rounded-md py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       year === y
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:bg-muted/70",
                     )}
                   >
-                    {ORDINAL[i]}
+                    {t(`duplicator.year.${y}`)}
                   </button>
                 ))}
               </div>
@@ -185,19 +196,19 @@ export function DuplicatorPage() {
 
             <div>
               <Label htmlFor="hint" className="mb-2 block text-xs">
-                Subject hint (optional)
+                {t("duplicator.upload.subjectHintLabel")}
               </Label>
               <Input
                 id="hint"
                 value={hint}
                 onChange={(e) => setHint(e.target.value)}
-                placeholder="e.g. complex analysis"
+                placeholder={t("duplicator.upload.subjectHintPlaceholder")}
               />
             </div>
 
             <Button onClick={submit} disabled={!file || loading} className="w-full gap-2">
               <Sparkles className="h-4 w-4" />
-              {loading ? "Extracting…" : "Find variants"}
+              {loading ? t("duplicator.upload.extracting") : t("duplicator.upload.findVariants")}
             </Button>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -220,10 +231,9 @@ export function DuplicatorPage() {
           {!loading && exercises.length === 0 && (
             <div className="flex h-96 flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
               <Sparkles className="mb-3 h-8 w-8 text-muted-foreground" />
-              <p className="text-sm font-medium">No exercises yet</p>
+              <p className="text-sm font-medium">{t("duplicator.empty.title")}</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Upload a PDF of exercises, pick the year level, and we'll extract each
-                problem and search for real university-level variants.
+                {t("duplicator.empty.description")}
               </p>
               {!sidebarOpen && (
                 <Button
@@ -232,7 +242,7 @@ export function DuplicatorPage() {
                   className="mt-4 gap-2"
                   onClick={() => setSidebarOpen(true)}
                 >
-                  <PanelLeftOpen className="h-4 w-4" /> Open upload panel
+                  <PanelLeftOpen className="h-4 w-4" /> {t("duplicator.empty.openPanel")}
                 </Button>
               )}
             </div>

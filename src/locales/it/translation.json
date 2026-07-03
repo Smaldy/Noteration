@@ -12,7 +12,8 @@
     "queue": "Coda",
     "settings": "Impostazioni",
     "uploadPdf": "Carica PDF",
-    "upload": "Carica"
+    "upload": "Carica",
+    "duplicator": "Duplicatore di esercizi"
   },
   "library": {
     "title": "Libreria",
@@ -495,6 +496,89 @@
       "cards_other": "{{count}} flashcard",
       "topics_one": "{{count}} argomento",
       "topics_other": "{{count}} argomenti"
+    }
+  },
+  "duplicator": {
+    "year": {
+      "1": "1º",
+      "2": "2º",
+      "3": "3º",
+      "4": "4º",
+      "5": "5º"
+    },
+    "header": {
+      "exerciseCount_one": "{{count}} esercizio",
+      "exerciseCount_other": "{{count}} esercizi"
+    },
+    "upload": {
+      "hideAria": "Nascondi pannello di caricamento",
+      "showAria": "Mostra pannello di caricamento",
+      "hideTitle": "Nascondi pannello",
+      "showTitle": "Mostra pannello",
+      "changeFile": "Clicca per scegliere un altro file",
+      "dropHint": "Trascina un PDF o clicca per sfogliare",
+      "subtitle": "Esercizi universitari di matematica / fisica",
+      "yearLevel": "Anno di corso",
+      "subjectHintLabel": "Suggerimento materia (opzionale)",
+      "subjectHintPlaceholder": "es. analisi complessa",
+      "extracting": "Estrazione…",
+      "findVariants": "Trova varianti"
+    },
+    "empty": {
+      "title": "Ancora nessun esercizio",
+      "description": "Carica un PDF di esercizi, scegli l'anno di corso ed estrarremo ogni problema per cercare varianti reali di livello universitario.",
+      "openPanel": "Apri pannello di caricamento"
+    },
+    "card": {
+      "queued": "In coda per le varianti",
+      "searchingCount_one": "{{count}} finora · ricerca in corso",
+      "searchingCount_other": "{{count}} finora · ricerca in corso",
+      "searching": "Ricerca varianti",
+      "searchFailed": "Ricerca varianti non riuscita",
+      "variantCount_one": "{{count}} variante",
+      "variantCount_other": "{{count}} varianti",
+      "noVariants": "Nessuna variante trovata"
+    },
+    "actions": {
+      "focus": "Focus",
+      "removeExercise": "Rimuovi esercizio",
+      "openFullScreen": "Apri a schermo intero",
+      "openVariantFullScreen": "Apri variante a schermo intero"
+    },
+    "result": {
+      "difficulty": "Difficoltà",
+      "source": "Fonte",
+      "viewSource": "Vedi fonte",
+      "saved": "Salvato",
+      "saveToCalibration": "Salva per la calibrazione"
+    },
+    "variants": {
+      "heading": "Problemi varianti",
+      "queued": "In coda per la ricerca di varianti…",
+      "searching": "Ricerca di varianti di livello universitario…",
+      "failed": "Ricerca varianti non riuscita per questo esercizio.",
+      "empty": "Nessuna variante trovata."
+    },
+    "focus": {
+      "exercise": "Esercizio {{current}}",
+      "variant": "Variante {{current}}",
+      "findMore": "Trova altre",
+      "remove": "Rimuovi",
+      "previousExercise": "Esercizio precedente",
+      "nextExercise": "Esercizio successivo",
+      "close": "Chiudi modalità focus",
+      "previousVariant": "Variante precedente",
+      "nextVariant": "Variante successiva",
+      "closeVariant": "Chiudi focus variante",
+      "problemHeading": "Problema",
+      "visualizationHeading": "Visualizzazione",
+      "variantProblemHeading": "Problema variante"
+    },
+    "viz": {
+      "zoomIn": "Zoom avanti",
+      "zoomOut": "Zoom indietro",
+      "resetZoom": "Reimposta zoom",
+      "loadingPlot": "Caricamento grafico…"
     }
   },
   "pomodoro": {

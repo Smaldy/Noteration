@@ -12,7 +12,8 @@
     "queue": "Queue",
     "settings": "Settings",
     "uploadPdf": "Upload PDF",
-    "upload": "Upload"
+    "upload": "Upload",
+    "duplicator": "Exercise Duplicator"
   },
   "library": {
     "title": "Library",
@@ -495,6 +496,89 @@
       "cards_other": "{{count}} flashcards",
       "topics_one": "{{count}} topic",
       "topics_other": "{{count}} topics"
+    }
+  },
+  "duplicator": {
+    "year": {
+      "1": "1st",
+      "2": "2nd",
+      "3": "3rd",
+      "4": "4th",
+      "5": "5th"
+    },
+    "header": {
+      "exerciseCount_one": "{{count}} exercise",
+      "exerciseCount_other": "{{count}} exercises"
+    },
+    "upload": {
+      "hideAria": "Hide upload panel",
+      "showAria": "Show upload panel",
+      "hideTitle": "Hide panel",
+      "showTitle": "Show panel",
+      "changeFile": "Click to choose a different file",
+      "dropHint": "Drop a PDF or click to browse",
+      "subtitle": "University math / physics exercises",
+      "yearLevel": "Year level",
+      "subjectHintLabel": "Subject hint (optional)",
+      "subjectHintPlaceholder": "e.g. complex analysis",
+      "extracting": "Extracting…",
+      "findVariants": "Find variants"
+    },
+    "empty": {
+      "title": "No exercises yet",
+      "description": "Upload a PDF of exercises, pick the year level, and we'll extract each problem and search for real university-level variants.",
+      "openPanel": "Open upload panel"
+    },
+    "card": {
+      "queued": "Queued for variants",
+      "searchingCount_one": "{{count}} so far · searching",
+      "searchingCount_other": "{{count}} so far · searching",
+      "searching": "Searching variants",
+      "searchFailed": "Variant search failed",
+      "variantCount_one": "{{count}} variant",
+      "variantCount_other": "{{count}} variants",
+      "noVariants": "No variants found"
+    },
+    "actions": {
+      "focus": "Focus",
+      "removeExercise": "Remove exercise",
+      "openFullScreen": "Open full screen",
+      "openVariantFullScreen": "Open variant full screen"
+    },
+    "result": {
+      "difficulty": "Difficulty",
+      "source": "Source",
+      "viewSource": "View source",
+      "saved": "Saved",
+      "saveToCalibration": "Save to calibration"
+    },
+    "variants": {
+      "heading": "Variant problems",
+      "queued": "Queued for variant search…",
+      "searching": "Searching for university-level variants…",
+      "failed": "Variant search failed for this exercise.",
+      "empty": "No variants found."
+    },
+    "focus": {
+      "exercise": "Exercise {{current}}",
+      "variant": "Variant {{current}}",
+      "findMore": "Find more",
+      "remove": "Remove",
+      "previousExercise": "Previous exercise",
+      "nextExercise": "Next exercise",
+      "close": "Close focus mode",
+      "previousVariant": "Previous variant",
+      "nextVariant": "Next variant",
+      "closeVariant": "Close variant focus",
+      "problemHeading": "Problem",
+      "visualizationHeading": "Visualization",
+      "variantProblemHeading": "Variant problem"
+    },
+    "viz": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "loadingPlot": "Loading plot…"
     }
   },
   "pomodoro": {

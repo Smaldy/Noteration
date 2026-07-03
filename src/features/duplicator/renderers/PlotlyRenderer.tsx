@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { VizBlock, VizPiece } from "@/types/duplicator";
 
@@ -179,6 +180,7 @@ export function PlotlyRenderer({
   viz: VizBlock;
   height?: number;
 }) {
+  const { t } = useTranslation();
   const [zoom, setZoom] = useState(1);
   // A fresh graph resets the zoom level.
   useEffect(() => setZoom(1), [viz]);
@@ -352,13 +354,23 @@ export function PlotlyRenderer({
     <div className="relative overflow-hidden rounded-lg border border-border bg-card">
       {ranges && (
         <div className="absolute right-2 top-2 z-10 flex flex-col overflow-hidden rounded-lg border border-border bg-background/80 shadow-sm backdrop-blur">
-          <ZoomButton label="Zoom in" onClick={() => setZoom((z) => Math.min(z * 1.4, 25))}>
+          <ZoomButton
+            label={t("duplicator.viz.zoomIn")}
+            onClick={() => setZoom((z) => Math.min(z * 1.4, 25))}
+          >
             <ZoomIn className="h-4 w-4" />
           </ZoomButton>
-          <ZoomButton label="Zoom out" onClick={() => setZoom((z) => Math.max(z / 1.4, 0.05))}>
+          <ZoomButton
+            label={t("duplicator.viz.zoomOut")}
+            onClick={() => setZoom((z) => Math.max(z / 1.4, 0.05))}
+          >
             <ZoomOut className="h-4 w-4" />
           </ZoomButton>
-          <ZoomButton label="Reset zoom" onClick={() => setZoom(1)} disabled={zoom === 1}>
+          <ZoomButton
+            label={t("duplicator.viz.resetZoom")}
+            onClick={() => setZoom(1)}
+            disabled={zoom === 1}
+          >
             <RotateCcw className="h-3.5 w-3.5" />
           </ZoomButton>
         </div>
@@ -369,7 +381,7 @@ export function PlotlyRenderer({
             className="flex items-center justify-center text-sm text-muted-foreground"
             style={{ height }}
           >
-            Loading plot…
+            {t("duplicator.viz.loadingPlot")}
           </div>
         }
       >

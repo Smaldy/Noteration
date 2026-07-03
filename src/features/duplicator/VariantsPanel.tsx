@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { ExtractedExercise } from "@/types/duplicator";
 
@@ -20,31 +21,32 @@ export function VariantsPanel({
   exercise: ExtractedExercise;
   yearLevel: number;
 }) {
+  const { t } = useTranslation();
   const { status, results } = exercise;
   const [focusIdx, setFocusIdx] = useState<number | null>(null);
 
   return (
     <div className="mt-4 border-t border-border pt-3">
       <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span>Variant problems</span>
+        <span>{t("duplicator.variants.heading")}</span>
         {status === "searching" && <Loader2 className="h-3 w-3 animate-spin" />}
       </div>
 
       {status === "pending" && (
-        <p className="text-xs text-muted-foreground">Queued for variant search…</p>
+        <p className="text-xs text-muted-foreground">{t("duplicator.variants.queued")}</p>
       )}
       {status === "searching" && results.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          Searching for university-level variants…
+          {t("duplicator.variants.searching")}
         </p>
       )}
       {status === "error" && (
         <p className="text-xs text-destructive">
-          Variant search failed for this exercise.
+          {t("duplicator.variants.failed")}
         </p>
       )}
       {status === "done" && results.length === 0 && (
-        <p className="text-xs text-muted-foreground">No variants found.</p>
+        <p className="text-xs text-muted-foreground">{t("duplicator.variants.empty")}</p>
       )}
 
       <div className="grid gap-3 md:grid-cols-2">
