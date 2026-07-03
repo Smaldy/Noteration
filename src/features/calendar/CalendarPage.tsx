@@ -15,12 +15,13 @@ import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import { ArrowLeft, CalendarDays, Check, Plus, Sparkles, X } from "lucide-react";
+import { CalendarDays, Check, Plus, Sparkles, X } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { BackLink } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCalendarStore } from "@/stores/calendar";
@@ -200,19 +201,11 @@ export function CalendarPage() {
 
   return (
     <div className="mx-auto flex h-[100dvh] max-w-[1500px] animate-rise flex-col px-6 py-5">
-      <button
-        type="button"
-        data-arcade-sector="library"
-        onClick={() => navigate("/")}
-        className="mb-3 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        {t("common.library")}
-      </button>
+      <BackLink className="mb-3 w-fit" />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
-          <span className="grid size-9 place-items-center rounded-xl bg-primary-soft text-primary-soft-foreground">
+        <h1 className="flex items-center gap-2.5 text-3xl font-bold tracking-tight">
+          <span className="grid size-10 place-items-center rounded-xl bg-primary-soft text-primary-soft-foreground">
             <CalendarDays className="size-5" />
           </span>
           {t("calendar.title")}
@@ -362,11 +355,11 @@ function renderChip(
         entry.completed ? t("calendar.markNotStudied") : t("calendar.markStudied")
       }
       className={cn(
-        "grid size-4 shrink-0 place-items-center rounded border transition-colors",
+        "grid size-4 shrink-0 place-items-center rounded-sm border transition-colors",
         entry.completed
           ? entry.on_time === false
-            ? "border-amber-500 bg-amber-500 text-white"
-            : "border-emerald-500 bg-emerald-500 text-white"
+            ? "border-warning bg-warning text-white"
+            : "border-success bg-success text-white"
           : "border-current/40 hover:border-current",
       )}
     >
@@ -385,7 +378,7 @@ function renderChip(
       }}
       title={t("calendar.removeFromCalendar")}
       aria-label={t("calendar.removeFromCalendar")}
-      className="grid size-4 shrink-0 place-items-center rounded opacity-0 transition-opacity hover:bg-black/10 group-hover/chip:opacity-70 hover:!opacity-100"
+      className="grid size-4 shrink-0 place-items-center rounded-sm opacity-0 transition-opacity hover:bg-black/10 focus-visible:opacity-100 group-hover/chip:opacity-70 hover:!opacity-100"
     >
       <X className="size-3" strokeWidth={2.5} />
     </button>

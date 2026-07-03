@@ -1,8 +1,9 @@
-import { ArrowLeft, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { BackLink, PageShell } from "@/components/PageShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlashcardsTab } from "@/features/study/FlashcardsTab";
 import { QuizTab } from "@/features/study/QuizTab";
@@ -82,15 +83,12 @@ export function ExamPracticePage() {
   const initialTab = searchParams.get("tab") === "flashcards" ? "flashcards" : "quiz";
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
-      <button
-        type="button"
+    <PageShell width="narrow">
+      <BackLink
+        sector="exam"
+        label={t("exam.practice.back")}
         onClick={() => navigate(-1)}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        {t("exam.practice.back")}
-      </button>
+      />
 
       {status === "loading" && (
         <p className="py-20 text-center text-sm text-muted-foreground">
@@ -99,20 +97,20 @@ export function ExamPracticePage() {
       )}
 
       {status === "error" && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           {error}
         </div>
       )}
 
       {status === "loaded" && data && (
         <>
-          <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary">
+          <div className="mb-1 flex items-center gap-2 font-display text-xs font-bold uppercase tracking-[0.12em] text-primary">
             <GraduationCap className="size-4" />
             {t("exam.practice.scopePractice", {
               scope: t(`exam.practice.scope.${data.scope}`),
             })}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             {data.title || t("exam.practice.customTitle")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -143,6 +141,6 @@ export function ExamPracticePage() {
           </div>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

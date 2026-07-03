@@ -50,7 +50,7 @@ export function StudySidebar(props: StudySidebarProps) {
     <nav className="space-y-4">
       {onPractice && (
         <div className="space-y-3 rounded-xl border bg-card/60 p-3 shadow-sm">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
             <Layers className="size-3.5" />
             {t("study.sidebar.combinedPractice")}
           </p>
@@ -70,7 +70,7 @@ export function StudySidebar(props: StudySidebarProps) {
             <button
               type="button"
               onClick={onChooseTopics}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary/60 hover:bg-primary/10"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ListChecks className="size-3.5" />
               {t("study.sidebar.chooseTopics")}
@@ -102,14 +102,14 @@ function PracticeRow({
         <button
           type="button"
           onClick={onQuiz}
-          className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+          className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t("study.sidebar.quiz")}
         </button>
         <button
           type="button"
           onClick={onCards}
-          className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+          className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t("study.sidebar.cards")}
         </button>
@@ -215,7 +215,7 @@ function SortableTopic({
         type="button"
         aria-label={t("study.sidebar.dragToReorder")}
         title={t("study.sidebar.dragToReorder")}
-        className="shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground/40 opacity-0 transition hover:text-foreground focus-visible:opacity-100 active:cursor-grabbing group-hover/topic:opacity-100"
+        className="shrink-0 cursor-grab touch-none rounded-md p-1 text-muted-foreground/40 opacity-0 transition hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing group-hover/topic:opacity-100"
         {...attributes}
         {...listeners}
       >
@@ -225,7 +225,7 @@ function SortableTopic({
         type="button"
         onClick={onSelect}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1 text-left text-sm",
+          "flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pr-1 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           skipped && "text-muted-foreground",
         )}
       >
@@ -250,7 +250,7 @@ function SortableTopic({
             title={t("study.sidebar.mergeTopic")}
             aria-label={t("study.sidebar.mergeTopicAria", { title: topic.title })}
             onClick={onMerge}
-            className="rounded p-1 text-muted-foreground opacity-0 transition hover:text-primary focus-visible:opacity-100 group-hover/topic:opacity-100"
+            className="rounded-md p-1 text-muted-foreground opacity-0 transition hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/topic:opacity-100"
           >
             <GitMerge className="size-3.5" />
           </button>
@@ -260,7 +260,7 @@ function SortableTopic({
           title={t("study.sidebar.deleteTopic")}
           aria-label={t("study.sidebar.deleteTopicAria", { title: topic.title })}
           onClick={onDelete}
-          className="rounded p-1 text-muted-foreground opacity-0 transition hover:text-destructive focus-visible:opacity-100 group-hover/topic:opacity-100"
+          className="rounded-md p-1 text-muted-foreground opacity-0 transition hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/topic:opacity-100"
         >
           <Trash2 className="size-3.5" />
         </button>

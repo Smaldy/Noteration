@@ -205,7 +205,7 @@ function AttachmentsSection({
                 title={t("study.attachments.remove")}
                 aria-label={t("study.attachments.remove")}
                 onClick={() => void remove(attachment)}
-                className="absolute right-1.5 top-1.5 z-10 inline-flex size-6 items-center justify-center rounded-md bg-background/80 text-foreground/70 opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100 hover:text-destructive"
+                className="absolute right-1.5 top-1.5 z-10 inline-flex size-6 items-center justify-center rounded-md bg-background/80 text-foreground/70 opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-3.5" />
               </button>
@@ -334,7 +334,7 @@ function NoteBlock({
           {note.formulas.map((formula) => (
             <div
               key={formula.id}
-              className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2"
             >
               <code className="truncate text-sm">
                 {formula.latex || (
@@ -374,7 +374,7 @@ function IconBtn({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex size-7 items-center justify-center rounded-md bg-background/80 text-foreground/70 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      className="inline-flex size-7 items-center justify-center rounded-md bg-background/80 text-foreground/70 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>

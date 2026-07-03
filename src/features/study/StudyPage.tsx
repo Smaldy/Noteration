@@ -1,8 +1,8 @@
-import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { BackLink, PageShell } from "@/components/PageShell";
 import { TopicSelectDialog } from "@/features/practice/TopicSelectDialog";
 import { useStudyStore } from "@/stores/study";
 
@@ -86,16 +86,9 @@ export function StudyPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl gap-6 px-6 py-8">
+    <PageShell width="wide" className="flex gap-6">
       <aside className="w-64 shrink-0">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          {t("common.library")}
-        </button>
+        <BackLink className="mb-4" />
 
         {treeStatus === "loading" && (
           <p className="px-2 text-sm text-muted-foreground">{t("common.loading")}</p>
@@ -167,6 +160,6 @@ export function StudyPage() {
             <TopicContentPanel content={content} mode={tree?.mode} />
           )}
       </main>
-    </div>
+    </PageShell>
   );
 }

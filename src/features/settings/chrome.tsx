@@ -2,10 +2,11 @@
  *  and the sticky save/discard action bar. */
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, RotateCcw } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { BackLink } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,15 +26,7 @@ export function Shell({
     <div className="flex min-h-screen flex-col">
       <header className="glass sticky top-0 z-20 border-b">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
-          <button
-            type="button"
-            data-arcade-sector="library"
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            {t("common.library")}
-          </button>
+          <BackLink className="mb-0" onClick={onBack} />
           <span className="font-display text-sm font-semibold tracking-tight text-muted-foreground">
             {t("settings.headerTag")}
           </span>
@@ -135,7 +128,7 @@ export function ActionBar({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="inline-flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400"
+                className="inline-flex items-center gap-1.5 font-medium text-success"
               >
                 <Check className="size-4" />
                 {t("settings.save.saved")}
@@ -148,7 +141,7 @@ export function ActionBar({
                 exit={{ opacity: 0, y: -4 }}
                 className="inline-flex items-center gap-1.5 text-muted-foreground"
               >
-                <span className="size-1.5 rounded-full bg-amber-500" />
+                <span className="size-1.5 rounded-full bg-warning" />
                 {t("settings.save.unsaved")}
               </motion.span>
             ) : (

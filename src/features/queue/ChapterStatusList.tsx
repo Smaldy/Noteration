@@ -10,15 +10,15 @@ import type {
   DocumentChapters,
 } from "@/types/chapter";
 
-// Visual style per chapter state; the label is resolved via i18n at render.
+// Visual style per chapter state, mirroring LaneCard's semantic-token styles.
 const STATE_STYLE: Record<ChapterQueueState, { accent: string; pill: string }> = {
   running: {
     accent: "bg-primary",
     pill: "bg-primary-soft text-primary-soft-foreground",
   },
   overnight: {
-    accent: "bg-indigo-500",
-    pill: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300",
+    accent: "bg-info",
+    pill: "bg-info/12 text-info",
   },
   paused: {
     accent: "bg-muted-foreground/40",
@@ -190,7 +190,7 @@ export function ChapterRow({
             key={i}
             custom={m}
             variants={MOTE_VARIANTS}
-            className="absolute rounded-full bg-emerald-400/80 shadow-[0_0_6px_rgba(52,211,153,0.6)]"
+            className="absolute rounded-full bg-success/80 shadow-[0_0_6px_color-mix(in_oklab,var(--success)_60%,transparent)]"
             style={{ left: m.left, top: m.top, width: m.size, height: m.size }}
           />
         ))}
@@ -231,7 +231,7 @@ export function ChapterRow({
 
         <div className="shrink-0">
           {chapter.queue_state === "overnight" ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-300">
+            <span className="inline-flex items-center gap-1.5 text-xs text-info">
               <Moon className="size-3.5" />
               {t("queue.chapters.overnight")}
             </span>

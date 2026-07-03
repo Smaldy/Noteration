@@ -1,9 +1,9 @@
 import type { TFunction } from "i18next";
-import { AlertCircle, ArrowLeft, Clock, RotateCw } from "lucide-react";
+import { AlertCircle, Clock, RotateCw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 
+import { BackLink, PageHeader, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePolling } from "@/lib/usePolling";
@@ -19,7 +19,6 @@ import { ProviderStrip } from "./ProviderStrip";
 const POLL_MS = 5000;
 
 export function QueuePage() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const [tab, setTab] = useState("lanes");
 
@@ -67,19 +66,14 @@ export function QueuePage() {
   const totalQueued = status?.queued ?? 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
-      <button
-        type="button"
-        data-arcade-sector="library"
-        onClick={() => navigate("/")}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        {t("common.library")}
-      </button>
+    <PageShell width="narrow">
+      <BackLink />
 
-      <h1 className="text-3xl font-bold tracking-tight">{t("queue.title")}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{t("queue.subtitle")}</p>
+      <PageHeader
+        title={t("queue.title")}
+        subtitle={t("queue.subtitle")}
+        className="mb-0"
+      />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>
@@ -94,7 +88,7 @@ export function QueuePage() {
 
           {/* Global never-zero-result summary. */}
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-emerald-600">
+            <span className="font-medium text-success">
               {t("queue.ready", { count: totalReady })}
             </span>{" "}
             · {t("queue.queued", { count: totalQueued })}
@@ -102,7 +96,7 @@ export function QueuePage() {
           </p>
 
           {status?.resume_at && (
-            <Banner tone="amber" icon={<Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />}>
+            <Banner icon={<Clock className="mt-0.5 size-4 shrink-0 text-warning" />}>
               <p>{formatResume(status.resume_at, t)}</p>
               {status.paused_reason && (
                 <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
@@ -113,7 +107,7 @@ export function QueuePage() {
           )}
 
           {status?.budget_paused && (
-            <Banner tone="amber" icon={<AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />}>
+            <Banner icon={<AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />}>
               <p>
                 {status.token_budget > 0
                   ? t("queue.budgetPausedWithTokens", {
@@ -168,7 +162,7 @@ export function QueuePage() {
                 {status.errors.map((item) => (
                   <li
                     key={item.topic_id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{item.title}</p>
@@ -204,26 +198,14 @@ export function QueuePage() {
           <HistoryView events={history} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }
 
-function Banner({
-  tone,
-  icon,
-  children,
-}: {
-  tone: "amber";
-  icon: ReactNode;
-  children: ReactNode;
-}) {
+/** Warning banner: pause/budget notices that need attention but aren't errors. */
+function Banner({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <div
-      className={cn(
-        "flex items-start gap-2 rounded-lg border p-3 text-sm",
-        tone === "amber" && "border-amber-500/30 bg-amber-500/5",
-      )}
-    >
+    <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
       {icon}
       <div className="min-w-0">{children}</div>
     </div>

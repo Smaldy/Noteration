@@ -135,10 +135,10 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
                 onClick={() => choose(i)}
                 disabled={revealed}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
+                  "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   fullscreen ? "text-base" : "text-sm",
                   !revealed && "hover:bg-accent/50",
-                  revealed && isCorrect && "border-emerald-500/60 bg-emerald-500/10",
+                  revealed && isCorrect && "border-success/60 bg-success/10",
                   revealed &&
                     isChosen &&
                     !isCorrect &&
@@ -149,7 +149,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
                   <MarkdownView inline>{option}</MarkdownView>
                 </span>
                 {revealed && isCorrect && (
-                  <Check className="size-4 text-emerald-600" />
+                  <Check className="size-4 text-success" />
                 )}
                 {revealed && isChosen && !isCorrect && (
                   <X className="size-4 text-destructive" />
@@ -161,7 +161,7 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
       </motion.div>
 
       {revealed && (
-        <div className="mt-4 rounded-md bg-muted/50 p-3 text-sm">
+        <div className="mt-4 rounded-lg bg-muted/50 p-3 text-sm">
           {mcq.explanation ? (
             <p>
               <MarkdownView inline>{mcq.explanation}</MarkdownView>

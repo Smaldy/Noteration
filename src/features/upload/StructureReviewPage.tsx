@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowUpToLine, Plus, Trash2 } from "lucide-react";
+import { ArrowUpToLine, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { type ReactNode, useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { BackLink, PageHeader, PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,14 +105,22 @@ export function StructureReviewPage() {
     return <CenteredNote>{t("upload.review.loading")}</CenteredNote>;
   }
 
+  const backLink = (
+    <BackLink
+      to={homePath}
+      sector={fromExam ? "exam" : "library"}
+      label={fromExam ? t("upload.review.backToExam") : t("upload.review.backToLibrary")}
+    />
+  );
+
   if (status === "error") {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-10">
-        <BackLink onClick={() => navigate(homePath)} exam={fromExam} />
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+      <PageShell width="narrow">
+        {backLink}
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           {loadError}
         </div>
-      </div>
+      </PageShell>
     );
   }
 
@@ -119,21 +128,20 @@ export function StructureReviewPage() {
   const confirmable = isConfirmable(state) && !submitting;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
-      <BackLink onClick={() => navigate(homePath)} exam={fromExam} />
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {t("upload.review.title")}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">{t("upload.review.intro")}</p>
+    <PageShell width="narrow">
+      {backLink}
+      <PageHeader title={t("upload.review.title")} subtitle={t("upload.review.intro")} className="mb-0" />
 
       {needsManual && (
-        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
           {t("upload.review.needsManual")}
         </div>
       )}
 
       {!hasHeadings && !needsManual && (
-        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
           {t("upload.review.noHeadings")}
         </div>
       )}
@@ -335,7 +343,7 @@ export function StructureReviewPage() {
       {submitError && (
         <p className="mt-3 text-right text-sm text-destructive">{submitError}</p>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -344,19 +352,5 @@ function CenteredNote({ children }: { children: ReactNode }) {
     <div className="mx-auto max-w-3xl px-6 py-20 text-center text-sm text-muted-foreground">
       {children}
     </div>
-  );
-}
-
-function BackLink({ onClick, exam = false }: { onClick: () => void; exam?: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" />
-      {exam ? t("upload.review.backToExam") : t("upload.review.backToLibrary")}
-    </button>
   );
 }

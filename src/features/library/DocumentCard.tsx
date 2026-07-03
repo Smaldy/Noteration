@@ -151,7 +151,7 @@ export function DocumentCard({
                 aria-label={t("library.card.dragToReorder")}
                 title={t("library.card.dragToReorder")}
                 onClick={(e) => e.stopPropagation()}
-                className="-ml-1 shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground/50 transition-colors hover:text-foreground active:cursor-grabbing"
+                className="-ml-1 shrink-0 cursor-grab touch-none rounded-md p-1 text-muted-foreground/50 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
                 {...attributes}
                 {...listeners}
               >
@@ -166,7 +166,6 @@ export function DocumentCard({
                 label={doc.subject_name}
                 onToggle={(next) => onToggleBookmark(doc.subject_id, next)}
               />
-              <StatusBadge status={doc.status} />
               {onDelete && (
                 <Button
                   variant="ghost"
@@ -188,9 +187,14 @@ export function DocumentCard({
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p className="truncate" title={doc.filename}>
-            {doc.filename}
-          </p>
+          {/* Status lives here rather than the header so long subject names
+              keep the full title row. */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate" title={doc.filename}>
+              {doc.filename}
+            </p>
+            <StatusBadge status={doc.status} />
+          </div>
 
           {transcribing ? (
             <p className="flex items-center gap-2 text-primary">
@@ -247,7 +251,7 @@ export function DocumentCard({
                 e.stopPropagation();
                 void exportTranscript();
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-sm text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Download className="size-3.5" />
               {t("library.card.exportTranscript")}

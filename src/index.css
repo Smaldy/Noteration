@@ -7,7 +7,14 @@
    - Color: a tinted, accent-derived palette. The static values below are the
      indigo default + first-paint fallback; `applyAppearance` (stores/settings.ts)
      recomputes every token live from the chosen accent so the whole UI carries
-     one cohesive, readable color. */
+     one cohesive, readable color.
+   - Radius policy: rounded-md for small inline controls (chips, toolbar
+     buttons), rounded-lg for buttons/inputs, rounded-xl for cards and list
+     rows, rounded-2xl for page-level panels and empty states, rounded-full
+     for pills/dots/avatars. Never bare `rounded`.
+   - Page chrome (container widths, back link, title block, section labels,
+     empty states) lives in components/PageShell.tsx — pages compose it
+     instead of hand-rolling headers. */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -40,6 +47,13 @@
   --border: hsl(240 22% 89.5%);
   --input: hsl(240 22% 86%);
   --ring: hsl(239 84% 67%);
+
+  /* Semantic status hues — meaning-carrying, so fixed (not accent-derived),
+     same policy as the --cal-* schedule hues below. Use as tinted chips
+     (bg-success/10 text-success border-success/25), not saturated fills. */
+  --success: hsl(152 60% 34%);
+  --warning: hsl(35 90% 42%);
+  --info: hsl(211 88% 46%);
 }
 
 .dark {
@@ -64,6 +78,10 @@
   --border: hsl(240 14% 22%);
   --input: hsl(240 14% 25%);
   --ring: hsl(239 70% 62%);
+
+  --success: hsl(152 55% 55%);
+  --warning: hsl(38 92% 58%);
+  --info: hsl(211 90% 66%);
 }
 
 @theme inline {
@@ -85,6 +103,9 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -99,6 +120,13 @@
 @layer base {
   * {
     border-color: var(--border);
+  }
+
+  /* Tailwind v4 preflight leaves buttons at `cursor: default`; every enabled
+     control in the app should read as clickable. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 
   /* Remove the native number-input spinners app-wide — they ignore the theme
@@ -194,11 +222,24 @@
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: none;
     }
   }
   .animate-rise {
-    animation: app-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    /* Fill must be `backwards`, never `both`/`forwards`: a forward-filling
+       transform animation keeps the element a containing block for
+       position:fixed descendants forever (even when the retained value is
+       `none`), which shrank the study full-screen overlay to the PageShell
+       box. `backwards` still hides delay-staggered items before they start. */
+    animation: app-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  /* Reduced motion: show content immediately. Without this, the backwards
+     fill can pin content at the invisible `from` frame when the browser
+     declines to play the animation. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-rise {
+      animation: none;
+    }
   }
 
   /* Frosted bar used for sticky headers / action footers. */

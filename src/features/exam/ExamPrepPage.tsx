@@ -14,7 +14,6 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import {
-  ArrowLeft,
   GraduationCap,
   Layers,
   ListChecks,
@@ -25,6 +24,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { BackLink, EmptyState, PageHeader, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { DocumentCard } from "@/features/library/DocumentCard";
 import { TopicSelectDialog } from "@/features/practice/TopicSelectDialog";
@@ -92,35 +92,25 @@ export function ExamPrepPage() {
   const groups = groupBySubject(documents);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
-        <div>
-          <button
-            type="button"
-            data-arcade-sector="library"
-            onClick={() => navigate("/")}
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            {t("common.library")}
-          </button>
-          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-            <GraduationCap className="size-7 text-primary" />
-            {t("exam.title")}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{t("exam.subtitle")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/duplicator")}>
-            <Sparkles />
-            Exercise Duplicator
-          </Button>
-          <Button onClick={() => setUploadOpen(true)}>
-            <Plus />
-            {t("exam.addPdf")}
-          </Button>
-        </div>
-      </header>
+    <PageShell>
+      <BackLink />
+      <PageHeader
+        icon={<GraduationCap className="size-7 text-primary" />}
+        title={t("exam.title")}
+        subtitle={t("exam.subtitle")}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => navigate("/duplicator")}>
+              <Sparkles />
+              {t("nav.duplicator")}
+            </Button>
+            <Button onClick={() => setUploadOpen(true)}>
+              <Plus />
+              {t("exam.addPdf")}
+            </Button>
+          </>
+        }
+      />
 
       <UploadDialog
         open={uploadOpen}
@@ -137,7 +127,7 @@ export function ExamPrepPage() {
       )}
 
       {status === "error" && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           <p>{error}</p>
           <Button
             variant="outline"
@@ -151,17 +141,17 @@ export function ExamPrepPage() {
       )}
 
       {status === "loaded" && documents.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
-          <GraduationCap className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">{t("exam.emptyTitle")}</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            {t("exam.emptyDesc")}
-          </p>
-          <Button className="mt-5" onClick={() => setUploadOpen(true)}>
-            <Plus />
-            {t("exam.addPdf")}
-          </Button>
-        </div>
+        <EmptyState
+          icon={GraduationCap}
+          title={t("exam.emptyTitle")}
+          description={t("exam.emptyDesc")}
+          action={
+            <Button onClick={() => setUploadOpen(true)}>
+              <Plus />
+              {t("exam.addPdf")}
+            </Button>
+          }
+        />
       )}
 
       {status === "loaded" && groups.length > 0 && (
@@ -179,7 +169,7 @@ export function ExamPrepPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -222,7 +212,7 @@ function SubjectSection({
           <button
             type="button"
             onClick={() => setSelectorOpen(true)}
-            className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ListChecks className="size-3.5" />
             {t("exam.chooseTopics")}

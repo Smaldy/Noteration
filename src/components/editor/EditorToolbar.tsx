@@ -199,7 +199,13 @@ function FontControl({ editor }: { editor: Editor }) {
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute left-0 top-full z-30 mt-1 w-52 rounded-lg border bg-popover p-1 shadow-md">
+          <div
+            className={cn(
+              "absolute left-0 top-full z-30 mt-2 w-52 origin-top-left rounded-xl border border-border/70 bg-popover/95 p-1 backdrop-blur",
+              "shadow-[0_18px_44px_-18px_color-mix(in_oklab,var(--primary)_28%,transparent),0_6px_16px_-10px_rgb(0_0_0/0.18)]",
+              "animate-in fade-in-0 zoom-in-95 duration-150",
+            )}
+          >
             {FONT_OPTIONS.map((opt) => {
               const active = (opt.value || "") === current;
               return (
@@ -209,7 +215,7 @@ function FontControl({ editor }: { editor: Editor }) {
                   onClick={() => apply(opt.value)}
                   style={opt.value ? { fontFamily: opt.value } : undefined}
                   className={cn(
-                    "block w-full rounded-md px-2.5 py-1.5 text-left text-sm transition hover:bg-muted",
+                    "block w-full rounded-md px-2.5 py-1.5 text-left text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active && "bg-muted text-primary",
                   )}
                 >
@@ -328,7 +334,7 @@ function PanelFooter({
         </label>
         <button
           type="button"
-          className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+          className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={onReset}
         >
           {resetLabel}
@@ -497,7 +503,7 @@ function HighlightControl({ editor }: { editor: Editor }) {
           style={{ backgroundColor: "color-mix(in oklab, var(--muted) 40%, transparent)" }}
         >
           <span
-            className="rounded px-1.5 py-0.5"
+            className="rounded-sm px-1.5 py-0.5"
             style={{ backgroundColor: blended }}
           >
             {t("editor.highlightedText")}
@@ -542,6 +548,7 @@ function Btn({
       className={cn(
         "inline-flex size-8 items-center justify-center rounded-md text-foreground/80 transition",
         "hover:bg-background hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:pointer-events-none disabled:opacity-40",
         active && "bg-background text-primary shadow-sm",
       )}

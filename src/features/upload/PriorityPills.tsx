@@ -17,7 +17,7 @@ interface PriorityPillsProps {
 export function PriorityPills({ value, onChange }: PriorityPillsProps) {
   const { t } = useTranslation();
   return (
-    <div className="inline-flex rounded-md border p-0.5">
+    <div className="inline-flex rounded-lg border p-0.5">
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}
@@ -25,7 +25,7 @@ export function PriorityPills({ value, onChange }: PriorityPillsProps) {
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
           className={cn(
-            "rounded px-2 py-0.5 text-xs font-medium transition-colors",
+            "rounded-md px-2 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             value === opt.value
               ? opt.active
               : "text-muted-foreground hover:text-foreground",

@@ -19,8 +19,8 @@ import type { TopicStatus } from "@/types/study";
 
 // Status dot color for topic hits, mirroring the study view's vocabulary.
 const STATUS_DOT: Record<TopicStatus, string> = {
-  ready: "bg-emerald-500",
-  processing: "bg-amber-500",
+  ready: "bg-success",
+  processing: "bg-warning",
   queued: "bg-muted-foreground/50",
   error: "bg-destructive",
 };
@@ -107,7 +107,7 @@ export function SearchBar({
               <button
                 type="button"
                 onClick={clear}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title={t("search.clear")}
               >
                 <X className="size-4" />
@@ -181,7 +181,7 @@ export function SearchBar({
                     <button
                       type="button"
                       onClick={() => go(r.document_id, r.kind, r.id)}
-                      className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent"
+                      className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:bg-accent"
                     >
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-soft-foreground">
                         {r.kind === "topic" ? (

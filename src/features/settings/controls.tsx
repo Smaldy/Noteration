@@ -70,7 +70,7 @@ export function Segmented<T extends string>({
             type="button"
             onClick={() => onChange(o.value)}
             className={cn(
-              "relative rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              "relative rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -109,7 +109,7 @@ export function Swatch({
       onClick={onClick}
       style={color ? { backgroundColor: color } : undefined}
       className={cn(
-        "flex size-8 items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 active:scale-95",
+        "flex size-8 items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card active:scale-95",
         dashed && "border-2 border-dashed border-muted-foreground/50",
         selected
           ? "ring-2 ring-foreground ring-offset-2 ring-offset-card"
@@ -231,7 +231,7 @@ function StepButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground active:bg-secondary/70 disabled:pointer-events-none disabled:opacity-30"
+      className="flex w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-secondary/70 disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
     </button>
@@ -242,7 +242,7 @@ function StepButton({
 export function SetBadge() {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+    <span className="inline-flex items-center gap-1 rounded-full bg-success/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
       <Check className="size-3" strokeWidth={3} />
       {t("settings.apiKeys.set")}
     </span>

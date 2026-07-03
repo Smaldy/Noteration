@@ -9,6 +9,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { Trans, useTranslation } from "react-i18next";
 import { Markdown } from "tiptap-markdown";
 
+import { Button } from "@/components/ui/button";
+
 import { EditorToolbar } from "./EditorToolbar";
 
 // Inline `$…$` and block `$$…$$`. The first non-empty capture group is the LaTeX
@@ -77,28 +79,18 @@ export function NoteEditor({
           <Trans
             i18nKey="editor.mathHint"
             components={[
-              <code className="rounded bg-muted px-1" />,
-              <code className="rounded bg-muted px-1" />,
+              <code className="rounded-sm bg-muted px-1" />,
+              <code className="rounded-sm bg-muted px-1" />,
             ]}
           />
         </p>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={saving}
-            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-muted disabled:opacity-50"
-          >
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
             {t("editor.cancel")}
-          </button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
-          >
+          </Button>
+          <Button size="sm" onClick={save} disabled={saving}>
             {saving ? t("editor.saving") : t("editor.save")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

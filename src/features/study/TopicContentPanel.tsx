@@ -144,7 +144,7 @@ export function TopicContentPanel({
           onClick={() => setFullscreen(false)}
           title={t("study.tabs.exitFullscreenEsc")}
           aria-label={t("study.tabs.exitFullscreen")}
-          className="glass fixed right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-all hover:text-foreground hover:shadow-md active:scale-95"
+          className="glass fixed right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-all hover:text-foreground hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
         >
           <Minimize2 className="size-4" />
           <span className="hidden sm:inline">Esc</span>

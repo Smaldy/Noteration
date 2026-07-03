@@ -27,6 +27,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { EmptyState, PageHeader, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/features/search/SearchBar";
 import { UploadDialog } from "@/features/upload/UploadDialog";
@@ -158,85 +159,68 @@ export function LibraryPage() {
     />
   );
 
+  // Top-level destinations, rendered identically; settings collapses to icon-only.
+  const navItems = [
+    { sector: "exam", icon: GraduationCap, label: t("nav.examPrep"), to: "/exam" },
+    { sector: "bookmarks", icon: Bookmark, label: t("nav.bookmarks"), to: "/bookmarks" },
+    { sector: "calendar", icon: CalendarDays, label: t("nav.calendar"), to: "/calendar" },
+    { sector: "queue", icon: ListChecks, label: t("nav.queue"), to: "/queue" },
+  ] as const;
+
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
-        <div>
-          {/* Looks like a plain heading, but tapping it 4× quickly is the secret
-              door to the credits (handled by the easter-egg store). */}
-          <h1
-            className="cursor-default text-3xl font-bold tracking-tight select-none"
-            onClick={registerLibraryTap}
-          >
+    <PageShell>
+      <PageHeader
+        title={
+          /* Looks like a plain heading, but tapping it 4× quickly is the secret
+             door to the credits (handled by the easter-egg store). */
+          <span className="cursor-default select-none" onClick={registerLibraryTap}>
             {t("library.title")}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {t("library.subtitle")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            data-arcade-sector="exam"
-            className={cn("relative", glow("exam"), locked("exam") && "opacity-50")}
-            onClick={() => navigate("/exam")}
-          >
-            <GraduationCap />
-            {t("nav.examPrep")}
-            {locked("exam") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
-          </Button>
-          <Button
-            variant="outline"
-            data-arcade-sector="bookmarks"
-            className={cn("relative", glow("bookmarks"), locked("bookmarks") && "opacity-50")}
-            onClick={() => navigate("/bookmarks")}
-          >
-            <Bookmark />
-            {t("nav.bookmarks")}
-            {locked("bookmarks") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
-          </Button>
-          <Button
-            variant="outline"
-            data-arcade-sector="calendar"
-            className={cn("relative", glow("calendar"), locked("calendar") && "opacity-50")}
-            onClick={() => navigate("/calendar")}
-          >
-            <CalendarDays />
-            {t("nav.calendar")}
-            {locked("calendar") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
-          </Button>
-          <Button
-            variant="outline"
-            data-arcade-sector="queue"
-            className={cn("relative", glow("queue"), locked("queue") && "opacity-50")}
-            onClick={() => navigate("/queue")}
-          >
-            <ListChecks />
-            {t("nav.queue")}
-            {locked("queue") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            data-arcade-sector="settings"
-            className={cn("relative", glow("settings"), locked("settings") && "opacity-50")}
-            title={t("nav.settings")}
-            onClick={() => navigate("/settings")}
-          >
-            <Settings />
-            {locked("settings") && <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-rose-300" />}
-          </Button>
-          <Button
-            onClick={() => {
-              setUploadTargetSubjectId(undefined);
-              setUploadOpen(true);
-            }}
-          >
-            <Plus />
-            {t("nav.upload")}
-          </Button>
-        </div>
-      </header>
+          </span>
+        }
+        subtitle={t("library.subtitle")}
+        actions={
+          <>
+            {navItems.map(({ sector, icon: Icon, label, to }) => (
+              <Button
+                key={sector}
+                variant="outline"
+                data-arcade-sector={sector}
+                className={cn("relative", glow(sector), locked(sector) && "opacity-50")}
+                onClick={() => navigate(to)}
+              >
+                <Icon />
+                {label}
+                {locked(sector) && (
+                  <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-destructive/70" />
+                )}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="icon"
+              data-arcade-sector="settings"
+              className={cn("relative", glow("settings"), locked("settings") && "opacity-50")}
+              title={t("nav.settings")}
+              aria-label={t("nav.settings")}
+              onClick={() => navigate("/settings")}
+            >
+              <Settings />
+              {locked("settings") && (
+                <Lock className="absolute -right-1.5 -top-1.5 size-3.5 text-destructive/70" />
+              )}
+            </Button>
+            <Button
+              onClick={() => {
+                setUploadTargetSubjectId(undefined);
+                setUploadOpen(true);
+              }}
+            >
+              <Plus />
+              {t("nav.upload")}
+            </Button>
+          </>
+        }
+      />
 
       <UploadDialog
         open={uploadOpen}
@@ -247,7 +231,7 @@ export function LibraryPage() {
 
       <CreateSubjectDialog open={createSubjectOpen} onOpenChange={setCreateSubjectOpen} />
 
-      <div className="mb-8 flex flex-col gap-2 animate-rise sm:flex-row sm:items-start">
+      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex-1">
           <SearchBar onCreateSubject={() => setCreateSubjectOpen(true)} />
         </div>
@@ -258,7 +242,7 @@ export function LibraryPage() {
           aria-label={t("library.filterBookmarkedAria")}
           title={t("library.filterBookmarkedAria")}
           onClick={() => setBookmarkedOnly((v) => !v)}
-          className="size-11 shrink-0"
+          className="size-11 shrink-0 rounded-xl"
         >
           <Bookmark className={bookmarkedOnly ? "fill-current" : undefined} />
         </Button>
@@ -269,7 +253,7 @@ export function LibraryPage() {
       )}
 
       {status === "error" && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           <p>{error}</p>
           <Button
             variant="outline"
@@ -283,23 +267,22 @@ export function LibraryPage() {
       )}
 
       {status === "loaded" && subjectsLoaded && documents.length === 0 && subjects.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
-          <BookOpen className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">{t("library.empty.title")}</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            {t("library.empty.description")}
-          </p>
-          <Button
-            className="mt-5"
-            onClick={() => {
-              setUploadTargetSubjectId(undefined);
-              setUploadOpen(true);
-            }}
-          >
-            <Plus />
-            {t("library.empty.cta")}
-          </Button>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title={t("library.empty.title")}
+          description={t("library.empty.description")}
+          action={
+            <Button
+              onClick={() => {
+                setUploadTargetSubjectId(undefined);
+                setUploadOpen(true);
+              }}
+            >
+              <Plus />
+              {t("library.empty.cta")}
+            </Button>
+          }
+        />
       )}
 
       {/* Filter is on but nothing is bookmarked yet. */}
@@ -307,13 +290,11 @@ export function LibraryPage() {
         (documents.length > 0 || subjects.length > 0) &&
         bookmarkedOnly &&
         visibleCount === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
-            <Bookmark className="mb-4 size-10 text-muted-foreground" />
-            <h2 className="text-lg font-medium">{t("library.noBookmarked")}</h2>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {t("library.noBookmarkedDesc")}
-            </p>
-          </div>
+          <EmptyState
+            icon={Bookmark}
+            title={t("library.noBookmarked")}
+            description={t("library.noBookmarkedDesc")}
+          />
         )}
 
       {/* Subjects with no documents yet get their own plain grid — they have
@@ -358,6 +339,6 @@ export function LibraryPage() {
           </SortableContext>
         </DndContext>
       )}
-    </div>
+    </PageShell>
   );
 }

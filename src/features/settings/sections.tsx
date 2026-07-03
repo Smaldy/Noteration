@@ -240,7 +240,7 @@ function ModelGrid({
             type="button"
             onClick={() => onChange(m.value)}
             className={cn(
-              "rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 active:scale-[0.98]",
+              "rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
               active
                 ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
                 : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
@@ -504,7 +504,7 @@ export function AppearanceSection({
               onClick={() => set("font_family", f.value)}
               style={{ fontFamily: FONT_PREVIEW[f.value] }}
               className={cn(
-                "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 active:scale-95",
+                "rounded-lg border px-3.5 py-2 text-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95",
                 form.font_family === f.value
                   ? "border-primary bg-primary-soft text-primary-soft-foreground shadow-sm"
                   : "text-muted-foreground hover:border-ring/40 hover:text-foreground",

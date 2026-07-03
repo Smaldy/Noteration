@@ -160,7 +160,7 @@ export function AddToCalendarDialog({
                   type="button"
                   onClick={() => setMode(m)}
                   className={cn(
-                    "rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
+                    "rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     mode === m
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -173,7 +173,7 @@ export function AddToCalendarDialog({
           )}
 
           {locked && (
-            <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+            <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
               {t("calendar.dialog.lockedTopic", { title: presetTopic.title })}
             </p>
           )}
@@ -237,7 +237,7 @@ export function AddToCalendarDialog({
                             type="button"
                             onClick={() => setTopic(t)}
                             className={cn(
-                              "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted",
+                              "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                               topic?.id === t.id && "bg-primary-soft text-primary-soft-foreground",
                             )}
                           >

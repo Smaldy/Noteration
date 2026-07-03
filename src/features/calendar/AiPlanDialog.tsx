@@ -169,7 +169,7 @@ export function AiPlanDialog({ open, onOpenChange }: Props) {
           )}
 
           {done !== null && (
-            <p className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+            <p className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
               {t("calendar.dialog.planned", { count: done })}
             </p>
           )}

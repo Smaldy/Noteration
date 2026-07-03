@@ -11,19 +11,20 @@ import type { ChapterQueueState, DocumentChapters } from "@/types/chapter";
 import type { LaneState, LaneStatus } from "@/types/lanes";
 import { ChapterGroups, isChapterComplete } from "./ChapterStatusList";
 
-// Visual style per lane state; the label is resolved via i18n at render.
+// Visual style per lane state, all from semantic tokens: running carries the
+// accent, overnight the quiet info blue, waiting the warning amber.
 const STATE_STYLE: Record<LaneState, { accent: string; pill: string }> = {
   running: {
     accent: "bg-primary",
     pill: "bg-primary-soft text-primary-soft-foreground",
   },
   overnight: {
-    accent: "bg-indigo-500",
-    pill: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300",
+    accent: "bg-info",
+    pill: "bg-info/12 text-info",
   },
   waiting: {
-    accent: "bg-amber-500",
-    pill: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
+    accent: "bg-warning",
+    pill: "bg-warning/12 text-warning",
   },
   paused: {
     accent: "bg-muted-foreground/50",
@@ -105,7 +106,7 @@ export function LaneCard({
                 <span className={provider.text}>{provider.label}</span>
               </span>
             ) : lane.state === "waiting" && lane.waiting_for ? (
-              <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
+              <span className="inline-flex items-center gap-1.5 text-warning">
                 <Clock className="size-3.5" />
                 {t("queue.lane.waitingFor", {
                   provider: providerInfo(lane.waiting_for).label,
@@ -140,8 +141,8 @@ export function LaneCard({
 
       {/* Counts. */}
       <div className="grid grid-cols-4 divide-x border-t text-center">
-        <Count label={t("queue.lane.counts.ready")} value={lane.ready} tone="text-emerald-600" />
-        <Count label={t("queue.lane.counts.processing")} value={lane.processing} tone="text-sky-600" />
+        <Count label={t("queue.lane.counts.ready")} value={lane.ready} tone="text-success" />
+        <Count label={t("queue.lane.counts.processing")} value={lane.processing} tone="text-info" />
         <Count label={t("queue.lane.counts.queued")} value={lane.queued} tone="text-muted-foreground" />
         <Count label={t("queue.lane.counts.errored")} value={lane.error} tone="text-destructive" />
       </div>
@@ -153,7 +154,7 @@ export function LaneCard({
             type="button"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
-            className="flex w-full items-center justify-center gap-1.5 border-t py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            className="flex w-full items-center justify-center gap-1.5 border-t py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             <ChevronDown
               className={cn("size-4 transition-transform", expanded && "rotate-180")}
@@ -177,7 +178,7 @@ export function LaneCard({
                       <button
                         type="button"
                         onClick={clearCompleted}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-xs font-medium text-success transition-colors hover:bg-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Sparkles className="size-3.5" />
                         {t("queue.chapters.clearCompleted")}

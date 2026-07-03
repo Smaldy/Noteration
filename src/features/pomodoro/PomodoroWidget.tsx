@@ -149,7 +149,7 @@ export function PomodoroWidget() {
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title={t("pomodoro.minimize")}
               >
                 <ChevronDown className="size-4" />
@@ -165,7 +165,7 @@ export function PomodoroWidget() {
               <button
                 type="button"
                 onClick={handleToggle}
-                className="flex size-12 items-center justify-center rounded-full text-white shadow-md transition-transform active:scale-95"
+                className="flex size-12 items-center justify-center rounded-full text-white shadow-md transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card active:scale-95"
                 style={{ backgroundColor: accent }}
                 title={running ? t("pomodoro.pause") : t("pomodoro.start")}
               >
@@ -195,7 +195,7 @@ export function PomodoroWidget() {
                   onClick={sound.toggleMuted}
                   title={sound.muted ? t("pomodoro.unmute") : t("pomodoro.mute")}
                   aria-label={sound.muted ? t("pomodoro.unmute") : t("pomodoro.mute")}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {sound.muted ? (
                     <VolumeX className="size-4" />
@@ -231,7 +231,7 @@ export function PomodoroWidget() {
                   <button
                     type="button"
                     onClick={() => fileInput.current?.click()}
-                    className="shrink-0 rounded px-1 hover:text-foreground"
+                    className="shrink-0 rounded-sm px-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     title={t("pomodoro.replace")}
                   >
                     {t("pomodoro.replace")}
@@ -239,7 +239,7 @@ export function PomodoroWidget() {
                   <button
                     type="button"
                     onClick={() => void sound.clearCustom()}
-                    className="shrink-0 rounded p-0.5 hover:text-destructive"
+                    className="shrink-0 rounded-sm p-0.5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     title={t("pomodoro.remove")}
                     aria-label={t("pomodoro.removeCustom")}
                   >
@@ -364,7 +364,7 @@ function SoundChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95 [&_svg]:size-3",
+        "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 [&_svg]:size-3",
         active
           ? "border-primary bg-primary-soft text-primary-soft-foreground"
           : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
@@ -433,7 +433,7 @@ function IconBtn({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="flex size-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+      className="flex size-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
     >
       {children}
     </button>

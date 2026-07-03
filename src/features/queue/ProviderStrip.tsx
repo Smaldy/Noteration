@@ -43,13 +43,13 @@ export function ProviderStrip({
                   p.state === "disabled"
                     ? "bg-muted-foreground/40"
                     : p.state === "cooling"
-                      ? "bg-amber-500 animate-pulse"
+                      ? "bg-warning animate-pulse"
                       : info.dot,
                 )}
               />
               {info.label}
               {p.state === "cooling" && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                <span className="text-[10px] text-warning">
                   {t("queue.cooling")}
                 </span>
               )}

@@ -109,11 +109,20 @@ export function FlashcardsTab({
         initial={fullscreen ? { opacity: 0, scale: 0.96, y: 12 } : false}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+        role="button"
+        tabIndex={0}
+        aria-label={t("study.flashcards.clickToReveal")}
         className={cn(
-          "w-full cursor-pointer [perspective:1600px]",
+          "w-full cursor-pointer rounded-2xl [perspective:1600px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           fullscreen ? "max-w-2xl" : "max-w-xl",
         )}
         onClick={() => setFlipped((f) => !f)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setFlipped((f) => !f);
+          }
+        }}
       >
         <motion.div
           className={cn(

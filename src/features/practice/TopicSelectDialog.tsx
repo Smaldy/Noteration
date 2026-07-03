@@ -138,7 +138,7 @@ export function TopicSelectDialog({
             <button
               type="button"
               onClick={toggleAll}
-              className="flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
+              className="flex items-center gap-2 rounded-md text-sm font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <CheckBox checked={allSelected} indeterminate={someSelected && !allSelected} />
               {allSelected
@@ -187,7 +187,7 @@ export function TopicSelectDialog({
                     <button
                       type="button"
                       onClick={() => toggleMany(docTopicIds, !docAllOn)}
-                      className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+                      className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {docAllOn
                         ? t("exam.practice.selector.clear")
@@ -264,7 +264,7 @@ function TopicRow({
         disabled={disabled}
         onClick={onToggle}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+          "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           disabled
             ? "cursor-not-allowed text-muted-foreground/50"
             : "hover:bg-accent/60",

@@ -1,8 +1,15 @@
-import { ArrowLeft, Bookmark, FileText, Layers } from "lucide-react";
+import { Bookmark, FileText, Layers } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import {
+  BackLink,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  SectionLabel,
+} from "@/components/PageShell";
 import { api } from "@/lib/api";
 import { useBookmarksStore } from "@/stores/bookmarks";
 
@@ -34,26 +41,14 @@ export function BookmarksPage() {
     data.topics.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl animate-rise px-6 py-10">
-      <button
-        type="button"
-        data-arcade-sector="library"
-        onClick={() => navigate("/")}
-        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        {t("common.library")}
-      </button>
+    <PageShell width="narrow">
+      <BackLink />
 
-      <div className="mb-8">
-        <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-          <Bookmark className="size-7 fill-primary text-primary" />
-          {t("bookmarks.title")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("bookmarks.subtitle")}
-        </p>
-      </div>
+      <PageHeader
+        icon={<Bookmark className="size-7 fill-primary text-primary" />}
+        title={t("bookmarks.title")}
+        subtitle={t("bookmarks.subtitle")}
+      />
 
       {status === "loading" && (
         <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
@@ -61,20 +56,16 @@ export function BookmarksPage() {
       {status === "error" && <p className="text-sm text-destructive">{error}</p>}
 
       {empty && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-          <Bookmark className="mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-lg font-medium">{t("bookmarks.emptyTitle")}</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            {t("bookmarks.emptyDesc")}
-          </p>
-        </div>
+        <EmptyState
+          icon={Bookmark}
+          title={t("bookmarks.emptyTitle")}
+          description={t("bookmarks.emptyDesc")}
+        />
       )}
 
       {data && data.subjects.length > 0 && (
         <section className="mb-8">
-          <h2 className="font-display mb-3 text-xs font-bold uppercase tracking-[0.12em] text-primary">
-            {t("bookmarks.subjects")}
-          </h2>
+          <SectionLabel>{t("bookmarks.subjects")}</SectionLabel>
           <div className="flex flex-wrap gap-2">
             {data.subjects.map((s) => (
               <span
@@ -85,7 +76,7 @@ export function BookmarksPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/documents/${s.document_id}/study`)}
-                    className="transition-colors hover:text-primary"
+                    className="rounded-sm transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {s.name}
                   </button>
@@ -106,9 +97,7 @@ export function BookmarksPage() {
 
       {data && data.topics.length > 0 && (
         <section>
-          <h2 className="font-display mb-3 text-xs font-bold uppercase tracking-[0.12em] text-primary">
-            {t("bookmarks.topics")}
-          </h2>
+          <SectionLabel>{t("bookmarks.topics")}</SectionLabel>
           <ul className="space-y-2">
             {data.topics.map((t) => (
               <li key={t.id}>
@@ -116,7 +105,7 @@ export function BookmarksPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/documents/${t.document_id}/study/${t.id}`)}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
                   >
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-soft-foreground">
                       <FileText className="size-4" />
@@ -140,6 +129,6 @@ export function BookmarksPage() {
           </ul>
         </section>
       )}
-    </div>
+    </PageShell>
   );
 }

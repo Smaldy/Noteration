@@ -6,7 +6,6 @@ import {
   MinusCircle,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import type { TopicPriority } from "@/types/structure";
 import type { TopicStatus } from "@/types/study";
 
@@ -22,11 +21,9 @@ export function TopicStatusIcon({ status, priority }: TopicStatusIconProps) {
   }
   switch (status) {
     case "ready":
-      return <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />;
+      return <CheckCircle2 className="size-4 shrink-0 text-success" />;
     case "processing":
-      return (
-        <Loader2 className={cn("size-4 shrink-0 animate-spin text-sky-500")} />
-      );
+      return <Loader2 className="size-4 shrink-0 animate-spin text-info" />;
     case "error":
       return <AlertCircle className="size-4 shrink-0 text-destructive" />;
     case "queued":
