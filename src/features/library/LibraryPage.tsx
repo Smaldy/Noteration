@@ -67,6 +67,7 @@ export function LibraryPage() {
   const [createSubjectOpen, setCreateSubjectOpen] = useState(false);
   const [uploadTargetSubjectId, setUploadTargetSubjectId] = useState<number | undefined>();
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
+  const [subjectFilterId, setSubjectFilterId] = useState<number | null>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const registerLibraryTap = useEasterEggStore((s) => s.registerLibraryTap);
@@ -135,15 +136,22 @@ export function LibraryPage() {
     setUploadOpen(true);
   }
 
-  // When the bookmarked-only filter is on, show just the bookmarked subjects.
-  const visible = bookmarkedOnly
-    ? documents.filter((d) => d.subject_bookmarked)
-    : documents;
+  // Both filters narrow the card grid: bookmarked-only and the subject picker
+  // (which also scopes the search dropdown above).
+  const filterActive = bookmarkedOnly || subjectFilterId != null;
+  const visible = documents.filter(
+    (d) =>
+      (!bookmarkedOnly || d.subject_bookmarked) &&
+      (subjectFilterId == null || d.subject_id === subjectFilterId),
+  );
 
   // Subjects created standalone (no PDF/audio yet) don't have a document row
   // to appear as, so they get their own lightweight cards.
   const emptySubjects = subjects.filter(
-    (s) => s.document_count === 0 && (!bookmarkedOnly || s.bookmarked),
+    (s) =>
+      s.document_count === 0 &&
+      (!bookmarkedOnly || s.bookmarked) &&
+      (subjectFilterId == null || s.id === subjectFilterId),
   );
   const visibleCount = visible.length + emptySubjects.length;
 
@@ -233,7 +241,11 @@ export function LibraryPage() {
 
       <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex-1">
-          <SearchBar onCreateSubject={() => setCreateSubjectOpen(true)} />
+          <SearchBar
+            onCreateSubject={() => setCreateSubjectOpen(true)}
+            subjectId={subjectFilterId}
+            onSubjectChange={setSubjectFilterId}
+          />
         </div>
         <Button
           variant={bookmarkedOnly ? "default" : "outline"}
@@ -317,13 +329,13 @@ export function LibraryPage() {
 
       {/* Drag-reorder only in the full view; the filtered view is a plain grid
           so a partial order can't clobber the saved global order. */}
-      {status === "loaded" && visible.length > 0 && bookmarkedOnly && (
+      {status === "loaded" && visible.length > 0 && filterActive && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map(renderCard)}
         </div>
       )}
 
-      {status === "loaded" && visible.length > 0 && !bookmarkedOnly && (
+      {status === "loaded" && visible.length > 0 && !filterActive && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

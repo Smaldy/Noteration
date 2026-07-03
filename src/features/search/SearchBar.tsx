@@ -27,9 +27,14 @@ const STATUS_DOT: Record<TopicStatus, string> = {
 
 export function SearchBar({
   onCreateSubject,
+  subjectId,
+  onSubjectChange,
 }: {
   /** When set, the subject filter grows a "+" segment that opens subject creation. */
   onCreateSubject?: () => void;
+  /** Controlled subject filter — the page owns it so it can filter its own content too. */
+  subjectId: number | null;
+  onSubjectChange: (id: number | null) => void;
 }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -37,7 +42,6 @@ export function SearchBar({
   const { results, loading, error, search, reset } = useSearchStore();
 
   const [query, setQuery] = useState("");
-  const [subjectId, setSubjectId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -122,11 +126,9 @@ export function SearchBar({
             <select
               value={subjectId ?? ""}
               onChange={(e) => {
-                const next = e.target.value === "" ? null : Number(e.target.value);
-                setSubjectId(next);
-                // Picking a subject is itself a filter action — open the results
-                // panel even if the user never focused the text input.
-                if (next != null) setOpen(true);
+                // The page filters its own content on this, so don't pop the
+                // results panel over the freshly filtered cards.
+                onSubjectChange(e.target.value === "" ? null : Number(e.target.value));
               }}
               className={cn(
                 "h-11 w-full appearance-none rounded-xl border bg-card/70 pl-3.5 pr-9 text-sm shadow-sm outline-none transition-all hover:border-ring/40 focus:border-primary focus:ring-2 focus:ring-ring/40 sm:w-52",
