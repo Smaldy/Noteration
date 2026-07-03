@@ -339,7 +339,7 @@ Distilled from the build history; these explain "why is it like this":
 ## CI / releases
 
 `.github/workflows/` builds the Windows installer (Inno Setup), the macOS
-`.dmg` (Apple Silicon), a Linux build, and an Arch package
+`.dmg` (Apple Silicon), and an Arch package
 (`packaging/arch/PKGBUILD`) — each running the bundle's `--selftest` — and
 attaches artifacts to GitHub releases on `v*` tags (release notes from
 `packaging/RELEASE-NOTES-<version>.md`). The apps ship unsigned; the first-run

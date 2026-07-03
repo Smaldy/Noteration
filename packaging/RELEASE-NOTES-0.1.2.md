@@ -109,7 +109,6 @@ hour, so the game rewards steady studying rather than one marathon session.
 |----------|------|-------|
 | **Windows** | `Noteration-Setup-0.1.2.exe` | Per‑user installer, no admin needed |
 | **macOS** | `Noteration-0.1.2.dmg` | Drag to Applications |
-| **Linux (portable)** | `Noteration-Linux-x86_64.tar.gz` | Needs system `libwebkit2gtk-4.1` |
 | **Arch Linux** | `noteration-0.1.2-1-x86_64.pkg.tar.zst` | `sudo pacman -U` it |
 
 The app is **unsigned**, so first launch shows the usual OS warning:
