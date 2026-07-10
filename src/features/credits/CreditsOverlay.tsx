@@ -161,9 +161,13 @@ export function CreditsOverlay() {
               {t("credits.tagline")}
             </motion.p>
 
-            <motion.button
-              type="button"
-              onClick={() => window.open(RICKROLL_URL, "_blank", "noopener")}
+            {/* A real anchor, not window.open(): the desktop shell (pywebview on
+                WebKitGTK) silently drops JS window.open but routes target=_blank
+                link clicks to the system browser. */}
+            <motion.a
+              href={RICKROLL_URL}
+              target="_blank"
+              rel="noreferrer noopener"
               className="group mt-10 inline-flex items-center gap-2.5 rounded-full bg-white px-8 py-4 font-display text-base font-bold text-[#b15cff] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)] transition hover:shadow-[0_18px_55px_-8px_rgba(255,255,255,0.6)]"
               initial={{ opacity: 0, y: 20 }}
               animate={{
@@ -181,7 +185,7 @@ export function CreditsOverlay() {
             >
               <Rocket className="size-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               {t("credits.supercharge")}
-            </motion.button>
+            </motion.a>
           </motion.div>
         </motion.div>
       )}

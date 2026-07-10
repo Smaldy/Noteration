@@ -797,5 +797,10 @@
     "supercharge": "Clicca qui per potenziare l'app",
     "close": "Chiudi i crediti",
     "ariaLabel": "Crediti"
+  },
+  "errorScreen": {
+    "title": "Qualcosa è andato storto",
+    "description": "L'app ha riscontrato un errore imprevisto e non è riuscita a mostrare questa schermata. Tornare alla libreria dovrebbe risolvere il problema.",
+    "backToLibrary": "Torna alla libreria"
   }
 }

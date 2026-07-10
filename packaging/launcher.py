@@ -243,9 +243,20 @@ def _run() -> int:
 
     import webview
 
+    from backend.paths import DATA_DIR
+
     window = webview.create_window(
         WINDOW_TITLE, base_url, width=1280, height=860, min_size=(960, 640)
     )
+
+    # pywebview defaults to private mode, and WebKitGTK's ephemeral context has
+    # *no* localStorage at all — any page that reads it throws and unmounts the
+    # app. A persistent profile in the data dir gives every platform working
+    # localStorage/IndexedDB (pomodoro custom sound, per-page UI prefs).
+    webview_profile = {
+        "private_mode": False,
+        "storage_path": str(DATA_DIR / "webview"),
+    }
 
     # `--smoke[=secs]` opens the real window then auto-closes it, so packaging
     # can be verified without a human. Without the flag the window stays open.
@@ -256,11 +267,11 @@ def _run() -> int:
             print(f"SMOKE: auto-closing window after {smoke_secs}s")
             window.destroy()
 
-        webview.start(_auto_close)
+        webview.start(_auto_close, **webview_profile)
         print("SMOKE OK")
     else:
         # Blocks until the window is closed.
-        webview.start()
+        webview.start(**webview_profile)
 
     # Window closed → stop the server and let the process exit.
     server.should_exit = True

@@ -24,7 +24,10 @@ pkgdesc="Local-first study app: turns engineering PDFs into notes, MCQs, flashca
 arch=('x86_64')
 url="https://github.com/AymanAli/Noteration"
 license=('custom')
-depends=('webkit2gtk-4.1' 'gtk3' 'glib2')
+# gst-plugins-base/-good: WebKitGTK renders all audio (Web Audio included)
+# through GStreamer, and the sink elements (autoaudiosink/pulsesink) live in
+# -good — without them the app is completely silent.
+depends=('webkit2gtk-4.1' 'gtk3' 'glib2' 'gst-plugins-base' 'gst-plugins-good')
 makedepends=('nodejs' 'npm' 'python' 'python-pip' 'python-gobject' 'python-cairo'
              'gobject-introspection' 'gtk3' 'webkit2gtk-4.1')
 checkdepends=('xorg-server-xvfb')

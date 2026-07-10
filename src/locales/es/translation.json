@@ -797,5 +797,10 @@
     "supercharge": "Haz clic aquí para potenciar la app",
     "close": "Cerrar créditos",
     "ariaLabel": "Créditos"
+  },
+  "errorScreen": {
+    "title": "Algo salió mal",
+    "description": "La app encontró un error inesperado y no pudo mostrar esta pantalla. Volver a la biblioteca debería solucionarlo.",
+    "backToLibrary": "Volver a la biblioteca"
   }
 }

@@ -797,5 +797,10 @@
     "supercharge": "Click here to supercharge the app",
     "close": "Close credits",
     "ariaLabel": "Credits"
+  },
+  "errorScreen": {
+    "title": "Something went wrong",
+    "description": "The app hit an unexpected error and could not draw this screen. Going back to the library should get you going again.",
+    "backToLibrary": "Back to the library"
   }
 }

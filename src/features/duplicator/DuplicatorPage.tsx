@@ -23,8 +23,13 @@ const YEAR_KEY = "duplicator_year_level";
 const YEARS = [1, 2, 3, 4, 5];
 
 function initialYear(): number {
-  const stored = Number(localStorage.getItem(YEAR_KEY));
-  return YEARS.includes(stored) ? stored : 1;
+  try {
+    const stored = Number(localStorage.getItem(YEAR_KEY));
+    return YEARS.includes(stored) ? stored : 1;
+  } catch {
+    // Storage unavailable (private/ephemeral webview) — default to year 1.
+    return 1;
+  }
 }
 
 export function DuplicatorPage() {
@@ -55,7 +60,11 @@ export function DuplicatorPage() {
 
   const pickYear = (y: number) => {
     setYear(y);
-    localStorage.setItem(YEAR_KEY, String(y));
+    try {
+      localStorage.setItem(YEAR_KEY, String(y));
+    } catch {
+      // Best-effort: the choice just won't persist across sessions.
+    }
   };
 
   const onDrop = (e: DragEvent) => {

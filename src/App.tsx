@@ -3,6 +3,7 @@ import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 // Always-mounted (visible on every route), so they stay in the main bundle.
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { ArcadeRoot } from "@/features/arcade/ArcadeRoot";
 import { CreditsOverlay } from "@/features/credits/CreditsOverlay";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
@@ -45,40 +46,42 @@ export default function App() {
   return (
     // Honor the OS "reduce motion" preference for every Framer Motion animation
     // (transforms collapse to instant; opacity fades are kept, per Framer's rule).
-    <MotionConfig reducedMotion="user">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <Suspense fallback={<RouteFallback />}>
-            <Routes location={location}>
-              <Route path="/" element={<LibraryPage />} />
-              <Route path="/exam" element={<ExamPrepPage />} />
-              <Route path="/duplicator" element={<DuplicatorPage />} />
-              <Route path="/exam/practice/:scope/:id" element={<ExamPracticePage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/queue" element={<QueuePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/documents/:id/review" element={<StructureReviewPage />} />
-              <Route path="/documents/:id/study" element={<StudyPage />} />
-              <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </motion.div>
-      </AnimatePresence>
-      {/* Persistent across routes — always-visible status + the running timer. */}
-      <ProviderBadge />
-      <PomodoroWidget />
-      {/* Hidden easter egg: tap the Library title 4× quickly to summon the credits. */}
-      <CreditsOverlay />
-      {/* Study-gated arcade minigame — additive overlay; never touches the app. */}
-      <ArcadeRoot />
-    </MotionConfig>
+    <AppErrorBoundary>
+      <MotionConfig reducedMotion="user">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Suspense fallback={<RouteFallback />}>
+              <Routes location={location}>
+                <Route path="/" element={<LibraryPage />} />
+                <Route path="/exam" element={<ExamPrepPage />} />
+                <Route path="/duplicator" element={<DuplicatorPage />} />
+                <Route path="/exam/practice/:scope/:id" element={<ExamPracticePage />} />
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/queue" element={<QueuePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/documents/:id/review" element={<StructureReviewPage />} />
+                <Route path="/documents/:id/study" element={<StudyPage />} />
+                <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
+        {/* Persistent across routes — always-visible status + the running timer. */}
+        <ProviderBadge />
+        <PomodoroWidget />
+        {/* Hidden easter egg: tap the Library title 4× quickly to summon the credits. */}
+        <CreditsOverlay />
+        {/* Study-gated arcade minigame — additive overlay; never touches the app. */}
+        <ArcadeRoot />
+      </MotionConfig>
+    </AppErrorBoundary>
   );
 }
 
