@@ -206,7 +206,7 @@ export function PomodoroWidget() {
               </div>
 
               <div className="flex flex-wrap gap-1.5">
-                {(["none", "rain", "sea"] as SoundKind[]).map((k) => (
+                {(["none", "rain", "sea", "white", "pink", "brown", "wind"] as SoundKind[]).map((k) => (
                   <SoundChip
                     key={k}
                     label={t(`pomodoro.${k}`)}

@@ -7,7 +7,15 @@
  * across reloads (object URLs don't survive a refresh).
  */
 
-export type SoundKind = "none" | "rain" | "sea" | "custom";
+export type SoundKind =
+  | "none"
+  | "rain"
+  | "sea"
+  | "white"
+  | "pink"
+  | "brown"
+  | "wind"
+  | "custom";
 
 let ctx: AudioContext | null = null;
 let ambientGain: GainNode | null = null;
@@ -40,12 +48,27 @@ export function setVolume(volume: number): void {
   if (ambientGain) ambientGain.gain.setTargetAtTime(volume, c.currentTime, 0.08);
 }
 
-function makeNoise(c: AudioContext, type: "white" | "brown"): AudioBuffer {
+function makeNoise(c: AudioContext, type: "white" | "pink" | "brown"): AudioBuffer {
   const len = c.sampleRate * 4; // 4s seamless loop
   const buf = c.createBuffer(1, len, c.sampleRate);
   const data = buf.getChannelData(0);
   if (type === "white") {
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  } else if (type === "pink") {
+    // Paul Kellet's refined pink noise filter: -3 dB/octave, warm and even —
+    // the classic "pleasant" broadband noise, far softer on the ear than white.
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < len; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.969 * b2 + white * 0.153852;
+      b3 = 0.8665 * b3 + white * 0.3104856;
+      b4 = 0.55 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.016898;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+      b6 = white * 0.115926;
+    }
   } else {
     let last = 0; // brown noise = integrated white, lower/rumblier
     for (let i = 0; i < len; i++) {
@@ -66,48 +89,84 @@ export function startAmbient(kind: SoundKind): void {
 
   const cleanups: Array<() => void> = [];
 
-  if (kind === "custom") {
+  // Per-preset trim so every bed lands at a comparable loudness — full-band
+  // white noise carries far more energy than a narrow filtered bed, so without
+  // this, switching presets would jump in volume.
+  const trim = c.createGain();
+  trim.connect(ambientGain);
+  cleanups.push(() => trim.disconnect());
+
+  /** Looping noise source, started immediately and stopped on cleanup. */
+  const loop = (buffer: AudioBuffer): AudioBufferSourceNode => {
     const src = c.createBufferSource();
-    src.buffer = customBuffer;
+    src.buffer = buffer;
     src.loop = true;
-    src.connect(ambientGain);
     src.start();
     cleanups.push(() => src.stop());
+    return src;
+  };
+
+  /** Slow sine LFO driving an AudioParam around its current value. */
+  const modulate = (param: AudioParam, hz: number, depth: number): void => {
+    const lfo = c.createOscillator();
+    lfo.frequency.value = hz;
+    const lfoDepth = c.createGain();
+    lfoDepth.gain.value = depth;
+    lfo.connect(lfoDepth).connect(param);
+    lfo.start();
+    cleanups.push(() => lfo.stop());
+  };
+
+  if (kind === "custom") {
+    trim.gain.value = 1;
+    loop(customBuffer as AudioBuffer).connect(trim);
   } else if (kind === "rain") {
-    const src = c.createBufferSource();
-    src.buffer = makeNoise(c, "white");
-    src.loop = true;
+    // Gentle rain: pink noise (already soft) with the fizzy top rolled off and
+    // a barely-there slow swell, like steady drizzle on a roof.
+    trim.gain.value = 1.0;
     const hp = c.createBiquadFilter();
     hp.type = "highpass";
-    hp.frequency.value = 900;
+    hp.frequency.value = 300;
     const lp = c.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 7000;
-    src.connect(hp).connect(lp).connect(ambientGain);
-    src.start();
-    cleanups.push(() => src.stop());
-  } else {
-    // sea: brown noise, softened, with a slow swell (LFO on a gain stage).
-    const src = c.createBufferSource();
-    src.buffer = makeNoise(c, "brown");
-    src.loop = true;
+    lp.frequency.value = 4200;
+    const drift = c.createGain();
+    drift.gain.value = 0.9;
+    modulate(drift.gain, 0.07, 0.08); // ±9% over ~14s — natural ebb, not a pulse
+    loop(makeNoise(c, "pink")).connect(hp).connect(lp).connect(drift).connect(trim);
+  } else if (kind === "sea") {
+    // Sea: brown noise, softened, with a slow swell (LFO on a gain stage).
+    trim.gain.value = 1;
     const lp = c.createBiquadFilter();
     lp.type = "lowpass";
     lp.frequency.value = 600;
     const swell = c.createGain();
     swell.gain.value = 0.7;
-    const lfo = c.createOscillator();
-    lfo.frequency.value = 0.12; // ~8s per wave
-    const lfoDepth = c.createGain();
-    lfoDepth.gain.value = 0.3;
-    lfo.connect(lfoDepth).connect(swell.gain);
-    src.connect(lp).connect(swell).connect(ambientGain);
-    src.start();
-    lfo.start();
-    cleanups.push(() => {
-      src.stop();
-      lfo.stop();
-    });
+    modulate(swell.gain, 0.12, 0.3); // ~8s per wave
+    loop(makeNoise(c, "brown")).connect(lp).connect(swell).connect(trim);
+  } else if (kind === "white") {
+    // Pure white noise, trimmed well down — flat spectrum reads much louder.
+    trim.gain.value = 0.3;
+    loop(makeNoise(c, "white")).connect(trim);
+  } else if (kind === "pink") {
+    trim.gain.value = 0.85;
+    loop(makeNoise(c, "pink")).connect(trim);
+  } else if (kind === "brown") {
+    trim.gain.value = 1;
+    loop(makeNoise(c, "brown")).connect(trim);
+  } else {
+    // wind: brown noise through a slowly wandering bandpass — the moving
+    // resonance is what reads as gusts — plus a long loudness swell.
+    trim.gain.value = 1.4;
+    const bp = c.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 350;
+    bp.Q.value = 0.8;
+    modulate(bp.frequency, 0.05, 180); // sweep ~170–530 Hz over ~20s
+    const swell = c.createGain();
+    swell.gain.value = 0.75;
+    modulate(swell.gain, 0.03, 0.2);
+    loop(makeNoise(c, "brown")).connect(bp).connect(swell).connect(trim);
   }
 
   ambient = {
