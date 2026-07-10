@@ -120,6 +120,21 @@ class TopicContentOut(BaseModel):
     attachments: list[AttachmentOut] = []
 
 
+class TopicStudiedUpdate(BaseModel):
+    """Set a topic's studied/completed flag (idempotent; not a toggle)."""
+
+    studied: bool
+
+
+class TopicStudiedOut(BaseModel):
+    """Minimal echo after toggling a topic's studied flag."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    studied: bool
+
+
 class MergeTopicsRequest(BaseModel):
     """Merge other topics into this one — see ``topics.merge_topics`` for semantics."""
 

@@ -15,11 +15,20 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GitMerge, GripVertical, Layers, ListChecks, Trash2 } from "lucide-react";
+import {
+  GitMerge,
+  GripVertical,
+  Layers,
+  ListChecks,
+  ListTodo,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import { cn } from "@/lib/utils";
+import { useTodoStore } from "@/stores/todo";
 import type { ChapterNode, DocumentTree, TopicNode } from "@/types/study";
 
 import { TopicStatusIcon } from "./TopicStatusIcon";
@@ -43,11 +52,71 @@ interface StudySidebarProps {
   onChooseTopics?: () => void;
 }
 
+/** The topic under an open right-click menu (fixed at the cursor position). */
+interface TopicMenu {
+  x: number;
+  y: number;
+  topicId: number;
+}
+
 export function StudySidebar(props: StudySidebarProps) {
   const { tree, onPractice, onChooseTopics } = props;
   const { t } = useTranslation();
+  const addToTodo = useTodoStore((s) => s.add);
+  const [menu, setMenu] = useState<TopicMenu | null>(null);
+
+  // Any click, scroll, Escape, or a right-click elsewhere dismisses the menu.
+  // The contextmenu listener is capture-phase so it runs before a topic's own
+  // handler — right-clicking another topic closes this menu, then opens its own.
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("click", close);
+    window.addEventListener("contextmenu", close, true);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("contextmenu", close, true);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  function onTopicContextMenu(event: React.MouseEvent, topicId: number) {
+    event.preventDefault();
+    setMenu({
+      x: Math.min(event.clientX, window.innerWidth - 220),
+      y: Math.min(event.clientY, window.innerHeight - 56),
+      topicId,
+    });
+  }
+
   return (
     <nav className="space-y-4">
+      {menu && (
+        <div
+          className="fixed z-50 min-w-48 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
+          style={{ left: menu.x, top: menu.y }}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void addToTodo([menu.topicId]);
+              setMenu(null);
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ListTodo className="size-4 text-primary" />
+            {t("todo.addToList")}
+          </button>
+        </div>
+      )}
       {onPractice && (
         <div className="space-y-3 rounded-xl border bg-card/60 p-3 shadow-sm">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
@@ -79,7 +148,12 @@ export function StudySidebar(props: StudySidebarProps) {
         </div>
       )}
       {tree.chapters.map((chapter) => (
-        <ChapterGroup key={chapter.id} chapter={chapter} {...props} />
+        <ChapterGroup
+          key={chapter.id}
+          chapter={chapter}
+          onTopicContextMenu={onTopicContextMenu}
+          {...props}
+        />
       ))}
     </nav>
   );
@@ -126,7 +200,11 @@ function ChapterGroup({
   onMergeTopic,
   onToggleBookmark,
   onReorderTopics,
-}: { chapter: ChapterNode } & Omit<StudySidebarProps, "tree">) {
+  onTopicContextMenu,
+}: {
+  chapter: ChapterNode;
+  onTopicContextMenu: (event: React.MouseEvent, topicId: number) => void;
+} & Omit<StudySidebarProps, "tree">) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -172,6 +250,7 @@ function ChapterGroup({
                     : undefined
                 }
                 onToggleBookmark={(b) => onToggleBookmark(topic.id, b)}
+                onContextMenu={(e) => onTopicContextMenu(e, topic.id)}
               />
             ))}
           </ul>
@@ -188,6 +267,7 @@ function SortableTopic({
   onDelete,
   onMerge,
   onToggleBookmark,
+  onContextMenu,
 }: {
   topic: TopicNode;
   active: boolean;
@@ -195,6 +275,7 @@ function SortableTopic({
   onDelete: () => void;
   onMerge?: () => void;
   onToggleBookmark: (bookmarked: boolean) => void;
+  onContextMenu: (event: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -205,6 +286,7 @@ function SortableTopic({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      onContextMenu={onContextMenu}
       className={cn(
         "group/topic flex items-center rounded-md transition-colors",
         active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",

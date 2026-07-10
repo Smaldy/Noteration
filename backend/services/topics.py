@@ -14,6 +14,7 @@ from backend.models import (
     Formula,
     Note,
     QueueJob,
+    ScheduleEntry,
     Subject,
     Topic,
 )
@@ -491,6 +492,31 @@ def _consolidate_notes(
         return False
     _restamp_notes_provider(session, target.id, result.provider)
     return True
+
+
+def set_studied(
+    session: Session, topic_id: int, *, studied: bool, today: date
+) -> Topic:
+    """Set a topic's studied (completed) flag and sync its calendar sessions.
+
+    One-way sync: checking the topic marks every calendar session of that topic
+    completed (stamped ``today``); unchecking clears them all. Individual
+    calendar checkboxes stay per-session and never flip the topic. Raises
+    ``TopicNotFoundError`` if missing. Commits.
+    """
+    topic = session.get(Topic, topic_id)
+    if topic is None:
+        raise TopicNotFoundError(topic_id)
+    topic.studied = studied
+    entries = session.scalars(
+        select(ScheduleEntry).where(ScheduleEntry.topic_id == topic_id)
+    ).all()
+    for entry in entries:
+        entry.completed = studied
+        entry.completed_at = today if studied else None
+    session.commit()
+    session.refresh(topic)
+    return topic
 
 
 def set_bookmark(session: Session, topic_id: int, *, bookmarked: bool) -> Topic:

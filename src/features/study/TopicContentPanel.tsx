@@ -1,4 +1,4 @@
-import { CalendarPlus, Maximize2, Minimize2 } from "lucide-react";
+import { CalendarPlus, Check, Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,6 +6,7 @@ import { AddToCalendarDialog } from "@/features/calendar/AddToCalendarDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useStudyStore } from "@/stores/study";
 import type { DocumentMode } from "@/types/library";
 import type { TopicContent } from "@/types/study";
 
@@ -21,6 +22,7 @@ export function TopicContentPanel({
   mode?: DocumentMode;
 }) {
   const { t } = useTranslation();
+  const setTopicStudied = useStudyStore((s) => s.setTopicStudied);
   // Exam-prep documents are assessment-only — no notes were generated, so the
   // Notes tab is dropped and the quiz leads.
   const isExam = mode === "exam";
@@ -63,19 +65,53 @@ export function TopicContentPanel({
             fullscreen ? "justify-center" : "justify-between",
           )}
         >
-          <TabsList>
-            {!isExam && (
-              <TabsTrigger value="notes">{t("study.tabs.notes")}</TabsTrigger>
-            )}
-            <TabsTrigger value="quiz">
-              {t("study.tabs.quiz")}
-              {content.mcqs.length > 0 && ` (${content.mcqs.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="flashcards">
-              {t("study.tabs.flashcards")}
-              {content.flashcards.length > 0 && ` (${content.flashcards.length})`}
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex min-w-0 items-center gap-3">
+            <TabsList>
+              {!isExam && (
+                <TabsTrigger value="notes">{t("study.tabs.notes")}</TabsTrigger>
+              )}
+              <TabsTrigger value="quiz">
+                {t("study.tabs.quiz")}
+                {content.mcqs.length > 0 && ` (${content.mcqs.length})`}
+              </TabsTrigger>
+              <TabsTrigger value="flashcards">
+                {t("study.tabs.flashcards")}
+                {content.flashcards.length > 0 && ` (${content.flashcards.length})`}
+              </TabsTrigger>
+            </TabsList>
+            {/* The topic's completed checkmark — deliberately outside the
+                TabsList so it reads as state, not a fourth tab. */}
+            <button
+              type="button"
+              onClick={() => void setTopicStudied(content.id, !content.studied)}
+              title={
+                content.studied
+                  ? t("study.notes.markNotCompleted")
+                  : t("study.notes.markCompleted")
+              }
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95",
+                content.studied
+                  ? "border-success/40 bg-success/10 text-success"
+                  : "text-muted-foreground hover:border-ring/40 hover:text-foreground",
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "grid size-3.5 shrink-0 place-items-center rounded-sm border transition-colors",
+                  content.studied
+                    ? "border-success bg-success text-white"
+                    : "border-current/50",
+                )}
+              >
+                {content.studied && <Check className="size-2.5" strokeWidth={3} />}
+              </span>
+              {content.studied
+                ? t("study.notes.completed")
+                : t("study.notes.markCompleted")}
+            </button>
+          </div>
           {/* In normal view the controls live at the end of the tab row; in
               full screen the fullscreen toggle becomes a floating pill. */}
           {!fullscreen && (

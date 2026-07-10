@@ -244,6 +244,7 @@ class CatalogTopic:
     title: str
     chapter_title: str
     document_id: int
+    document_filename: str
     studied: bool
 
 
@@ -291,6 +292,7 @@ def topic_catalog(db: Session) -> list[CatalogSubject]:
                     title=topic.title,
                     chapter_title=chapter.title,
                     document_id=document.id,
+                    document_filename=document.filename,
                     studied=topic.studied,
                 )
             )

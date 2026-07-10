@@ -91,6 +91,7 @@ export function AddToCalendarDialog({
             title: presetTopic.title,
             chapter_title: "",
             document_id: 0,
+            document_filename: "",
             studied: false,
           }
         : null,

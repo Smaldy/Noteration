@@ -41,6 +41,10 @@ interface CalendarStore {
 
   /** Force a catalog reload (e.g. after planning marks topics studied). */
   fetchCatalog: (force?: boolean) => Promise<void>;
+  /** Mirror a topic's studied toggle (Notes tab / to-do list): update the
+   *  catalog in place and re-fetch the loaded range, since the server has
+   *  (un)checked every calendar session of that topic. */
+  applyTopicStudied: (topicId: number, studied: boolean) => void;
   /** Generate an AI study plan for a subject; returns the created entries.
    *  `studiedTopicIds` (when given) are excluded from the plan and persisted. */
   generatePlan: (
@@ -148,6 +152,21 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   deleteEntry: async (entryId) => {
     await api.del(`/study/schedule/${entryId}`);
     set((state) => ({ entries: state.entries.filter((e) => e.id !== entryId) }));
+  },
+
+  applyTopicStudied: (topicId, studied) => {
+    set((state) => ({
+      catalog: state.catalog.map((s) => ({
+        ...s,
+        topics: s.topics.map((t) => (t.id === topicId ? { ...t, studied } : t)),
+      })),
+      // Optimistic flip so an open calendar updates instantly; refresh() then
+      // reconciles completed_at/on_time from the server.
+      entries: state.entries.map((e) =>
+        e.topic_id === topicId ? { ...e, completed: studied } : e,
+      ),
+    }));
+    void get().refresh();
   },
 
   fetchCatalog: async (force = false) => {

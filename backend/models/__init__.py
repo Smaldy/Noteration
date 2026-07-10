@@ -42,6 +42,7 @@ from backend.models.hierarchy import Chapter, Document, Subject, Topic
 from backend.models.processing import HistoryEvent, ProviderState, QueueJob
 from backend.models.schedule import ScheduleEntry
 from backend.models.settings import Settings
+from backend.models.todo import TodoItem
 
 __all__ = [
     "Subject",
@@ -55,6 +56,7 @@ __all__ = [
     "Flashcard",
     "SourcePage",
     "ScheduleEntry",
+    "TodoItem",
     "QueueJob",
     "ProviderState",
     "HistoryEvent",

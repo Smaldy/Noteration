@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 import * as audio from "@/features/pomodoro/audio";
@@ -118,16 +117,10 @@ export function PomodoroWidget() {
   const isWork = phase === "work";
   const accent = isWork ? "var(--primary)" : "#10b981"; // focus vs break
 
-  // Lift above the Settings page's sticky bottom save bar.
-  const onSettings = useLocation().pathname === "/settings";
-
+  // Positioning (fixed bottom-right, settings-page offset) is owned by the
+  // shared floating-widgets container in App.tsx, next to the to-do widget.
   return (
-    <div
-      className={cn(
-        "fixed right-4 z-40 print:hidden",
-        onSettings ? "bottom-24" : "bottom-4",
-      )}
-    >
+    <div>
       <AnimatePresence mode="wait" initial={false}>
         {expanded ? (
           <motion.div

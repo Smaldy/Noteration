@@ -8,6 +8,8 @@ import { ArcadeRoot } from "@/features/arcade/ArcadeRoot";
 import { CreditsOverlay } from "@/features/credits/CreditsOverlay";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
 import { ProviderBadge } from "@/features/queue/ProviderBadge";
+import { TodoWidget } from "@/features/todo/TodoWidget";
+import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings";
 
 // Route pages are code-split: each loads on demand so heavy libraries
@@ -75,13 +77,30 @@ export default function App() {
         </AnimatePresence>
         {/* Persistent across routes — always-visible status + the running timer. */}
         <ProviderBadge />
-        <PomodoroWidget />
+        <FloatingWidgets />
         {/* Hidden easter egg: tap the Library title 4× quickly to summon the credits. */}
         <CreditsOverlay />
         {/* Study-gated arcade minigame — additive overlay; never touches the app. */}
         <ArcadeRoot />
       </MotionConfig>
     </AppErrorBoundary>
+  );
+}
+
+/** The bottom-right floating widgets (to-do list + Pomodoro), side by side in
+ *  one fixed container. Lifted above the Settings page's sticky save bar. */
+function FloatingWidgets() {
+  const onSettings = useLocation().pathname === "/settings";
+  return (
+    <div
+      className={cn(
+        "fixed right-4 z-40 flex items-end gap-2 print:hidden",
+        onSettings ? "bottom-24" : "bottom-4",
+      )}
+    >
+      <TodoWidget />
+      <PomodoroWidget />
+    </div>
   );
 }
 

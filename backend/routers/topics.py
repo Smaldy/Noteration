@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models import Topic
+from backend.models.hierarchy import utcnow
 from backend.schemas.bookmarks import BookmarkUpdate, TopicBookmarkOut
 from backend.schemas.reorder import ReorderRequest
 from backend.schemas.topic import (
@@ -23,6 +24,8 @@ from backend.schemas.topic import (
     MergeTopicsRequest,
     RegenerateNotesRequest,
     TopicContentOut,
+    TopicStudiedOut,
+    TopicStudiedUpdate,
 )
 from backend.services import attachments as attachsvc
 from backend.services import topics as topicsvc
@@ -210,6 +213,21 @@ async def add_attachment(
         )
     attachment.url = attachsvc.attachment_url(attachment)
     return attachment
+
+
+@router.put("/{topic_id}/studied", response_model=TopicStudiedOut)
+def set_topic_studied(
+    topic_id: int,
+    payload: TopicStudiedUpdate,
+    session: Session = Depends(get_session),
+) -> Topic:
+    """Mark a topic completed (or not). Syncs its calendar sessions one-way."""
+    try:
+        return topicsvc.set_studied(
+            session, topic_id, studied=payload.studied, today=utcnow().date()
+        )
+    except topicsvc.TopicNotFoundError:
+        raise HTTPException(status_code=404, detail="Topic not found")
 
 
 @router.put("/{topic_id}/bookmark", response_model=TopicBookmarkOut)

@@ -35,6 +35,7 @@ export interface CatalogTopic {
   title: string;
   chapter_title: string;
   document_id: number;
+  document_filename: string;
   studied: boolean;
 }
 

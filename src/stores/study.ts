@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
 import { ApiError, api } from "@/lib/api";
+import { useCalendarStore } from "@/stores/calendar";
+import { useTodoStore } from "@/stores/todo";
 import type { Attachment, DocumentTree, Note, TopicContent } from "@/types/study";
 
 type Load = "idle" | "loading" | "loaded" | "error";
@@ -45,6 +47,9 @@ interface StudyStore {
   ) => Promise<void>;
   /** Bookmark/unbookmark a topic (optimistic across tree + open content). */
   toggleTopicBookmark: (topicId: number, bookmarked: boolean) => Promise<void>;
+  /** Mark a topic completed/studied (optimistic; fans out to the to-do list
+   *  and the calendar, whose sessions the server (un)checks one-way). */
+  setTopicStudied: (topicId: number, studied: boolean) => Promise<void>;
   /** Persist a chapter's new topic order (optimistic). */
   reorderTopics: (chapterId: number, orderedIds: number[]) => Promise<void>;
   /** Clear the selected topic's content (e.g. when none is selected). */
@@ -244,6 +249,37 @@ export const useStudyStore = create<StudyStore>((set, get) => ({
       await api.put(`/topics/${topicId}/bookmark`, { bookmarked });
     } catch {
       apply(!bookmarked); // revert
+    }
+  },
+
+  setTopicStudied: async (topicId, studied) => {
+    const apply = (value: boolean) => {
+      set((state) => ({
+        tree: state.tree
+          ? {
+              ...state.tree,
+              chapters: state.tree.chapters.map((ch) => ({
+                ...ch,
+                topics: ch.topics.map((t) =>
+                  t.id === topicId ? { ...t, studied: value } : t,
+                ),
+              })),
+            }
+          : state.tree,
+        content:
+          state.content && state.content.id === topicId
+            ? { ...state.content, studied: value }
+            : state.content,
+      }));
+      useTodoStore.getState().applyStudied(topicId, value);
+    };
+    apply(studied); // optimistic
+    try {
+      await api.put(`/topics/${topicId}/studied`, { studied });
+      // The server also (un)checked the topic's calendar sessions.
+      useCalendarStore.getState().applyTopicStudied(topicId, studied);
+    } catch {
+      apply(!studied); // revert
     }
   },
 

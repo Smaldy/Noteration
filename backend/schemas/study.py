@@ -119,6 +119,7 @@ class CatalogTopicOut(BaseModel):
     title: str
     chapter_title: str
     document_id: int
+    document_filename: str
     studied: bool
 
 

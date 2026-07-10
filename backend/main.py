@@ -27,6 +27,7 @@ from backend.routers import (
     settings,
     study,
     subjects,
+    todo,
     topics,
 )
 from backend.security import install_local_origin_guard
@@ -87,6 +88,7 @@ api.include_router(topics.router)
 api.include_router(notes.router)
 api.include_router(queue.router)
 api.include_router(study.router)
+api.include_router(todo.router)
 api.include_router(settings.router)
 api.include_router(search.router)
 api.include_router(assessment.router)
