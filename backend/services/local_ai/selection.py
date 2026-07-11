@@ -11,8 +11,9 @@ Selection rules (spec):
   retried at smaller contexts before being discarded; shrinking context costs
   less quality than shrinking the model. The ladder never drops below what a
   generation call actually needs (~2k prompt + 2k output).
-- **Quality model** is memory-bound: best effective quality that fits, floor
-  only "finishes by morning". On a dedicated GPU its pool additionally
+- **Quality model** is memory-bound: best effective quality that fits AND
+  clears ~10 tok/s (degrading to a finishes-by-morning floor only when
+  nothing does). On a dedicated GPU its pool additionally
   includes a share of system RAM: Ollama transparently offloads weights that
   don't fit VRAM, and nobody waits for the overnight model, so a bigger model
   running partly from RAM beats a smaller one that fits — speed is estimated
@@ -68,6 +69,10 @@ CONTEXT_SHRINK_PENALTY = 1
 # Stage 4 floors (tok/s).
 FAST_TARGET_TOK_S = 20.0  # feels responsive
 FAST_HARD_FLOOR_TOK_S = 10.0  # usable but sluggish
+# The quality model also has a floor (user decision, overriding the original
+# no-floor spec): below ~10 tok/s a bigger model isn't worth its size even
+# overnight. When nothing clears it, fall back to "finishes by morning".
+QUALITY_FLOOR_TOK_S = 10.0
 OVERNIGHT_FLOOR_TOK_S = 1.0  # only "finishes by morning"
 
 # A "decent" interactive model (Stage 7's bar) is 3B-class or better.
@@ -244,11 +249,17 @@ def select_models(
         )
         return SelectionResult(None, None, converged=False, weak_machine=True, messages=messages)
 
-    # Quality role: memory-bound (offload pool), no responsiveness floor.
+    # Quality role: best model over the quality floor (offload pool allowed).
+    # Degrade to the finishes-by-morning floor, then to the least-bad combo,
+    # so weak machines still get something.
     quality = _best(
-        [c for c in quality_combos if c.est_tok_s >= OVERNIGHT_FLOOR_TOK_S]
+        [c for c in quality_combos if c.est_tok_s >= QUALITY_FLOOR_TOK_S]
     )
-    if quality is None:  # nothing finishes by morning; take the least-bad combo
+    if quality is None:
+        quality = _best(
+            [c for c in quality_combos if c.est_tok_s >= OVERNIGHT_FLOOR_TOK_S]
+        )
+    if quality is None:
         quality = _best(quality_combos)
 
     # Fast role: speed-bound, strictly resident. Try the responsive target,
@@ -282,18 +293,19 @@ def select_models(
             "offline. If you add a cloud API key later (for example Gemini), "
             "you will get better results when you are online."
         )
-    elif quality.offloaded:
+    # Same (model, quant) for both roles is one pull and one runtime model —
+    # collapse onto the fast (resident) variant rather than showing the same
+    # model twice with different context/offload numbers.
+    if (quality.model.tag, quality.quant) == (fast.model.tag, fast.quant):
+        quality = fast
+    if not weak_machine and quality.offloaded:
         messages.append(
             "The quality model is larger than the graphics memory, so part of "
             "it will run from system memory. That makes it slow, which is fine "
             "for overnight generation."
         )
 
-    converged = (quality.model.tag, quality.quant, quality.context) == (
-        fast.model.tag,
-        fast.quant,
-        fast.context,
-    )
+    converged = quality is fast
     return SelectionResult(
         quality=ModelChoice.from_combo(quality),
         fast=ModelChoice.from_combo(fast),

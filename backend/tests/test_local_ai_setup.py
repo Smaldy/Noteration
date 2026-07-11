@@ -96,7 +96,7 @@ def test_detection_snapshots_profile_and_selection(session):
     assert setup.status is LocalAiStatus.detected
     assert setup.hardware["gpu_name"] == "NVIDIA GeForce RTX 3060 Laptop GPU"
     # The 3060 golden selection (test_local_ai_selection) rides in the snapshot.
-    assert setup.selection["quality"]["tag"] == "qwen3:14b"
+    assert setup.selection["quality"]["tag"] == "qwen3:8b"
     assert setup.selection["fast"]["tag"] == "qwen3:4b"
     assert setup.selection["converged"] is False
 
@@ -123,15 +123,16 @@ def test_happy_path_pulls_both_roles_and_configures_settings(session):
     assert process_setup_once(session, deps=deps) is True
     setup = get_setup(session)
     assert deps.installed_ollama  # auto-install ran (no prompt gate on Ollama)
-    assert deps.pulled == ["qwen3:14b-q5_K_M", "qwen3:4b-q6_K"]  # quality, fast
+    # Quality is Q4_K_M, which IS the bare library tag (no suffix).
+    assert deps.pulled == ["qwen3:8b", "qwen3:4b-q6_K"]  # quality, fast
     assert setup.status is LocalAiStatus.ready
-    assert setup.quality_model == "qwen3:14b-q5_K_M"
+    assert setup.quality_model == "qwen3:8b"
     assert setup.fast_model == "qwen3:4b-q6_K"
     assert setup.pull_completed == setup.pull_total == 3 * GB
     settings = get_settings(session)
     assert settings.ollama_enabled is True
     assert settings.ollama_fast_model == "qwen3:4b-q6_K"
-    assert settings.ollama_quality_model == "qwen3:14b-q5_K_M"
+    assert settings.ollama_quality_model == "qwen3:8b"
 
 
 def test_converged_choice_pulls_once(session):
@@ -157,7 +158,7 @@ def test_missing_quant_tag_falls_back_to_q4_default(session):
     process_setup_once(session, deps=deps)
     setup = get_setup(session)
     assert setup.status is LocalAiStatus.ready
-    assert deps.pulled == ["qwen3:14b", "qwen3:4b"]  # bare tags ARE the Q4 builds
+    assert deps.pulled == ["qwen3:8b", "qwen3:4b"]  # bare tags ARE the Q4 builds
     assert any("Q4_K_M" in m for m in setup.selection["messages"])
 
 

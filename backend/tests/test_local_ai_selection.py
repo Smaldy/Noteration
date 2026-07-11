@@ -61,15 +61,15 @@ def rtx_3060_laptop() -> HardwareProfile:
     )
 
 
-def test_rtx_3060_laptop_splits_with_an_offloaded_14b():
-    """6 GB VRAM + 16 GB RAM: the quality role may spill into system RAM
-    (nobody waits overnight), so a 14B at Q5 beats the resident 4B; the fast
-    role stays strictly in VRAM."""
+def test_rtx_3060_laptop_splits_with_a_lightly_offloaded_8b():
+    """6 GB VRAM + 16 GB RAM: the quality role may spill into system RAM, but
+    it must still clear the 10 tok/s quality floor — an 8B with a light spill
+    does (~14 tok/s); a 14B at ~4 tok/s does not. The fast role stays
+    strictly in VRAM."""
     result = select_models(rtx_3060_laptop())
-    assert result.quality.tag == "qwen3:14b"
-    assert result.quality.quant == "Q5_K_M"
-    assert result.quality.context == 8192
-    assert result.quality.est_tok_s >= 1  # finishes by morning
+    assert result.quality.tag == "qwen3:8b"
+    assert result.quality.quant == "Q4_K_M"
+    assert 10 <= result.quality.est_tok_s < 20
     assert result.fast.tag == "qwen3:4b"
     assert result.fast.quant == "Q6_K"
     assert result.fast.est_tok_s >= 20
@@ -78,9 +78,9 @@ def test_rtx_3060_laptop_splits_with_an_offloaded_14b():
     assert any("system memory" in m for m in result.messages)  # honest offload note
 
 
-def test_rtx_4090_pairs_an_offloaded_q5_with_a_resident_q4():
-    """24 GB VRAM: the 32B fits resident at Q4 (fast) and offloads a sliver
-    at Q5 for the higher-quality overnight run."""
+def test_rtx_4090_converges_on_the_resident_32b():
+    """24 GB VRAM: the offloaded Q5 misses the quality floor, so both roles
+    land on the same resident 32B Q4 — one pull, one card."""
     profile = make_profile(
         usable_pool=24 * GB,
         fraction=DEDICATED_USABLE_FRACTION,
@@ -92,19 +92,17 @@ def test_rtx_4090_pairs_an_offloaded_q5_with_a_resident_q4():
     )
     result = select_models(profile)
     assert result.quality.tag == "qwen3:32b"
-    assert result.quality.quant == "Q5_K_M"
-    assert result.quality.context == 8192
-    assert result.fast.tag == "qwen3:32b"
-    assert result.fast.quant == "Q4_K_M"
-    assert result.fast.context == 4096  # the context-shrink lever in action
+    assert result.quality.quant == "Q4_K_M"
+    assert result.quality.context == 4096  # the context-shrink lever in action
+    assert result.converged
     assert result.fast.est_tok_s >= 20
-    assert not result.converged
+    assert not result.messages
 
 
 def test_m2_pro_32gb_splits_quality_and_fast():
-    """Apple mid-tier is where the two-model scheme earns its keep: a 27B for
-    overnight (5-6 tok/s, nobody is waiting) and the 30B MoE for interactive
-    (only ~3B active params per token, so it flies)."""
+    """Apple mid-tier still splits: the best dense model over the quality
+    floor (14B Q5) for overnight, and the 30B MoE for interactive (only ~3B
+    active params per token, so it flies)."""
     profile = make_profile(
         usable_pool=32 * GB,
         fraction=UNIFIED_USABLE_FRACTION,
@@ -117,9 +115,9 @@ def test_m2_pro_32gb_splits_quality_and_fast():
         arch="arm64",
     )
     result = select_models(profile)
-    assert result.quality.tag == "gemma3:27b"
+    assert result.quality.tag == "qwen3:14b"
     assert result.quality.quant == "Q5_K_M"
-    assert result.quality.context == 8192
+    assert result.quality.est_tok_s >= 10  # the 27B at ~6 tok/s misses the floor
     assert result.fast.tag == "qwen3:30b-a3b"
     assert result.fast.quant == "Q4_K_M"
     assert result.fast.est_tok_s >= 20
@@ -129,19 +127,17 @@ def test_m2_pro_32gb_splits_quality_and_fast():
     assert result.total_download_bytes > result.quality.download_bytes
 
 
-def test_cpu_only_16gb_pairs_a_12b_overnight_with_a_sluggish_4b():
-    """CPU-only: overnight still gets a 12B (3 tok/s is fine when nobody
-    waits); interactive falls to the 10 tok/s hard-floor tier with an honest
-    sluggishness message. Still two models, still local."""
+def test_cpu_only_16gb_converges_on_the_best_4b_over_the_floor():
+    """CPU-only: a 12B runs ~3 tok/s and misses the quality floor, so both
+    roles land on the best 4B that clears 10 tok/s, with an honest
+    sluggishness message. Still local, still functional."""
     profile = make_profile(
         usable_pool=16 * GB, fraction=CPU_USABLE_FRACTION, ram=16 * GB
     )
     result = select_models(profile)
-    assert result.quality.tag == "gemma3:12b"
-    assert result.quality.quant == "Q5_K_M"
-    assert result.quality.context == 4096
-    assert result.fast.tag == "qwen3:4b"
-    assert result.fast.quant == "Q4_K_M"
+    assert result.quality.tag == "qwen3:4b"
+    assert result.quality.quant == "Q4_K_M"
+    assert result.converged
     assert 10 <= result.fast.est_tok_s < 20
     assert not result.weak_machine
     assert any("slow" in m for m in result.messages)
@@ -172,7 +168,7 @@ def test_m1_8gb_converges_sluggish_but_functional():
 
 def test_unnamed_amd_16gb_splits_on_the_conservative_fallback():
     """AMD sized via sysfs (no marketing name): the dedicated-class bandwidth
-    fallback pairs an offloaded 27B overnight with a resident 8B interactive."""
+    fallback pairs a resident 14B overnight with a resident 8B interactive."""
     profile = make_profile(
         usable_pool=16 * GB,
         fraction=DEDICATED_USABLE_FRACTION,
@@ -182,9 +178,9 @@ def test_unnamed_amd_16gb_splits_on_the_conservative_fallback():
         backend=ComputeBackend.rocm,
     )
     result = select_models(profile)
-    assert result.quality.tag == "gemma3:27b"
+    assert result.quality.tag == "qwen3:14b"
     assert result.quality.quant == "Q5_K_M"  # >9B, so the upgrade quant is Q5
-    assert result.quality.est_tok_s >= 1
+    assert result.quality.est_tok_s >= 10  # the 27B misses the quality floor
     assert result.fast.tag == "qwen3:8b"
     assert result.fast.quant == "Q4_K_M"
     assert result.fast.est_tok_s >= 20

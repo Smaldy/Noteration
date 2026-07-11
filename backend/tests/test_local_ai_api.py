@@ -57,7 +57,7 @@ def test_detect_returns_profile_selection_and_confidence(client):
     payload = client.post("/api/local-ai/detect").json()
     assert payload["status"] == "detected"
     assert payload["hardware"]["confidence"] == "high"
-    assert payload["selection"]["quality"]["tag"] == "qwen3:14b"
+    assert payload["selection"]["quality"]["tag"] == "qwen3:8b"
     assert payload["selection"]["fast"]["tag"] == "qwen3:4b"
     assert payload["selection"]["converged"] is False
 
@@ -71,7 +71,7 @@ def test_install_queues_with_selection_defaults(client):
     client.post("/api/local-ai/detect")
     payload = client.post("/api/local-ai/install", json={}).json()
     assert payload["status"] == "queued"
-    assert payload["chosen"]["quality"]["tag"] == "qwen3:14b"
+    assert payload["chosen"]["quality"]["tag"] == "qwen3:8b"
     assert payload["chosen"]["fast"]["tag"] == "qwen3:4b"
 
 
