@@ -57,8 +57,9 @@ def test_detect_returns_profile_selection_and_confidence(client):
     payload = client.post("/api/local-ai/detect").json()
     assert payload["status"] == "detected"
     assert payload["hardware"]["confidence"] == "high"
-    assert payload["selection"]["quality"]["tag"] == "qwen3:4b"
-    assert payload["selection"]["converged"] is True
+    assert payload["selection"]["quality"]["tag"] == "qwen3:14b"
+    assert payload["selection"]["fast"]["tag"] == "qwen3:4b"
+    assert payload["selection"]["converged"] is False
 
 
 def test_install_requires_detection_first(client):
@@ -70,7 +71,8 @@ def test_install_queues_with_selection_defaults(client):
     client.post("/api/local-ai/detect")
     payload = client.post("/api/local-ai/install", json={}).json()
     assert payload["status"] == "queued"
-    assert payload["chosen"]["quality"]["tag"] == "qwen3:4b"
+    assert payload["chosen"]["quality"]["tag"] == "qwen3:14b"
+    assert payload["chosen"]["fast"]["tag"] == "qwen3:4b"
 
 
 def test_install_accepts_user_override(client):
@@ -104,8 +106,26 @@ def test_reset_returns_to_not_configured(client):
 def test_settings_expose_two_model_fields(client):
     payload = client.get("/api/settings").json()
     assert payload["ollama_fast_model"] is None
+    assert payload["ollama_always_model"] is None
     assert payload["ollama_prefer_quality"] is False
     updated = client.patch(
         "/api/settings", json={"ollama_prefer_quality": True}
     ).json()
     assert updated["ollama_prefer_quality"] is True
+
+
+def test_settings_manual_role_pins_set_and_clear(client):
+    updated = client.patch(
+        "/api/settings",
+        json={
+            "ollama_fast_model": "qwen3:8b",
+            "ollama_quality_model": "gemma3:27b",
+            "ollama_always_model": "phi4",
+        },
+    ).json()
+    assert updated["ollama_fast_model"] == "qwen3:8b"
+    assert updated["ollama_always_model"] == "phi4"
+    # Empty string clears a role (mirrors the API-key clearing convention).
+    cleared = client.patch("/api/settings", json={"ollama_always_model": ""}).json()
+    assert cleared["ollama_always_model"] is None
+    assert cleared["ollama_fast_model"] == "qwen3:8b"

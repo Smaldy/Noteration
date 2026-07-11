@@ -26,8 +26,6 @@ import type {
 
 export interface FormState {
   allow_paid: boolean;
-  ollama_enabled: boolean;
-  ollama_model: string;
   gemini_enabled: boolean;
   gemini_rotation: boolean;
   gemini_model: GeminiModel;
@@ -252,8 +250,6 @@ export function saveSectionPrefs(prefs: SectionPrefs) {
 export function toForm(s: Settings): FormState {
   return {
     allow_paid: s.allow_paid,
-    ollama_enabled: s.ollama_enabled,
-    ollama_model: s.ollama_model ?? "",
     gemini_enabled: s.gemini_enabled,
     gemini_rotation: s.gemini_rotation,
     gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",

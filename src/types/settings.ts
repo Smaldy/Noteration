@@ -36,6 +36,8 @@ export interface Settings {
   /** Two-model local AI: set by the setup flow (read-only here). */
   ollama_fast_model: string | null;
   ollama_quality_model: string | null;
+  /** Manual pin: serves every local call when set, overriding the roles. */
+  ollama_always_model: string | null;
   /** "Slower but higher quality" toggle for on-demand generation. */
   ollama_prefer_quality: boolean;
   gemini_model: string;
@@ -71,6 +73,10 @@ export interface SettingsUpdate {
   ollama_enabled?: boolean;
   /** Empty string clears the stored model name. */
   ollama_model?: string;
+  /** Manual role pickers; empty string clears the role. */
+  ollama_fast_model?: string;
+  ollama_quality_model?: string;
+  ollama_always_model?: string;
   ollama_prefer_quality?: boolean;
   gemini_model?: GeminiModel;
   gemini_enabled?: boolean;

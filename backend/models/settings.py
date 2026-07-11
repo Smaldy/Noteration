@@ -48,6 +48,9 @@ class Settings(Base):
     ollama_fast_model: Mapped[str | None] = mapped_column(default=None)
     ollama_quality_model: Mapped[str | None] = mapped_column(default=None)
     ollama_prefer_quality: Mapped[bool] = mapped_column(default=False)
+    # Manual pin: when set, this model serves EVERY local call (overnight and
+    # interactive), overriding the fast/quality role split. Null = no pin.
+    ollama_always_model: Mapped[str | None] = mapped_column(default=None)
     # Per-document token ceiling (defense-in-depth against a runaway document).
     # 0 = automatic budget (estimate × overspend factor); a positive value is a
     # flat ceiling. See services/queue.py.

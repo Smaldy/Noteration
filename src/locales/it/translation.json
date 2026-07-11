@@ -739,13 +739,6 @@
         "label": "Consenti fallback a pagamento (Claude)",
         "hint": "Disattivo = nessuna spesa; solo piani gratuiti."
       },
-      "ollama": {
-        "label": "Usa Ollama locale",
-        "hint": "Includi un modello locale a costo $0 nella cascata (deve essere installato).",
-        "modelLabel": "Modello Ollama",
-        "modelPlaceholder": "es. llama3.1",
-        "modelHint": "Il nome del modello locale, come mostrato da `ollama list`."
-      },
       "budget": {
         "label": "Budget di token per documento",
         "hint": "Limite di sicurezza: un documento viene messo in pausa se supera questo numero di token. 0 = automatico (mette in pausa solo un evidente eccesso, ~3× la stima)."
@@ -817,6 +810,20 @@
       "failed": {
         "title": "La configurazione non è riuscita.",
         "retry": "Riprova"
+      },
+      "models": {
+        "title": "Modelli locali su questo computer",
+        "hint": "Modelli rilevati nella tua installazione di Ollama. Assegna qui i loro ruoli.",
+        "enable": {
+          "label": "Usa modelli locali",
+          "hint": "Consente a Noteration di generare con Ollama come uno dei suoi provider."
+        },
+        "empty": "Non ci sono ancora modelli installati. Esegui la configurazione qui sopra per scaricarne qualcuno.",
+        "fastLabel": "Usa come modello veloce",
+        "slowLabel": "Usa come modello lento",
+        "alwaysLabel": "Usa sempre",
+        "alwaysHint": "Il modello veloce risponde mentre lavori e il modello lento gira di notte per la migliore qualità. Se scegli un modello in Usa sempre, verrà usato per tutto, anche se è lento, e le altre due scelte vengono ignorate.",
+        "none": "Nessuno"
       }
     },
     "generation": {

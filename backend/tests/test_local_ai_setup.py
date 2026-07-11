@@ -96,8 +96,9 @@ def test_detection_snapshots_profile_and_selection(session):
     assert setup.status is LocalAiStatus.detected
     assert setup.hardware["gpu_name"] == "NVIDIA GeForce RTX 3060 Laptop GPU"
     # The 3060 golden selection (test_local_ai_selection) rides in the snapshot.
-    assert setup.selection["quality"]["tag"] == "qwen3:4b"
-    assert setup.selection["converged"] is True
+    assert setup.selection["quality"]["tag"] == "qwen3:14b"
+    assert setup.selection["fast"]["tag"] == "qwen3:4b"
+    assert setup.selection["converged"] is False
 
 
 def test_install_requires_a_selection(session):
@@ -115,22 +116,38 @@ def test_confirmation_gate_nothing_pulls_before_install(session):
     assert deps.pulled == []
 
 
-def test_happy_path_converged_pulls_once_and_configures_settings(session):
+def test_happy_path_pulls_both_roles_and_configures_settings(session):
     detected(session)
     request_install(session)
-    deps = FakeDeps(binary=False, existing_tags={"qwen3:4b-q6_K"})
+    deps = FakeDeps(binary=False)
     assert process_setup_once(session, deps=deps) is True
     setup = get_setup(session)
     assert deps.installed_ollama  # auto-install ran (no prompt gate on Ollama)
-    assert deps.pulled == ["qwen3:4b-q6_K"]  # converged: one pull for two roles
+    assert deps.pulled == ["qwen3:14b-q5_K_M", "qwen3:4b-q6_K"]  # quality, fast
     assert setup.status is LocalAiStatus.ready
-    assert setup.quality_model == "qwen3:4b-q6_K"
+    assert setup.quality_model == "qwen3:14b-q5_K_M"
     assert setup.fast_model == "qwen3:4b-q6_K"
     assert setup.pull_completed == setup.pull_total == 3 * GB
     settings = get_settings(session)
     assert settings.ollama_enabled is True
     assert settings.ollama_fast_model == "qwen3:4b-q6_K"
-    assert settings.ollama_quality_model == "qwen3:4b-q6_K"
+    assert settings.ollama_quality_model == "qwen3:14b-q5_K_M"
+
+
+def test_converged_choice_pulls_once(session):
+    """When both roles are the same (model, quant), the tag downloads once."""
+    detected(session)
+    request_install(
+        session,
+        quality={"tag": "qwen3:4b", "quant": "Q6_K"},
+        fast={"tag": "qwen3:4b", "quant": "Q6_K"},
+    )
+    deps = FakeDeps()
+    process_setup_once(session, deps=deps)
+    setup = get_setup(session)
+    assert setup.status is LocalAiStatus.ready
+    assert deps.pulled == ["qwen3:4b-q6_K"]
+    assert setup.quality_model == setup.fast_model == "qwen3:4b-q6_K"
 
 
 def test_missing_quant_tag_falls_back_to_q4_default(session):
@@ -140,7 +157,7 @@ def test_missing_quant_tag_falls_back_to_q4_default(session):
     process_setup_once(session, deps=deps)
     setup = get_setup(session)
     assert setup.status is LocalAiStatus.ready
-    assert deps.pulled == ["qwen3:4b"]  # the bare tag IS the Q4_K_M build
+    assert deps.pulled == ["qwen3:14b", "qwen3:4b"]  # bare tags ARE the Q4 builds
     assert any("Q4_K_M" in m for m in setup.selection["messages"])
 
 
@@ -219,6 +236,17 @@ def test_resolve_overnight_gets_quality_foreground_gets_fast():
     )
     assert resolve_ollama_model(settings, overnight=True) == "gemma3:27b-q5_K_M"
     assert resolve_ollama_model(settings, overnight=False) == "qwen3:8b"
+
+
+def test_resolve_always_pin_overrides_everything():
+    settings = make_settings(
+        ollama_fast_model="qwen3:8b",
+        ollama_quality_model="gemma3:27b-q5_K_M",
+        ollama_always_model="phi4",
+        ollama_prefer_quality=True,
+    )
+    assert resolve_ollama_model(settings, overnight=True) == "phi4"
+    assert resolve_ollama_model(settings, overnight=False) == "phi4"
 
 
 def test_resolve_prefer_quality_toggle_and_fallbacks():

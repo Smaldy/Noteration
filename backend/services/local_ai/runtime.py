@@ -16,7 +16,13 @@ if TYPE_CHECKING:
 
 
 def resolve_ollama_model(settings: Settings, *, overnight: bool) -> str | None:
-    """The Ollama tag to serve this call with, or None when nothing is set."""
+    """The Ollama tag to serve this call with, or None when nothing is set.
+
+    ``ollama_always_model`` is the user's manual pin: when set it serves every
+    call, overnight or interactive, overriding the role split entirely.
+    """
+    if settings.ollama_always_model:
+        return settings.ollama_always_model
     fast = (
         settings.ollama_fast_model
         or settings.ollama_model

@@ -202,25 +202,6 @@ export function ProvidersSection({
         checked={form.allow_paid}
         onChange={(v) => set("allow_paid", v)}
       />
-      <Toggle
-        label={t("settings.providers.ollama.label")}
-        hint={t("settings.providers.ollama.hint")}
-        checked={form.ollama_enabled}
-        onChange={(v) => set("ollama_enabled", v)}
-      />
-      {form.ollama_enabled && (
-        <Field label={t("settings.providers.ollama.modelLabel")}>
-          <Input
-            value={form.ollama_model}
-            onChange={(e) => set("ollama_model", e.target.value)}
-            placeholder={t("settings.providers.ollama.modelPlaceholder")}
-            className="max-w-xs"
-          />
-          <p className="text-xs text-muted-foreground">
-            {t("settings.providers.ollama.modelHint")}
-          </p>
-        </Field>
-      )}
       <Field label={t("settings.providers.budget.label")}>
         <NumberField
           min={0}

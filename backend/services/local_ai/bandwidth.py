@@ -126,3 +126,21 @@ def estimate_tok_per_sec(bytes_read_per_token: float, bandwidth_gbps: float) -> 
     if bytes_read_per_token <= 0:
         return 0.0
     return (bandwidth_gbps * 1e9 / bytes_read_per_token) * EFFICIENCY
+
+
+def blended_bandwidth_gbps(
+    gpu_gbps: float,
+    offload_frac: float,
+    cpu_gbps: float = float(FALLBACK_GBPS["cpu"]),
+) -> float:
+    """Effective bandwidth when a fraction of the weights spills to system RAM.
+
+    Generation reads every active weight per token, so time per token is the
+    sum of both paths: ``t = frac/cpu_bw + (1-frac)/gpu_bw``. The harmonic
+    blend makes the slow RAM path dominate as the spill grows, which matches
+    the steep real-world drop-off of partial offload.
+    """
+    frac = min(max(offload_frac, 0.0), 1.0)
+    if frac <= 0.0:
+        return gpu_gbps
+    return 1.0 / (frac / cpu_gbps + (1.0 - frac) / gpu_gbps)

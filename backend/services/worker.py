@@ -136,6 +136,7 @@ def _settings_fingerprint(settings: Settings) -> tuple:
         settings.ollama_model,
         settings.ollama_fast_model,
         settings.ollama_quality_model,
+        settings.ollama_always_model,
         bool(settings.ollama_prefer_quality),
         tuple(order) if order else (),
     )
@@ -187,6 +188,7 @@ def _has_configured_provider(settings: Settings) -> bool:
         settings.ollama_model
         or settings.ollama_fast_model
         or settings.ollama_quality_model
+        or settings.ollama_always_model
     ):
         return True
     return False

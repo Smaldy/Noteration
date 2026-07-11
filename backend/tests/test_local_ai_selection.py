@@ -61,22 +61,26 @@ def rtx_3060_laptop() -> HardwareProfile:
     )
 
 
-def test_rtx_3060_laptop_converges_on_a_4b_at_q6():
-    """6 GB VRAM: an 8B Q4 misses the usable pool, so the best 4B takes both
-    roles at the upgraded quant. Converged = one pull, dual role."""
+def test_rtx_3060_laptop_splits_with_an_offloaded_14b():
+    """6 GB VRAM + 16 GB RAM: the quality role may spill into system RAM
+    (nobody waits overnight), so a 14B at Q5 beats the resident 4B; the fast
+    role stays strictly in VRAM."""
     result = select_models(rtx_3060_laptop())
-    assert result.quality.tag == "qwen3:4b"
-    assert result.quality.quant == "Q6_K"
+    assert result.quality.tag == "qwen3:14b"
+    assert result.quality.quant == "Q5_K_M"
     assert result.quality.context == 8192
-    assert result.converged
-    assert not result.weak_machine
+    assert result.quality.est_tok_s >= 1  # finishes by morning
+    assert result.fast.tag == "qwen3:4b"
+    assert result.fast.quant == "Q6_K"
     assert result.fast.est_tok_s >= 20
-    assert not result.messages
+    assert not result.converged
+    assert not result.weak_machine
+    assert any("system memory" in m for m in result.messages)  # honest offload note
 
 
-def test_rtx_4090_converges_on_the_32b():
-    """24 GB VRAM: the biggest model that fits is also fast enough — the
-    two roles legitimately collapse on strong dedicated GPUs."""
+def test_rtx_4090_pairs_an_offloaded_q5_with_a_resident_q4():
+    """24 GB VRAM: the 32B fits resident at Q4 (fast) and offloads a sliver
+    at Q5 for the higher-quality overnight run."""
     profile = make_profile(
         usable_pool=24 * GB,
         fraction=DEDICATED_USABLE_FRACTION,
@@ -88,10 +92,13 @@ def test_rtx_4090_converges_on_the_32b():
     )
     result = select_models(profile)
     assert result.quality.tag == "qwen3:32b"
-    assert result.quality.quant == "Q4_K_M"
-    assert result.quality.context == 4096  # the context-shrink lever in action
-    assert result.converged
+    assert result.quality.quant == "Q5_K_M"
+    assert result.quality.context == 8192
+    assert result.fast.tag == "qwen3:32b"
+    assert result.fast.quant == "Q4_K_M"
+    assert result.fast.context == 4096  # the context-shrink lever in action
     assert result.fast.est_tok_s >= 20
+    assert not result.converged
 
 
 def test_m2_pro_32gb_splits_quality_and_fast():
@@ -165,7 +172,7 @@ def test_m1_8gb_converges_sluggish_but_functional():
 
 def test_unnamed_amd_16gb_splits_on_the_conservative_fallback():
     """AMD sized via sysfs (no marketing name): the dedicated-class bandwidth
-    fallback keeps a 14B for overnight and an 8B for interactive."""
+    fallback pairs an offloaded 27B overnight with a resident 8B interactive."""
     profile = make_profile(
         usable_pool=16 * GB,
         fraction=DEDICATED_USABLE_FRACTION,
@@ -175,8 +182,9 @@ def test_unnamed_amd_16gb_splits_on_the_conservative_fallback():
         backend=ComputeBackend.rocm,
     )
     result = select_models(profile)
-    assert result.quality.tag == "qwen3:14b"
+    assert result.quality.tag == "gemma3:27b"
     assert result.quality.quant == "Q5_K_M"  # >9B, so the upgrade quant is Q5
+    assert result.quality.est_tok_s >= 1
     assert result.fast.tag == "qwen3:8b"
     assert result.fast.quant == "Q4_K_M"
     assert result.fast.est_tok_s >= 20

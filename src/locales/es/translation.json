@@ -739,13 +739,6 @@
         "label": "Permitir alternativa de pago (Claude)",
         "hint": "Desactivado = nunca gasta; solo planes gratuitos."
       },
-      "ollama": {
-        "label": "Usar Ollama local",
-        "hint": "Incluye un modelo local de $0 en la cascada (debe estar instalado).",
-        "modelLabel": "Modelo de Ollama",
-        "modelPlaceholder": "p. ej. llama3.1",
-        "modelHint": "El nombre del modelo local, como lo muestra `ollama list`."
-      },
       "budget": {
         "label": "Presupuesto de tokens por documento",
         "hint": "Límite de seguridad: un documento se pausa si gasta más de estos tokens. 0 = automático (pausa solo un exceso claro, ~3× la estimación)."
@@ -817,6 +810,20 @@
       "failed": {
         "title": "La configuración falló.",
         "retry": "Intentar de nuevo"
+      },
+      "models": {
+        "title": "Modelos locales en este equipo",
+        "hint": "Modelos detectados en tu instalación de Ollama. Asígnales un papel aquí.",
+        "enable": {
+          "label": "Usar modelos locales",
+          "hint": "Permite que Noteration genere con Ollama como uno de sus proveedores."
+        },
+        "empty": "Todavía no hay modelos instalados. Ejecuta la configuración de arriba para descargar alguno.",
+        "fastLabel": "Usar como modelo rápido",
+        "slowLabel": "Usar como modelo lento",
+        "alwaysLabel": "Usar siempre",
+        "alwaysHint": "El modelo rápido responde mientras trabajas y el modelo lento se ejecuta por la noche para obtener la mejor calidad. Si eliges un modelo en Usar siempre, se usará para todo, aunque sea lento, y las otras dos opciones se ignoran.",
+        "none": "Ninguno"
       }
     },
     "generation": {

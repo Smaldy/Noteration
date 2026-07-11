@@ -22,6 +22,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api, ApiError } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { cn } from "@/lib/utils";
@@ -138,9 +145,97 @@ export function LocalAiSection() {
               {actionError}
             </p>
           )}
+          <LocalModelsPanel status={status} />
         </>
       )}
     </Section>
+  );
+}
+
+/** Manual control over which installed Ollama model serves which role. The
+ *  pickers list the models actually present on this computer (no typing tag
+ *  names); changes persist immediately. "Always use" overrides both roles and
+ *  defaults to none. */
+function LocalModelsPanel({ status }: { status: LocalAiStatus }) {
+  const { t } = useTranslation();
+  const { settings, updateSettings } = useSettingsStore();
+  if (!settings) return null;
+  // Union of what Ollama reports and what's currently assigned, so a value
+  // set elsewhere (or while Ollama is stopped) still shows in its picker.
+  const options = [
+    ...new Set(
+      [
+        ...status.ollama.installed_models,
+        settings.ollama_fast_model,
+        settings.ollama_quality_model,
+        settings.ollama_always_model,
+        settings.ollama_model,
+      ].filter((m): m is string => !!m),
+    ),
+  ];
+  if (options.length === 0 && !status.ollama.binary_present) return null;
+
+  const NONE = "__none__";
+  const pick = (field: string) => (value: string) =>
+    void updateSettings({ [field]: value === NONE ? "" : value });
+
+  const rolePicker = (
+    field: "ollama_fast_model" | "ollama_quality_model" | "ollama_always_model",
+    labelKey: string,
+  ) => (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">
+        {t(labelKey)}
+      </span>
+      <Select value={settings[field] ?? NONE} onValueChange={pick(field)}>
+        <SelectTrigger className="w-56 max-w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NONE}>
+            {t("settings.localAi.models.none")}
+          </SelectItem>
+          {options.map((m) => (
+            <SelectItem key={m} value={m}>
+              {m}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 rounded-xl border border-border/60 bg-secondary/20 p-4">
+      <div>
+        <p className="text-sm font-medium">{t("settings.localAi.models.title")}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("settings.localAi.models.hint")}
+        </p>
+      </div>
+      <Toggle
+        label={t("settings.localAi.models.enable.label")}
+        hint={t("settings.localAi.models.enable.hint")}
+        checked={settings.ollama_enabled}
+        onChange={(v) => void updateSettings({ ollama_enabled: v })}
+      />
+      {options.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {t("settings.localAi.models.empty")}
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-4">
+            {rolePicker("ollama_fast_model", "settings.localAi.models.fastLabel")}
+            {rolePicker("ollama_quality_model", "settings.localAi.models.slowLabel")}
+            {rolePicker("ollama_always_model", "settings.localAi.models.alwaysLabel")}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t("settings.localAi.models.alwaysHint")}
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

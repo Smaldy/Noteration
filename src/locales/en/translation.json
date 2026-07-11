@@ -739,13 +739,6 @@
         "label": "Allow paid fallback (Claude)",
         "hint": "Off = never spend; free tiers only."
       },
-      "ollama": {
-        "label": "Use local Ollama",
-        "hint": "Include a local $0 model in the waterfall (must be installed).",
-        "modelLabel": "Ollama model",
-        "modelPlaceholder": "e.g. llama3.1",
-        "modelHint": "The local model name, as shown by `ollama list`."
-      },
       "budget": {
         "label": "Per-document token budget",
         "hint": "Safety cap: a document is paused if it spends more than this many tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate)."
@@ -817,6 +810,20 @@
       "failed": {
         "title": "Setup failed.",
         "retry": "Try again"
+      },
+      "models": {
+        "title": "Local models on this computer",
+        "hint": "Models detected in your Ollama installation. Assign them to roles here.",
+        "enable": {
+          "label": "Use local models",
+          "hint": "Let Noteration generate with Ollama as one of its providers."
+        },
+        "empty": "No models are installed yet. Run the setup above to download some.",
+        "fastLabel": "Use as fast model",
+        "slowLabel": "Use as slow model",
+        "alwaysLabel": "Always use",
+        "alwaysHint": "The fast model answers while you work and the slow model runs overnight for the best quality. If you pick an Always model, it is used for everything, even if it is slow, and the other two choices are ignored.",
+        "none": "None"
       }
     },
     "generation": {

@@ -188,8 +188,6 @@ export function SettingsPage() {
     try {
       await updateSettings({
         allow_paid: form.allow_paid,
-        ollama_enabled: form.ollama_enabled,
-        ollama_model: form.ollama_model.trim(),
         gemini_enabled: form.gemini_enabled,
         gemini_rotation: form.gemini_rotation,
         gemini_model: form.gemini_model,
