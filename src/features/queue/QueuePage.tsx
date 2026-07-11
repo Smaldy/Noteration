@@ -3,6 +3,7 @@ import { AlertCircle, Clock, RotateCw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { NoAiBanner } from "@/components/NoAiBanner";
 import { BackLink, PageHeader, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,6 +75,8 @@ export function QueuePage() {
         subtitle={t("queue.subtitle")}
         className="mb-0"
       />
+
+      <NoAiBanner className="mt-5" />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>

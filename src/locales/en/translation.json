@@ -3,7 +3,12 @@
     "retry": "Retry",
     "loading": "Loading…",
     "library": "Library",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "noAi": {
+      "message": "No AI provider is configured yet, so new uploads will wait in the queue. Add a Gemini key, or set up free local models to work offline.",
+      "action": "Set up local AI",
+      "dismiss": "Dismiss"
+    }
   },
   "nav": {
     "examPrep": "Exam Prep",

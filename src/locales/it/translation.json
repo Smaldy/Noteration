@@ -3,7 +3,12 @@
     "retry": "Riprova",
     "loading": "Caricamento…",
     "library": "Libreria",
-    "cancel": "Annulla"
+    "cancel": "Annulla",
+    "noAi": {
+      "message": "Non è ancora configurato nessun provider di IA, quindi i nuovi caricamenti resteranno in coda. Aggiungi una chiave Gemini oppure configura modelli locali gratuiti per lavorare offline.",
+      "action": "Configura l'IA locale",
+      "dismiss": "Ignora"
+    }
   },
   "nav": {
     "examPrep": "Preparazione esame",

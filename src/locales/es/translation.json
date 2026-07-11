@@ -3,7 +3,12 @@
     "retry": "Reintentar",
     "loading": "Cargando…",
     "library": "Biblioteca",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "noAi": {
+      "message": "Todavía no hay ningún proveedor de IA configurado, así que las nuevas subidas esperarán en la cola. Añade una clave de Gemini o configura modelos locales gratuitos para trabajar sin conexión.",
+      "action": "Configurar IA local",
+      "dismiss": "Descartar"
+    }
   },
   "nav": {
     "examPrep": "Preparación de examen",

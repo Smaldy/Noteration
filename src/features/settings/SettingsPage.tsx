@@ -2,7 +2,7 @@
  *  discard flow, and composes the section cards (sections.tsx) inside the page
  *  chrome (chrome.tsx). The form model + option tables live in form.ts. */
 
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -36,6 +36,9 @@ export function SettingsPage() {
     useSettingsStore();
 
   const [form, setForm] = useState<FormState | null>(null);
+  // Deep-link support: /settings#<section-id> scrolls to that section once the
+  // form has loaded (used by the "no AI configured" nudge). Once only.
+  const jumpedToHash = useRef(false);
   const [geminiKey, setGeminiKey] = useState("");
   const [claudeKey, setClaudeKey] = useState("");
   const [saved, setSaved] = useState(false);
@@ -57,6 +60,16 @@ export function SettingsPage() {
   useEffect(() => {
     if (settings) setForm(toForm(settings));
   }, [settings]);
+
+  // Honor a /settings#<section-id> deep link once the page is rendered.
+  useEffect(() => {
+    if (jumpedToHash.current || !form) return;
+    const id = window.location.hash.slice(1);
+    if (id && SECTIONS.some((s) => s.id === id)) {
+      jumpedToHash.current = true;
+      setTimeout(() => jumpTo(id), 120);
+    }
+  });
 
   // Live preview: reflect appearance + language edits immediately (persisted on Save).
   useEffect(() => {

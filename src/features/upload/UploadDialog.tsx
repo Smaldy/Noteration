@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { NoAiBanner } from "@/components/NoAiBanner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -151,6 +152,8 @@ export function UploadDialog({
             {exam ? t("upload.descExam") : t("upload.desc")}
           </DialogDescription>
         </DialogHeader>
+
+        <NoAiBanner />
 
         <AnimatePresence mode="wait">
           {busy ? (
