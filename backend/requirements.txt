@@ -23,6 +23,13 @@ google-genai
 anthropic
 ollama
 
+# Local AI setup — hardware detection (services/local_ai/hardware.py). psutil
+# reads system RAM cross-platform; nvidia-ml-py is the official NVML binding.
+# Both are lazily imported and their absence degrades to an "unknown" probe,
+# never to "no GPU" (absence is not zero).
+psutil
+nvidia-ml-py
+
 # Desktop delivery — native window for the packaged app (WebView2 on Windows,
 # WebKit on macOS). Only used by packaging/launcher.py, not the test suite.
 pywebview
