@@ -688,6 +688,7 @@
     "nav": {
       "apiKeys": "Claves API",
       "providers": "Proveedores",
+      "localAi": "IA local",
       "generation": "Generación",
       "language": "Idioma",
       "pomodoro": "Pomodoro",
@@ -745,31 +746,144 @@
         "hint": "Límite de seguridad: un documento se pausa si gasta más de estos tokens. 0 = automático (pausa solo un exceso claro, ~3× la estimación)."
       }
     },
+    "localAi": {
+      "title": "IA local",
+      "description": "Usa Noteration sin conexión con modelos locales a través de Ollama. La configuración necesita internet una sola vez para descargar todo, y después la generación funciona sin conexión.",
+      "notSetUp": {
+        "lead": "Todavía no hay modelos locales configurados. Noteration puede analizar tu hardware, elegir los dos mejores modelos que puede ejecutar e instalarlos por ti.",
+        "detect": "Detectar mi hardware",
+        "detecting": "Analizando tu hardware"
+      },
+      "ollama": {
+        "running": "Ollama está instalado y en ejecución",
+        "installed": "Ollama está instalado",
+        "missing": "Ollama todavía no está instalado"
+      },
+      "detected": {
+        "gpu": "Gráficos",
+        "vram": "Memoria de vídeo",
+        "ram": "Memoria del sistema",
+        "memoryForModels": "Disponible para modelos",
+        "noGpu": "Sin tarjeta gráfica dedicada",
+        "unknownGpu": "Dispositivo gráfico desconocido",
+        "lowConfidence": "No se pudo leer tu hardware con fiabilidad, así que estos valores son una estimación prudente. Revísalos antes de instalar.",
+        "estSpeed": "unos {{speed}} tokens por segundo",
+        "download": "Descarga total: {{size}}",
+        "install": "Instalar modelos",
+        "redetect": "Detectar de nuevo",
+        "copyReport": "Copiar informe de detección",
+        "copied": "Copiado",
+        "elevationNote": "Ollama todavía no está instalado, así que el sistema puede pedir permiso de administrador solo para ese paso. Las descargas de modelos y todo lo demás funcionan con permisos normales."
+      },
+      "roles": {
+        "quality": {
+          "title": "Modelo de calidad",
+          "hint": "Se usa para la generación nocturna, donde nadie espera y la calidad es lo más importante."
+        },
+        "fast": {
+          "title": "Modelo rápido",
+          "hint": "El predeterminado para la generación bajo demanda mientras trabajas."
+        },
+        "both": {
+          "title": "Calidad y rápido",
+          "hint": "En este equipo un solo modelo es a la vez el mejor y suficientemente rápido, así que cubre ambos papeles."
+        }
+      },
+      "manual": {
+        "title": "¿Prefieres instalar Ollama tú mismo?",
+        "hint": "Ejecuta esto en una terminal y luego vuelve y pulsa Instalar modelos."
+      },
+      "progress": {
+        "queued": "Esperando para empezar",
+        "installing_ollama": "Instalando Ollama",
+        "pulling": "Descargando {{tag}}",
+        "backgroundNote": "Esto se ejecuta en segundo plano. Puedes salir de esta página y volver cuando quieras."
+      },
+      "ready": {
+        "title": "La IA local está lista",
+        "preferQuality": {
+          "label": "Preferir el modelo de calidad mientras trabajas",
+          "hint": "Respuestas más lentas pero mejores para la generación bajo demanda. La generación nocturna siempre usa el modelo de calidad."
+        },
+        "redetect": "Detectar de nuevo",
+        "remove": "Quitar configuración",
+        "removeConfirm": "¿Quitar la configuración de IA local? Los modelos descargados permanecen en el disco y se pueden reutilizar más adelante."
+      },
+      "failed": {
+        "title": "La configuración falló.",
+        "retry": "Intentar de nuevo"
+      }
+    },
     "generation": {
       "title": "Generación de apuntes",
       "description": "En qué se especializa el tutor de IA, cómo escribe y cuánto contenido genera por tema.",
       "studyFieldLabel": "Campo de estudio",
       "studyFieldHint": "Adapta el tutor de IA a tu disciplina: los apuntes de ingeniería se centran en fórmulas, los de literatura en temas y contexto, y los de derecho en casos.",
       "fields": {
-        "general": { "label": "General", "hint": "Tutor neutro, sirve para cualquier materia" },
-        "engineering": { "label": "Ingeniería y tecnología", "hint": "Fórmulas, definiciones, aplicaciones" },
-        "mathematics": { "label": "Matemáticas", "hint": "Teoremas, demostraciones, ejemplos resueltos" },
-        "natural_sciences": { "label": "Ciencias naturales", "hint": "Mecanismos, procesos, evidencia" },
-        "medicine": { "label": "Medicina y salud", "hint": "Mecanismos, clasificaciones, relevancia clínica" },
-        "law": { "label": "Derecho", "hint": "Principios, normas, casos, excepciones" },
-        "economics": { "label": "Economía y empresa", "hint": "Modelos, supuestos, ejemplos reales" },
-        "humanities": { "label": "Humanidades", "hint": "Temas, autores y contexto histórico para literatura, historia y filosofía" },
-        "languages": { "label": "Idiomas", "hint": "Vocabulario, gramática, ejemplos de uso" }
+        "general": {
+          "label": "General",
+          "hint": "Tutor neutro, sirve para cualquier materia"
+        },
+        "engineering": {
+          "label": "Ingeniería y tecnología",
+          "hint": "Fórmulas, definiciones, aplicaciones"
+        },
+        "mathematics": {
+          "label": "Matemáticas",
+          "hint": "Teoremas, demostraciones, ejemplos resueltos"
+        },
+        "natural_sciences": {
+          "label": "Ciencias naturales",
+          "hint": "Mecanismos, procesos, evidencia"
+        },
+        "medicine": {
+          "label": "Medicina y salud",
+          "hint": "Mecanismos, clasificaciones, relevancia clínica"
+        },
+        "law": {
+          "label": "Derecho",
+          "hint": "Principios, normas, casos, excepciones"
+        },
+        "economics": {
+          "label": "Economía y empresa",
+          "hint": "Modelos, supuestos, ejemplos reales"
+        },
+        "humanities": {
+          "label": "Humanidades",
+          "hint": "Temas, autores y contexto histórico para literatura, historia y filosofía"
+        },
+        "languages": {
+          "label": "Idiomas",
+          "hint": "Vocabulario, gramática, ejemplos de uso"
+        }
       },
       "styleLabel": "Estilo de las explicaciones",
       "styleHint": "Cómo redacta la IA los apuntes, las explicaciones de los cuestionarios y las flashcards.",
       "styles": {
-        "balanced": { "label": "Equilibrado", "hint": "Claro y orientado al examen (predeterminado)" },
-        "simple": { "label": "Lenguaje sencillo", "hint": "Palabras simples, cada término explicado, analogías" },
-        "technical": { "label": "Técnico", "hint": "Terminología precisa, rigor completo, sin simplificar" },
-        "discursive": { "label": "Discursivo", "hint": "Prosa fluida que recorre el razonamiento" },
-        "concise": { "label": "Conciso", "hint": "Viñetas compactas, cero relleno" },
-        "academic": { "label": "Académico", "hint": "Registro formal y profesional" }
+        "balanced": {
+          "label": "Equilibrado",
+          "hint": "Claro y orientado al examen (predeterminado)"
+        },
+        "simple": {
+          "label": "Lenguaje sencillo",
+          "hint": "Palabras simples, cada término explicado, analogías"
+        },
+        "technical": {
+          "label": "Técnico",
+          "hint": "Terminología precisa, rigor completo, sin simplificar"
+        },
+        "discursive": {
+          "label": "Discursivo",
+          "hint": "Prosa fluida que recorre el razonamiento"
+        },
+        "concise": {
+          "label": "Conciso",
+          "hint": "Viñetas compactas, cero relleno"
+        },
+        "academic": {
+          "label": "Académico",
+          "hint": "Registro formal y profesional"
+        }
       },
       "notesLength_one": "Longitud de apuntes: {{count}} página por tema",
       "notesLength_other": "Longitud de apuntes: {{count}} páginas por tema",

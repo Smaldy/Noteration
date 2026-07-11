@@ -688,6 +688,7 @@
     "nav": {
       "apiKeys": "API keys",
       "providers": "Providers",
+      "localAi": "Local AI",
       "generation": "Generation",
       "language": "Language",
       "pomodoro": "Pomodoro",
@@ -745,31 +746,144 @@
         "hint": "Safety cap: a document is paused if it spends more than this many tokens. 0 = automatic (pauses only a clear runaway, ~3× the estimate)."
       }
     },
+    "localAi": {
+      "title": "Local AI",
+      "description": "Run Noteration fully offline with local models through Ollama. Setup needs internet once to download everything, then generation works without a connection.",
+      "notSetUp": {
+        "lead": "No local models are set up yet. Noteration can scan your hardware, pick the best two models it can run, and install them for you.",
+        "detect": "Detect my hardware",
+        "detecting": "Scanning your hardware"
+      },
+      "ollama": {
+        "running": "Ollama is installed and running",
+        "installed": "Ollama is installed",
+        "missing": "Ollama is not installed yet"
+      },
+      "detected": {
+        "gpu": "Graphics",
+        "vram": "Video memory",
+        "ram": "System memory",
+        "memoryForModels": "Usable for models",
+        "noGpu": "No dedicated graphics card",
+        "unknownGpu": "Unknown graphics device",
+        "lowConfidence": "Your hardware could not be read reliably, so these values are a cautious guess. Please check them before installing.",
+        "estSpeed": "about {{speed}} tokens per second",
+        "download": "Total download: {{size}}",
+        "install": "Install models",
+        "redetect": "Detect again",
+        "copyReport": "Copy detection report",
+        "copied": "Copied",
+        "elevationNote": "Ollama itself is not installed yet, so your system may ask for administrator permission for that single step. The model downloads and everything afterwards run with normal permissions."
+      },
+      "roles": {
+        "quality": {
+          "title": "Quality model",
+          "hint": "Used for overnight generation, where nobody is waiting and quality matters most."
+        },
+        "fast": {
+          "title": "Fast model",
+          "hint": "The default for on demand generation while you work."
+        },
+        "both": {
+          "title": "Quality and fast",
+          "hint": "On this machine one model is both the best and fast enough, so it covers both roles."
+        }
+      },
+      "manual": {
+        "title": "Prefer to install Ollama yourself?",
+        "hint": "Run this in a terminal, then come back and press Install models."
+      },
+      "progress": {
+        "queued": "Waiting to start",
+        "installing_ollama": "Installing Ollama",
+        "pulling": "Downloading {{tag}}",
+        "backgroundNote": "This runs in the background. You can leave this page and come back at any time."
+      },
+      "ready": {
+        "title": "Local AI is ready",
+        "preferQuality": {
+          "label": "Prefer the quality model while working",
+          "hint": "Slower but better answers for on demand generation. Overnight generation always uses the quality model."
+        },
+        "redetect": "Detect again",
+        "remove": "Remove setup",
+        "removeConfirm": "Remove the local AI setup? The downloaded models stay on disk and can be reused later."
+      },
+      "failed": {
+        "title": "Setup failed.",
+        "retry": "Try again"
+      }
+    },
     "generation": {
       "title": "Note generation",
       "description": "What the AI tutor specialises in, how it writes, and how much it generates per topic.",
       "studyFieldLabel": "Field of study",
       "studyFieldHint": "Adapts the AI tutor to your discipline, so engineering notes focus on formulas, literature notes on themes and context, and law notes on cases.",
       "fields": {
-        "general": { "label": "General", "hint": "Neutral tutor, works for any subject" },
-        "engineering": { "label": "Engineering & tech", "hint": "Formulas, definitions, applications" },
-        "mathematics": { "label": "Mathematics", "hint": "Theorems, proofs, worked examples" },
-        "natural_sciences": { "label": "Natural sciences", "hint": "Mechanisms, processes, evidence" },
-        "medicine": { "label": "Medicine & health", "hint": "Mechanisms, classifications, clinical relevance" },
-        "law": { "label": "Law", "hint": "Principles, statutes, cases, exceptions" },
-        "economics": { "label": "Economics & business", "hint": "Models, assumptions, real-world examples" },
-        "humanities": { "label": "Humanities", "hint": "Themes, authors and historical context for literature, history and philosophy" },
-        "languages": { "label": "Languages", "hint": "Vocabulary, grammar, usage examples" }
+        "general": {
+          "label": "General",
+          "hint": "Neutral tutor, works for any subject"
+        },
+        "engineering": {
+          "label": "Engineering & tech",
+          "hint": "Formulas, definitions, applications"
+        },
+        "mathematics": {
+          "label": "Mathematics",
+          "hint": "Theorems, proofs, worked examples"
+        },
+        "natural_sciences": {
+          "label": "Natural sciences",
+          "hint": "Mechanisms, processes, evidence"
+        },
+        "medicine": {
+          "label": "Medicine & health",
+          "hint": "Mechanisms, classifications, clinical relevance"
+        },
+        "law": {
+          "label": "Law",
+          "hint": "Principles, statutes, cases, exceptions"
+        },
+        "economics": {
+          "label": "Economics & business",
+          "hint": "Models, assumptions, real-world examples"
+        },
+        "humanities": {
+          "label": "Humanities",
+          "hint": "Themes, authors and historical context for literature, history and philosophy"
+        },
+        "languages": {
+          "label": "Languages",
+          "hint": "Vocabulary, grammar, usage examples"
+        }
       },
       "styleLabel": "Explanation style",
       "styleHint": "How the AI words the notes, quiz explanations, and flashcards.",
       "styles": {
-        "balanced": { "label": "Balanced", "hint": "Clear and exam-focused (default)" },
-        "simple": { "label": "Easy wording", "hint": "Plain language, every term explained, analogies" },
-        "technical": { "label": "Technical", "hint": "Precise terminology, full rigor, no simplifying" },
-        "discursive": { "label": "Discursive", "hint": "Flowing prose that walks through the reasoning" },
-        "concise": { "label": "Concise", "hint": "Compact bullet points, zero filler" },
-        "academic": { "label": "Academic", "hint": "Formal, professional register" }
+        "balanced": {
+          "label": "Balanced",
+          "hint": "Clear and exam-focused (default)"
+        },
+        "simple": {
+          "label": "Easy wording",
+          "hint": "Plain language, every term explained, analogies"
+        },
+        "technical": {
+          "label": "Technical",
+          "hint": "Precise terminology, full rigor, no simplifying"
+        },
+        "discursive": {
+          "label": "Discursive",
+          "hint": "Flowing prose that walks through the reasoning"
+        },
+        "concise": {
+          "label": "Concise",
+          "hint": "Compact bullet points, zero filler"
+        },
+        "academic": {
+          "label": "Academic",
+          "hint": "Formal, professional register"
+        }
       },
       "notesLength_one": "Notes length: {{count}} page per topic",
       "notesLength_other": "Notes length: {{count}} pages per topic",

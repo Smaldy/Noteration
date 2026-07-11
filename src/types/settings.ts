@@ -33,6 +33,11 @@ export interface Settings {
   provider_order: string[] | null;
   ollama_enabled: boolean;
   ollama_model: string | null;
+  /** Two-model local AI: set by the setup flow (read-only here). */
+  ollama_fast_model: string | null;
+  ollama_quality_model: string | null;
+  /** "Slower but higher quality" toggle for on-demand generation. */
+  ollama_prefer_quality: boolean;
   gemini_model: string;
   gemini_enabled: boolean;
   gemini_rotation: boolean;
@@ -66,6 +71,7 @@ export interface SettingsUpdate {
   ollama_enabled?: boolean;
   /** Empty string clears the stored model name. */
   ollama_model?: string;
+  ollama_prefer_quality?: boolean;
   gemini_model?: GeminiModel;
   gemini_enabled?: boolean;
   gemini_rotation?: boolean;

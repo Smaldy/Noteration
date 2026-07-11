@@ -688,6 +688,7 @@
     "nav": {
       "apiKeys": "Chiavi API",
       "providers": "Provider",
+      "localAi": "IA locale",
       "generation": "Generazione",
       "language": "Lingua",
       "pomodoro": "Pomodoro",
@@ -745,31 +746,144 @@
         "hint": "Limite di sicurezza: un documento viene messo in pausa se supera questo numero di token. 0 = automatico (mette in pausa solo un evidente eccesso, ~3× la stima)."
       }
     },
+    "localAi": {
+      "title": "IA locale",
+      "description": "Usa Noteration completamente offline con modelli locali tramite Ollama. La configurazione richiede internet una sola volta per scaricare tutto, poi la generazione funziona senza connessione.",
+      "notSetUp": {
+        "lead": "Non ci sono ancora modelli locali configurati. Noteration può analizzare il tuo hardware, scegliere i due migliori modelli che può eseguire e installarli per te.",
+        "detect": "Rileva il mio hardware",
+        "detecting": "Analisi dell'hardware in corso"
+      },
+      "ollama": {
+        "running": "Ollama è installato e in esecuzione",
+        "installed": "Ollama è installato",
+        "missing": "Ollama non è ancora installato"
+      },
+      "detected": {
+        "gpu": "Grafica",
+        "vram": "Memoria video",
+        "ram": "Memoria di sistema",
+        "memoryForModels": "Disponibile per i modelli",
+        "noGpu": "Nessuna scheda grafica dedicata",
+        "unknownGpu": "Dispositivo grafico sconosciuto",
+        "lowConfidence": "Non è stato possibile leggere il tuo hardware in modo affidabile, quindi questi valori sono una stima prudente. Controllali prima di installare.",
+        "estSpeed": "circa {{speed}} token al secondo",
+        "download": "Download totale: {{size}}",
+        "install": "Installa i modelli",
+        "redetect": "Rileva di nuovo",
+        "copyReport": "Copia il rapporto di rilevamento",
+        "copied": "Copiato",
+        "elevationNote": "Ollama non è ancora installato, quindi il sistema potrebbe chiedere i permessi di amministratore solo per quel passaggio. Il download dei modelli e tutto il resto funzionano con permessi normali."
+      },
+      "roles": {
+        "quality": {
+          "title": "Modello di qualità",
+          "hint": "Usato per la generazione notturna, dove nessuno aspetta e la qualità conta di più."
+        },
+        "fast": {
+          "title": "Modello veloce",
+          "hint": "Il predefinito per la generazione su richiesta mentre lavori."
+        },
+        "both": {
+          "title": "Qualità e veloce",
+          "hint": "Su questa macchina un solo modello è sia il migliore sia abbastanza veloce, quindi copre entrambi i ruoli."
+        }
+      },
+      "manual": {
+        "title": "Preferisci installare Ollama da solo?",
+        "hint": "Esegui questo comando in un terminale, poi torna qui e premi Installa i modelli."
+      },
+      "progress": {
+        "queued": "In attesa di iniziare",
+        "installing_ollama": "Installazione di Ollama",
+        "pulling": "Download di {{tag}}",
+        "backgroundNote": "Questa operazione continua in background. Puoi lasciare questa pagina e tornare quando vuoi."
+      },
+      "ready": {
+        "title": "L'IA locale è pronta",
+        "preferQuality": {
+          "label": "Preferisci il modello di qualità mentre lavori",
+          "hint": "Risposte più lente ma migliori per la generazione su richiesta. La generazione notturna usa sempre il modello di qualità."
+        },
+        "redetect": "Rileva di nuovo",
+        "remove": "Rimuovi configurazione",
+        "removeConfirm": "Rimuovere la configurazione dell'IA locale? I modelli scaricati restano sul disco e possono essere riutilizzati in seguito."
+      },
+      "failed": {
+        "title": "La configurazione non è riuscita.",
+        "retry": "Riprova"
+      }
+    },
     "generation": {
       "title": "Generazione appunti",
       "description": "In cosa è specializzato il tutor IA, come scrive e quanto contenuto genera per argomento.",
       "studyFieldLabel": "Campo di studio",
       "studyFieldHint": "Adatta il tutor IA alla tua disciplina: gli appunti di ingegneria puntano sulle formule, quelli di letteratura su temi e contesto, quelli di giurisprudenza sui casi.",
       "fields": {
-        "general": { "label": "Generale", "hint": "Tutor neutro, adatto a qualsiasi materia" },
-        "engineering": { "label": "Ingegneria e tecnologia", "hint": "Formule, definizioni, applicazioni" },
-        "mathematics": { "label": "Matematica", "hint": "Teoremi, dimostrazioni, esempi svolti" },
-        "natural_sciences": { "label": "Scienze naturali", "hint": "Meccanismi, processi, evidenze" },
-        "medicine": { "label": "Medicina e salute", "hint": "Meccanismi, classificazioni, rilevanza clinica" },
-        "law": { "label": "Giurisprudenza", "hint": "Principi, norme, casi, eccezioni" },
-        "economics": { "label": "Economia e impresa", "hint": "Modelli, ipotesi, esempi reali" },
-        "humanities": { "label": "Discipline umanistiche", "hint": "Temi, autori e contesto storico per letteratura, storia e filosofia" },
-        "languages": { "label": "Lingue", "hint": "Vocabolario, grammatica, esempi d'uso" }
+        "general": {
+          "label": "Generale",
+          "hint": "Tutor neutro, adatto a qualsiasi materia"
+        },
+        "engineering": {
+          "label": "Ingegneria e tecnologia",
+          "hint": "Formule, definizioni, applicazioni"
+        },
+        "mathematics": {
+          "label": "Matematica",
+          "hint": "Teoremi, dimostrazioni, esempi svolti"
+        },
+        "natural_sciences": {
+          "label": "Scienze naturali",
+          "hint": "Meccanismi, processi, evidenze"
+        },
+        "medicine": {
+          "label": "Medicina e salute",
+          "hint": "Meccanismi, classificazioni, rilevanza clinica"
+        },
+        "law": {
+          "label": "Giurisprudenza",
+          "hint": "Principi, norme, casi, eccezioni"
+        },
+        "economics": {
+          "label": "Economia e impresa",
+          "hint": "Modelli, ipotesi, esempi reali"
+        },
+        "humanities": {
+          "label": "Discipline umanistiche",
+          "hint": "Temi, autori e contesto storico per letteratura, storia e filosofia"
+        },
+        "languages": {
+          "label": "Lingue",
+          "hint": "Vocabolario, grammatica, esempi d'uso"
+        }
       },
       "styleLabel": "Stile delle spiegazioni",
       "styleHint": "Come l'IA formula appunti, spiegazioni dei quiz e flashcard.",
       "styles": {
-        "balanced": { "label": "Equilibrato", "hint": "Chiaro e orientato all'esame (predefinito)" },
-        "simple": { "label": "Linguaggio semplice", "hint": "Parole semplici, ogni termine spiegato, analogie" },
-        "technical": { "label": "Tecnico", "hint": "Terminologia precisa, massimo rigore, nessuna semplificazione" },
-        "discursive": { "label": "Discorsivo", "hint": "Prosa fluida che accompagna il ragionamento" },
-        "concise": { "label": "Conciso", "hint": "Elenchi puntati compatti, zero riempitivi" },
-        "academic": { "label": "Accademico", "hint": "Registro formale e professionale" }
+        "balanced": {
+          "label": "Equilibrato",
+          "hint": "Chiaro e orientato all'esame (predefinito)"
+        },
+        "simple": {
+          "label": "Linguaggio semplice",
+          "hint": "Parole semplici, ogni termine spiegato, analogie"
+        },
+        "technical": {
+          "label": "Tecnico",
+          "hint": "Terminologia precisa, massimo rigore, nessuna semplificazione"
+        },
+        "discursive": {
+          "label": "Discorsivo",
+          "hint": "Prosa fluida che accompagna il ragionamento"
+        },
+        "concise": {
+          "label": "Conciso",
+          "hint": "Elenchi puntati compatti, zero riempitivi"
+        },
+        "academic": {
+          "label": "Accademico",
+          "hint": "Registro formale e professionale"
+        }
       },
       "notesLength_one": "Lunghezza appunti: {{count}} pagina per argomento",
       "notesLength_other": "Lunghezza appunti: {{count}} pagine per argomento",

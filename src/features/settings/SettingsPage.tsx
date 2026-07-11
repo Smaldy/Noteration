@@ -18,6 +18,7 @@ import {
   type FormState,
   type SectionPrefs,
 } from "./form";
+import { LocalAiSection } from "./LocalAiSection";
 import {
   ApiKeysSection,
   AppearanceSection,
@@ -223,6 +224,7 @@ export function SettingsPage() {
       />
     ),
     providers: <ProvidersSection form={form} set={set} />,
+    "local-ai": <LocalAiSection />,
     generation: <GenerationSection form={form} set={set} />,
     language: <LanguageSection form={form} set={set} />,
     pomodoro: <PomodoroSection form={form} set={set} />,

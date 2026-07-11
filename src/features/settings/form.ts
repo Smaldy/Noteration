@@ -3,6 +3,7 @@
 
 import {
   CalendarClock,
+  Cpu,
   FileText,
   Globe,
   KeyRound,
@@ -202,6 +203,7 @@ export const SECTIONS: {
   { id: "calendar", labelKey: "settings.nav.calendar", icon: CalendarClock },
   { id: "api-keys", labelKey: "settings.nav.apiKeys", icon: KeyRound },
   { id: "providers", labelKey: "settings.nav.providers", icon: Sparkles },
+  { id: "local-ai", labelKey: "settings.nav.localAi", icon: Cpu },
   { id: "generation", labelKey: "settings.nav.generation", icon: FileText },
 ];
 
