@@ -28,14 +28,17 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.db.database import SessionLocal
-from backend.models.hierarchy import utcnow
+from backend.models.enums import QueueLaneState
+from backend.models.hierarchy import Subject, utcnow
 from backend.models.processing import QueueJob
 from backend.models.settings import Settings
 from backend.services import history
 from backend.services.duplicator.search import drain_search_once
+from backend.services.local_ai.runtime import resolve_ollama_model
 from backend.services.pipeline.formula import NO_OP_PROVIDER
 from backend.services.pipeline.processors import make_pipeline_processor
 from backend.services.providers.factory import build_waterfall_from_settings
+from backend.services.providers.ollama import OllamaProvider
 from backend.services.providers.waterfall import Waterfall
 from backend.services.queue import JobOutcome, QueueService
 from backend.services.settings import get_settings
@@ -131,6 +134,9 @@ def _settings_fingerprint(settings: Settings) -> tuple:
         bool(settings.allow_paid),
         bool(settings.ollama_enabled),
         settings.ollama_model,
+        settings.ollama_fast_model,
+        settings.ollama_quality_model,
+        bool(settings.ollama_prefer_quality),
         tuple(order) if order else (),
     )
 
@@ -177,9 +183,32 @@ def _has_configured_provider(settings: Settings) -> bool:
         return True
     if settings.allow_paid and settings.api_key_claude:
         return True
-    if settings.ollama_enabled and settings.ollama_model:
+    if settings.ollama_enabled and (
+        settings.ollama_model
+        or settings.ollama_fast_model
+        or settings.ollama_quality_model
+    ):
         return True
     return False
+
+
+def _provider_for_job(session: Session, provider, job: QueueJob):
+    """Swap the Ollama provider to the lane-appropriate model for this claim.
+
+    Overnight lanes are hardwired to the quality model (the two-model local AI
+    scheme, services/local_ai/); foreground keeps the waterfall's interactive
+    default. Non-Ollama providers and topic-less jobs pass through untouched.
+    Ollama loads models on demand, so handing a different tag per request is
+    exactly the one-at-a-time swap the scheme is built on.
+    """
+    if provider is None or provider.name != "ollama" or job.subject_id is None:
+        return provider
+    subject = session.get(Subject, job.subject_id)
+    overnight = subject is not None and subject.queue_state is QueueLaneState.overnight
+    model = resolve_ollama_model(get_settings(session), overnight=overnight)
+    if not model or model == provider.model:
+        return provider
+    return OllamaProvider(model=model, host=provider.host, enabled=True)
 
 
 def drain_once(
@@ -235,8 +264,8 @@ def drain_once(
             provider = providers_by_name.get(claim.provider)
             if provider is None:  # defensive: assigned provider vanished
                 continue
-            sub = Waterfall([provider], clock=clock)
             job = session.get(QueueJob, claim.job_id)
+            sub = Waterfall([_provider_for_job(session, provider, job)], clock=clock)
             started = clock()
             outcome = queue.process_job(job, make_pipeline_processor(sub))
             processed += 1
@@ -446,7 +475,7 @@ class QueueWorker:
             if provider is None:
                 self._release_claim(claim.job_id)
                 return
-            sub = Waterfall([provider], clock=utcnow)
+            sub = Waterfall([_provider_for_job(session, provider, job)], clock=utcnow)
             started = time.monotonic()
             outcome = queue.process_job(job, make_pipeline_processor(sub))
             _record_generation_history(

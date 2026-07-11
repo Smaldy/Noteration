@@ -21,6 +21,7 @@ from backend.routers import (
     chapters,
     documents,
     duplicator,
+    local_ai,
     notes,
     queue,
     search,
@@ -31,6 +32,7 @@ from backend.routers import (
     topics,
 )
 from backend.security import install_local_origin_guard
+from backend.services.local_ai.worker import LocalAiInstallWorker
 from backend.services.pipeline.ingestion import purge_legacy_chapter_cache
 from backend.services.transcription_worker import TranscriptionWorker
 from backend.services.worker import QueueWorker
@@ -43,6 +45,7 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent / "dist"
 # drive their logic directly) via NOTERATION_DISABLE_WORKER=1.
 worker = QueueWorker()
 transcription_worker = TranscriptionWorker()
+local_ai_worker = LocalAiInstallWorker()
 
 
 @asynccontextmanager
@@ -58,6 +61,7 @@ async def lifespan(_app: FastAPI):
         purge_legacy_chapter_cache()
         worker.start()
         transcription_worker.start()
+        local_ai_worker.start()
         started = True
     try:
         yield
@@ -65,6 +69,7 @@ async def lifespan(_app: FastAPI):
         if started:
             worker.stop()
             transcription_worker.stop()
+            local_ai_worker.stop()
 
 
 app = FastAPI(title="Noteration", version="0.1.2", lifespan=lifespan)
@@ -90,6 +95,7 @@ api.include_router(queue.router)
 api.include_router(study.router)
 api.include_router(todo.router)
 api.include_router(settings.router)
+api.include_router(local_ai.router)
 api.include_router(search.router)
 api.include_router(assessment.router)
 api.include_router(attachments.router)

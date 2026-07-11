@@ -37,8 +37,17 @@ class Settings(Base):
     provider_order: Mapped[list[str] | None] = mapped_column(JSON, default=None)
     ollama_enabled: Mapped[bool] = mapped_column(default=False)
     # The local Ollama model name (e.g. "llama3.1"); null until the user picks one.
-    # Ollama only serves when enabled *and* a model is set.
+    # Ollama only serves when enabled *and* a model is set. With the two-model
+    # local AI setup this is the legacy/manual-override slot; the setup flow
+    # fills the two role fields below instead.
     ollama_model: Mapped[str | None] = mapped_column(default=None)
+    # Two-model local AI (services/local_ai/): the fast model serves interactive
+    # generation by default; the quality model serves overnight lanes always and
+    # interactive when ``ollama_prefer_quality`` is on ("slower but higher
+    # quality" toggle). Resolved pull tags, set by the install worker.
+    ollama_fast_model: Mapped[str | None] = mapped_column(default=None)
+    ollama_quality_model: Mapped[str | None] = mapped_column(default=None)
+    ollama_prefer_quality: Mapped[bool] = mapped_column(default=False)
     # Per-document token ceiling (defense-in-depth against a runaway document).
     # 0 = automatic budget (estimate × overspend factor); a positive value is a
     # flat ceiling. See services/queue.py.

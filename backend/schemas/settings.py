@@ -51,6 +51,11 @@ class SettingsOut(BaseModel):
     provider_order: list[str] | None
     ollama_enabled: bool
     ollama_model: str | None
+    # Two-model local AI (services/local_ai/): set by the install flow, read-only
+    # here except the prefer_quality toggle ("slower but higher quality").
+    ollama_fast_model: str | None
+    ollama_quality_model: str | None
+    ollama_prefer_quality: bool
     gemini_model: str
     gemini_enabled: bool
     gemini_rotation: bool
@@ -80,6 +85,9 @@ class SettingsOut(BaseModel):
             provider_order=settings.provider_order,
             ollama_enabled=settings.ollama_enabled,
             ollama_model=settings.ollama_model,
+            ollama_fast_model=settings.ollama_fast_model,
+            ollama_quality_model=settings.ollama_quality_model,
+            ollama_prefer_quality=bool(settings.ollama_prefer_quality),
             gemini_model=settings.gemini_model,
             gemini_enabled=settings.gemini_enabled,
             gemini_rotation=settings.gemini_rotation,
@@ -117,6 +125,7 @@ class SettingsUpdate(BaseModel):
     ollama_enabled: bool | None = None
     # Empty string clears the stored Ollama model name; a non-empty string sets it.
     ollama_model: str | None = None
+    ollama_prefer_quality: bool | None = None
     gemini_model: GeminiModel | None = None
     gemini_enabled: bool | None = None
     gemini_rotation: bool | None = None

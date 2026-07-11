@@ -31,6 +31,7 @@ from backend.models.enums import (
     ExerciseStatus,
     FormulaState,
     HistoryEventType,
+    LocalAiStatus,
     QueueLaneState,
     QueueStage,
     QueueState,
@@ -39,6 +40,7 @@ from backend.models.enums import (
     TopicStatus,
 )
 from backend.models.hierarchy import Chapter, Document, Subject, Topic
+from backend.models.local_ai import LocalAiSetup
 from backend.models.processing import HistoryEvent, ProviderState, QueueJob
 from backend.models.schedule import ScheduleEntry
 from backend.models.settings import Settings
@@ -61,6 +63,7 @@ __all__ = [
     "ProviderState",
     "HistoryEvent",
     "Settings",
+    "LocalAiSetup",
     "ArcadeState",
     "ArcadeUpgrade",
     "ArcadePlaySession",
@@ -73,6 +76,7 @@ __all__ = [
     "TopicPriority",
     "TopicStatus",
     "QueueStage",
+    "LocalAiStatus",
     "QueueState",
     "QueueLaneState",
     "FormulaState",

@@ -17,6 +17,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from backend.services.local_ai.runtime import resolve_ollama_model
 from backend.services.providers.base import Provider
 from backend.services.providers.claude import ClaudeProvider
 from backend.services.providers.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
@@ -95,8 +96,11 @@ def build_waterfall_from_settings(
         gemini_rotation=bool(settings.gemini_rotation),
         claude_key=settings.api_key_claude,
         allow_paid=settings.allow_paid,
-        # An explicit arg wins; otherwise use the persisted Ollama model.
-        ollama_model=ollama_model or settings.ollama_model,
+        # An explicit arg wins; otherwise the interactive default (fast model,
+        # honoring prefer_quality). Overnight lanes swap the model per claim in
+        # the worker — see services/local_ai/runtime.py.
+        ollama_model=ollama_model
+        or resolve_ollama_model(settings, overnight=False),
         ollama_enabled=settings.ollama_enabled,
         provider_order=settings.provider_order,
         clock=clock,

@@ -98,6 +98,24 @@ class HistoryEventType(enum.StrEnum):
     provider_switch = "provider_switch"
 
 
+class LocalAiStatus(enum.StrEnum):
+    """Lifecycle of the local AI setup flow (services/local_ai/setup.py).
+
+    ``detected`` holds the hardware + selection snapshot awaiting the user's
+    Stage 5 confirmation; ``queued`` → ``installing_ollama`` → ``pulling`` are
+    the install worker's phases (resumable across restarts); ``ready`` means
+    both models are pulled and the settings point at them.
+    """
+
+    not_configured = "not_configured"
+    detected = "detected"
+    queued = "queued"
+    installing_ollama = "installing_ollama"
+    pulling = "pulling"
+    ready = "ready"
+    failed = "failed"
+
+
 class ScheduleSource(enum.StrEnum):
     sm2 = "sm2"
     manual = "manual"  # user-created/moved (custom events, topic/subject sessions, drag-drop)
