@@ -28,7 +28,8 @@ jobs:
             base-devel git sudo \
             nodejs npm python python-pip \
             python-gobject python-cairo gobject-introspection \
-            gtk3 webkit2gtk-4.1 xorg-server-xvfb
+            gtk3 webkit2gtk-4.1 gst-plugins-base gst-plugins-good \
+            xorg-server-xvfb
 
       - uses: actions/checkout@v4
 
