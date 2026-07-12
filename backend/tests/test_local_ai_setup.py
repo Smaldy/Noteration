@@ -300,3 +300,74 @@ def test_worker_swaps_ollama_model_for_overnight_lane(session):
     subject.queue_state = QueueLaneState.running
     session.commit()
     assert _provider_for_job(session, fast_provider, job) is fast_provider
+
+
+def test_worker_routes_overnight_to_gemini_when_opted_in(session):
+    """overnight_use_gemini sends an overnight ollama-assigned job to Gemini."""
+    from backend.models.enums import QueueStage
+    from backend.models.hierarchy import Chapter, Document, Topic
+    from backend.models.processing import QueueJob
+    from backend.services.providers.factory import build_waterfall_from_settings
+
+    subject = Subject(name="S", queue_state=QueueLaneState.overnight)
+    session.add(subject)
+    session.flush()
+    document = Document(subject_id=subject.id, filename="f.pdf", file_hash="h")
+    session.add(document)
+    session.flush()
+    chapter = Chapter(document_id=document.id, subject_id=subject.id, title="C")
+    session.add(chapter)
+    session.flush()
+    topic = Topic(chapter_id=chapter.id, title="T")
+    session.add(topic)
+    session.flush()
+    job = QueueJob(topic_id=topic.id, subject_id=subject.id, stage=QueueStage.notes)
+    session.add(job)
+    settings = get_settings(session)
+    settings.api_key_gemini = "test-key"
+    settings.ollama_quality_model = "gemma3:27b"
+    settings.overnight_use_gemini = True
+    session.commit()
+
+    waterfall = build_waterfall_from_settings(settings)
+    ollama = OllamaProvider(model="qwen3:8b", enabled=True)
+    chosen = _provider_for_job(session, ollama, job, waterfall.providers)
+    assert chosen.name == "gemini_free"
+
+    # Toggle off → back to the local quality model.
+    settings.overnight_use_gemini = False
+    session.commit()
+    chosen = _provider_for_job(session, ollama, job, waterfall.providers)
+    assert chosen.name == "ollama" and chosen.model == "gemma3:27b"
+
+
+def test_overnight_gemini_falls_back_to_local_without_a_key(session):
+    """Opted into Gemini overnight but no key configured → stay local, not stuck."""
+    from backend.models.enums import QueueStage
+    from backend.models.hierarchy import Chapter, Document, Topic
+    from backend.models.processing import QueueJob
+    from backend.services.providers.factory import build_waterfall_from_settings
+
+    subject = Subject(name="S", queue_state=QueueLaneState.overnight)
+    session.add(subject)
+    session.flush()
+    document = Document(subject_id=subject.id, filename="f.pdf", file_hash="h")
+    session.add(document)
+    session.flush()
+    chapter = Chapter(document_id=document.id, subject_id=subject.id, title="C")
+    session.add(chapter)
+    session.flush()
+    topic = Topic(chapter_id=chapter.id, title="T")
+    session.add(topic)
+    session.flush()
+    job = QueueJob(topic_id=topic.id, subject_id=subject.id, stage=QueueStage.notes)
+    session.add(job)
+    settings = get_settings(session)
+    settings.ollama_quality_model = "gemma3:27b"
+    settings.overnight_use_gemini = True  # opted in, but no gemini key
+    session.commit()
+
+    waterfall = build_waterfall_from_settings(settings)
+    ollama = OllamaProvider(model="qwen3:8b", enabled=True)
+    chosen = _provider_for_job(session, ollama, job, waterfall.providers)
+    assert chosen.name == "ollama" and chosen.model == "gemma3:27b"

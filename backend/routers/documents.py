@@ -11,6 +11,8 @@ from backend.schemas.chapter import ChapterStatusOut
 from backend.schemas.library import DocumentSummaryOut
 from backend.schemas.reorder import ReorderRequest
 from backend.schemas.structure import (
+    BatchItemResultOut,
+    BatchUploadResult,
     ConfirmStructureIn,
     ConfirmStructureResult,
     DocumentOut,
@@ -108,6 +110,36 @@ async def upload_document(
         page_count=result.page_count,
         is_scanned=result.is_scanned,
         book_mode=result.book_mode,
+    )
+
+
+@router.post("/batch", response_model=BatchUploadResult)
+async def batch_upload_overnight(
+    subject_id: int = Form(...),
+    files: list[UploadFile] = File(...),
+    session: Session = Depends(get_session),
+) -> BatchUploadResult:
+    """Upload many PDFs for unattended overnight generation (no per-file review).
+
+    Each PDF is ingested, structure-detected, and auto-confirmed, then the whole
+    subject lane is set to overnight so the worker drains it in the background.
+    A file that isn't a readable PDF is reported in ``items`` and skipped — the
+    rest still process. This is the "drop 20 PDFs and pick them up in the
+    morning" path.
+    """
+    payloads = [((f.filename or "upload"), await f.read()) for f in files]
+    try:
+        result = docsvc.batch_process_overnight(
+            session, subject_id=subject_id, files=payloads
+        )
+    except docsvc.SubjectNotFoundError:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    return BatchUploadResult(
+        subject_id=result.subject_id,
+        documents_ok=result.documents_ok,
+        topics_enqueued=result.topics_enqueued,
+        items=[BatchItemResultOut.model_validate(i) for i in result.items],
     )
 
 

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { ApiError, api } from "@/lib/api";
-import type { UploadResult } from "@/types/document";
+import type { BatchUploadResult, UploadResult } from "@/types/document";
 import type { DocumentMode, DocumentSummary } from "@/types/library";
 
 type LoadState = "idle" | "loading" | "loaded" | "error";
@@ -19,6 +19,12 @@ export interface LibraryStore {
     file: File,
     onProgress?: (pct: number) => void,
   ) => Promise<UploadResult>;
+  /** Upload many PDFs for unattended overnight generation, then refresh. */
+  batchUploadOvernight: (
+    subjectId: number,
+    files: File[],
+    onProgress?: (pct: number) => void,
+  ) => Promise<BatchUploadResult>;
   /** Delete a subject (and all its documents/topics), then refresh the list. */
   deleteSubject: (subjectId: number) => Promise<void>;
   /** Delete one document (its subject and sibling documents stay), then refresh. */
@@ -72,6 +78,18 @@ function createDocumentsStore(mode: DocumentMode) {
       form.append("mode", mode);
       const result = await api.uploadWithProgress<UploadResult>(
         "/documents",
+        form,
+        onProgress,
+      );
+      await get().fetchDocuments();
+      return result;
+    },
+    batchUploadOvernight: async (subjectId, files, onProgress) => {
+      const form = new FormData();
+      form.append("subject_id", String(subjectId));
+      for (const file of files) form.append("files", file);
+      const result = await api.uploadWithProgress<BatchUploadResult>(
+        "/documents/batch",
         form,
         onProgress,
       );

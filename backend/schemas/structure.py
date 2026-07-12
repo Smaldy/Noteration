@@ -118,6 +118,28 @@ class ConfirmStructureIn(BaseModel):
     exam_date: date | None = None  # sets the subject's exam_date (deadline mode)
 
 
+# --- overnight batch upload -------------------------------------------------
+
+
+class BatchItemResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    filename: str
+    ok: bool
+    document_id: int | None = None
+    topics_enqueued: int = 0
+    error: str | None = None
+
+
+class BatchUploadResult(BaseModel):
+    """Outcome of an overnight batch: per-file results plus rolled-up totals."""
+
+    subject_id: int
+    documents_ok: int
+    topics_enqueued: int
+    items: list[BatchItemResultOut]
+
+
 class ConfirmStructureResult(BaseModel):
     document_id: int
     chapters_created: int

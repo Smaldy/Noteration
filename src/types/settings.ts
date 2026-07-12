@@ -40,6 +40,8 @@ export interface Settings {
   ollama_always_model: string | null;
   /** "Slower but higher quality" toggle for on-demand generation. */
   ollama_prefer_quality: boolean;
+  /** Route overnight batch generation through Gemini instead of the local model. */
+  overnight_use_gemini: boolean;
   gemini_model: string;
   gemini_enabled: boolean;
   gemini_rotation: boolean;
@@ -78,6 +80,7 @@ export interface SettingsUpdate {
   ollama_quality_model?: string;
   ollama_always_model?: string;
   ollama_prefer_quality?: boolean;
+  overnight_use_gemini?: boolean;
   gemini_model?: GeminiModel;
   gemini_enabled?: boolean;
   gemini_rotation?: boolean;

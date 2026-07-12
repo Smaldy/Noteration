@@ -27,7 +27,7 @@ from backend.models.enums import (
     TopicStatus,
 )
 from backend.paths import CACHE_ROOT, UPLOADS_DIR
-from backend.schemas.structure import ChapterIn
+from backend.schemas.structure import ChapterIn, TopicIn
 from backend.services.pipeline.ingestion import (
     IngestionResult,
     OutlineEntry,
@@ -856,6 +856,121 @@ def get_book_chapter_groups(session: Session) -> list[DocumentChapters]:
         ).scalars()
     }
     return sorted(groups.values(), key=lambda g: order.get(g.document_id, (0, 0)))
+
+
+@dataclass
+class BatchItemResult:
+    """One file's outcome in an overnight batch."""
+
+    filename: str
+    ok: bool
+    document_id: int | None = None
+    topics_enqueued: int = 0
+    error: str | None = None
+
+
+@dataclass
+class BatchResult:
+    subject_id: int
+    items: list[BatchItemResult]
+
+    @property
+    def documents_ok(self) -> int:
+        return sum(1 for i in self.items if i.ok)
+
+    @property
+    def topics_enqueued(self) -> int:
+        return sum(i.topics_enqueued for i in self.items)
+
+
+def _proposed_to_chapters(structure: ProposedStructure, fallback_title: str) -> list[ChapterIn]:
+    """Turn a detected structure into a confirmable tree for unattended batch.
+
+    No human reviews this, so it must always yield at least one chapter with
+    one topic: an empty/headingless detection collapses to a single topic
+    covering the whole document (generation then slices it by reading order),
+    which is exactly what a lone confirmed topic does today.
+    """
+    chapters: list[ChapterIn] = []
+    for chapter in structure.chapters:
+        topics = [
+            TopicIn(title=topic.title, priority=topic.priority, pages=topic.pages)
+            for topic in chapter.topics
+        ]
+        if not topics:
+            continue
+        chapters.append(
+            ChapterIn(
+                title=chapter.title,
+                topics=topics,
+                page_start=chapter.page_start,
+                page_end=chapter.page_end,
+            )
+        )
+    if not chapters:
+        chapters.append(
+            ChapterIn(title=fallback_title, topics=[TopicIn(title=fallback_title)])
+        )
+    return chapters
+
+
+def batch_process_overnight(
+    session: Session,
+    *,
+    subject_id: int,
+    files: Sequence[tuple[str, bytes]],
+    uploads_dir: str | Path = UPLOADS_DIR,
+    ingest_fn: IngestFn = ingest,
+) -> BatchResult:
+    """Ingest, auto-detect, and auto-confirm many PDFs for overnight generation.
+
+    The unattended counterpart to the upload → review → confirm flow: each PDF
+    runs create → detect → confirm with no manual step, then the whole subject
+    lane is switched to ``overnight`` so the worker drains it in the background
+    (and, when ``overnight_use_gemini`` is set, through Gemini). One bad file is
+    recorded and skipped — it never aborts the rest of the batch, which is the
+    point of dropping 20 PDFs and walking away.
+    """
+    if session.get(Subject, subject_id) is None:
+        raise SubjectNotFoundError(subject_id)
+
+    items: list[BatchItemResult] = []
+    for filename, data in files:
+        try:
+            document, _ = create_document(
+                session,
+                subject_id=subject_id,
+                filename=filename,
+                data=data,
+                uploads_dir=uploads_dir,
+                ingest_fn=ingest_fn,
+            )
+            structure = detect_for_document(
+                session, document.id, uploads_dir=uploads_dir
+            )
+            chapters = _proposed_to_chapters(structure, Path(filename).stem or filename)
+            counts = confirm_structure(session, document.id, chapters=chapters)
+            items.append(
+                BatchItemResult(
+                    filename=filename,
+                    ok=True,
+                    document_id=document.id,
+                    topics_enqueued=counts.topics_enqueued,
+                )
+            )
+        except InvalidPDFError:
+            items.append(BatchItemResult(filename, ok=False, error="not_a_pdf"))
+        except Exception as exc:  # noqa: BLE001 - one bad PDF must not sink the batch
+            logger.exception("Batch overnight: %s failed", filename)
+            session.rollback()
+            items.append(BatchItemResult(filename, ok=False, error=str(exc)[:200]))
+
+    # Switch the whole lane to overnight so its jobs drain in the background and
+    # take the overnight provider route (quality model, or Gemini when opted in).
+    if any(item.ok for item in items):
+        QueueService(session).set_overnight(subject_id, True)
+
+    return BatchResult(subject_id=subject_id, items=items)
 
 
 def _persist_upload(data: bytes, uploads_dir: Path) -> Path:

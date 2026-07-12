@@ -3,8 +3,11 @@ import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Moon } from "lucide-react";
+
 import { NoAiBanner } from "@/components/NoAiBanner";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +28,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { type LibraryStore, useLibraryStore } from "@/stores/library";
 import { useSubjectsStore } from "@/stores/subjects";
-import type { UploadResult } from "@/types/document";
+import type { BatchUploadResult, UploadResult } from "@/types/document";
 
 const NEW_SUBJECT = "__new__";
 
@@ -60,10 +63,16 @@ export function UploadDialog({
   const { subjects, fetchSubjects } = useSubjectsStore();
   const createSubject = useSubjectsStore((s) => s.createSubject);
   const uploadDocument = store((s) => s.uploadDocument);
+  const batchUploadOvernight = store((s) => s.batchUploadOvernight);
 
   const [subjectChoice, setSubjectChoice] = useState<string>(NEW_SUBJECT);
   const [newSubjectName, setNewSubjectName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  // Overnight batch mode: many PDFs, auto-detected + auto-confirmed, no review.
+  // Study section only (exam prep keeps its single-file review flow).
+  const [batch, setBatch] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [batchResult, setBatchResult] = useState<BatchUploadResult | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
   const [uploadPct, setUploadPct] = useState(0);
   const [result, setResult] = useState<UploadResult | null>(null);
@@ -82,6 +91,9 @@ export function UploadDialog({
     } else {
       setNewSubjectName("");
       setFile(null);
+      setFiles([]);
+      setBatch(false);
+      setBatchResult(null);
       setError(null);
       setPhase("form");
       setUploadPct(0);
@@ -98,20 +110,35 @@ export function UploadDialog({
   );
 
   const creatingNew = subjectChoice === NEW_SUBJECT;
+  const hasFiles = batch ? files.length > 0 : file !== null;
   const canSubmit =
-    file !== null &&
-    !busy &&
-    (creatingNew ? newSubjectName.trim().length > 0 : true);
+    hasFiles && !busy && (creatingNew ? newSubjectName.trim().length > 0 : true);
+
+  async function resolveSubjectId(): Promise<number> {
+    return creatingNew
+      ? (await createSubject({ name: newSubjectName.trim() })).id
+      : Number(subjectChoice);
+  }
 
   async function handleSubmit() {
-    if (file === null) return;
     setError(null);
     setUploadPct(0);
     setPhase("uploading");
     try {
-      const subjectId = creatingNew
-        ? (await createSubject({ name: newSubjectName.trim() })).id
-        : Number(subjectChoice);
+      const subjectId = await resolveSubjectId();
+      if (batch) {
+        const summary = await batchUploadOvernight(subjectId, files, (pct) => {
+          setUploadPct(pct);
+          if (pct >= 100) setPhase("analysing");
+        });
+        setBatchResult(summary);
+        setPhase("ready");
+        // No per-file review — everything is queued for overnight. Just close
+        // back to the Library, where the cards show their processing state.
+        routeTimer.current = window.setTimeout(() => onOpenChange(false), 2600);
+        return;
+      }
+      if (file === null) return;
       const uploaded = await uploadDocument(subjectId, file, (pct) => {
         setUploadPct(pct);
         if (pct >= 100) setPhase("analysing");
@@ -163,7 +190,13 @@ export function UploadDialog({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <UploadProgress phase={phase} pct={uploadPct} result={result} exam={exam} />
+              <UploadProgress
+                phase={phase}
+                pct={uploadPct}
+                result={result}
+                batchResult={batchResult}
+                exam={exam}
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -173,6 +206,21 @@ export function UploadDialog({
               exit={{ opacity: 0 }}
             >
         <div className="space-y-4 py-2">
+          {!exam && (
+            <div className="flex items-start justify-between gap-4 rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  <Moon className="size-4 text-primary" />
+                  {t("upload.batch.label")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("upload.batch.hint")}
+                </p>
+              </div>
+              <Switch checked={batch} onCheckedChange={setBatch} disabled={busy} />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="subject">{t("upload.subject")}</Label>
             <Select value={subjectChoice} onValueChange={setSubjectChoice} disabled={busy}>
@@ -205,22 +253,37 @@ export function UploadDialog({
 
           <div className="space-y-2">
             <Label htmlFor="file">
-              {exam ? t("upload.pdfFile") : t("upload.fileLabel")}
+              {batch
+                ? t("upload.batch.fileLabel")
+                : exam
+                  ? t("upload.pdfFile")
+                  : t("upload.fileLabel")}
             </Label>
             <Input
               id="file"
               type="file"
+              multiple={batch}
               accept={
-                exam
+                batch || exam
                   ? "application/pdf,.pdf"
                   : "application/pdf,.pdf,audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus"
               }
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) =>
+                batch
+                  ? setFiles(Array.from(e.target.files ?? []))
+                  : setFile(e.target.files?.[0] ?? null)
+              }
               disabled={busy}
             />
-            {!exam && (
+            {batch ? (
+              files.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t("upload.batch.selected", { count: files.length })}
+                </p>
+              )
+            ) : !exam ? (
               <p className="text-xs text-muted-foreground">{t("upload.fileHint")}</p>
-            )}
+            ) : null}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -231,7 +294,7 @@ export function UploadDialog({
             {t("upload.cancel")}
           </Button>
           <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
-            {t("upload.upload")}
+            {batch ? t("upload.batch.submit") : t("upload.upload")}
           </Button>
         </DialogFooter>
             </motion.div>
@@ -246,11 +309,13 @@ function UploadProgress({
   phase,
   pct,
   result,
+  batchResult,
   exam,
 }: {
   phase: Phase;
   pct: number;
   result: UploadResult | null;
+  batchResult: BatchUploadResult | null;
   exam: boolean;
 }) {
   const { t } = useTranslation();
@@ -289,10 +354,36 @@ function UploadProgress({
 
       {phase === "analysing" && (
         <div className="space-y-1">
-          <p className="text-sm font-medium">{t("upload.progress.analysing")}</p>
-          <p className="text-xs text-muted-foreground">
-            {t("upload.progress.analysingHint")}
+          <p className="text-sm font-medium">
+            {batchResult
+              ? t("upload.batch.analysing")
+              : t("upload.progress.analysing")}
           </p>
+          <p className="text-xs text-muted-foreground">
+            {batchResult
+              ? t("upload.batch.analysingHint")
+              : t("upload.progress.analysingHint")}
+          </p>
+        </div>
+      )}
+
+      {phase === "ready" && batchResult && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">
+            {t("upload.batch.done", { count: batchResult.documents_ok })}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t("upload.batch.doneHint", {
+              topics: batchResult.topics_enqueued,
+            })}
+          </p>
+          {batchResult.items.some((i) => !i.ok) && (
+            <p className="text-xs text-destructive">
+              {t("upload.batch.someFailed", {
+                count: batchResult.items.filter((i) => !i.ok).length,
+              })}
+            </p>
+          )}
         </div>
       )}
 

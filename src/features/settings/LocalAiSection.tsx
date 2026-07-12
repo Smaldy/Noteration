@@ -235,6 +235,16 @@ function LocalModelsPanel({ status }: { status: LocalAiStatus }) {
           </p>
         </>
       )}
+      {settings.gemini_key_set && (
+        <div className="border-t border-border/60 pt-4">
+          <Toggle
+            label={t("settings.localAi.overnightGemini.label")}
+            hint={t("settings.localAi.overnightGemini.hint")}
+            checked={settings.overnight_use_gemini}
+            onChange={(v) => void updateSettings({ overnight_use_gemini: v })}
+          />
+        </div>
+      )}
     </div>
   );
 }

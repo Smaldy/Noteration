@@ -51,6 +51,10 @@ class Settings(Base):
     # Manual pin: when set, this model serves EVERY local call (overnight and
     # interactive), overriding the fast/quality role split. Null = no pin.
     ollama_always_model: Mapped[str | None] = mapped_column(default=None)
+    # Overnight batch generation uses Gemini instead of the local quality model.
+    # Only takes effect when a Gemini key is configured and its tier is enabled;
+    # interactive generation is unaffected. Default off (overnight stays local).
+    overnight_use_gemini: Mapped[bool] = mapped_column(default=False)
     # Per-document token ceiling (defense-in-depth against a runaway document).
     # 0 = automatic budget (estimate × overspend factor); a positive value is a
     # flat ceiling. See services/queue.py.

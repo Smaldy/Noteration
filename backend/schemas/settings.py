@@ -57,6 +57,7 @@ class SettingsOut(BaseModel):
     ollama_quality_model: str | None
     ollama_always_model: str | None
     ollama_prefer_quality: bool
+    overnight_use_gemini: bool
     gemini_model: str
     gemini_enabled: bool
     gemini_rotation: bool
@@ -90,6 +91,7 @@ class SettingsOut(BaseModel):
             ollama_quality_model=settings.ollama_quality_model,
             ollama_always_model=settings.ollama_always_model,
             ollama_prefer_quality=bool(settings.ollama_prefer_quality),
+            overnight_use_gemini=bool(settings.overnight_use_gemini),
             gemini_model=settings.gemini_model,
             gemini_enabled=settings.gemini_enabled,
             gemini_rotation=settings.gemini_rotation,
@@ -132,6 +134,7 @@ class SettingsUpdate(BaseModel):
     ollama_quality_model: str | None = None
     ollama_always_model: str | None = None
     ollama_prefer_quality: bool | None = None
+    overnight_use_gemini: bool | None = None
     gemini_model: GeminiModel | None = None
     gemini_enabled: bool | None = None
     gemini_rotation: bool | None = None

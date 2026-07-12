@@ -24,6 +24,23 @@ export interface UploadResult {
   book_mode: boolean;
 }
 
+/** One file's outcome in an overnight batch (`POST /api/documents/batch`). */
+export interface BatchItemResult {
+  filename: string;
+  ok: boolean;
+  document_id: number | null;
+  topics_enqueued: number;
+  error: string | null;
+}
+
+/** Result of an overnight batch upload: per-file results plus totals. */
+export interface BatchUploadResult {
+  subject_id: number;
+  documents_ok: number;
+  topics_enqueued: number;
+  items: BatchItemResult[];
+}
+
 /** `GET /api/documents/{id}/transcript` — an audio document's transcript markdown. */
 export interface Transcript {
   document_id: number;

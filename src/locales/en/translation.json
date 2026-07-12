@@ -254,7 +254,19 @@
       "skip": "Skip"
     },
     "fileLabel": "PDF or audio file",
-    "fileHint": "Upload a PDF, or an audio recording (e.g. a lecture); audio is transcribed automatically."
+    "fileHint": "Upload a PDF, or an audio recording (e.g. a lecture); audio is transcribed automatically.",
+    "batch": {
+      "label": "Overnight batch",
+      "hint": "Upload many PDFs at once. Noteration organizes and generates them all automatically overnight, so everything is ready in the morning. No review step.",
+      "fileLabel": "PDF files",
+      "selected": "{{count}} files selected",
+      "submit": "Start overnight batch",
+      "analysing": "Preparing your documents",
+      "analysingHint": "Reading and organizing each PDF. This can take a moment for many files.",
+      "done": "{{count}} documents queued for overnight",
+      "doneHint": "{{topics}} topics will be generated in the background. Come back in the morning.",
+      "someFailed": "{{count}} files could not be read and were skipped."
+    }
   },
   "search": {
     "placeholder": "Search topics and chapters…",
@@ -824,6 +836,10 @@
         "alwaysLabel": "Always use",
         "alwaysHint": "The fast model answers while you work and the slow model runs overnight for the best quality. If you pick an Always model, it is used for everything, even if it is slow, and the other two choices are ignored.",
         "none": "None"
+      },
+      "overnightGemini": {
+        "label": "Use Gemini for overnight generation",
+        "hint": "Run the overnight batch through your Gemini key instead of the local model. Faster and higher quality, but it uses your cloud quota. Interactive generation still uses the local model."
       }
     },
     "generation": {

@@ -138,6 +138,7 @@ def _settings_fingerprint(settings: Settings) -> tuple:
         settings.ollama_quality_model,
         settings.ollama_always_model,
         bool(settings.ollama_prefer_quality),
+        bool(settings.overnight_use_gemini),
         tuple(order) if order else (),
     )
 
@@ -194,23 +195,48 @@ def _has_configured_provider(settings: Settings) -> bool:
     return False
 
 
-def _provider_for_job(session: Session, provider, job: QueueJob):
-    """Swap the Ollama provider to the lane-appropriate model for this claim.
+def _provider_for_job(session: Session, provider, job: QueueJob, all_providers=()):
+    """Pick the provider/model for this claim, honoring the overnight routing.
 
-    Overnight lanes are hardwired to the quality model (the two-model local AI
-    scheme, services/local_ai/); foreground keeps the waterfall's interactive
-    default. Non-Ollama providers and topic-less jobs pass through untouched.
-    Ollama loads models on demand, so handing a different tag per request is
-    exactly the one-at-a-time swap the scheme is built on.
+    Overnight lanes: route to Gemini when ``overnight_use_gemini`` is on and
+    Gemini can serve (the "use the cloud for the big overnight batch" option),
+    otherwise hardwire the local quality model. Foreground keeps the
+    waterfall's interactive default. Non-Ollama providers and topic-less jobs
+    are only redirected for the Gemini-overnight case; otherwise they pass
+    through. Ollama loads models on demand, so handing a different tag per
+    request is exactly the one-at-a-time swap the two-model scheme is built on.
     """
-    if provider is None or provider.name != "ollama" or job.subject_id is None:
+    if job.subject_id is None:
         return provider
     subject = session.get(Subject, job.subject_id)
     overnight = subject is not None and subject.queue_state is QueueLaneState.overnight
-    model = resolve_ollama_model(get_settings(session), overnight=overnight)
+    settings = get_settings(session)
+
+    if overnight and settings.overnight_use_gemini:
+        gemini = _gemini_provider(all_providers, settings)
+        if gemini is not None:
+            return gemini
+        # Gemini requested but unavailable (no key / disabled): fall through to
+        # the local quality model so the overnight batch still runs.
+
+    if provider is None or provider.name != "ollama":
+        return provider
+    model = resolve_ollama_model(settings, overnight=overnight)
     if not model or model == provider.model:
         return provider
     return OllamaProvider(model=model, host=provider.host, enabled=True)
+
+
+def _gemini_provider(all_providers, settings: Settings):
+    """The enabled Gemini provider from the waterfall, or None when it can't serve."""
+    if settings.gemini_enabled is False or not settings.api_key_gemini:
+        return None
+    for candidate in all_providers:
+        if candidate.name == "gemini_free" and candidate.enabled:
+            probe = candidate.budget_probe()
+            if probe.available and probe.headroom > 0:
+                return candidate
+    return None
 
 
 def drain_once(
@@ -267,7 +293,10 @@ def drain_once(
             if provider is None:  # defensive: assigned provider vanished
                 continue
             job = session.get(QueueJob, claim.job_id)
-            sub = Waterfall([_provider_for_job(session, provider, job)], clock=clock)
+            sub = Waterfall(
+                [_provider_for_job(session, provider, job, waterfall.providers)],
+                clock=clock,
+            )
             started = clock()
             outcome = queue.process_job(job, make_pipeline_processor(sub))
             processed += 1
@@ -477,7 +506,10 @@ class QueueWorker:
             if provider is None:
                 self._release_claim(claim.job_id)
                 return
-            sub = Waterfall([_provider_for_job(session, provider, job)], clock=utcnow)
+            sub = Waterfall(
+                [_provider_for_job(session, provider, job, waterfall.providers)],
+                clock=utcnow,
+            )
             started = time.monotonic()
             outcome = queue.process_job(job, make_pipeline_processor(sub))
             _record_generation_history(

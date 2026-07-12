@@ -254,7 +254,19 @@
       "skip": "Omitir"
     },
     "fileLabel": "Archivo PDF o de audio",
-    "fileHint": "Sube un PDF o una grabación de audio (p. ej. una clase); el audio se transcribe automáticamente."
+    "fileHint": "Sube un PDF o una grabación de audio (p. ej. una clase); el audio se transcribe automáticamente.",
+    "batch": {
+      "label": "Lote nocturno",
+      "hint": "Sube muchos PDF a la vez. Noteration los organiza y los genera todos automáticamente durante la noche, así todo está listo por la mañana. Sin paso de revisión.",
+      "fileLabel": "Archivos PDF",
+      "selected": "{{count}} archivos seleccionados",
+      "submit": "Iniciar lote nocturno",
+      "analysing": "Preparando tus documentos",
+      "analysingHint": "Leyendo y organizando cada PDF. Puede tardar un momento con muchos archivos.",
+      "done": "{{count}} documentos en cola para la noche",
+      "doneHint": "Se generarán {{topics}} temas en segundo plano. Vuelve por la mañana.",
+      "someFailed": "No se pudieron leer {{count}} archivos y se omitieron."
+    }
   },
   "search": {
     "placeholder": "Buscar temas y capítulos…",
@@ -824,6 +836,10 @@
         "alwaysLabel": "Usar siempre",
         "alwaysHint": "El modelo rápido responde mientras trabajas y el modelo lento se ejecuta por la noche para obtener la mejor calidad. Si eliges un modelo en Usar siempre, se usará para todo, aunque sea lento, y las otras dos opciones se ignoran.",
         "none": "Ninguno"
+      },
+      "overnightGemini": {
+        "label": "Usar Gemini para la generación nocturna",
+        "hint": "Ejecuta el lote nocturno con tu clave de Gemini en lugar del modelo local. Más rápido y de mayor calidad, pero usa tu cuota en la nube. La generación interactiva sigue usando el modelo local."
       }
     },
     "generation": {

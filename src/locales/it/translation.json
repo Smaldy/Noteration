@@ -254,7 +254,19 @@
       "skip": "Salta"
     },
     "fileLabel": "File PDF o audio",
-    "fileHint": "Carica un PDF o una registrazione audio (es. una lezione); l'audio viene trascritto automaticamente."
+    "fileHint": "Carica un PDF o una registrazione audio (es. una lezione); l'audio viene trascritto automaticamente.",
+    "batch": {
+      "label": "Lotto notturno",
+      "hint": "Carica molti PDF in una volta. Noteration li organizza e li genera tutti automaticamente durante la notte, così al mattino è tutto pronto. Nessun passaggio di revisione.",
+      "fileLabel": "File PDF",
+      "selected": "{{count}} file selezionati",
+      "submit": "Avvia il lotto notturno",
+      "analysing": "Preparazione dei documenti",
+      "analysingHint": "Lettura e organizzazione di ogni PDF. Con molti file può richiedere un momento.",
+      "done": "{{count}} documenti in coda per la notte",
+      "doneHint": "Verranno generati {{topics}} argomenti in background. Torna al mattino.",
+      "someFailed": "Non è stato possibile leggere {{count}} file e sono stati saltati."
+    }
   },
   "search": {
     "placeholder": "Cerca argomenti e capitoli…",
@@ -824,6 +836,10 @@
         "alwaysLabel": "Usa sempre",
         "alwaysHint": "Il modello veloce risponde mentre lavori e il modello lento gira di notte per la migliore qualità. Se scegli un modello in Usa sempre, verrà usato per tutto, anche se è lento, e le altre due scelte vengono ignorate.",
         "none": "Nessuno"
+      },
+      "overnightGemini": {
+        "label": "Usa Gemini per la generazione notturna",
+        "hint": "Esegui il lotto notturno con la tua chiave Gemini invece del modello locale. Più veloce e di qualità migliore, ma consuma la tua quota cloud. La generazione interattiva usa ancora il modello locale."
       }
     },
     "generation": {
