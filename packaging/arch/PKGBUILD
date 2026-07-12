@@ -18,7 +18,7 @@
 # Python GTK bindings (gi) are bundled inside the freeze.
 
 pkgname=noteration
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc="Local-first study app: turns engineering PDFs into notes, MCQs, flashcards and an SM-2 schedule"
 arch=('x86_64')

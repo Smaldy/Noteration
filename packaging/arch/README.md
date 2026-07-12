@@ -23,13 +23,13 @@ makepkg -si        # builds, then installs with pacman (asks for sudo)
 `makepkg` pulls the build tools it needs (`makedepends`): Node/npm for the
 frontend bundle, Python + PyInstaller for the freeze, and the system
 PyGObject/GTK so the GTK WebKit backend can be collected. The finished package
-is `noteration-0.2.0-1-x86_64.pkg.tar.zst`.
+is `noteration-0.2.1-1-x86_64.pkg.tar.zst`.
 
 To build without installing, then install separately:
 
 ```bash
 makepkg -f
-sudo pacman -U noteration-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U noteration-0.2.1-1-x86_64.pkg.tar.zst
 ```
 
 Uninstall with `sudo pacman -R noteration`.
