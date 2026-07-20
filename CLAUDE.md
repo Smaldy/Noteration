@@ -35,18 +35,19 @@ read those for detail. Summary:
 - `services/<x>.py` — all logic. Key modules: `documents` (upload, structure
   confirm, delete), `topics` (merge), `notes`, `study`, `queue` (budget lane
   queue), `worker` (drain thread), `scheduler` (SM-2), `transcription`
-  (+`_worker`).
+  (+`_worker`), `chat` (AI sidebar engine), `retrieval` (BM25 grounding for the
+  sidebar's pinned reference topic).
 - `services/pipeline/` — `ingestion` (PDF→md+render, SHA256 disk cache),
   `structure` (3-tier detect) + `pdf_outline` + `slide_grouping`,
   `generation` (one AI call/topic), `formula`, `audio_chunking`,
   `processors` (stage dispatch).
-- `services/providers/` — provider `base` ABC, `gemini`, `claude`, `ollama`,
-  `mock`, `waterfall` (Gemini free → Ollama → paid Claude), `budget`
+- `services/providers/` — provider `base` ABC, `gemini`, `ollama`,
+  `mock`, `waterfall` (Gemini free → Ollama), `budget`
   (limiters), `factory`.
 - `models/` — SQLAlchemy ORM by aggregate: `hierarchy`
   (Subject/Document/Chapter/Topic), `content` (Note/MCQ/Flashcard),
-  `processing` (QueueJob), `schedule`, `settings`, `arcade`, `duplicator`,
-  `enums`.
+  `processing` (QueueJob), `schedule`, `settings`, `chat`
+  (ChatSession/ChatMessage), `arcade`, `duplicator`, `enums`.
 - `schemas/` — Pydantic request/response models, one file per domain
   (`note.py`, `structure.py`, `subject.py`, …).
 - `db/database.py` — engine (WAL + FK pragma) + session factory;
@@ -56,11 +57,12 @@ read those for detail. Summary:
 - `App.tsx` — router shell.
 - `features/<x>/` — one folder per page/domain: library, upload, study,
   queue, calendar, exam, practice, duplicator, settings, arcade, bookmarks,
-  search, pomodoro, credits.
+  search, pomodoro, credits, assistant (docked AI sidebar).
 - `components/` — shared UI (`MarkdownView` = markdown+KaTeX,
   `TopicTreeSections`, `ui/` = shadcn primitives).
 - `lib/` — `api.ts` (typed fetch), `usePolling`, `useSubjectTopicTree`,
-  `providers`, `utils`.
+  `providers`, `utils`, `aiContext` (study surfaces → assistant sidebar
+  event seam).
 - `stores/` — Zustand, one store per domain.
 - `locales/` — i18n, `en`/`es`/`it`.
 

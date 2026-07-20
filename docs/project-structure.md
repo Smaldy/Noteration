@@ -33,12 +33,12 @@ backend/
 ├── requirements.txt
 ├── routers/            ← thin HTTP handlers, one per domain (documents, topics, notes,
 │                         study, queue, settings, subjects, chapters, search,
-│                         assessment, attachments, arcade, duplicator)
+│                         assessment, attachments, arcade, duplicator, chat)
 ├── schemas/            ← Pydantic request/response models, mirroring the routers
 ├── services/           ← all business logic
 │   ├── pipeline/       ← ingestion, structure + pdf_outline, formula, generation,
 │   │                     audio_chunking, processors (stage dispatcher)
-│   ├── providers/      ← base ABC, gemini, claude, ollama, mock, waterfall,
+│   ├── providers/      ← base ABC, gemini, ollama, mock, waterfall,
 │   │                     budget (limiters), factory
 │   ├── duplicator/     ← extraction, search, sessions, calibration
 │   ├── queue.py        ← persistent budget-aware queue (lanes, stages, atomic commits)
@@ -46,11 +46,15 @@ backend/
 │   ├── transcription.py / transcription_worker.py   ← resumable audio → transcript
 │   ├── scheduler.py    ← pure SM-2 + deadline mode
 │   ├── planner.py      ← AI study-plan generation
+│   ├── chat.py         ← AI assistant sidebar engine (prompt from stored turns +
+│   │                     reference-topic material → provider waterfall)
+│   ├── retrieval.py    ← grounding for the pinned reference topic: chunk the
+│   │                     topic's notes, rank with BM25, fit the char budget
 │   └── …               ← documents, topics, notes, study, settings, subjects,
 │                         search, attachments, assessment, arcade,
 │                         history, queue_view
 ├── models/             ← SQLAlchemy ORM, grouped by aggregate: hierarchy, content,
-│                         processing, schedule, settings, arcade, duplicator, enums
+│                         processing, schedule, settings, chat, arcade, duplicator, enums
 ├── db/
 │   ├── database.py     ← SQLite engine (WAL + foreign_keys PRAGMA), session factory
 │   ├── types.py        ← UTCDateTime TypeDecorator
@@ -84,13 +88,19 @@ src/
 │   ├── pomodoro/       ← floating timer + synthesized audio
 │   ├── practice/       ← topic-select dialog for combined decks
 │   ├── arcade/         ← the minigame: cabinet UI, game/ (pure sim + canvas render)
+│   ├── assistant/      ← docked AI sidebar (chat thread, model selector, resize,
+│   │                     reference-topic chip, shared TopicPicker behind the
+│   │                     save-reply-as-note and pin-a-topic dialogs)
 │   └── credits/        ← credits overlay
 ├── components/
 │   ├── ui/             ← shadcn/ui primitives (button, card, dialog, tabs, …)
-│   ├── MarkdownView.tsx ← shared markdown + KaTeX renderer
+│   ├── MarkdownView.tsx ← shared markdown + KaTeX renderer (block mode hosts
+│   │                      the selection ask-the-assistant menu)
+│   ├── SelectionMenu.tsx ← floating presets + free text over a text selection
 │   └── TimeWheel.tsx
 ├── stores/             ← Zustand stores, one per domain (library, study, queue, …)
-├── lib/                ← api.ts (typed fetch wrapper), providers.ts, utils.ts, arcadeEvents.ts
+├── lib/                ← api.ts (typed fetch wrapper), providers.ts, utils.ts,
+│                         arcadeEvents.ts, aiContext.ts (emitter → sidebar seam)
 ├── types/              ← TS mirrors of the API schemas
 ├── i18n/ + locales/    ← react-i18next setup; en / es / it translations
 └── vite-env.d.ts

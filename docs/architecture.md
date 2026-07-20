@@ -6,8 +6,8 @@ SQLite database. It turns lecture PDFs (or recorded audio) into structured notes
 quizzes, and flashcards, and schedules revision with SM-2 spaced repetition.
 
 The organizing constraint is **cost**: the app is built to run free. All AI calls
-go through a cheapest-first provider waterfall (Gemini free tier → local Ollama →
-paid Claude as an optional last resort), driven by a budget-aware background queue
+go through a cheapest-first provider waterfall (Gemini free tier → local Ollama),
+driven by a budget-aware background queue
 with a **never-zero-result guarantee** — process what fits the current quota,
 commit each topic the moment it finishes, queue the rest with a concrete resume
 time. Slow is fine; returning nothing is not.
@@ -113,9 +113,8 @@ PDF ─▶ Ingestion ─▶ Structure ─▶ [user review] ─▶ Queue ─▶ N
 ### Provider waterfall (`services/providers/`)
 
 One `Provider` interface (`generate`, `transcribe_image`, `transcribe_audio`,
-`budget_probe`) implemented by Gemini (`google-genai`), Claude (`anthropic`),
-Ollama (local), and a mock for tests. Nothing outside this layer knows which
-model answered.
+`budget_probe`) implemented by Gemini (`google-genai`), Ollama (local), and a
+mock for tests. Nothing outside this layer knows which model answered.
 
 - **Cheapest-first ordering with automatic failover** (`waterfall.py`): a
   limit-hit cools that provider until its `reset_at` and moves on; hard errors
@@ -131,13 +130,52 @@ model answered.
 - **Ollama** is the $0 local candidate (model name set in Settings; absence just
   removes it from the waterfall). It never raises a limit error — a local model
   has no quota.
-- **Claude** is paid, last resort, and can be hard-disabled (`allow_paid`);
-  budget modelled as a rolling ~5h token window.
 - **Budgets are modelled locally** (no provider exposes remaining quota): request
   counts and token windows from our own call history, conservative defaults.
 - A benchmark harness (`backend/benchmark/`, offline, not part of the served
   app) runs representative topics through providers and scores cost, wall-clock,
   note quality, and formula accuracy to pick the bulk default on evidence.
+- **The AI sidebar chat** (`services/chat.py`, `/api/chat`) is a second consumer
+  of the same waterfall: it builds a bounded prompt from the session's stored
+  turns (`chat_sessions`/`chat_messages`) and either walks the full waterfall or
+  pins the one provider the sidebar's model selector chose. The user turn is
+  committed before the provider call (SQLite is single-writer — no lock across
+  the network round-trip) and the reply in a fresh transaction after. History
+  keeps the last 5 sessions (a 6th evicts the oldest on creation); the
+  `chat_retention` setting adds opt-in time expiry (1 hour / 1 day / on close),
+  enforced by the queue worker's startup + periodic housekeeping hooks. In the
+  sidebar, switching models within the same tier continues the session, while
+  crossing local ↔ cloud forks to a fresh one (the saved thread stays in
+  history) so a transcript never silently changes privacy context. Each reply
+  carries exactly two actions — copy, and save as note, which files the
+  markdown under a chosen study topic through the normal manual-note path
+  (`POST /notes`), yielding an ordinary editable note block. Study surfaces
+  feed the same thread through one seam: selecting text in any block
+  `MarkdownView` offers three presets plus a free-text ask, and a revealed quiz
+  answer or flipped flashcard offers "go deeper" (two taps, so the ask stays
+  out of the answer/grade muscle-memory path). Both emit the same single
+  `aiContext` event (`src/lib/aiContext.ts`, modeled on `arcadeEvents.ts`)
+  that the assistant store turns into a quoted user turn — appended to the
+  open session, never replacing it.
+- **Reference topic + retrieval** (`services/retrieval.py`): the sidebar's chip
+  pins one topic to the session (`chat_sessions.topic_id`, `ON DELETE SET NULL`
+  — deleting a topic unpins the chip, never the conversation), carried on every
+  send like `provider`, so reopening a session restores it and sending `null`
+  removes it. Retrieval splits the topic's notes into chunks (one per heading
+  section, subdivided at paragraph boundaries past ~1200 chars, each keeping its
+  heading) and ranks them with BM25 against the user's message; flashcards join
+  as compact "key facts" when budget remains, MCQs never do (feeding the model
+  its own quiz invites it to parrot them). A query with no lexical signal
+  ("explain this", from an emitter) reads the topic in document order instead of
+  ranking noise, and every elision is marked `[...]` rather than hidden. The
+  corpus is a single topic, so BM25 beats embeddings on every axis that matters
+  here: no model to download, no index to keep in sync with SQLite, no
+  cold-start cost, local-first by construction. **Budgeting:** the retrieved
+  material *spends* the prompt's existing 24k-char history envelope rather than
+  extending it (≤8k to the extract, ≥8k floor to the transcript), so a pinned
+  topic can never push the prompt past what the smallest local model in the
+  waterfall can hold. Crossing local ↔ cloud drops the chip along with the
+  transcript: grounding material must not silently change privacy context either.
 
 ### Budget-aware queue (`services/queue.py`, `worker.py`)
 

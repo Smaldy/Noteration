@@ -32,7 +32,7 @@ Noteration is a local desktop app made by a student for students. Drop in a lect
 ![Settings](scripts/shots/02-settings.png)
 
 ### Free by design
-- **Cheapest-first AI "waterfall."** Calls go to **Gemini's free tier** first, with optional fallback to a local **Ollama** model ($0) or **paid Claude** as a last resort (which you can hard-disable). The app never knows or cares which model answered.
+- **Cheapest-first AI "waterfall."** Calls go to **Gemini's free tier** first, with optional fallback to a local **Ollama** model ($0). The app never knows or cares which model answered.
 - **Budget-aware background queue.** Topics are generated in the background, committed one at a time, and the queue automatically fails over, backs off, and resumes when a provider's quota cools down — so you never lose work and never get a half-written topic.
 - **Cost guards.** A per-document token estimate and an optional budget cap stop a single PDF from burning your daily free quota.
 
@@ -70,7 +70,7 @@ A Python backend (FastAPI) runs the pipeline, the budget-aware queue, and the AI
 
 **Backend:** Python · FastAPI · SQLAlchemy · Alembic · SQLite (WAL) · PyMuPDF · markitdown
 
-**AI:** provider abstraction over Gemini (google-genai), Claude (anthropic), and Ollama
+**AI:** provider abstraction over Gemini (google-genai) and Ollama
 
 **Frontend:** React · Vite · TypeScript · Tailwind · shadcn/ui · Zustand · Framer Motion · FullCalendar · KaTeX
 
