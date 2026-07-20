@@ -193,7 +193,7 @@
   "upload": {
     "titleExam": "Añadir un PDF de examen",
     "title": "Subir un PDF",
-    "descExam": "Leeremos el PDF y propondremos una estructura para revisar. Los documentos de preparación de examen generan solo preguntas tipo test (con explicaciones) y tarjetas, sin apuntes.",
+    "descExam": "Leeremos el PDF y propondremos una estructura para revisar. Los documentos de preparación de examen generan preguntas de práctica en lugar de apuntes, y puedes elegir de qué tipo aquí abajo.",
     "desc": "Leeremos el PDF y propondremos una estructura de capítulos/temas para que la revises antes de generar nada.",
     "subject": "Asignatura",
     "newSubjectOption": "+ Nueva asignatura…",
@@ -266,6 +266,21 @@
       "done": "{{count}} documentos en cola para la noche",
       "doneHint": "Se generarán {{topics}} temas en segundo plano. Vuelve por la mañana.",
       "someFailed": "No se pudieron leer {{count}} archivos y se omitieron."
+    },
+    "exam": {
+      "questionTypes": "Tipos de preguntas",
+      "types": {
+        "both": "Ambos",
+        "mcq": "Tipo test",
+        "flashcards": "Tarjetas"
+      },
+      "typeHints": {
+        "both": "Cada tema genera preguntas tipo test y tarjetas.",
+        "mcq": "Cada tema genera solo preguntas tipo test, y aproximadamente el doble de ellas.",
+        "flashcards": "Cada tema genera solo tarjetas, y aproximadamente el doble de ellas."
+      },
+      "style": "Estilo de redacción",
+      "styleDefault": "Seguir tus ajustes"
     }
   },
   "search": {

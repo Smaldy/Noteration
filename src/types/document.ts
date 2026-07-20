@@ -12,6 +12,17 @@ export interface DocumentOut {
   source_type: SourceType;
 }
 
+/** Which assessment types an Exam Prep upload generates. Mirrors
+ *  `ExamQuestionTypes` in `backend/models/enums.py`. */
+export type ExamQuestionTypes = "mcq" | "flashcards" | "both";
+
+/** The Exam Prep upload's generation choices, recorded on the document.
+ *  `ai_style` of null means follow the global Settings writing style. */
+export interface ExamGenerationOptions {
+  question_types: ExamQuestionTypes;
+  ai_style: string | null;
+}
+
 /** Result of `POST /api/documents` (upload, before structure review).
  *  Audio uploads have no ingest yet (transcribed in the background), so the
  *  page_count/is_scanned/book_mode fields default and status is "transcribing". */

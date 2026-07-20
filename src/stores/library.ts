@@ -1,7 +1,11 @@
 import { create } from "zustand";
 
 import { ApiError, api } from "@/lib/api";
-import type { BatchUploadResult, UploadResult } from "@/types/document";
+import type {
+  BatchUploadResult,
+  ExamGenerationOptions,
+  UploadResult,
+} from "@/types/document";
 import type { DocumentMode, DocumentSummary } from "@/types/library";
 
 type LoadState = "idle" | "loading" | "loaded" | "error";
@@ -13,11 +17,14 @@ export interface LibraryStore {
   /** Fetch this section's documents from `GET /api/documents?mode=…` (newest first). */
   fetchDocuments: () => Promise<void>;
   /** Upload a PDF to a subject in this section's mode, then refresh the list.
-   * ``onProgress`` reports file-transfer percentage (0–100) during the upload. */
+   * ``onProgress`` reports file-transfer percentage (0–100) during the upload.
+   * ``options`` carries the Exam Prep generation choices; omitting it leaves the
+   * server on its defaults (both question types, global writing style). */
   uploadDocument: (
     subjectId: number,
     file: File,
     onProgress?: (pct: number) => void,
+    options?: ExamGenerationOptions,
   ) => Promise<UploadResult>;
   /** Upload many PDFs for unattended overnight generation, then refresh. */
   batchUploadOvernight: (
@@ -71,11 +78,17 @@ function createDocumentsStore(mode: DocumentMode) {
         }
       }
     },
-    uploadDocument: async (subjectId, file, onProgress) => {
+    uploadDocument: async (subjectId, file, onProgress, options) => {
       const form = new FormData();
       form.append("subject_id", String(subjectId));
       form.append("file", file);
       form.append("mode", mode);
+      if (options) {
+        form.append("question_types", options.question_types);
+        // Omitted entirely when null: the server reads a missing field as "follow
+        // the global setting", which an empty string would not express.
+        if (options.ai_style) form.append("ai_style", options.ai_style);
+      }
       const result = await api.uploadWithProgress<UploadResult>(
         "/documents",
         form,

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.models import Chapter, Document, Note, Subject, Topic
+from backend.models.enums import ExamQuestionTypes
 from backend.services import documents as docsvc
 from backend.services.pipeline.ingestion import IngestionResult
 from backend.services.pipeline.structure import (
@@ -382,3 +383,84 @@ def test_confirm_empty_chapters_is_422(
         f"/api/documents/{document_id}/structure", json={"chapters": []}
     )
     assert response.status_code == 422
+
+
+def test_exam_upload_records_question_types_and_style(
+    client: TestClient, db_factory: sessionmaker, tmp_path: Path
+) -> None:
+    with db_factory() as db:
+        subject = Subject(name="Physics")
+        db.add(subject)
+        db.commit()
+        subject_id = subject.id
+
+    pdf_bytes = _make_real_pdf(tmp_path / "real.pdf")
+    response = client.post(
+        "/api/documents",
+        data={
+            "subject_id": str(subject_id),
+            "mode": "exam",
+            "question_types": "flashcards",
+            "ai_style": "academic",
+        },
+        files={"file": ("real.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+
+    with db_factory() as db:
+        document = db.get(Document, response.json()["document"]["id"])
+        assert document.question_types is ExamQuestionTypes.flashcards
+        assert document.ai_style == "academic"
+
+
+def test_upload_defaults_to_both_types_and_the_global_style(
+    client: TestClient, db_factory: sessionmaker, tmp_path: Path
+) -> None:
+    # A client that sends neither field must land on today's behaviour: both
+    # question types, and NULL style meaning "follow Settings".
+    with db_factory() as db:
+        subject = Subject(name="Physics")
+        db.add(subject)
+        db.commit()
+        subject_id = subject.id
+
+    pdf_bytes = _make_real_pdf(tmp_path / "real.pdf")
+    response = client.post(
+        "/api/documents",
+        data={"subject_id": str(subject_id)},
+        files={"file": ("real.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+
+    with db_factory() as db:
+        document = db.get(Document, response.json()["document"]["id"])
+        assert document.question_types is ExamQuestionTypes.both
+        assert document.ai_style is None
+
+
+def test_upload_ignores_an_unknown_style(
+    client: TestClient, db_factory: sessionmaker, tmp_path: Path
+) -> None:
+    # A stale client sending a removed style should fall back to the global
+    # setting, not fail the upload.
+    with db_factory() as db:
+        subject = Subject(name="Physics")
+        db.add(subject)
+        db.commit()
+        subject_id = subject.id
+
+    pdf_bytes = _make_real_pdf(tmp_path / "real.pdf")
+    response = client.post(
+        "/api/documents",
+        data={
+            "subject_id": str(subject_id),
+            "mode": "exam",
+            "ai_style": "shakespearean",
+        },
+        files={"file": ("real.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+
+    with db_factory() as db:
+        document = db.get(Document, response.json()["document"]["id"])
+        assert document.ai_style is None

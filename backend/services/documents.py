@@ -22,12 +22,14 @@ from backend.models import Chapter, Document, Subject, Topic
 from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
+    ExamQuestionTypes,
     QueueLaneState,
     TopicPriority,
     TopicStatus,
 )
 from backend.paths import CACHE_ROOT, UPLOADS_DIR
 from backend.schemas.structure import ChapterIn, TopicIn
+from backend.services.pipeline.generation import AI_STYLES
 from backend.services.pipeline.ingestion import (
     IngestionResult,
     OutlineEntry,
@@ -225,6 +227,19 @@ def delete_document(session: Session, document_id: int) -> None:
     session.commit()
 
 
+def normalize_document_style(ai_style: str | None) -> str | None:
+    """Coerce an upload's style choice to a stored value, or ``None``.
+
+    ``None`` is the meaningful default — it means "follow ``Settings.ai_style``",
+    so the document keeps tracking the global setting instead of freezing today's
+    value. An unrecognised style is treated the same way rather than rejected: a
+    stale client sending a removed style should fall back, not fail the upload.
+    """
+    if not ai_style or ai_style not in AI_STYLES:
+        return None
+    return ai_style
+
+
 def create_document(
     session: Session,
     *,
@@ -232,6 +247,8 @@ def create_document(
     filename: str,
     data: bytes,
     mode: DocumentMode = DocumentMode.study,
+    question_types: ExamQuestionTypes = ExamQuestionTypes.both,
+    ai_style: str | None = None,
     ingest_fn: IngestFn = ingest,
     uploads_dir: str | Path = UPLOADS_DIR,
 ) -> tuple[Document, IngestionResult]:
@@ -239,6 +256,11 @@ def create_document(
 
     ``mode`` records which section the upload belongs to: ``study`` (Library) runs
     the full notes+assessment pipeline; ``exam`` (Exam Prep) is assessment-only.
+
+    ``question_types`` and ``ai_style`` are the Exam Prep upload choices, stored
+    so a regeneration reproduces the same deck. They are recorded whatever the
+    mode, but only exam-mode generation reads ``question_types``; ``ai_style``
+    of ``None`` means follow the global setting.
     """
     if not data.startswith(PDF_MAGIC):
         raise InvalidPDFError("uploaded file is not a PDF")
@@ -259,6 +281,8 @@ def create_document(
         markdown_path=str(result.markdown_path) if result.markdown_path else None,
         status=DocumentStatus.uploaded,
         mode=mode,
+        question_types=question_types,
+        ai_style=normalize_document_style(ai_style),
         order_index=(min_order if min_order is not None else 0) - 1,
     )
     session.add(document)

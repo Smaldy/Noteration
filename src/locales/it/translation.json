@@ -193,7 +193,7 @@
   "upload": {
     "titleExam": "Aggiungi un PDF d'esame",
     "title": "Carica un PDF",
-    "descExam": "Leggeremo il PDF e proporremo una struttura da rivedere. I documenti di preparazione all'esame generano solo quiz a risposta multipla (con spiegazioni) e flashcard, non appunti.",
+    "descExam": "Leggeremo il PDF e proporremo una struttura da rivedere. I documenti di preparazione all'esame generano domande di esercitazione invece degli appunti, e puoi scegliere quali qui sotto.",
     "desc": "Leggeremo il PDF e proporremo una struttura di capitoli/argomenti da rivedere prima di generare qualsiasi cosa.",
     "subject": "Materia",
     "newSubjectOption": "+ Nuova materia…",
@@ -266,6 +266,21 @@
       "done": "{{count}} documenti in coda per la notte",
       "doneHint": "Verranno generati {{topics}} argomenti in background. Torna al mattino.",
       "someFailed": "Non è stato possibile leggere {{count}} file e sono stati saltati."
+    },
+    "exam": {
+      "questionTypes": "Tipi di domande",
+      "types": {
+        "both": "Entrambi",
+        "mcq": "Risposta multipla",
+        "flashcards": "Flashcard"
+      },
+      "typeHints": {
+        "both": "Ogni argomento genera domande a risposta multipla e flashcard.",
+        "mcq": "Ogni argomento genera solo domande a risposta multipla, e circa il doppio delle domande.",
+        "flashcards": "Ogni argomento genera solo flashcard, e circa il doppio delle carte."
+      },
+      "style": "Stile di scrittura",
+      "styleDefault": "Segui le tue impostazioni"
     }
   },
   "search": {

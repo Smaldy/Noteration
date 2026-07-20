@@ -32,6 +32,21 @@ class DocumentMode(enum.StrEnum):
     exam = "exam"
 
 
+class ExamQuestionTypes(enum.StrEnum):
+    """Which assessment types an exam-mode document generates.
+
+    Chosen per document at upload. ``both`` (the default) is the original
+    behaviour: every exam topic yields MCQs *and* flashcards. The other two ask
+    the model for one kind only, so a deck built for written recall isn't padded
+    with multiple choice it will never practice. Study mode ignores this — its
+    single call always produces both alongside the notes.
+    """
+
+    mcq = "mcq"
+    flashcards = "flashcards"
+    both = "both"
+
+
 class TopicPriority(enum.StrEnum):
     exam_critical = "exam_critical"
     medium = "medium"

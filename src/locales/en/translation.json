@@ -193,7 +193,7 @@
   "upload": {
     "titleExam": "Add an exam PDF",
     "title": "Upload a PDF",
-    "descExam": "We'll read the PDF and propose a structure to review. Exam-prep documents generate only MCQs (with explanations) and flashcards, not notes.",
+    "descExam": "We'll read the PDF and propose a structure to review. Exam prep documents generate practice questions instead of notes, and you can choose which kinds below.",
     "desc": "We'll read the PDF and propose a chapter/topic structure for you to review before anything is generated.",
     "subject": "Subject",
     "newSubjectOption": "+ New subject…",
@@ -266,6 +266,21 @@
       "done": "{{count}} documents queued for overnight",
       "doneHint": "{{topics}} topics will be generated in the background. Come back in the morning.",
       "someFailed": "{{count}} files could not be read and were skipped."
+    },
+    "exam": {
+      "questionTypes": "Question types",
+      "types": {
+        "both": "Both",
+        "mcq": "Multiple choice",
+        "flashcards": "Flashcards"
+      },
+      "typeHints": {
+        "both": "Every topic gets multiple choice questions and flashcards.",
+        "mcq": "Every topic gets multiple choice questions only, and about twice as many of them.",
+        "flashcards": "Every topic gets flashcards only, and about twice as many of them."
+      },
+      "style": "Writing style",
+      "styleDefault": "Follow your settings"
     }
   },
   "search": {

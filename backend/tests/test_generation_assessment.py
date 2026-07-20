@@ -13,11 +13,17 @@ import pytest
 from sqlalchemy.orm import Session
 
 from backend.models import MCQ, Chapter, Document, Flashcard, Note, Subject, Topic
-from backend.models.enums import DocumentMode, QueueStage, QueueState
+from backend.models.enums import (
+    DocumentMode,
+    ExamQuestionTypes,
+    QueueStage,
+    QueueState,
+)
 from backend.models.processing import QueueJob
 from backend.services.pipeline.generation import (
     GenerationParseError,
     build_generation_prompt,
+    exam_schema_for,
     make_generation_processor,
     parse_generation,
 )
@@ -122,7 +128,12 @@ def test_build_generation_prompt_includes_source() -> None:
 
 
 def _seed_topic(
-    session: Session, tmp_path, *, mode: DocumentMode = DocumentMode.study
+    session: Session,
+    tmp_path,
+    *,
+    mode: DocumentMode = DocumentMode.study,
+    question_types: ExamQuestionTypes = ExamQuestionTypes.both,
+    ai_style: str | None = None,
 ) -> Topic:
     md = tmp_path / "doc.md"
     md.write_text("# Kinematics\n\nVelocity is dx/dt.\n", encoding="utf-8")
@@ -133,6 +144,8 @@ def _seed_topic(
         file_hash="h",
         markdown_path=str(md),
         mode=mode,
+        question_types=question_types,
+        ai_style=ai_style,
     )
     chapter = Chapter(document=document, subject=subject, title="Ch")
     topic = Topic(chapter=chapter, title="Kinematics")
@@ -238,3 +251,151 @@ def test_exam_processor_writes_no_note(session: Session, tmp_path) -> None:
     assert session.query(Note).filter_by(topic_id=topic.id).count() == 0
     assert session.query(MCQ).filter_by(topic_id=topic.id).count() == 1
     assert session.query(Flashcard).filter_by(topic_id=topic.id).count() == 1
+
+
+# --- exam question types (per-document selector) -----------------------------
+
+_MCQ_ONLY_JSON = json.dumps({"mcqs": json.loads(_EXAM_JSON)["mcqs"]})
+_CARDS_ONLY_JSON = json.dumps({"flashcards": json.loads(_EXAM_JSON)["flashcards"]})
+
+
+def test_exam_prompt_asks_for_mcqs_only() -> None:
+    prompt = build_generation_prompt(
+        "Kinematics",
+        "Velocity = dx/dt",
+        mode=DocumentMode.exam,
+        question_types=ExamQuestionTypes.mcq,
+    )
+    assert "mcqs" in prompt
+    # The unwanted array must not appear at all: mentioning it in the shape is
+    # what makes the model spend output tokens producing it.
+    assert "flashcards" not in prompt
+
+
+def test_exam_prompt_asks_for_flashcards_only() -> None:
+    prompt = build_generation_prompt(
+        "Kinematics",
+        "Velocity = dx/dt",
+        mode=DocumentMode.exam,
+        question_types=ExamQuestionTypes.flashcards,
+    )
+    assert "flashcards" in prompt
+    assert "mcqs" not in prompt
+
+
+def test_single_type_exam_prompt_asks_for_more_items() -> None:
+    # The budget freed by dropping one type buys depth in the other.
+    both = build_generation_prompt(
+        "K", "src", mode=DocumentMode.exam, question_types=ExamQuestionTypes.both
+    )
+    mcq_only = build_generation_prompt(
+        "K", "src", mode=DocumentMode.exam, question_types=ExamQuestionTypes.mcq
+    )
+    assert "10-15" in both
+    assert "20-30" in mcq_only
+
+
+def test_exam_schema_narrows_to_requested_type() -> None:
+    assert exam_schema_for(ExamQuestionTypes.mcq)["required"] == ["mcqs"]
+    assert exam_schema_for(ExamQuestionTypes.flashcards)["required"] == ["flashcards"]
+    assert set(exam_schema_for(ExamQuestionTypes.both)["required"]) == {
+        "mcqs",
+        "flashcards",
+    }
+
+
+def test_parse_allows_missing_flashcards_when_mcqs_only() -> None:
+    data = parse_generation(
+        _MCQ_ONLY_JSON,
+        require_notes=False,
+        question_types=ExamQuestionTypes.mcq,
+    )
+    assert len(data.mcqs) == 1
+    assert data.flashcards == []
+
+
+def test_parse_still_requires_the_type_that_was_asked_for() -> None:
+    # Narrowing must not become "anything goes": an MCQ-only deck with no MCQs
+    # is still a failed generation.
+    with pytest.raises(GenerationParseError):
+        parse_generation(
+            _CARDS_ONLY_JSON,
+            require_notes=False,
+            question_types=ExamQuestionTypes.mcq,
+        )
+
+
+def test_study_mode_still_requires_both() -> None:
+    # A study document carries the default question_types, but study generation
+    # must ignore it entirely and keep demanding notes + both assessment kinds.
+    with pytest.raises(GenerationParseError):
+        parse_generation(_MCQ_ONLY_JSON)
+
+
+def test_exam_processor_mcq_only_writes_no_flashcards(
+    session: Session, tmp_path
+) -> None:
+    topic = _seed_topic(
+        session,
+        tmp_path,
+        mode=DocumentMode.exam,
+        question_types=ExamQuestionTypes.mcq,
+    )
+    job = _gen_job(session, topic)
+    queue = QueueService(session)
+    provider = MockProvider("gemini_free", text=_MCQ_ONLY_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    outcome = queue.process_job(job, processor)
+
+    assert outcome is JobOutcome.done
+    assert session.query(MCQ).filter_by(topic_id=topic.id).count() == 1
+    assert session.query(Flashcard).filter_by(topic_id=topic.id).count() == 0
+    # The narrowed schema must reach the provider, not just the prompt text —
+    # that is what stops a schema-native provider from emitting flashcards.
+    assert provider.last_response_schema["required"] == ["mcqs"]
+
+
+def test_exam_processor_flashcards_only(session: Session, tmp_path) -> None:
+    topic = _seed_topic(
+        session,
+        tmp_path,
+        mode=DocumentMode.exam,
+        question_types=ExamQuestionTypes.flashcards,
+    )
+    job = _gen_job(session, topic)
+    queue = QueueService(session)
+    provider = MockProvider("gemini_free", text=_CARDS_ONLY_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    assert queue.process_job(job, processor) is JobOutcome.done
+    assert session.query(Flashcard).filter_by(topic_id=topic.id).count() == 1
+    assert session.query(MCQ).filter_by(topic_id=topic.id).count() == 0
+
+
+def test_document_ai_style_overrides_the_global_setting(
+    session: Session, tmp_path
+) -> None:
+    # The global setting stays "balanced" (no directive); the document's own
+    # choice must still reach the prompt.
+    topic = _seed_topic(session, tmp_path, mode=DocumentMode.exam, ai_style="academic")
+    job = _gen_job(session, topic)
+    provider = MockProvider("gemini_free", text=_EXAM_JSON)
+    processor = make_generation_processor(Waterfall([provider]))
+
+    QueueService(session).process_job(job, processor)
+
+    assert "formal academic register" in provider.last_prompt
+
+
+def test_document_without_style_follows_the_global_setting(
+    session: Session, tmp_path
+) -> None:
+    topic = _seed_topic(session, tmp_path, mode=DocumentMode.exam)
+    job = _gen_job(session, topic)
+    provider = MockProvider("gemini_free", text=_EXAM_JSON)
+    processor = make_generation_processor(Waterfall([provider]), ai_style="concise")
+
+    QueueService(session).process_job(job, processor)
+
+    assert "as compact as possible" in provider.last_prompt

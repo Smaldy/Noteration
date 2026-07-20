@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
-from backend.models.enums import DocumentMode
+from backend.models.enums import DocumentMode, ExamQuestionTypes
 from backend.schemas.chapter import ChapterStatusOut
 from backend.schemas.library import DocumentSummaryOut
 from backend.schemas.reorder import ReorderRequest
@@ -68,6 +68,8 @@ async def upload_document(
     subject_id: int = Form(...),
     file: UploadFile = File(...),
     mode: DocumentMode = Form(DocumentMode.study),
+    question_types: ExamQuestionTypes = Form(ExamQuestionTypes.both),
+    ai_style: str | None = Form(None),
     session: Session = Depends(get_session),
 ) -> UploadResult:
     """Ingest an uploaded PDF, or accept an audio file for transcription.
@@ -77,6 +79,10 @@ async def upload_document(
     is treated as a PDF and ingested. ``mode`` (form field) selects the PDF section:
     ``study`` (Library, default) or ``exam`` (Exam Prep — assessment-only); audio is
     always study mode.
+
+    ``question_types`` and ``ai_style`` are the Exam Prep generation choices.
+    Both are optional and default to today's behaviour (both types, global
+    writing style), so a client that doesn't send them is unaffected.
     """
     filename = file.filename or "upload"
     data = await file.read()
@@ -99,6 +105,8 @@ async def upload_document(
             filename=filename,
             data=data,
             mode=mode,
+            question_types=question_types,
+            ai_style=ai_style,
         )
     except docsvc.InvalidPDFError:
         raise HTTPException(status_code=400, detail="Uploaded file is not a PDF")

@@ -32,7 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models import MCQ, Chapter, Document, Flashcard, Note, Topic
-from backend.models.enums import DocumentMode
+from backend.models.enums import DocumentMode, ExamQuestionTypes
 from backend.models.processing import QueueJob
 from backend.paths import UPLOADS_DIR
 from backend.services.pipeline.ingestion import (
@@ -336,6 +336,23 @@ EXAM_GENERATION_SCHEMA: dict = {
 }
 
 
+def exam_schema_for(question_types: ExamQuestionTypes) -> dict:
+    """The exam-mode response schema narrowed to the requested types.
+
+    Dropping the unwanted array from the schema (rather than discarding it after
+    the fact) is what makes a single-type deck cheaper: the model never spends
+    output tokens on items we would only throw away.
+    """
+    if question_types is ExamQuestionTypes.both:
+        return EXAM_GENERATION_SCHEMA
+    key = "mcqs" if question_types is ExamQuestionTypes.mcq else "flashcards"
+    return {
+        "type": "object",
+        "properties": {key: EXAM_GENERATION_SCHEMA["properties"][key]},
+        "required": [key],
+    }
+
+
 # Static Markdown formatting rules for generated notes, shared by the full
 # generation call and the on-demand notes regeneration so they can't drift apart.
 # The (variable) length rule is prepended separately by ``_notes_length_rule``.
@@ -384,6 +401,7 @@ def build_generation_prompt(
     language: str = DEFAULT_LANGUAGE,
     study_field: str = DEFAULT_STUDY_FIELD,
     ai_style: str = DEFAULT_AI_STYLE,
+    question_types: ExamQuestionTypes = ExamQuestionTypes.both,
 ) -> str:
     """Prompt for the single generation call, grounded in the topic's source.
 
@@ -396,26 +414,47 @@ def build_generation_prompt(
     structure. ``language`` (en|it|es) sets the language of the generated content;
     English adds no directive. ``study_field`` picks the tutor persona and notes
     coverage for the student's discipline; ``ai_style`` steers the wording
-    ("balanced" adds no directive).
+    ("balanced" adds no directive). ``question_types`` narrows the exam-mode ask
+    to MCQs or flashcards only (study mode always produces both).
     """
     lang_rule = language_directive(language)
     length_rule = _notes_length_rule(note_length)
     profile = field_profile(study_field)
     style_rule = style_directive(ai_style)
     if mode is DocumentMode.exam:
+        wants_mcqs = question_types in (ExamQuestionTypes.mcq, ExamQuestionTypes.both)
+        wants_cards = question_types in (
+            ExamQuestionTypes.flashcards,
+            ExamQuestionTypes.both,
+        )
+        # Asking for one type only doubles its count: the output budget that would
+        # have gone to the other half buys deeper coverage of the type the user
+        # actually picked, rather than a deck half the size.
+        count = "10-15" if question_types is ExamQuestionTypes.both else "20-30"
+        shape_parts: list[str] = []
+        rules = ""
+        if wants_mcqs:
+            shape_parts.append(
+                '"mcqs": [{"question": str, "options": [str, ...], '
+                '"correct_index": int, "explanation": str}]'
+            )
+            rules += (
+                f"- mcqs: {count} exam-style multiple-choice questions grounded in "
+                "the source; each with at least 2 options, a correct_index pointing "
+                "to the right option, and a clear explanation of why it is "
+                "correct.\n"
+            )
+        if wants_cards:
+            shape_parts.append('"flashcards": [{"front": str, "back": str}]')
+            rules += f"- flashcards: {count} flashcards grounded in the source.\n"
+        shape = "{" + ", ".join(shape_parts) + "}"
         return (
             f"You are {profile.persona} preparing a student for an exam. "
             "From the source material for ONE topic, produce a thorough assessment "
             "of the material as a single JSON object.\n\n"
             "Respond with ONLY a JSON object of this exact shape (no prose, no code "
-            "fences):\n"
-            '{"mcqs": [{"question": str, "options": [str, ...], '
-            '"correct_index": int, "explanation": str}], '
-            '"flashcards": [{"front": str, "back": str}]}\n'
-            "- mcqs: 10-15 exam-style multiple-choice questions grounded in the "
-            "source; each with at least 2 options, a correct_index pointing to the "
-            "right option, and a clear explanation of why it is correct.\n"
-            "- flashcards: 10-15 flashcards grounded in the source.\n"
+            f"fences):\n{shape}\n"
+            f"{rules}"
             f"{_ASSESSMENT_MATH_RULE}"
             "- Do not invent material the source does not support.\n"
             f"{style_rule}{lang_rule}\n"
@@ -664,12 +703,24 @@ class GenerationData:
     flashcards: list[ParsedFlashcard] = field(default_factory=list)
 
 
-def parse_generation(text: str, *, require_notes: bool = True) -> GenerationData:
+def parse_generation(
+    text: str,
+    *,
+    require_notes: bool = True,
+    question_types: ExamQuestionTypes = ExamQuestionTypes.both,
+) -> GenerationData:
     """Parse + validate the combined generation JSON. Raises on malformed output.
 
     ``require_notes=False`` (exam mode) makes ``notes_md`` optional — exam-mode
     output is assessment-only, so a missing/empty notes field is fine and any
     value present is ignored (``notes_md`` comes back as "").
+
+    ``question_types`` says which assessment arrays the caller asked for, and so
+    which must come back non-empty. It only ever *narrows* the requirement: an
+    MCQ-only deck is still rejected when it contains no MCQs, but no longer
+    fails for the flashcards nobody requested. Items of an unrequested type are
+    kept if the model volunteers them — they are grounded in the same source and
+    discarding them would waste tokens already paid for.
     """
     raw = _extract_json_object(text)
     try:
@@ -687,15 +738,22 @@ def parse_generation(text: str, *, require_notes: bool = True) -> GenerationData
     flashcards = [
         _parse_flashcard(item) for item in _as_list(data.get("flashcards"), "flashcards")
     ]
-    if not mcqs or not flashcards:
-        raise GenerationParseError("expected at least one MCQ and one flashcard")
+    if question_types is not ExamQuestionTypes.flashcards and not mcqs:
+        raise GenerationParseError("expected at least one MCQ")
+    if question_types is not ExamQuestionTypes.mcq and not flashcards:
+        raise GenerationParseError("expected at least one flashcard")
     return GenerationData(notes_md=notes_md, mcqs=mcqs, flashcards=flashcards)
+
+
+def topic_document(session: Session, topic: Topic) -> Document | None:
+    """The document a topic belongs to, or ``None`` if the chain is broken."""
+    chapter = session.get(Chapter, topic.chapter_id)
+    return session.get(Document, chapter.document_id) if chapter else None
 
 
 def topic_document_mode(session: Session, topic: Topic) -> DocumentMode:
     """Resolve a topic's document mode (study | exam), defaulting to study."""
-    chapter = session.get(Chapter, topic.chapter_id)
-    document = session.get(Document, chapter.document_id) if chapter else None
+    document = topic_document(session, topic)
     return document.mode if document is not None else DocumentMode.study
 
 
@@ -983,12 +1041,20 @@ def make_generation_processor(
 
     def process(job: QueueJob, session: Session) -> ProviderResult:
         topic = session.get(Topic, job.topic_id)
-        mode = topic_document_mode(session, topic)
+        document = topic_document(session, topic)
+        mode = document.mode if document is not None else DocumentMode.study
         is_exam = mode is DocumentMode.exam
+        types = (
+            document.question_types if document is not None else ExamQuestionTypes.both
+        )
         length = note_length if note_length is not None else _resolve_note_length(session)
         lang = language if language is not None else _resolve_language(session)
         field = study_field if study_field is not None else _resolve_study_field(session)
+        # A document's own style wins over the global setting; an explicit
+        # ``ai_style`` argument (tests, callers) still overrides both.
         style = ai_style if ai_style is not None else _resolve_ai_style(session)
+        if ai_style is None and document is not None and document.ai_style:
+            style = document.ai_style
         # Exam mode has no notes, so its source window stays at the fixed default;
         # study mode scales the window with the requested note length.
         if source_loader is load_topic_source:
@@ -1004,14 +1070,20 @@ def make_generation_processor(
             language=lang,
             study_field=field,
             ai_style=style,
+            question_types=types,
         )
         study_cap = max_tokens if max_tokens is not None else study_max_tokens(length)
         result = waterfall.generate(
             prompt,
             max_tokens=exam_max_tokens if is_exam else study_cap,
-            response_schema=EXAM_GENERATION_SCHEMA if is_exam else GENERATION_SCHEMA,
+            response_schema=exam_schema_for(types) if is_exam else GENERATION_SCHEMA,
         )
-        parsed = parse_generation(result.text, require_notes=not is_exam)
+        parsed = parse_generation(
+            result.text,
+            require_notes=not is_exam,
+            # Study mode always asks for both, whatever the document records.
+            question_types=types if is_exam else ExamQuestionTypes.both,
+        )
         if not is_exam:
             note = get_or_create_ai_note(session, topic)
             note.content_md = parsed.notes_md

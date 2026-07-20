@@ -19,6 +19,7 @@ from backend.db.types import UTCDateTime
 from backend.models.enums import (
     DocumentMode,
     DocumentStatus,
+    ExamQuestionTypes,
     QueueLaneState,
     TopicPriority,
     TopicStatus,
@@ -85,6 +86,17 @@ class Document(Base):
     mode: Mapped[DocumentMode] = mapped_column(
         SAEnum(DocumentMode, native_enum=False), default=DocumentMode.study
     )
+    # Exam-mode generation choices, picked at upload and kept so a later
+    # regeneration reproduces the same deck instead of silently reverting to the
+    # global defaults. Both are ignored in study mode.
+    question_types: Mapped[ExamQuestionTypes] = mapped_column(
+        SAEnum(ExamQuestionTypes, native_enum=False),
+        default=ExamQuestionTypes.both,
+        server_default=ExamQuestionTypes.both.value,
+    )
+    # Per-document writing-style override; NULL means follow ``Settings.ai_style``
+    # (so changing the global setting still moves documents that never chose one).
+    ai_style: Mapped[str | None] = mapped_column(default=None)
     order_index: Mapped[int] = mapped_column(default=0)  # manual Library order
     uploaded_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 

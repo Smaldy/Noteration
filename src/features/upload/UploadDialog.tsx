@@ -28,9 +28,21 @@ import {
 import { ApiError } from "@/lib/api";
 import { type LibraryStore, useLibraryStore } from "@/stores/library";
 import { useSubjectsStore } from "@/stores/subjects";
-import type { BatchUploadResult, UploadResult } from "@/types/document";
+import type {
+  BatchUploadResult,
+  ExamQuestionTypes,
+  UploadResult,
+} from "@/types/document";
+import { AI_STYLE_VALUES } from "@/features/settings/form";
 
 const NEW_SUBJECT = "__new__";
+/** Style selector value meaning "don't override the global Settings style". */
+const FOLLOW_SETTINGS = "__settings__";
+
+// Exam Prep generation choices. Question types are few and mutually exclusive,
+// so they get a segmented control rather than a dropdown — the whole choice is
+// readable without opening anything.
+const QUESTION_TYPE_VALUES: ExamQuestionTypes[] = ["both", "mcq", "flashcards"];
 
 /** Upload lifecycle: pick a file (form), transfer it, analyse it, done. */
 type Phase = "form" | "uploading" | "analysing" | "ready";
@@ -73,6 +85,9 @@ export function UploadDialog({
   const [batch, setBatch] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [batchResult, setBatchResult] = useState<BatchUploadResult | null>(null);
+  // Exam Prep generation choices (ignored by the study section).
+  const [questionTypes, setQuestionTypes] = useState<ExamQuestionTypes>("both");
+  const [style, setStyle] = useState<string>(FOLLOW_SETTINGS);
   const [phase, setPhase] = useState<Phase>("form");
   const [uploadPct, setUploadPct] = useState(0);
   const [result, setResult] = useState<UploadResult | null>(null);
@@ -94,6 +109,8 @@ export function UploadDialog({
       setFiles([]);
       setBatch(false);
       setBatchResult(null);
+      setQuestionTypes("both");
+      setStyle(FOLLOW_SETTINGS);
       setError(null);
       setPhase("form");
       setUploadPct(0);
@@ -139,10 +156,22 @@ export function UploadDialog({
         return;
       }
       if (file === null) return;
-      const uploaded = await uploadDocument(subjectId, file, (pct) => {
-        setUploadPct(pct);
-        if (pct >= 100) setPhase("analysing");
-      });
+      const uploaded = await uploadDocument(
+        subjectId,
+        file,
+        (pct) => {
+          setUploadPct(pct);
+          if (pct >= 100) setPhase("analysing");
+        },
+        // Only the Exam Prep section shows these controls, so only it sends
+        // them; a study upload leaves the server on its defaults.
+        exam
+          ? {
+              question_types: questionTypes,
+              ai_style: style === FOLLOW_SETTINGS ? null : style,
+            }
+          : undefined,
+      );
       setResult(uploaded);
       setPhase("ready");
       // Audio is transcribed in the background first (no markdown to review yet),
@@ -285,6 +314,59 @@ export function UploadDialog({
               <p className="text-xs text-muted-foreground">{t("upload.fileHint")}</p>
             ) : null}
           </div>
+
+          {exam && (
+            <div className="space-y-4 rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <div className="space-y-2">
+                <Label>{t("upload.exam.questionTypes")}</Label>
+                <div
+                  role="radiogroup"
+                  aria-label={t("upload.exam.questionTypes")}
+                  className="grid grid-cols-3 gap-1 rounded-lg bg-background p-1"
+                >
+                  {QUESTION_TYPE_VALUES.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={questionTypes === value}
+                      onClick={() => setQuestionTypes(value)}
+                      disabled={busy}
+                      className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+                        questionTypes === value
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {t(`upload.exam.types.${value}`)}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t(`upload.exam.typeHints.${questionTypes}`)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="exam-style">{t("upload.exam.style")}</Label>
+                <Select value={style} onValueChange={setStyle} disabled={busy}>
+                  <SelectTrigger id="exam-style">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FOLLOW_SETTINGS}>
+                      {t("upload.exam.styleDefault")}
+                    </SelectItem>
+                    {AI_STYLE_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {t(`settings.generation.styles.${value}.label`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
