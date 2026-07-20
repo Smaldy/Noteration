@@ -1,13 +1,12 @@
 """Provider stub + base-type coverage.
 
-The Gemini/Claude/Ollama stubs carry correct static metadata and behave safely
+The Gemini/Ollama stubs carry correct static metadata and behave safely
 (probe unavailable, calls raise) until wired to their SDKs in Phase 7.
 """
 
 import pytest
 
 from backend.services.providers import (
-    ClaudeProvider,
     GeminiProvider,
     OllamaProvider,
     ProviderResult,
@@ -39,13 +38,6 @@ def test_gemini_calls_raise_until_implemented() -> None:
         gemini.generate("hi", max_tokens=10)
     with pytest.raises(ProviderUnavailableError):
         gemini.transcribe_image(b"img")
-
-
-def test_claude_is_paid_vision_and_hard_disableable() -> None:
-    claude = ClaudeProvider(enabled=False)
-    assert claude.name == "claude_paid"
-    assert claude.supports_vision is True
-    assert claude.enabled is False  # the hard "never spend" switch
 
 
 def test_ollama_local_defaults() -> None:

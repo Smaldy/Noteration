@@ -723,7 +723,6 @@
       "title": "API keys",
       "description": "Stored locally; used by the provider waterfall.",
       "geminiKey": "Gemini key",
-      "claudeKey": "Claude key",
       "placeholderReplace": "•••••••• (replace)",
       "placeholderAdd": "Add a key",
       "set": "Set"
@@ -741,15 +740,11 @@
         "pick": "Model",
         "rotationOrder": "Rotation order",
         "rotationOrderHint": "Tried in this order; each switches on its own daily request limit.",
-        "disabledNote": "Gemini is off. Notes will be generated with Ollama (or Claude, if allowed)."
+        "disabledNote": "Gemini is off. Notes will be generated with Ollama."
       },
       "models": {
         "flashLiteHint": "Cheapest and fastest, recommended for bulk generation.",
         "flashHint": "More capable, uses more quota per topic."
-      },
-      "allowPaid": {
-        "label": "Allow paid fallback (Claude)",
-        "hint": "Off = never spend; free tiers only."
       },
       "budget": {
         "label": "Per-document token budget",

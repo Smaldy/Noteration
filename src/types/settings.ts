@@ -29,7 +29,6 @@ export type AIStyle =
   | "academic";
 
 export interface Settings {
-  allow_paid: boolean;
   provider_order: string[] | null;
   ollama_enabled: boolean;
   ollama_model: string | null;
@@ -63,14 +62,11 @@ export interface Settings {
   study_field: string;
   ai_style: string;
   gemini_key_set: boolean;
-  claude_key_set: boolean;
 }
 
 /** Partial update — only included fields are applied; empty api_key_* clears it. */
 export interface SettingsUpdate {
   api_key_gemini?: string;
-  api_key_claude?: string;
-  allow_paid?: boolean;
   provider_order?: string[] | null;
   ollama_enabled?: boolean;
   /** Empty string clears the stored model name. */

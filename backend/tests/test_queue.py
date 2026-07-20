@@ -144,16 +144,16 @@ def test_process_success_commits_stamps_and_records_cost(session: Session) -> No
     def processor(job: QueueJob, db: Session) -> ProviderResult:
         db.add(Note(topic_id=job.topic_id, content_md="generated"))
         return ProviderResult(
-            text="generated", provider="claude_paid", output_tokens=200, cost=0.5
+            text="generated", provider="ollama", output_tokens=200, cost=0.5
         )
 
     queue.process_job(job, processor)
 
     assert job.state is QueueState.done
-    assert job.assigned_provider == "claude_paid"
+    assert job.assigned_provider == "ollama"
     assert session.scalars(select(Note)).one().content_md == "generated"
     state = session.scalars(select(ProviderState)).one()
-    assert state.provider == "claude_paid"
+    assert state.provider == "ollama"
     assert state.total_cost == pytest.approx(0.5)
     assert state.total_tokens == 200
 
@@ -314,7 +314,7 @@ def test_process_through_waterfall(session: Session) -> None:
     waterfall = Waterfall(
         [
             MockProvider("gemini_free", available=False, reset_at=job.created_at),
-            MockProvider("claude_paid", text="notes!", cost=0.1),
+            MockProvider("ollama", text="notes!", cost=0.1),
         ]
     )
 
@@ -326,7 +326,7 @@ def test_process_through_waterfall(session: Session) -> None:
     queue.process_job(job, processor)
 
     assert job.state is QueueState.done
-    assert job.assigned_provider == "claude_paid"  # failed over from gemini
+    assert job.assigned_provider == "ollama"  # failed over from gemini
     assert session.scalars(select(Note)).one().content_md == "notes!"
 
 

@@ -96,7 +96,7 @@ class Provider(ABC):
     """One AI backend behind a uniform interface.
 
     Subclasses set ``name`` and ``supports_vision``. ``enabled`` can be flipped
-    off (e.g. the hard "never spend" switch disables paid Claude).
+    off (e.g. the Gemini tier's master switch disables it wholesale).
     """
 
     name: str = "provider"
@@ -106,7 +106,7 @@ class Provider(ABC):
     # value: on a long prompt a local model's time-to-first-token can be 5-10s, and
     # default HTTP client timeouts (often a few seconds) would drop a valid
     # in-flight request as if it had failed. ``None`` means "use the client/SDK
-    # default". Ollama overrides this to 120s; remote SDK providers (Gemini/Claude)
+    # default". Ollama overrides this to 120s; remote SDK providers (Gemini)
     # rely on their SDK's own timeout handling.
     request_timeout: float | None = None
 

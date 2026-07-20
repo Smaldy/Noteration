@@ -291,7 +291,6 @@ def test_settings_singleton_defaults(session: Session) -> None:
     session.add(settings)
     session.commit()
     assert settings.id == 1
-    assert settings.allow_paid is False
     assert settings.ollama_enabled is False
     assert settings.pomodoro_work_min == 25
     assert settings.provider_order is None

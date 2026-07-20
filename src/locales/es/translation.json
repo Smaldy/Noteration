@@ -723,7 +723,6 @@
       "title": "Claves API",
       "description": "Se guardan localmente; las usa la cascada de proveedores.",
       "geminiKey": "Clave de Gemini",
-      "claudeKey": "Clave de Claude",
       "placeholderReplace": "•••••••• (reemplazar)",
       "placeholderAdd": "Añadir una clave",
       "set": "Configurada"
@@ -741,15 +740,11 @@
         "pick": "Modelo",
         "rotationOrder": "Orden de rotación",
         "rotationOrderHint": "Se prueban en este orden; cada uno cambia al alcanzar su propio límite diario de solicitudes.",
-        "disabledNote": "Gemini está desactivado. Las notas se generarán con Ollama (o Claude, si se permite)."
+        "disabledNote": "Gemini está desactivado. Las notas se generarán con Ollama."
       },
       "models": {
         "flashLiteHint": "El más barato y rápido, recomendado para generación masiva.",
         "flashHint": "Más capaz, usa más cuota por tema."
-      },
-      "allowPaid": {
-        "label": "Permitir alternativa de pago (Claude)",
-        "hint": "Desactivado = nunca gasta; solo planes gratuitos."
       },
       "budget": {
         "label": "Presupuesto de tokens por documento",

@@ -71,7 +71,6 @@ def _selftest() -> int:
         "markitdown",
         "imageio_ffmpeg",
         "google.genai",
-        "anthropic",
         "ollama",  # local provider — imported lazily, so easy to miss in the freeze
         "uvicorn",
         "webview",

@@ -13,7 +13,6 @@ from backend.models.settings import SINGLETON_ID, Settings
 # API keys, plus the optional Ollama model names (empty = role unassigned).
 _KEY_FIELDS = {
     "api_key_gemini",
-    "api_key_claude",
     "ollama_model",
     "ollama_fast_model",
     "ollama_quality_model",

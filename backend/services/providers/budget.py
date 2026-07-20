@@ -2,9 +2,8 @@
 
 We can't query a provider's server-side remaining quota, so we model it locally
 from our own call history: free tiers by requests/min + requests/day (the binding
-axis wins), paid Claude by a rolling token window. Time is injected so the
-trackers are deterministic and testable. See docs/architecture.md "Budget-aware
-dispatch".
+axis wins). Time is injected so the trackers are deterministic and testable. See
+docs/architecture.md "Budget-aware dispatch".
 """
 
 from __future__ import annotations
@@ -58,35 +57,3 @@ class FreeTierLimiter:
             self._minute.popleft()
         while self._day and now - self._day[0] >= _DAY:
             self._day.popleft()
-
-
-@dataclass
-class TokenWindowSnapshot:
-    available: bool
-    headroom: int  # tokens still available in the rolling window
-    reset_at: datetime | None
-
-
-@dataclass
-class RollingTokenWindow:
-    """Tracks tokens spent within a rolling window (Claude's ~5-hour window)."""
-
-    limit_tokens: int
-    window: timedelta = timedelta(hours=5)
-    _events: deque[tuple[datetime, int]] = field(default_factory=deque)
-
-    def record(self, now: datetime, tokens: int) -> None:
-        self._events.append((now, tokens))
-
-    def snapshot(self, now: datetime) -> TokenWindowSnapshot:
-        self._prune(now)
-        used = sum(tokens for _, tokens in self._events)
-        left = max(0, self.limit_tokens - used)
-        if left > 0:
-            return TokenWindowSnapshot(True, left, None)
-        reset_at = self._events[0][0] + self.window if self._events else None
-        return TokenWindowSnapshot(False, 0, reset_at)
-
-    def _prune(self, now: datetime) -> None:
-        while self._events and now - self._events[0][0] >= self.window:
-            self._events.popleft()

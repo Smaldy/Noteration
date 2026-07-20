@@ -15,7 +15,6 @@ from backend.services import settings as settings_service
 def test_get_settings_creates_singleton_with_defaults(session: Session) -> None:
     s = settings_service.get_settings(session)
     assert s.id == 1
-    assert s.allow_paid is False
     assert s.pomodoro_work_min == 25
     assert s.theme == "system"
     assert s.gemini_model == "gemini-2.5-flash-lite"  # cheapest default
@@ -28,9 +27,9 @@ def test_get_settings_creates_singleton_with_defaults(session: Session) -> None:
 def test_update_applies_only_given_fields(session: Session) -> None:
     settings_service.get_settings(session)
     updated = settings_service.update_settings(
-        session, {"allow_paid": True, "theme": "dark"}
+        session, {"gemini_rotation": True, "theme": "dark"}
     )
-    assert updated.allow_paid is True
+    assert updated.gemini_rotation is True
     assert updated.theme == "dark"
     assert updated.pomodoro_work_min == 25  # untouched
 
@@ -55,11 +54,11 @@ def test_http_get_defaults(client: TestClient) -> None:
 
 
 def test_http_patch_sets_key_masked(client: TestClient) -> None:
-    response = client.patch("/api/settings", json={"api_key_claude": "sk-abc"})
+    response = client.patch("/api/settings", json={"api_key_gemini": "sk-abc"})
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["claude_key_set"] is True
-    assert "api_key_claude" not in body
+    assert body["gemini_key_set"] is True
+    assert "api_key_gemini" not in body
 
 
 def test_http_patch_validates_pomodoro(client: TestClient) -> None:

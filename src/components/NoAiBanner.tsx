@@ -1,10 +1,10 @@
 /** Gentle "no AI configured" nudge (spec: local AI UI placement, open question).
  *
  *  Shown where the user is about to rely on generation (upload dialog, queue
- *  page) when no provider can actually serve: no enabled Gemini key, no paid
- *  Claude, no local model. It never auto-runs anything; it deep-links to the
- *  Settings local AI section and can be dismissed for the session. Mirrors the
- *  backend's `_has_configured_provider` (services/worker.py). */
+ *  page) when no provider can actually serve: no enabled Gemini key, no local
+ *  model. It never auto-runs anything; it deep-links to the Settings local AI
+ *  section and can be dismissed for the session. Mirrors the backend's
+ *  `_has_configured_provider` (services/worker.py). */
 
 import { Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -20,7 +20,6 @@ const DISMISS_KEY = "noteration.noAiNudgeDismissed";
 
 function hasConfiguredProvider(s: Settings): boolean {
   if (s.gemini_enabled !== false && s.gemini_key_set) return true;
-  if (s.allow_paid && s.claude_key_set) return true;
   if (
     s.ollama_enabled &&
     (s.ollama_model || s.ollama_fast_model || s.ollama_quality_model)

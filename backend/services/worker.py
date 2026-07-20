@@ -127,11 +127,9 @@ def _settings_fingerprint(settings: Settings) -> tuple:
     order = settings.provider_order
     return (
         settings.api_key_gemini,
-        settings.api_key_claude,
         settings.gemini_model,
         bool(settings.gemini_enabled),
         bool(settings.gemini_rotation),
-        bool(settings.allow_paid),
         bool(settings.ollama_enabled),
         settings.ollama_model,
         settings.ollama_fast_model,
@@ -173,8 +171,7 @@ class WaterfallCache:
 def _has_configured_provider(settings: Settings) -> bool:
     """True when at least one provider can actually serve a request.
 
-    Gemini needs to be enabled *and* hold its free-tier key; Claude needs
-    ``allow_paid`` *and* a key (the hard never-spend switch); Ollama needs to be
+    Gemini needs to be enabled *and* hold its free-tier key; Ollama needs to be
     enabled *and* have a model set (so a user can run/test a local model). With
     nothing usable we skip the drain so jobs stay ``pending`` rather than
     collecting a 5-minute exhaustion defer.
@@ -182,8 +179,6 @@ def _has_configured_provider(settings: Settings) -> bool:
     # ``gemini_enabled`` defaults True; a transient Settings reads None, so treat
     # "not explicitly False" as enabled.
     if settings.gemini_enabled is not False and settings.api_key_gemini:
-        return True
-    if settings.allow_paid and settings.api_key_claude:
         return True
     if settings.ollama_enabled and (
         settings.ollama_model

@@ -25,7 +25,6 @@ import type {
 } from "@/types/settings";
 
 export interface FormState {
-  allow_paid: boolean;
   gemini_enabled: boolean;
   gemini_rotation: boolean;
   gemini_model: GeminiModel;
@@ -249,7 +248,6 @@ export function saveSectionPrefs(prefs: SectionPrefs) {
 
 export function toForm(s: Settings): FormState {
   return {
-    allow_paid: s.allow_paid,
     gemini_enabled: s.gemini_enabled,
     gemini_rotation: s.gemini_rotation,
     gemini_model: (s.gemini_model as GeminiModel) ?? "gemini-2.5-flash-lite",

@@ -290,7 +290,7 @@ class GenerationParseError(Exception):
 
 # JSON Schema handed to Gemini's native structured output so the single call
 # returns one object with the notes and the assessment together. Providers
-# without native schema support (Claude) lean on the prompt's JSON instruction;
+# without native schema support lean on the prompt's JSON instruction;
 # ``parse_generation`` validates the result either way.
 GENERATION_SCHEMA: dict = {
     "type": "object",

@@ -1,5 +1,5 @@
-# Noteration backend dependencies. Provider SDKs (google-genai, anthropic,
-# ollama) are still deferred to Phase 7, when the real calls are wired.
+# Noteration backend dependencies. Provider SDKs (google-genai, ollama) are
+# still deferred to Phase 7, when the real calls are wired.
 
 # Phase 1 — scaffold/API/persistence
 fastapi
@@ -20,7 +20,6 @@ imageio-ffmpeg
 
 # Phase 7 — provider SDKs (lazily imported; see services/providers/)
 google-genai
-anthropic
 ollama
 
 # Local AI setup — hardware detection (services/local_ai/hardware.py). psutil

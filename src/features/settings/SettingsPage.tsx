@@ -40,7 +40,6 @@ export function SettingsPage() {
   // form has loaded (used by the "no AI configured" nudge). Once only.
   const jumpedToHash = useRef(false);
   const [geminiKey, setGeminiKey] = useState("");
-  const [claudeKey, setClaudeKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [active, setActive] = useState(SECTIONS[0].id);
   const [sectionPrefs, setSectionPrefs] = useState<SectionPrefs>(loadSectionPrefs);
@@ -126,8 +125,7 @@ export function SettingsPage() {
     !!form &&
     !!baseline &&
     (JSON.stringify(form) !== JSON.stringify(baseline) ||
-      geminiKey.trim() !== "" ||
-      claudeKey.trim() !== "");
+      geminiKey.trim() !== "");
 
   if (loadState === "error") {
     return (
@@ -152,7 +150,6 @@ export function SettingsPage() {
   function discard() {
     if (baseline) setForm(baseline);
     setGeminiKey("");
-    setClaudeKey("");
     setSaved(false);
   }
 
@@ -187,7 +184,6 @@ export function SettingsPage() {
     if (!form) return;
     try {
       await updateSettings({
-        allow_paid: form.allow_paid,
         gemini_enabled: form.gemini_enabled,
         gemini_rotation: form.gemini_rotation,
         gemini_model: form.gemini_model,
@@ -207,10 +203,8 @@ export function SettingsPage() {
         font_size: form.font_size,
         language: form.language,
         ...(geminiKey.trim() ? { api_key_gemini: geminiKey.trim() } : {}),
-        ...(claudeKey.trim() ? { api_key_claude: claudeKey.trim() } : {}),
       });
       setGeminiKey("");
-      setClaudeKey("");
       setSaved(true);
     } catch {
       // saveError surfaced from the store
@@ -223,13 +217,8 @@ export function SettingsPage() {
       <ApiKeysSection
         settings={settings}
         geminiKey={geminiKey}
-        claudeKey={claudeKey}
         onGeminiKey={(v) => {
           setGeminiKey(v);
-          setSaved(false);
-        }}
-        onClaudeKey={(v) => {
-          setClaudeKey(v);
           setSaved(false);
         }}
       />

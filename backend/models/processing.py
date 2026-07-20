@@ -97,7 +97,7 @@ class ProviderState(Base):
     __tablename__ = "provider_states"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    provider: Mapped[str] = mapped_column(unique=True)  # gemini_free / claude_paid / ...
+    provider: Mapped[str] = mapped_column(unique=True)  # gemini_free / ollama / ...
     enabled: Mapped[bool] = mapped_column(default=True)
     order_index: Mapped[int] = mapped_column(default=0)  # waterfall position
     headroom: Mapped[int] = mapped_column(default=0)  # last probed remaining

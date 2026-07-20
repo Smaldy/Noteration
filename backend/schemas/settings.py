@@ -47,7 +47,6 @@ AIStyle = Literal["balanced", "simple", "technical", "discursive", "concise", "a
 class SettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    allow_paid: bool
     provider_order: list[str] | None
     ollama_enabled: bool
     ollama_model: str | None
@@ -78,12 +77,10 @@ class SettingsOut(BaseModel):
     ai_style: str
     # Derived — keys are never echoed back.
     gemini_key_set: bool
-    claude_key_set: bool
 
     @classmethod
     def from_model(cls, settings: Settings) -> SettingsOut:
         return cls(
-            allow_paid=settings.allow_paid,
             provider_order=settings.provider_order,
             ollama_enabled=settings.ollama_enabled,
             ollama_model=settings.ollama_model,
@@ -111,7 +108,6 @@ class SettingsOut(BaseModel):
             study_field=settings.study_field,
             ai_style=settings.ai_style,
             gemini_key_set=bool(settings.api_key_gemini),
-            claude_key_set=bool(settings.api_key_claude),
         )
 
 
@@ -123,8 +119,6 @@ class SettingsUpdate(BaseModel):
     """
 
     api_key_gemini: str | None = None
-    api_key_claude: str | None = None
-    allow_paid: bool | None = None
     provider_order: list[str] | None = None
     ollama_enabled: bool | None = None
     # Empty string clears the stored Ollama model name; a non-empty string sets it.

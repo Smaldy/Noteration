@@ -3,11 +3,11 @@
  * badge, the lane cards, the history log, and the in-view note stamp.
  *
  * Tier colors are intentionally FIXED hues (not theme-derived): green = free,
- * amber = local, red = paid (docs/architecture.md). The student
- * should read "am I spending money?" at a glance, independent of the accent theme.
+ * amber = local (docs/architecture.md). The student should read "which tier is
+ * serving me?" at a glance, independent of the accent theme.
  */
 
-export type ProviderTier = "free" | "local" | "paid";
+export type ProviderTier = "free" | "local";
 
 export interface ProviderInfo {
   /** Friendly label, e.g. "Gemini Free". */
@@ -35,19 +35,16 @@ const TIER_STYLE: Record<ProviderTier, Omit<ProviderInfo, "label" | "short" | "t
     bg: "bg-amber-500/10",
     border: "border-amber-500/30",
   },
-  paid: {
-    dot: "bg-rose-500",
-    text: "text-rose-700 dark:text-rose-300",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/30",
-  },
 };
 
 const KNOWN: Record<string, { label: string; short: string; tier: ProviderTier }> = {
   gemini_free: { label: "Gemini Free", short: "Gemini", tier: "free" },
   ollama: { label: "Ollama (local)", short: "Ollama", tier: "local" },
-  claude_paid: { label: "Claude (paid)", short: "Claude", tier: "paid" },
 };
+
+/** Selectable provider names in waterfall (cheapest-first) order, so callers
+ *  can offer a model choice without hardcoding names elsewhere. */
+export const PROVIDER_NAMES: string[] = Object.keys(KNOWN);
 
 export function providerInfo(name: string | null | undefined): ProviderInfo {
   if (!name) {

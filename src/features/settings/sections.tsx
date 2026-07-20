@@ -62,15 +62,11 @@ const cardState = (active: boolean) =>
 export function ApiKeysSection({
   settings,
   geminiKey,
-  claudeKey,
   onGeminiKey,
-  onClaudeKey,
 }: {
   settings: Settings;
   geminiKey: string;
-  claudeKey: string;
   onGeminiKey: (v: string) => void;
-  onClaudeKey: (v: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -94,21 +90,6 @@ export function ApiKeysSection({
           }
           value={geminiKey}
           onChange={(e) => onGeminiKey(e.target.value)}
-        />
-      </Field>
-      <Field
-        label={t("settings.apiKeys.claudeKey")}
-        badge={settings.claude_key_set ? <SetBadge /> : undefined}
-      >
-        <Input
-          type="password"
-          placeholder={
-            settings.claude_key_set
-              ? t("settings.apiKeys.placeholderReplace")
-              : t("settings.apiKeys.placeholderAdd")
-          }
-          value={claudeKey}
-          onChange={(e) => onClaudeKey(e.target.value)}
         />
       </Field>
     </Section>
@@ -196,12 +177,6 @@ export function ProvidersSection({
         )}
       </AnimatePresence>
 
-      <Toggle
-        label={t("settings.providers.allowPaid.label")}
-        hint={t("settings.providers.allowPaid.hint")}
-        checked={form.allow_paid}
-        onChange={(v) => set("allow_paid", v)}
-      />
       <Field label={t("settings.providers.budget.label")}>
         <NumberField
           min={0}

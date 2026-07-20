@@ -81,11 +81,6 @@ class _SmartProvider(Provider):
 
 def test_has_configured_provider_truth_table() -> None:
     assert _has_configured_provider(Settings(api_key_gemini="k")) is True
-    assert _has_configured_provider(
-        Settings(allow_paid=True, api_key_claude="k")
-    ) is True
-    # Claude key without allow_paid is the hard never-spend case → not usable.
-    assert _has_configured_provider(Settings(api_key_claude="k")) is False
     assert _has_configured_provider(Settings()) is False
     # Gemini explicitly disabled → its key doesn't count.
     assert _has_configured_provider(
@@ -375,9 +370,9 @@ def test_drain_throttles_only_free_tier_model_calls(
 def test_drain_does_not_throttle_when_not_free_tier(
     session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Paid Claude only (no Gemini key) → no free-tier per-minute throttle.
+    # Local Ollama only (no Gemini key) → no free-tier per-minute throttle.
     _seed_two_topic_document(session, tmp_path)
-    session.add(Settings(id=1, allow_paid=True, api_key_claude="c"))
+    session.add(Settings(id=1, ollama_enabled=True, ollama_model="llama3.1"))
     session.commit()
     monkeypatch.setattr(
         worker_mod,
@@ -424,13 +419,13 @@ def _seed_named_document(session: Session, tmp_path: Path, subject_name: str) ->
 def test_worker_processes_two_lanes_on_distinct_providers(
     file_db_factory: sessionmaker, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Two subjects (two lanes) + a paid-only config so there's no 12s free-tier
+    # Two subjects (two lanes) + a local-only config so there's no 12s free-tier
     # gate to stretch the run. The waterfall offers two distinct providers, so the
     # lanes can be dispatched on separate slots — concurrently, in two threads.
     seed = file_db_factory()
     _seed_named_document(seed, tmp_path, "Physics")
     _seed_named_document(seed, tmp_path, "Chemistry")
-    seed.add(Settings(id=1, allow_paid=True, api_key_claude="c"))
+    seed.add(Settings(id=1, ollama_enabled=True, ollama_model="llama3.1"))
     seed.commit()
     seed.close()
 
@@ -438,7 +433,7 @@ def test_worker_processes_two_lanes_on_distinct_providers(
         worker_mod,
         "build_waterfall_from_settings",
         lambda settings, **kw: Waterfall(
-            [_named_smart("claude_paid"), _named_smart("ollama")]
+            [_named_smart("mock_a"), _named_smart("mock_b")]
         ),
     )
 
@@ -468,5 +463,5 @@ def test_worker_processes_two_lanes_on_distinct_providers(
         for j in verify.query(QueueJob).all()
         if j.assigned_provider and j.assigned_provider != "none"
     }
-    assert providers == {"claude_paid", "ollama"}
+    assert providers == {"mock_a", "mock_b"}
     verify.close()

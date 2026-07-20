@@ -179,10 +179,10 @@ def test_lane_status_reflects_failover_to_second_provider(session: Session) -> N
 def test_disabled_provider_shows_disabled(session: Session) -> None:
     _seed_lane(session, "Physics")
     status = queue_view.get_lane_statuses(
-        session, [_FP("gemini_free"), _FP("claude_paid", enabled=False)]
+        session, [_FP("gemini_free"), _FP("ollama", enabled=False)]
     )
     states = {p.provider: p.state for p in status.providers}
-    assert states["claude_paid"] == "disabled"
+    assert states["ollama"] == "disabled"
 
 
 # --- HTTP --------------------------------------------------------------------
