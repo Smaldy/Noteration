@@ -42,8 +42,8 @@ const KNOWN: Record<string, { label: string; short: string; tier: ProviderTier }
   ollama: { label: "Ollama (local)", short: "Ollama", tier: "local" },
 };
 
-/** Selectable provider names in waterfall (cheapest-first) order, so callers
- *  can offer a model choice without hardcoding names elsewhere. */
+/** Selectable provider names in waterfall (cheapest-first) order — drives the
+ *  assistant's model selector without hardcoding names elsewhere. */
 export const PROVIDER_NAMES: string[] = Object.keys(KNOWN);
 
 export function providerInfo(name: string | null | undefined): ProviderInfo {

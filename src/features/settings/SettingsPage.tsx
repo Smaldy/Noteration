@@ -191,6 +191,7 @@ export function SettingsPage() {
         note_length: form.note_length,
         study_field: form.study_field,
         ai_style: form.ai_style,
+        chat_retention: form.chat_retention,
         pomodoro_work_min: form.pomodoro_work_min,
         pomodoro_break_min: form.pomodoro_break_min,
         calendar_day_start_hour: form.calendar_day_start_hour,

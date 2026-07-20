@@ -1,8 +1,11 @@
+import { useRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+
+import { SelectionMenu } from "@/components/SelectionMenu";
 
 /**
  * Renders a note's markdown with native LaTeX and inline-HTML support.
@@ -148,6 +151,7 @@ export function MarkdownView({
   /** Render without the block `prose` wrapper, for use in inline/phrasing contexts. */
   inline?: boolean;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const markdown = (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
@@ -175,7 +179,12 @@ export function MarkdownView({
 
   if (inline) return markdown;
 
+  // Block views get the selection "ask the assistant" menu; inline snippets
+  // (flashcard faces, MCQ options) sit inside clickable surfaces and don't.
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">{markdown}</div>
+    <div ref={containerRef} className="prose prose-sm max-w-none dark:prose-invert">
+      {markdown}
+      <SelectionMenu container={containerRef} />
+    </div>
   );
 }

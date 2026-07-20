@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { MCQ } from "@/types/study";
 
 import { GenerateMore } from "./GenerateMore";
+import { GoDeeper } from "./GoDeeper";
 
 interface QuizTabProps {
   /** Present for a single topic (enables "Generate more"); omitted for pooled decks. */
@@ -169,6 +170,19 @@ export function QuizTab({ topicId, mcqs, fullscreen = false }: QuizTabProps) {
           ) : (
             <p className="text-muted-foreground">{t("study.quiz.noExplanation")}</p>
           )}
+          <div className="mt-2 flex justify-end">
+            <GoDeeper
+              text={[
+                mcq.question,
+                t("assistant.goDeeper.answerLabel", {
+                  answer: mcq.options[mcq.correct_index],
+                }),
+                mcq.explanation ?? "",
+              ]
+                .filter(Boolean)
+                .join("\n")}
+            />
+          </div>
         </div>
       )}
 

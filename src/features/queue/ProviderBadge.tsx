@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { providerInfo } from "@/lib/providers";
 import { usePolling } from "@/lib/usePolling";
+import { useAssistantOffset } from "@/stores/assistant";
 import { useLanesStore } from "@/stores/lanes";
 
 const POLL_MS = 10_000;
@@ -26,6 +27,8 @@ export function ProviderBadge() {
 
   const active = status?.active_provider ?? null;
   const info = providerInfo(active);
+  // Slide left of the docked AI sidebar so it never hides under the panel.
+  const assistantOffset = useAssistantOffset();
   // "Idle" is the only provider label that is UI copy (not a proper name).
   const label = active ? info.label : t("queue.idle");
 
@@ -50,8 +53,9 @@ export function ProviderBadge() {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      style={{ right: assistantOffset + 16 }}
       className={cn(
-        "fixed right-4 top-4 z-40 print:hidden",
+        "fixed top-4 z-40 transition-[right] duration-200 print:hidden",
         "inline-flex items-center gap-2 rounded-full border px-3 py-1.5",
         "bg-card/80 text-xs font-medium shadow-sm backdrop-blur-md",
         "transition-colors hover:bg-card",

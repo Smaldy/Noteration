@@ -27,6 +27,12 @@ export type AIStyle =
   | "discursive"
   | "concise"
   | "academic";
+/** Assistant chat history retention; the default keeps the last 5 chats. */
+export type ChatRetention =
+  | "keep_last_5"
+  | "after_1_hour"
+  | "after_1_day"
+  | "on_close";
 
 export interface Settings {
   provider_order: string[] | null;
@@ -61,6 +67,7 @@ export interface Settings {
   language: string;
   study_field: string;
   ai_style: string;
+  chat_retention: string;
   gemini_key_set: boolean;
 }
 
@@ -95,4 +102,5 @@ export interface SettingsUpdate {
   language?: Language;
   study_field?: StudyField;
   ai_style?: AIStyle;
+  chat_retention?: ChatRetention;
 }

@@ -32,6 +32,7 @@ from backend.models.enums import QueueLaneState
 from backend.models.hierarchy import Subject, utcnow
 from backend.models.processing import QueueJob
 from backend.models.settings import Settings
+from backend.services import chat as chatsvc
 from backend.services import history
 from backend.services.duplicator.search import drain_search_once
 from backend.services.local_ai.runtime import resolve_ollama_model
@@ -61,6 +62,11 @@ SEARCH_JOBS_PER_TICK = 3
 # offered Gemini models are free-tier, so the throttle applies whenever Gemini is
 # the serving tier (single pinned model or rotation).
 FREE_TIER_THROTTLE_SECONDS = 12.0
+
+# How often the running worker enforces the time-based chat retention opt-ins
+# (services/chat.cleanup_sessions). Coarse on purpose: the tightest window is
+# one hour, so a five-minute sweep is plenty and stays off the drain's back.
+CHAT_CLEANUP_INTERVAL_SECONDS = 300.0
 
 
 def _no_sleep(_seconds: float) -> None:
@@ -347,6 +353,9 @@ class QueueWorker:
         if self._thread is not None:
             return
         self._recover_orphans()
+        # Startup retention pass: the only moment "on_close" purges (it removes
+        # the previous run's chats), and time windows catch up after downtime.
+        self._cleanup_chat(at_startup=True)
         self._stop.clear()
         self._thread = threading.Thread(
             target=self._run, name="noteration-queue-worker", daemon=True
@@ -376,10 +385,14 @@ class QueueWorker:
             session.close()
 
     def _run(self) -> None:
+        next_chat_cleanup = time.monotonic() + CHAT_CLEANUP_INTERVAL_SECONDS
         while not self._stop.is_set():
             try:
                 self._tick()
                 self._drain_search()
+                if time.monotonic() >= next_chat_cleanup:
+                    self._cleanup_chat()
+                    next_chat_cleanup = time.monotonic() + CHAT_CLEANUP_INTERVAL_SECONDS
             except Exception:  # noqa: BLE001 - a bad tick must not kill the thread
                 logger.exception("Queue worker tick failed; continuing")
             self._stop.wait(self._poll_interval)
@@ -518,6 +531,18 @@ class QueueWorker:
         except Exception:  # noqa: BLE001 - one bad claim must not kill the worker
             logger.exception("Queue worker: processing a claim failed")
             self._release_claim(claim.job_id)
+        finally:
+            session.close()
+
+    def _cleanup_chat(self, *, at_startup: bool = False) -> None:
+        """Best-effort chat retention pass — never breaks startup or a tick."""
+        session = self._session_factory()
+        try:
+            deleted = chatsvc.cleanup_sessions(session, at_startup=at_startup)
+            if deleted:
+                logger.info("Chat retention: deleted %d session(s)", deleted)
+        except Exception:  # noqa: BLE001 - retention is housekeeping, not critical
+            logger.exception("Chat retention cleanup failed; continuing")
         finally:
             session.close()
 

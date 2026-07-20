@@ -659,6 +659,74 @@
       "studiedBadge": "completed"
     }
   },
+  "assistant": {
+    "goDeeper": {
+      "label": "Go deeper",
+      "hint": "Send this card to the assistant?",
+      "ask": "Ask the assistant",
+      "prompt": "Take me deeper into this. Explain the underlying concept and add helpful context.",
+      "answerLabel": "Correct answer: {{answer}}"
+    },
+    "selection": {
+      "menuAria": "Ask the assistant about this selection",
+      "explainSimply": "Explain simply",
+      "explainSimplyPrompt": "Explain this simply.",
+      "summarize": "Summarize",
+      "summarizePrompt": "Summarize this.",
+      "explainTechnical": "Explain technically",
+      "explainTechnicalPrompt": "Explain this in technical detail.",
+      "placeholder": "Ask about this selection",
+      "askAria": "Ask the assistant"
+    },
+    "actions": {
+      "save": "Save as note",
+      "saved": "Saved",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "topicPicker": {
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "Choose a subject",
+      "noSubjects": "Create a subject with study material first, then you can choose a topic here.",
+      "noTopics": "This subject has no study topics yet.",
+      "loadFailed": "Could not load the topics for this subject."
+    },
+    "saveDialog": {
+      "title": "Save as note",
+      "description": "Choose the topic this reply should be saved under. It becomes a normal note block you can edit in the study view.",
+      "save": "Save note",
+      "saving": "Saving…",
+      "failed": "Could not save the note."
+    },
+    "reference": {
+      "add": "Add reference topic",
+      "change": "Change the reference topic",
+      "remove": "Remove the reference topic",
+      "dialogTitle": "Reference topic",
+      "dialogDescription": "Pin a topic and the assistant will answer from its material, quoting the passages that fit your question.",
+      "confirm": "Pin topic"
+    },
+    "newChat": "New chat",
+    "history": "Chat history",
+    "noHistory": "No saved chats yet.",
+    "deleteChat": "Delete chat",
+    "title": "Assistant",
+    "open": "Open the AI assistant",
+    "close": "Close",
+    "modelAuto": "Automatic",
+    "modelAutoHint": "follows your provider order",
+    "localHint": "private, runs on your device",
+    "resetWidth": "Reset the panel width",
+    "floatSoon": "A floating window is coming soon",
+    "empty": "Ask anything about what you are studying. Answers appear here.",
+    "placeholder": "Ask a question",
+    "send": "Send",
+    "thinking": "Thinking",
+    "stop": "Stop",
+    "stoppedNote": "You stopped this reply, so it was not saved.",
+    "reading": "Reading {{topic}}",
+    "error": "The assistant could not reply. Please try again."
+  },
   "editor": {
     "cancel": "Cancel",
     "save": "Save",
@@ -838,6 +906,14 @@
       }
     },
     "generation": {
+      "chatRetentionLabel": "Assistant chat history",
+      "chatRetentionHint": "How long the assistant keeps your conversations. It always keeps at most the last 5 chats.",
+      "retention": {
+        "keep_last_5": "Keep last 5",
+        "after_1_hour": "Delete after 1 hour",
+        "after_1_day": "Delete after 1 day",
+        "on_close": "Delete on close"
+      },
       "title": "Note generation",
       "description": "What the AI tutor specialises in, how it writes, and how much it generates per topic.",
       "studyFieldLabel": "Field of study",

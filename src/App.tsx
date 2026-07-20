@@ -1,15 +1,17 @@
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { type ComponentType, Suspense, lazy, useEffect } from "react";
+import { type ComponentType, Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 // Always-mounted (visible on every route), so they stay in the main bundle.
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { ArcadeRoot } from "@/features/arcade/ArcadeRoot";
+import { AssistantLauncher } from "@/features/assistant/AssistantLauncher";
 import { CreditsOverlay } from "@/features/credits/CreditsOverlay";
 import { PomodoroWidget } from "@/features/pomodoro/PomodoroWidget";
 import { ProviderBadge } from "@/features/queue/ProviderBadge";
 import { TodoWidget } from "@/features/todo/TodoWidget";
 import { cn } from "@/lib/utils";
+import { useAssistantOffset, useAssistantStore } from "@/stores/assistant";
 import { useSettingsStore } from "@/stores/settings";
 
 // Route pages are code-split: each loads on demand so heavy libraries
@@ -32,6 +34,9 @@ const SettingsPage = named(() => import("@/features/settings/SettingsPage"), "Se
 const StructureReviewPage = named(() => import("@/features/upload/StructureReviewPage"), "StructureReviewPage");
 const StudyPage = named(() => import("@/features/study/StudyPage"), "StudyPage");
 const DuplicatorPage = named(() => import("@/features/duplicator/DuplicatorPage"), "DuplicatorPage");
+// Not a route, but lazy for the same reason: it pulls in MarkdownView (KaTeX),
+// which must not join the initial bundle. Loaded on first open, then kept.
+const AssistantSidebar = named(() => import("@/features/assistant/AssistantSidebar"), "AssistantSidebar");
 
 // App shell + routing. Library is the home screen (Phase 9b); structure review
 // is the upload gate (Phase 9c); study view is Phase 9d; queue is Phase 9e;
@@ -82,25 +87,47 @@ export default function App() {
         <CreditsOverlay />
         {/* Study-gated arcade minigame — additive overlay; never touches the app. */}
         <ArcadeRoot />
+        {/* The docked AI sidebar (the app's only chat surface). */}
+        <AssistantRoot />
       </MotionConfig>
     </AppErrorBoundary>
   );
 }
 
-/** The bottom-right floating widgets (to-do list + Pomodoro), side by side in
- *  one fixed container. Lifted above the Settings page's sticky save bar. */
+/** The bottom-right floating widgets (assistant + to-do list + Pomodoro), side
+ *  by side in one fixed container. Lifted above the Settings page's sticky save
+ *  bar, and shifted left of the AI sidebar while it is docked open. */
 function FloatingWidgets() {
   const onSettings = useLocation().pathname === "/settings";
+  const assistantOffset = useAssistantOffset();
   return (
     <div
+      style={{ right: assistantOffset + 16 }}
       className={cn(
-        "fixed right-4 z-40 flex items-end gap-2 print:hidden",
+        "fixed z-40 flex items-end gap-2 transition-[right] duration-200 print:hidden",
         onSettings ? "bottom-24" : "bottom-4",
       )}
     >
+      <AssistantLauncher />
       <TodoWidget />
       <PomodoroWidget />
     </div>
+  );
+}
+
+/** Mounts the lazy sidebar chunk on first open, then keeps it mounted so the
+ *  open/close slide animates and the thread survives toggling. */
+function AssistantRoot() {
+  const open = useAssistantStore((s) => s.open);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (open) setLoaded(true);
+  }, [open]);
+  if (!loaded) return null;
+  return (
+    <Suspense fallback={null}>
+      <AssistantSidebar />
+    </Suspense>
   );
 }
 

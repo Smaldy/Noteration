@@ -89,3 +89,8 @@ class Settings(Base):
     # directive), "simple", "technical", "discursive", "concise", "academic".
     # See AI_STYLES in services/pipeline/generation.py.
     ai_style: Mapped[str] = mapped_column(default="balanced")
+    # Assistant chat retention: "keep_last_5" (default, count-based — the
+    # history list always caps at 5) or a time-based override: "after_1_hour",
+    # "after_1_day", "on_close" (previous run's chats purged at startup).
+    # Enforced in services/chat.py, driven by the queue worker's hooks.
+    chat_retention: Mapped[str] = mapped_column(default="keep_last_5")

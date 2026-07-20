@@ -42,6 +42,10 @@ StudyField = Literal[
 # How the AI words the generated content. Mirrors AI_STYLES in
 # services/pipeline/generation.py; "balanced" adds no directive.
 AIStyle = Literal["balanced", "simple", "technical", "discursive", "concise", "academic"]
+# Assistant chat history retention: the count-based default keeps the last 5
+# sessions; the time-based options additionally expire idle sessions (enforced
+# in services/chat.py via the worker's startup/periodic hooks).
+ChatRetention = Literal["keep_last_5", "after_1_hour", "after_1_day", "on_close"]
 
 
 class SettingsOut(BaseModel):
@@ -75,6 +79,7 @@ class SettingsOut(BaseModel):
     language: str
     study_field: str
     ai_style: str
+    chat_retention: str
     # Derived — keys are never echoed back.
     gemini_key_set: bool
 
@@ -107,6 +112,7 @@ class SettingsOut(BaseModel):
             language=settings.language,
             study_field=settings.study_field,
             ai_style=settings.ai_style,
+            chat_retention=settings.chat_retention,
             gemini_key_set=bool(settings.api_key_gemini),
         )
 
@@ -150,6 +156,7 @@ class SettingsUpdate(BaseModel):
     language: Language | None = None
     study_field: StudyField | None = None
     ai_style: AIStyle | None = None
+    chat_retention: ChatRetention | None = None
 
     @model_validator(mode="after")
     def _day_window_ordered(self) -> SettingsUpdate:

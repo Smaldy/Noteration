@@ -659,6 +659,74 @@
       "studiedBadge": "completado"
     }
   },
+  "assistant": {
+    "goDeeper": {
+      "label": "Profundizar",
+      "hint": "¿Enviar esta tarjeta al asistente?",
+      "ask": "Preguntar al asistente",
+      "prompt": "Profundiza en esto. Explica el concepto subyacente y añade contexto útil.",
+      "answerLabel": "Respuesta correcta: {{answer}}"
+    },
+    "selection": {
+      "menuAria": "Preguntar al asistente sobre esta selección",
+      "explainSimply": "Explicar de forma sencilla",
+      "explainSimplyPrompt": "Explica esto de forma sencilla.",
+      "summarize": "Resumir",
+      "summarizePrompt": "Resume esto.",
+      "explainTechnical": "Explicar técnicamente",
+      "explainTechnicalPrompt": "Explica esto con detalle técnico.",
+      "placeholder": "Pregunta sobre esta selección",
+      "askAria": "Preguntar al asistente"
+    },
+    "actions": {
+      "save": "Guardar como nota",
+      "saved": "Guardada",
+      "copy": "Copiar",
+      "copied": "Copiado"
+    },
+    "topicPicker": {
+      "subjectLabel": "Asignatura",
+      "subjectPlaceholder": "Elige una asignatura",
+      "noSubjects": "Primero crea una asignatura con material de estudio y después podrás elegir un tema aquí.",
+      "noTopics": "Esta asignatura todavía no tiene temas de estudio.",
+      "loadFailed": "No se pudieron cargar los temas de esta asignatura."
+    },
+    "saveDialog": {
+      "title": "Guardar como nota",
+      "description": "Elige el tema en el que se guardará esta respuesta. Se convierte en un bloque de nota normal que puedes editar en la vista de estudio.",
+      "save": "Guardar nota",
+      "saving": "Guardando…",
+      "failed": "No se pudo guardar la nota."
+    },
+    "reference": {
+      "add": "Añadir tema de referencia",
+      "change": "Cambiar el tema de referencia",
+      "remove": "Quitar el tema de referencia",
+      "dialogTitle": "Tema de referencia",
+      "dialogDescription": "Fija un tema y el asistente responderá a partir de su material, citando los pasajes que encajan con tu pregunta.",
+      "confirm": "Fijar tema"
+    },
+    "newChat": "Nuevo chat",
+    "history": "Historial de chats",
+    "noHistory": "Aún no hay chats guardados.",
+    "deleteChat": "Eliminar chat",
+    "title": "Asistente",
+    "open": "Abrir el asistente de IA",
+    "close": "Cerrar",
+    "modelAuto": "Automático",
+    "modelAutoHint": "sigue tu orden de proveedores",
+    "localHint": "privado, funciona en tu dispositivo",
+    "resetWidth": "Restablecer el ancho del panel",
+    "floatSoon": "La ventana flotante llegará pronto",
+    "empty": "Pregunta lo que quieras sobre lo que estás estudiando. Las respuestas aparecen aquí.",
+    "placeholder": "Escribe una pregunta",
+    "send": "Enviar",
+    "thinking": "Pensando",
+    "stop": "Detener",
+    "stoppedNote": "Has detenido esta respuesta, así que no se guardó.",
+    "reading": "Leyendo {{topic}}",
+    "error": "El asistente no pudo responder. Inténtalo de nuevo."
+  },
   "editor": {
     "cancel": "Cancelar",
     "save": "Guardar",
@@ -838,6 +906,14 @@
       }
     },
     "generation": {
+      "chatRetentionLabel": "Historial del asistente",
+      "chatRetentionHint": "Cuánto tiempo guarda el asistente tus conversaciones. Siempre conserva como máximo los últimos 5 chats.",
+      "retention": {
+        "keep_last_5": "Guardar los últimos 5",
+        "after_1_hour": "Borrar tras 1 hora",
+        "after_1_day": "Borrar tras 1 día",
+        "on_close": "Borrar al cerrar"
+      },
       "title": "Generación de apuntes",
       "description": "En qué se especializa el tutor de IA, cómo escribe y cuánto contenido genera por tema.",
       "studyFieldLabel": "Campo de estudio",

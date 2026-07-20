@@ -19,6 +19,7 @@ from backend.routers import (
     assessment,
     attachments,
     chapters,
+    chat,
     documents,
     duplicator,
     local_ai,
@@ -95,6 +96,7 @@ api.include_router(queue.router)
 api.include_router(study.router)
 api.include_router(todo.router)
 api.include_router(settings.router)
+api.include_router(chat.router)
 api.include_router(local_ai.router)
 api.include_router(search.router)
 api.include_router(assessment.router)

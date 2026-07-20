@@ -659,6 +659,74 @@
       "studiedBadge": "completato"
     }
   },
+  "assistant": {
+    "goDeeper": {
+      "label": "Approfondisci",
+      "hint": "Inviare questa scheda all'assistente?",
+      "ask": "Chiedi all'assistente",
+      "prompt": "Approfondisci questo argomento. Spiega il concetto di fondo e aggiungi contesto utile.",
+      "answerLabel": "Risposta corretta: {{answer}}"
+    },
+    "selection": {
+      "menuAria": "Chiedi all'assistente su questa selezione",
+      "explainSimply": "Spiega in modo semplice",
+      "explainSimplyPrompt": "Spiega questo in modo semplice.",
+      "summarize": "Riassumi",
+      "summarizePrompt": "Riassumi questo.",
+      "explainTechnical": "Spiega in modo tecnico",
+      "explainTechnicalPrompt": "Spiega questo in dettaglio tecnico.",
+      "placeholder": "Chiedi su questa selezione",
+      "askAria": "Chiedi all'assistente"
+    },
+    "actions": {
+      "save": "Salva come nota",
+      "saved": "Salvata",
+      "copy": "Copia",
+      "copied": "Copiato"
+    },
+    "topicPicker": {
+      "subjectLabel": "Materia",
+      "subjectPlaceholder": "Scegli una materia",
+      "noSubjects": "Prima crea una materia con del materiale di studio, poi potrai scegliere un argomento qui.",
+      "noTopics": "Questa materia non ha ancora argomenti di studio.",
+      "loadFailed": "Impossibile caricare gli argomenti di questa materia."
+    },
+    "saveDialog": {
+      "title": "Salva come nota",
+      "description": "Scegli l'argomento in cui salvare questa risposta. Diventa un normale blocco di note che puoi modificare nella vista di studio.",
+      "save": "Salva nota",
+      "saving": "Salvataggio…",
+      "failed": "Impossibile salvare la nota."
+    },
+    "reference": {
+      "add": "Aggiungi argomento di riferimento",
+      "change": "Cambia l'argomento di riferimento",
+      "remove": "Rimuovi l'argomento di riferimento",
+      "dialogTitle": "Argomento di riferimento",
+      "dialogDescription": "Fissa un argomento e l'assistente risponderà a partire dal suo materiale, citando i passaggi che corrispondono alla tua domanda.",
+      "confirm": "Fissa argomento"
+    },
+    "newChat": "Nuova chat",
+    "history": "Cronologia delle chat",
+    "noHistory": "Nessuna chat salvata per ora.",
+    "deleteChat": "Elimina chat",
+    "title": "Assistente",
+    "open": "Apri l'assistente IA",
+    "close": "Chiudi",
+    "modelAuto": "Automatico",
+    "modelAutoHint": "segue il tuo ordine dei provider",
+    "localHint": "privato, funziona sul tuo dispositivo",
+    "resetWidth": "Ripristina la larghezza del pannello",
+    "floatSoon": "La finestra mobile arriverà presto",
+    "empty": "Chiedi qualsiasi cosa su ciò che stai studiando. Le risposte compaiono qui.",
+    "placeholder": "Scrivi una domanda",
+    "send": "Invia",
+    "thinking": "Sto pensando",
+    "stop": "Interrompi",
+    "stoppedNote": "Hai interrotto questa risposta, quindi non è stata salvata.",
+    "reading": "Sto leggendo {{topic}}",
+    "error": "L'assistente non è riuscito a rispondere. Riprova."
+  },
   "editor": {
     "cancel": "Annulla",
     "save": "Salva",
@@ -838,6 +906,14 @@
       }
     },
     "generation": {
+      "chatRetentionLabel": "Cronologia dell'assistente",
+      "chatRetentionHint": "Per quanto tempo l'assistente conserva le tue conversazioni. Conserva sempre al massimo le ultime 5 chat.",
+      "retention": {
+        "keep_last_5": "Conserva le ultime 5",
+        "after_1_hour": "Elimina dopo 1 ora",
+        "after_1_day": "Elimina dopo 1 giorno",
+        "on_close": "Elimina alla chiusura"
+      },
       "title": "Generazione appunti",
       "description": "In cosa è specializzato il tutor IA, come scrive e quanto contenuto genera per argomento.",
       "studyFieldLabel": "Campo di studio",

@@ -18,6 +18,7 @@ import { FONT_STACKS } from "@/stores/settings";
 import type {
   AIStyle,
   CalendarSlot,
+  ChatRetention,
   GeminiModel,
   Settings,
   StudyField,
@@ -32,6 +33,7 @@ export interface FormState {
   note_length: number;
   study_field: StudyField;
   ai_style: AIStyle;
+  chat_retention: ChatRetention;
   pomodoro_work_min: number;
   pomodoro_break_min: number;
   calendar_day_start_hour: number;
@@ -141,8 +143,21 @@ export const AI_STYLE_VALUES: AIStyle[] = [
   "academic",
 ];
 
+// Assistant chat retention options (mirrors backend ChatRetention). Labels are
+// localized under settings.generation.retention.<value>.
+export const CHAT_RETENTION_VALUES: ChatRetention[] = [
+  "keep_last_5",
+  "after_1_hour",
+  "after_1_day",
+  "on_close",
+];
+
 function isStudyField(v: string): v is StudyField {
   return (STUDY_FIELD_VALUES as string[]).includes(v);
+}
+
+function isChatRetention(v: string): v is ChatRetention {
+  return (CHAT_RETENTION_VALUES as string[]).includes(v);
 }
 
 function isAIStyle(v: string): v is AIStyle {
@@ -255,6 +270,9 @@ export function toForm(s: Settings): FormState {
     note_length: s.note_length ?? 3,
     study_field: isStudyField(s.study_field) ? s.study_field : "general",
     ai_style: isAIStyle(s.ai_style) ? s.ai_style : "balanced",
+    chat_retention: isChatRetention(s.chat_retention)
+      ? s.chat_retention
+      : "keep_last_5",
     pomodoro_work_min: s.pomodoro_work_min,
     pomodoro_break_min: s.pomodoro_break_min,
     calendar_day_start_hour: s.calendar_day_start_hour,

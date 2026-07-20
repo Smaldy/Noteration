@@ -26,7 +26,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       headers: { Accept: "application/json", ...init?.headers },
     });
-  } catch {
+  } catch (err) {
+    // A caller-triggered abort is not a failure: let it through untouched so
+    // the caller can tell "I cancelled this" from "the backend is down".
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
     // Network/connection failure (backend down) — surface as a 0-status error.
     throw new ApiError(0, "Cannot reach the Noteration backend.");
   }
@@ -52,11 +55,13 @@ async function extractDetail(res: Response): Promise<string> {
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) =>
+  // `signal` lets a caller abort a slow request (the assistant's stop button).
+  post: <T>(path: string, body?: unknown, signal?: AbortSignal) =>
     request<T>(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
     }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, {

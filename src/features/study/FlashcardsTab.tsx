@@ -10,6 +10,7 @@ import { ApiError, api } from "@/lib/api";
 import type { FlashcardContent } from "@/types/study";
 
 import { GenerateMore } from "./GenerateMore";
+import { GoDeeper } from "./GoDeeper";
 
 type Grade = "correct" | "incorrect" | "skip";
 
@@ -175,6 +176,12 @@ export function FlashcardsTab({
             {t("study.flashcards.correct")}
           </Button>
         </motion.div>
+      )}
+
+      {flipped && (
+        <div className="mt-3">
+          <GoDeeper text={`${card.front}\n${card.back}`} />
+        </div>
       )}
 
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}

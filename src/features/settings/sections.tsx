@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import type {
   AIStyle,
   CalendarSlot,
+  ChatRetention,
   GeminiModel,
   Settings,
   StudyField,
@@ -38,6 +39,7 @@ import {
 } from "./controls";
 import {
   AI_STYLE_VALUES,
+  CHAT_RETENTION_VALUES,
   FONT_OPTIONS,
   FONT_PREVIEW,
   GEMINI_MODELS,
@@ -333,6 +335,20 @@ export function GenerationSection({
         </div>
         <p className="text-xs text-muted-foreground">
           {t("settings.generation.explanation")}
+        </p>
+      </Field>
+      <Field label={t("settings.generation.chatRetentionLabel")}>
+        <Segmented
+          group="chat-retention"
+          value={form.chat_retention}
+          onChange={(v) => set("chat_retention", v as ChatRetention)}
+          options={CHAT_RETENTION_VALUES.map((value) => ({
+            value,
+            label: t(`settings.generation.retention.${value}`),
+          }))}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("settings.generation.chatRetentionHint")}
         </p>
       </Field>
     </Section>
