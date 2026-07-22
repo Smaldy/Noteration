@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 
 from backend.services.providers.base import (
     AllProvidersExhausted,
+    ImagePart,
     Provider,
     ProviderLimitError,
     ProviderResult,
@@ -53,12 +54,18 @@ class Waterfall:
         *,
         max_tokens: int,
         response_schema: dict | None = None,
+        images: list[ImagePart] | None = None,
     ) -> ProviderResult:
+        # Images make this a vision dispatch, so the walk skips text-only
+        # providers instead of failing over into one that would reject them.
         return self._dispatch(
             lambda p: p.generate(
-                prompt, max_tokens=max_tokens, response_schema=response_schema
+                prompt,
+                max_tokens=max_tokens,
+                response_schema=response_schema,
+                images=images,
             ),
-            need_vision=False,
+            need_vision=bool(images),
         )
 
     def transcribe_image(

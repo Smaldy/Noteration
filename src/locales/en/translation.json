@@ -738,9 +738,16 @@
     "send": "Send",
     "thinking": "Thinking",
     "stop": "Stop",
+    "closedNote": "The assistant ended this conversation. You can still read it, and you can start a new chat whenever you like.",
     "stoppedNote": "You stopped this reply, so it was not saved.",
     "reading": "Reading {{topic}}",
-    "error": "The assistant could not reply. Please try again."
+    "error": "The assistant could not reply. Please try again.",
+    "attachments": {
+      "add": "Attach an image or PDF",
+      "remove": "Remove this attachment",
+      "unavailable": "Attachments are not available for this model. Switch to a cloud model to send images or PDFs.",
+      "failed": "That file could not be attached."
+    }
   },
   "editor": {
     "cancel": "Cancel",

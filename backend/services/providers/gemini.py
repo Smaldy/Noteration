@@ -24,6 +24,7 @@ from typing import Any
 
 from backend.services.providers.base import (
     BudgetProbe,
+    ImagePart,
     Provider,
     ProviderLimitError,
     ProviderResult,
@@ -220,11 +221,23 @@ class GeminiProvider(Provider):
         *,
         max_tokens: int,
         response_schema: dict[str, Any] | None = None,
+        images: list[ImagePart] | None = None,
     ) -> ProviderResult:
         config = self._config(max_tokens, response_schema=response_schema)
+        contents: Any = prompt
+        if images:
+            from google.genai import types  # lazy
+
+            # Images first, prompt last: the question should read as being *about*
+            # the pictures above it, which is also how ``transcribe_image`` orders
+            # its parts.
+            contents = [
+                types.Part.from_bytes(data=img.data, mime_type=img.mime_type)
+                for img in images
+            ] + [prompt]
         return self._dispatch(
             lambda client, model: client.models.generate_content(
-                model=model, contents=prompt, config=config
+                model=model, contents=contents, config=config
             )
         )
 

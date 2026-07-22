@@ -38,6 +38,11 @@ class ChatSession(Base):
     )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # Set when the assistant ended the conversation itself, after sustained
+    # abuse that stopped being about studying. A closed session is read-only:
+    # the transcript stays, further sends are refused. Starting a NEW chat is
+    # always allowed, so this ends one thread rather than locking anyone out.
+    closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, default=None)
 
     messages: Mapped[list[ChatMessage]] = relationship(
         back_populates="session",
@@ -66,3 +71,45 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     session: Mapped[ChatSession] = relationship(back_populates="messages")
+    attachments: Mapped[list[ChatAttachment]] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        order_by="ChatAttachment.id",
+    )
+
+
+class ChatAttachment(Base):
+    """One image or PDF the user attached to a chat turn.
+
+    The two kinds reach the model by different routes, which is why both a hash
+    and a text column live here:
+
+    - ``image`` — the bytes are sent to the provider as a real image part on
+      every turn of the conversation, so they must stay on disk. ``extracted_text``
+      is None.
+    - ``pdf`` — converted to markdown ONCE at upload via the ingestion pipeline
+      and stored in ``extracted_text``; the prompt carries that text, never the
+      file. Far cheaper than re-sending a PDF each turn, and it keeps working on
+      providers that can't read documents natively.
+
+    Bytes live in the shared content-addressed store (``cache/attachments/<hash>``)
+    alongside note attachments, so the same file uploaded twice is stored once.
+    """
+
+    __tablename__ = "chat_attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Nullable: an upload exists before the turn it belongs to (see the
+    # migration). NULL means "draft" — uploaded, not yet sent.
+    message_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chat_messages.id", ondelete="CASCADE"), default=None
+    )
+    kind: Mapped[str]  # "image" | "pdf"
+    filename: Mapped[str]
+    content_type: Mapped[str]
+    file_hash: Mapped[str]
+    # PDF markdown, extracted once at upload. None for images.
+    extracted_text: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+    message: Mapped[ChatMessage] = relationship(back_populates="attachments")

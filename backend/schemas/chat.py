@@ -7,6 +7,17 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class ChatAttachmentOut(BaseModel):
+    """One image/PDF attached to a turn (or an unsent draft)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str  # "image" | "pdf"
+    filename: str
+    content_type: str
+
+
 class ChatMessageOut(BaseModel):
     """One turn of a chat session, as stored."""
 
@@ -18,6 +29,7 @@ class ChatMessageOut(BaseModel):
     # Which provider served an assistant turn (stamps the reply); None on user turns.
     provider: str | None
     created_at: datetime
+    attachments: list[ChatAttachmentOut] = []
 
 
 class ChatSendRequest(BaseModel):
@@ -38,6 +50,15 @@ class ChatSendRequest(BaseModel):
     provider: str | None = None
     topic_id: int | None = None
     request_id: str | None = Field(default=None, max_length=64)
+    # Ids from POST /chat/attachments, in display order. Already-sent ids are
+    # ignored rather than rejected, so a retried send can't steal them.
+    attachment_ids: list[int] = Field(default_factory=list, max_length=8)
+
+
+class ChatAttachmentsAvailable(BaseModel):
+    """Whether attachments can be sent with the configured providers."""
+
+    available: bool
 
 
 class ChatStopRequest(BaseModel):
@@ -59,10 +80,15 @@ class ChatStopResponse(BaseModel):
 
 
 class ChatSendResponse(BaseModel):
-    """The assistant's reply, plus the session it belongs to."""
+    """The assistant's reply, plus the session it belongs to.
+
+    ``closed`` is True when that reply was the assistant ending the
+    conversation: the text is shown as normal, and the composer then locks.
+    """
 
     session_id: int
     message: ChatMessageOut
+    closed: bool = False
 
 
 class ChatSessionSummary(BaseModel):
@@ -92,4 +118,7 @@ class ChatSessionOut(BaseModel):
     topic_id: int | None
     topic_title: str | None
     updated_at: datetime
+    # Set when the assistant ended the conversation itself; reopening it from
+    # history shows the transcript with a locked composer.
+    closed_at: datetime | None = None
     messages: list[ChatMessageOut]

@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_session
 from backend.models.chat import ChatSession
 from backend.schemas.chat import (
+    ChatAttachmentOut,
+    ChatAttachmentsAvailable,
     ChatSendRequest,
     ChatSendResponse,
     ChatSessionOut,
@@ -16,6 +26,7 @@ from backend.schemas.chat import (
     ChatStopResponse,
 )
 from backend.services import chat as chatsvc
+from backend.services import chat_attachments
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -30,7 +41,8 @@ def send_message(
     Omitting ``session_id`` starts a new session (its id comes back in the
     response). ``topic_id`` pins the reference topic whose material grounds the
     reply. 404 for an unknown session or topic, 400 for an unknown provider
-    name, 503 when no provider can serve the reply right now.
+    name, 409 for a session the assistant closed, 503 when no provider can serve
+    the reply right now.
     """
     try:
         chat, reply = chatsvc.send_message(
@@ -40,9 +52,16 @@ def send_message(
             provider=payload.provider,
             topic_id=payload.topic_id,
             request_id=payload.request_id,
+            attachment_ids=payload.attachment_ids,
         )
+    except chat_attachments.AttachmentsUnavailableError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except chatsvc.ChatSessionNotFoundError:
         raise HTTPException(status_code=404, detail="Chat session not found")
+    except chatsvc.ChatClosedError:
+        raise HTTPException(
+            status_code=409, detail="This conversation was closed. Start a new chat."
+        )
     except chatsvc.TopicNotFoundError:
         raise HTTPException(status_code=404, detail="Topic not found")
     except chatsvc.UnknownProviderError as exc:
@@ -53,7 +72,62 @@ def send_message(
         raise HTTPException(status_code=409, detail="Reply stopped")
     except chatsvc.ChatUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    return ChatSendResponse(session_id=chat.id, message=reply)
+    return ChatSendResponse(
+        session_id=chat.id, message=reply, closed=chat.closed_at is not None
+    )
+
+
+@router.get("/attachments/available", response_model=ChatAttachmentsAvailable)
+def attachments_available(
+    session: Session = Depends(get_session),
+) -> ChatAttachmentsAvailable:
+    """Whether this install can accept attachments at all.
+
+    The sidebar calls this to decide between an enabled paperclip and the "not
+    available for this model" state, so the UI and the upload guard below are
+    driven by the same rule rather than by a hardcoded provider name.
+    """
+    return ChatAttachmentsAvailable(available=chatsvc.attachments_supported(session))
+
+
+@router.post("/attachments", response_model=ChatAttachmentOut, status_code=201)
+async def upload_attachment(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> ChatAttachmentOut:
+    """Upload one image or PDF as a draft, to be sent with the next message.
+
+    Returns the draft's id for ``ChatSendRequest.attachment_ids``. 400 for an
+    unsupported/oversized file or a PDF with no extractable text, and 400 when
+    no vision-capable provider is configured.
+    """
+    if not chatsvc.attachments_supported(session):
+        raise HTTPException(
+            status_code=400,
+            detail="Attachments need a cloud model; not available for this model.",
+        )
+    data = await file.read()
+    try:
+        attachment = chat_attachments.upload_attachment(
+            session,
+            filename=file.filename or "attachment",
+            content_type=file.content_type or "",
+            data=data,
+        )
+    except chat_attachments.UnsupportedChatAttachmentError as exc:
+        raise HTTPException(status_code=400, detail=f"Unsupported file: {exc}")
+    except chat_attachments.PdfExtractionError as exc:
+        raise HTTPException(status_code=400, detail=f"Could not read PDF: {exc}")
+    return ChatAttachmentOut.model_validate(attachment)
+
+
+@router.delete("/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def discard_attachment(
+    attachment_id: int, session: Session = Depends(get_session)
+) -> Response:
+    """Drop an unsent draft (removing a chip from the composer)."""
+    chat_attachments.discard_draft(session, attachment_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/stop", response_model=ChatStopResponse)

@@ -1,5 +1,13 @@
 /** Mirrors `backend/schemas/chat.py`. */
 
+/** One image/PDF attached to a turn, or an unsent draft from the composer. */
+export interface ChatAttachmentOut {
+  id: number;
+  kind: "image" | "pdf";
+  filename: string;
+  content_type: string;
+}
+
 export interface ChatMessageOut {
   id: number;
   role: "user" | "assistant";
@@ -7,6 +15,13 @@ export interface ChatMessageOut {
   /** Which provider served an assistant turn; null on user turns. */
   provider: string | null;
   created_at: string;
+  attachments?: ChatAttachmentOut[];
+}
+
+/** Whether the configured providers can accept attachments at all. Local-only
+ *  setups cannot: the local tier is not vision-capable. */
+export interface ChatAttachmentsAvailable {
+  available: boolean;
 }
 
 export interface ChatSendRequest {
@@ -20,6 +35,8 @@ export interface ChatSendRequest {
   topic_id?: number | null;
   /** The client's handle on this send, so the stop button can reach it. */
   request_id?: string | null;
+  /** Draft attachment ids from POST /chat/attachments, in display order. */
+  attachment_ids?: number[];
 }
 
 /** Stop an in-flight send: its reply is discarded instead of stored. */
@@ -34,6 +51,9 @@ export interface ChatStopResponse {
 export interface ChatSendResponse {
   session_id: number;
   message: ChatMessageOut;
+  /** True when that reply was the assistant ending the conversation. The text
+   *  is shown as normal and the composer then locks. */
+  closed?: boolean;
 }
 
 /** One history-list entry (no messages). The server caps the list at 5. */
@@ -49,5 +69,8 @@ export interface ChatSessionSummary {
 export interface ChatSessionOut extends ChatSessionSummary {
   topic_id: number | null;
   topic_title: string | null;
+  /** Set when the assistant ended this conversation; the composer stays locked
+   *  when it is reopened from history. */
+  closed_at?: string | null;
   messages: ChatMessageOut[];
 }

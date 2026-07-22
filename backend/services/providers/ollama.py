@@ -21,6 +21,7 @@ from typing import Any
 
 from backend.services.providers.base import (
     BudgetProbe,
+    ImagePart,
     Provider,
     ProviderResult,
     ProviderUnavailableError,
@@ -123,11 +124,24 @@ class OllamaProvider(Provider):
         *,
         max_tokens: int,
         response_schema: dict[str, Any] | None = None,
+        images: list[ImagePart] | None = None,
     ) -> ProviderResult:
+        if images and not self.supports_vision:
+            # Refused, not dropped: answering as if the image weren't there would
+            # look like a reply about a picture the model never received. The
+            # sidebar blocks attachments on local models up front, so reaching
+            # here means the guard was bypassed (a pinned provider switched
+            # mid-thread, say) and the caller needs to see it.
+            raise VisionNotSupportedError("ollama model is not vision-capable")
         # Ollama supports structured output via ``format`` (a JSON Schema). Pass
         # the schema through when present so a local model also returns one JSON
         # object for the consolidated generation stage.
-        return self._call(prompt, max_tokens, images=None, fmt=response_schema)
+        return self._call(
+            prompt,
+            max_tokens,
+            images=[img.data for img in images] if images else None,
+            fmt=response_schema,
+        )
 
     def transcribe_image(
         self, image: bytes, *, max_tokens: int = 1024, prompt: str | None = None

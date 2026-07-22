@@ -29,7 +29,9 @@ class _FP(Provider):
         self.enabled = enabled
         self._available = available
 
-    def generate(self, prompt, *, max_tokens, response_schema=None) -> ProviderResult:
+    def generate(
+        self, prompt, *, max_tokens, response_schema=None, images=None
+    ) -> ProviderResult:
         return ProviderResult(text="x", provider=self.name)
 
     def transcribe_image(self, image, *, max_tokens=1024) -> ProviderResult:  # pragma: no cover

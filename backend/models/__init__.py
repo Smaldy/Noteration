@@ -9,7 +9,7 @@ from backend.models.arcade import (
     ArcadeState,
     ArcadeUpgrade,
 )
-from backend.models.chat import ChatMessage, ChatSession
+from backend.models.chat import ChatAttachment, ChatMessage, ChatSession
 from backend.models.content import (
     MCQ,
     Flashcard,
@@ -67,6 +67,7 @@ __all__ = [
     "LocalAiSetup",
     "ChatSession",
     "ChatMessage",
+    "ChatAttachment",
     "ArcadeState",
     "ArcadeUpgrade",
     "ArcadePlaySession",

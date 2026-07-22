@@ -50,7 +50,7 @@ class _SmartProvider(Provider):
     supports_vision = True
 
     def generate(
-        self, prompt: str, *, max_tokens: int, response_schema=None
+        self, prompt: str, *, max_tokens: int, response_schema=None, images=None
     ) -> ProviderResult:
         return ProviderResult(text=json.dumps(_GENERATION), provider=self.name)
 

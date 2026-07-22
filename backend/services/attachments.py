@@ -72,7 +72,7 @@ def add_attachment(
     if session.get(Topic, topic_id) is None:
         raise TopicNotFoundError(topic_id)
 
-    file_hash = _persist(data, filename)
+    file_hash = persist_bytes(data, filename)
     attachment = NoteAttachment(
         topic_id=topic_id,
         kind=kind,
@@ -114,8 +114,12 @@ def delete_attachment(session: Session, attachment_id: int) -> None:
         path.unlink()
 
 
-def _persist(data: bytes, filename: str) -> str:
-    """Write bytes under cache/attachments/<hash><ext> (idempotent, atomic)."""
+def persist_bytes(data: bytes, filename: str) -> str:
+    """Write bytes under cache/attachments/<hash><ext> (idempotent, atomic).
+
+    Public because chat attachments share this one content-addressed store: the
+    same file attached to a note and pasted into the sidebar is stored once.
+    """
     ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
     file_hash = hashlib.sha256(data).hexdigest()
     ext = Path(filename).suffix.lower()

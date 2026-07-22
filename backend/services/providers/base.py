@@ -36,6 +36,19 @@ class BudgetProbe:
 
 
 @dataclass(frozen=True)
+class ImagePart:
+    """One image attached to a ``generate`` turn, with its real mime type.
+
+    ``transcribe_image`` can assume PNG because it is always fed a render the
+    pipeline produced. Chat attachments are whatever the user pasted or picked,
+    so the mime travels with the bytes instead of being guessed at the provider.
+    """
+
+    data: bytes
+    mime_type: str
+
+
+@dataclass(frozen=True)
 class ProviderResult:
     """Output of a generate/transcribe call, with stamping + cost telemetry."""
 
@@ -117,6 +130,7 @@ class Provider(ABC):
         *,
         max_tokens: int,
         response_schema: dict[str, Any] | None = None,
+        images: list[ImagePart] | None = None,
     ) -> ProviderResult:
         """Produce text for a prompt, capped at ``max_tokens`` output.
 
@@ -126,6 +140,14 @@ class Provider(ABC):
         Providers without native structured-output support fall back to relying
         on the prompt's JSON instruction; ``ProviderResult.text`` is still the
         raw (JSON) string in every case.
+
+        ``images`` attaches pictures to the turn (the sidebar's pasted/attached
+        images). This is a *multimodal chat* input, distinct from
+        ``transcribe_image``: that one converts an image to text as its whole
+        job, while these ride alongside a prompt the model answers normally. A
+        provider whose ``supports_vision`` is False must raise
+        ``VisionNotSupportedError`` rather than silently dropping them — a
+        dropped image would make the model answer about a picture it never saw.
         """
 
     @abstractmethod

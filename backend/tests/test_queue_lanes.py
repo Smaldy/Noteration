@@ -35,7 +35,9 @@ class _FakeProvider(Provider):
         self._available = available
         self._headroom = headroom
 
-    def generate(self, prompt, *, max_tokens, response_schema=None) -> ProviderResult:
+    def generate(
+        self, prompt, *, max_tokens, response_schema=None, images=None
+    ) -> ProviderResult:
         return ProviderResult(text="x", provider=self.name)
 
     def transcribe_image(self, image, *, max_tokens=1024) -> ProviderResult:  # pragma: no cover

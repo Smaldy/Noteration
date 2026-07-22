@@ -738,9 +738,16 @@
     "send": "Enviar",
     "thinking": "Pensando",
     "stop": "Detener",
+    "closedNote": "El asistente ha terminado esta conversación. Puedes seguir leyéndola y empezar un chat nuevo cuando quieras.",
     "stoppedNote": "Has detenido esta respuesta, así que no se guardó.",
     "reading": "Leyendo {{topic}}",
-    "error": "El asistente no pudo responder. Inténtalo de nuevo."
+    "error": "El asistente no pudo responder. Inténtalo de nuevo.",
+    "attachments": {
+      "add": "Adjuntar una imagen o un PDF",
+      "remove": "Quitar este archivo",
+      "unavailable": "Los archivos adjuntos no están disponibles para este modelo. Cambia a un modelo en la nube para enviar imágenes o PDF.",
+      "failed": "No se pudo adjuntar ese archivo."
+    }
   },
   "editor": {
     "cancel": "Cancelar",

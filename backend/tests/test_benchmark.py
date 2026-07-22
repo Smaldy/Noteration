@@ -40,7 +40,9 @@ class _LimitAfter(Provider):
         self.n = n
         self.calls = 0
 
-    def generate(self, prompt, *, max_tokens, response_schema=None) -> ProviderResult:
+    def generate(
+        self, prompt, *, max_tokens, response_schema=None, images=None
+    ) -> ProviderResult:
         self.calls += 1
         if self.calls > self.n:
             raise ProviderLimitError("429 quota exhausted")

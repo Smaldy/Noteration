@@ -3,9 +3,13 @@ import {
   BookMarked,
   Check,
   Copy,
+  FileText,
   History,
+  Image as ImageIcon,
+  Loader2,
   MoveHorizontal,
   NotebookPen,
+  Paperclip,
   PictureInPicture2,
   Plus,
   SendHorizontal,
@@ -28,8 +32,11 @@ import {
 import { PROVIDER_NAMES, providerInfo } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 import {
+  ACCEPTED_ATTACHMENTS,
   type AssistantTurn,
+  MAX_PENDING_ATTACHMENTS,
   MODEL_AUTO,
+  type PendingAttachment,
   useAssistantStore,
 } from "@/stores/assistant";
 import { useSettingsStore } from "@/stores/settings";
@@ -516,6 +523,25 @@ function Turn({
             </blockquote>
           )}
           <div className="whitespace-pre-wrap">{rest}</div>
+          {turn.attachments && turn.attachments.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {turn.attachments.map((a) => (
+                <span
+                  key={a.id}
+                  className="inline-flex max-w-[10rem] items-center gap-1 rounded bg-primary-foreground/15 px-1.5 py-0.5 text-[10px]"
+                >
+                  {a.kind === "pdf" ? (
+                    <FileText className="size-2.5 shrink-0" />
+                  ) : (
+                    <ImageIcon className="size-2.5 shrink-0" />
+                  )}
+                  <span className="truncate" title={a.filename}>
+                    {a.filename}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -576,13 +602,59 @@ function ReplyAction({
   );
 }
 
+/** One draft chip in the composer, with its remove button. */
+function AttachmentChip({ attachment }: { attachment: PendingAttachment }) {
+  const { t } = useTranslation();
+  const removeAttachment = useAssistantStore((s) => s.removeAttachment);
+  const Icon = attachment.kind === "pdf" ? FileText : ImageIcon;
+
+  return (
+    <span className="inline-flex max-w-[12rem] items-center gap-1.5 rounded-md border bg-muted/50 py-1 pl-1.5 pr-1 text-[11px]">
+      {attachment.uploading ? (
+        <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
+      ) : (
+        <Icon className="size-3 shrink-0 text-muted-foreground" />
+      )}
+      <span className="truncate" title={attachment.filename}>
+        {attachment.filename}
+      </span>
+      <button
+        type="button"
+        onClick={() => void removeAttachment(attachment.id)}
+        title={t("assistant.attachments.remove")}
+        aria-label={t("assistant.attachments.remove")}
+        className="flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <X className="size-3" />
+      </button>
+    </span>
+  );
+}
+
 function Composer() {
   const { t } = useTranslation();
   const send = useAssistantStore((s) => s.send);
   const stop = useAssistantStore((s) => s.stop);
   const sending = useAssistantStore((s) => s.sending);
   const error = useAssistantStore((s) => s.error);
+  const pending = useAssistantStore((s) => s.pending);
+  const attachFiles = useAssistantStore((s) => s.attachFiles);
+  const attachmentsAvailable = useAssistantStore((s) => s.attachmentsAvailable);
+  const attachmentError = useAssistantStore((s) => s.attachmentError);
+  const checkAttachmentsAvailable = useAssistantStore(
+    (s) => s.checkAttachmentsAvailable,
+  );
+  const closed = useAssistantStore((s) => s.closed);
+  const newSession = useAssistantStore((s) => s.newSession);
   const [draft, setDraft] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void checkAttachmentsAvailable();
+  }, [checkAttachmentsAvailable]);
+
+  const canAttach =
+    attachmentsAvailable === true && pending.length < MAX_PENDING_ATTACHMENTS;
 
   const submit = () => {
     const text = draft.trim();
@@ -591,6 +663,36 @@ function Composer() {
     void send(text);
   };
 
+  /** Ctrl+V with an image on the clipboard attaches it instead of pasting a
+   *  blob of nothing. Text pastes are left entirely alone. */
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!canAttach) return;
+    const files = Array.from(e.clipboardData.files).filter(
+      (f) => f.type.startsWith("image/") || f.type === "application/pdf",
+    );
+    if (!files.length) return;
+    e.preventDefault();
+    void attachFiles(files);
+  };
+
+  // A conversation the assistant ended takes no more turns, so the composer is
+  // replaced rather than disabled: there is nothing to type into, and the way
+  // forward is a new chat.
+  if (closed) {
+    return (
+      <div className="border-t px-3 pb-3 pt-2.5">
+        <p className="text-xs text-muted-foreground">{t("assistant.closedNote")}</p>
+        <button
+          type="button"
+          onClick={newSession}
+          className="mt-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {t("assistant.newChat")}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="border-t px-3 pb-3 pt-2.5">
       {error !== null && (
@@ -598,7 +700,50 @@ function Composer() {
           {error || t("assistant.error")}
         </p>
       )}
+      {attachmentError !== null && (
+        <p className="mb-2 text-xs text-destructive">
+          {attachmentError || t("assistant.attachments.failed")}
+        </p>
+      )}
+      {pending.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {pending.map((a) => (
+            <AttachmentChip key={a.id} attachment={a} />
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2">
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          accept={ACCEPTED_ATTACHMENTS}
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            // Reset so picking the same file twice in a row still fires.
+            e.target.value = "";
+            void attachFiles(files);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInput.current?.click()}
+          disabled={!canAttach}
+          title={
+            attachmentsAvailable === false
+              ? t("assistant.attachments.unavailable")
+              : t("assistant.attachments.add")
+          }
+          aria-label={
+            attachmentsAvailable === false
+              ? t("assistant.attachments.unavailable")
+              : t("assistant.attachments.add")
+          }
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+        >
+          <Paperclip className="size-4" />
+        </button>
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -608,6 +753,7 @@ function Composer() {
               submit();
             }
           }}
+          onPaste={onPaste}
           rows={2}
           placeholder={t("assistant.placeholder")}
           className="max-h-40 min-h-[2.5rem] flex-1 resize-none rounded-xl border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring"
@@ -637,6 +783,11 @@ function Composer() {
           </button>
         )}
       </div>
+      {attachmentsAvailable === false && (
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          {t("assistant.attachments.unavailable")}
+        </p>
+      )}
     </div>
   );
 }

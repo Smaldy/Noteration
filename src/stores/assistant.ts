@@ -4,6 +4,8 @@ import { onAiContext } from "@/lib/aiContext";
 import { ApiError, api } from "@/lib/api";
 import { providerInfo } from "@/lib/providers";
 import type {
+  ChatAttachmentOut,
+  ChatAttachmentsAvailable,
   ChatSendRequest,
   ChatSendResponse,
   ChatSessionOut,
@@ -34,6 +36,19 @@ export interface AssistantTurn {
   role: "user" | "assistant";
   content: string;
   provider?: string | null;
+  attachments?: ChatAttachmentOut[];
+}
+
+/** Accepted attachment types, mirroring the server's allow-list. */
+export const ACCEPTED_ATTACHMENTS = "image/png,image/jpeg,image/webp,image/gif,application/pdf";
+
+/** How many files may ride along with one message (the server caps at 8). */
+export const MAX_PENDING_ATTACHMENTS = 4;
+
+/** A draft attachment in the composer: uploaded, not yet sent. */
+export interface PendingAttachment extends ChatAttachmentOut {
+  /** True while its bytes are still going up (chip shows a spinner). */
+  uploading?: boolean;
 }
 
 function clampWidth(px: number): number {
@@ -67,6 +82,9 @@ function persistWidth(px: number): void {
 
 let localTurnId = 0;
 
+/** Negative ids for chips whose upload has not returned a real id yet. */
+let draftPlaceholderId = 0;
+
 /** The send currently in flight, if any — what the stop button acts on. */
 let inFlight: { id: string; controller: AbortController } | null = null;
 
@@ -96,6 +114,16 @@ interface AssistantStore {
   referenceTopic: ReferenceTopic | null;
   /** Set when the user stopped the last reply, cleared on the next send. */
   stopped: boolean;
+  /** True when the assistant ended this conversation. The transcript stays
+   *  readable; the composer locks and only "new chat" moves forward. */
+  closed: boolean;
+  /** Draft attachments waiting to be sent with the next message. */
+  pending: PendingAttachment[];
+  /** Whether attachments are possible at all here. `null` until checked; false
+   *  on a local-only install, which drives the "not available" state. */
+  attachmentsAvailable: boolean | null;
+  /** Set when an upload is rejected (wrong type, too big, unreadable PDF). */
+  attachmentError: string | null;
   setOpen: (open: boolean) => void;
   toggle: () => void;
   setModel: (model: string) => void;
@@ -103,6 +131,13 @@ interface AssistantStore {
   resetWidth: () => void;
   setReferenceTopic: (topic: ReferenceTopic | null) => void;
   send: (text: string) => Promise<void>;
+  /** Upload files as drafts (from the picker or a Ctrl+V paste). */
+  attachFiles: (files: File[]) => Promise<void>;
+  /** Remove one draft chip, deleting it server-side. */
+  removeAttachment: (id: number) => Promise<void>;
+  /** Ask the server whether attachments are possible with these providers. */
+  checkAttachmentsAvailable: () => Promise<void>;
+  clearAttachmentError: () => void;
   /** Stop the reply being generated: the answer is discarded, not stored. */
   stop: () => void;
   fetchSessions: () => Promise<void>;
@@ -122,6 +157,10 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
   sessions: [],
   referenceTopic: null,
   stopped: false,
+  closed: false,
+  pending: [],
+  attachmentsAvailable: null,
+  attachmentError: null,
 
   setOpen: (open) => set({ open }),
   toggle: () => set((s) => ({ open: !s.open })),
@@ -142,6 +181,7 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
         sessionId: null,
         messages: [],
         referenceTopic: null,
+        closed: false,
         error: null,
       });
     } else {
@@ -163,9 +203,77 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
   // until removed, and the server records the latest value (null = unpinned).
   setReferenceTopic: (topic) => set({ referenceTopic: topic }),
 
+  checkAttachmentsAvailable: async () => {
+    try {
+      const res = await api.get<ChatAttachmentsAvailable>("/chat/attachments/available");
+      set({ attachmentsAvailable: res.available });
+    } catch {
+      // Unreachable server: assume unavailable rather than offering a paperclip
+      // that will fail on click.
+      set({ attachmentsAvailable: false });
+    }
+  },
+
+  clearAttachmentError: () => set({ attachmentError: null }),
+
+  attachFiles: async (files) => {
+    if (!files.length) return;
+    const room = MAX_PENDING_ATTACHMENTS - get().pending.length;
+    if (room <= 0) return;
+    set({ attachmentError: null });
+    for (const file of files.slice(0, room)) {
+      // A placeholder chip appears immediately so a large paste doesn't look
+      // like nothing happened while its bytes upload.
+      const placeholderId = (draftPlaceholderId -= 1);
+      set((s) => ({
+        pending: [
+          ...s.pending,
+          {
+            id: placeholderId,
+            kind: file.type === "application/pdf" ? "pdf" : "image",
+            filename: file.name || "pasted image",
+            content_type: file.type,
+            uploading: true,
+          },
+        ],
+      }));
+      const form = new FormData();
+      form.append("file", file, file.name || "pasted-image.png");
+      try {
+        const saved = await api.upload<ChatAttachmentOut>("/chat/attachments", form);
+        // Swap the placeholder for the real row, keeping its position.
+        set((s) => ({
+          pending: s.pending.map((a) =>
+            a.id === placeholderId ? { ...saved, uploading: false } : a,
+          ),
+        }));
+      } catch (err) {
+        set((s) => ({
+          pending: s.pending.filter((a) => a.id !== placeholderId),
+          attachmentError: err instanceof ApiError ? err.message : "",
+        }));
+      }
+    }
+  },
+
+  removeAttachment: async (id) => {
+    set((s) => ({ pending: s.pending.filter((a) => a.id !== id) }));
+    // Negative ids are placeholders that never reached the server.
+    if (id < 0) return;
+    try {
+      await api.del(`/chat/attachments/${id}`);
+    } catch {
+      // The chip is already gone from the UI; a stale draft row is swept
+      // server-side, so there is nothing useful to tell the user here.
+    }
+  },
+
   send: async (text) => {
     const message = text.trim();
-    if (!message || get().sending) return;
+    if (!message || get().sending || get().closed) return;
+    // Never send a chip whose bytes are still in flight: its id is a local
+    // placeholder the server would reject.
+    const attachments = get().pending.filter((a) => !a.uploading && a.id > 0);
     localTurnId -= 1;
     // A fresh handle per send: the stop button aborts this request and tells
     // the server to bin the reply it is already working on.
@@ -177,8 +285,11 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
       stopped: false,
       messages: [
         ...s.messages,
-        { id: localTurnId, role: "user", content: message },
+        { id: localTurnId, role: "user", content: message, attachments },
       ],
+      // Cleared optimistically: the chips now belong to the turn above, and a
+      // failed send must not silently re-send them with the next message.
+      pending: [],
     }));
     const { sessionId, model, referenceTopic } = get();
     const body: ChatSendRequest = {
@@ -187,6 +298,7 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
       provider: model === MODEL_AUTO ? null : model,
       topic_id: referenceTopic?.id ?? null,
       request_id: requestId,
+      attachment_ids: attachments.map((a) => a.id),
     };
     try {
       const res = await api.post<ChatSendResponse>("/chat", body, controller.signal);
@@ -194,6 +306,9 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
         sessionId: res.session_id,
         messages: [...s.messages, res.message],
         sending: false,
+        // The goodbye turn is shown like any other; what changes is that this
+        // thread now refuses further sends.
+        closed: res.closed === true,
       }));
     } catch (err) {
       // The abort is the user's own doing: `stop` has already set the state,
@@ -249,6 +364,10 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
         messages: s.messages,
         model: s.provider ?? MODEL_AUTO,
         stopped: false,
+        closed: s.closed_at != null,
+        // Composer drafts belong to the thread being left, not the one opened.
+        pending: [],
+        attachmentError: null,
         // A reopened session comes back with its chip (the topic may have been
         // deleted since, in which case the server already unpinned it).
         referenceTopic:
@@ -269,6 +388,9 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
       error: null,
       referenceTopic: null,
       stopped: false,
+      closed: false,
+      pending: [],
+      attachmentError: null,
     }),
 
   deleteSession: async (id) => {
@@ -281,7 +403,7 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
       sessions: s.sessions.filter((x) => x.id !== id),
       // Deleting the open session clears the thread (and its chip) too.
       ...(s.sessionId === id
-        ? { sessionId: null, messages: [], referenceTopic: null }
+        ? { sessionId: null, messages: [], referenceTopic: null, closed: false }
         : {}),
     }));
   },

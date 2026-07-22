@@ -738,9 +738,16 @@
     "send": "Invia",
     "thinking": "Sto pensando",
     "stop": "Interrompi",
+    "closedNote": "L'assistente ha chiuso questa conversazione. Puoi ancora rileggerla e iniziare una nuova chat quando vuoi.",
     "stoppedNote": "Hai interrotto questa risposta, quindi non è stata salvata.",
     "reading": "Sto leggendo {{topic}}",
-    "error": "L'assistente non è riuscito a rispondere. Riprova."
+    "error": "L'assistente non è riuscito a rispondere. Riprova.",
+    "attachments": {
+      "add": "Allega un'immagine o un PDF",
+      "remove": "Rimuovi questo allegato",
+      "unavailable": "Gli allegati non sono disponibili per questo modello. Passa a un modello cloud per inviare immagini o PDF.",
+      "failed": "Non è stato possibile allegare questo file."
+    }
   },
   "editor": {
     "cancel": "Annulla",

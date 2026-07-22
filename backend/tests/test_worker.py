@@ -53,7 +53,7 @@ class _SmartProvider(Provider):
     supports_vision = True
 
     def generate(
-        self, prompt: str, *, max_tokens: int, response_schema=None
+        self, prompt: str, *, max_tokens: int, response_schema=None, images=None
     ) -> ProviderResult:
         payload = {
             "notes_md": "# Kinematics\n\nVelocity is dx/dt.",
@@ -235,12 +235,15 @@ class _LimitedSmartProvider(_SmartProvider):
         self.calls = 0
 
     def generate(
-        self, prompt: str, *, max_tokens: int, response_schema=None
+        self, prompt: str, *, max_tokens: int, response_schema=None, images=None
     ) -> ProviderResult:
         self.calls += 1
         self.limiter.record(self.clock())
         return super().generate(
-            prompt, max_tokens=max_tokens, response_schema=response_schema
+            prompt,
+            max_tokens=max_tokens,
+            response_schema=response_schema,
+            images=images,
         )
 
     def transcribe_image(self, image: bytes, *, max_tokens: int = 1024) -> ProviderResult:

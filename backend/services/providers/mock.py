@@ -10,8 +10,10 @@ from typing import Any
 
 from backend.services.providers.base import (
     BudgetProbe,
+    ImagePart,
     Provider,
     ProviderResult,
+    VisionNotSupportedError,
 )
 
 
@@ -58,6 +60,7 @@ class MockProvider(Provider):
         self.last_max_tokens: int | None = None
         self.last_prompt: str | None = None
         self.last_vision_prompt: str | None = None
+        self.last_images: list[ImagePart] | None = None
 
     def budget_probe(self) -> BudgetProbe:
         return BudgetProbe(
@@ -74,11 +77,15 @@ class MockProvider(Provider):
         *,
         max_tokens: int,
         response_schema: dict[str, Any] | None = None,
+        images: list[ImagePart] | None = None,
     ) -> ProviderResult:
         self.generate_calls += 1
         self.last_response_schema = response_schema
         self.last_max_tokens = max_tokens
         self.last_prompt = prompt
+        self.last_images = images
+        if images and not self.supports_vision:
+            raise VisionNotSupportedError(f"{self.name} is not vision-capable")
         if self.raises is not None:
             raise self.raises
         return self._result()

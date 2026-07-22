@@ -333,3 +333,52 @@ def test_a_send_that_is_not_stopped_still_stores_its_reply(
     }
     with db_factory() as db:
         assert [m.role for m in db.query(ChatMessage).all()] == ["user", "assistant"]
+
+
+def test_the_assistant_can_close_a_session_and_the_marker_is_stripped(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, db_factory: sessionmaker
+) -> None:
+    """Last-resort close: the goodbye is kept, the sentinel never reaches the UI."""
+    provider = MockProvider(
+        "mock_free", text=f"I'm ending this conversation here.\n{chatsvc.CLOSE_SENTINEL}"
+    )
+    monkeypatch.setattr(chatsvc, "_build_waterfall", _fake_waterfall(provider))
+
+    body = client.post("/api/chat", json={"message": "insult"}).json()
+    assert body["closed"] is True
+    assert body["message"]["content"] == "I'm ending this conversation here."
+
+    with db_factory() as db:
+        chat = db.get(ChatSession, body["session_id"])
+        assert chat is not None and chat.closed_at is not None
+
+
+def test_a_closed_session_refuses_further_sends(
+    client: TestClient, fake_provider: MockProvider, db_factory: sessionmaker
+) -> None:
+    session_id = client.post("/api/chat", json={"message": "hi"}).json()["session_id"]
+    with db_factory() as db:
+        from backend.models.hierarchy import utcnow
+
+        db.get(ChatSession, session_id).closed_at = utcnow()
+        db.commit()
+
+    res = client.post(
+        "/api/chat", json={"session_id": session_id, "message": "let me back in"}
+    )
+    assert res.status_code == 409
+    # The refused message was never even recorded as a user turn.
+    with db_factory() as db:
+        assert [m.role for m in db.query(ChatMessage).all()] == ["user", "assistant"]
+    # The transcript is still readable, and a brand new chat still works.
+    assert client.get(f"/api/chat/sessions/{session_id}").status_code == 200
+    assert client.post("/api/chat", json={"message": "fresh start"}).status_code == 200
+
+
+def test_an_ordinary_reply_never_closes_the_session(
+    client: TestClient, fake_provider: MockProvider, db_factory: sessionmaker
+) -> None:
+    body = client.post("/api/chat", json={"message": "what is osmosis?"}).json()
+    assert body["closed"] is False
+    with db_factory() as db:
+        assert db.get(ChatSession, body["session_id"]).closed_at is None
