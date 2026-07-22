@@ -10,9 +10,13 @@ from sqlalchemy.orm import Session
 
 import backend.models  # noqa: F401 - register models on Base.metadata
 from backend.models import MCQ, Chapter, Document, Flashcard, Subject, Topic
+from backend.models.enums import DocumentMode
 from backend.services import topics as topicsvc
 from backend.services.pipeline.generation import (
+    _ASSESSMENT_RULES,
     GenerationParseError,
+    build_generation_prompt,
+    build_more_flashcards_prompt,
     build_more_mcqs_prompt,
     parse_more_flashcards,
     parse_more_mcqs,
@@ -86,6 +90,23 @@ def test_more_mcqs_prompt_includes_language_directive() -> None:
     assert "Output language" not in build_more_mcqs_prompt("Rolling", "src", [])
     es = build_more_mcqs_prompt("Rolling", "src", [], language="es")
     assert "Spanish" in es
+
+
+def test_every_assessment_prompt_carries_the_shared_rules() -> None:
+    """The "generate more" prompts once omitted the math rule.
+
+    Cards added later then rendered `10^3` as literal text while the same cards
+    from the first generation typeset fine. Pin all four builders that emit MCQs
+    or flashcards, so a new one can't quietly drop the shared rules again.
+    """
+    prompts = [
+        build_generation_prompt("Rolling", "src"),
+        build_generation_prompt("Rolling", "src", mode=DocumentMode.exam),
+        build_more_mcqs_prompt("Rolling", "src", []),
+        build_more_flashcards_prompt("Rolling", "src", []),
+    ]
+    for prompt in prompts:
+        assert _ASSESSMENT_RULES in prompt
 
 
 # --- service ----------------------------------------------------------------

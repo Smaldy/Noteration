@@ -353,10 +353,18 @@ def exam_schema_for(question_types: ExamQuestionTypes) -> dict:
     }
 
 
-# Static Markdown formatting rules for generated notes, shared by the full
-# generation call and the on-demand notes regeneration so they can't drift apart.
-# The (variable) length rule is prepended separately by ``_notes_length_rule``.
-_NOTES_FORMAT_RULES = (
+# Static Markdown formatting AND wording rules for generated notes, shared by the
+# full generation call and the on-demand notes regeneration so they can't drift
+# apart. The (variable) length rule is prepended separately by
+# ``_notes_length_rule``; ``style_directive`` comes after and may override.
+#
+# The wording rules are the "signs of AI writing" tells that survive into study
+# notes. Unlike the chat sidebar this does NOT push back on headings and bullets
+# — notes are reference material and the structure earns its place. What makes
+# generated notes read as machine-written is filler: puffery adjectives the
+# source never used, sentences announcing what the next sentence will say, and
+# summary paragraphs that restate the section instead of ending it.
+_NOTES_RULES = (
     "  * Organise with `##` and `###` headings and short paragraphs; separate "
     "every heading, paragraph, and list with a blank line.\n"
     "  * Use `-` bullet lists for enumerations and key points; use numbered "
@@ -366,6 +374,14 @@ _NOTES_FORMAT_RULES = (
     "entire note. Use `*italics*` sparingly.\n"
     "  * Put math in LaTeX: `$inline$` and `$$display$$`.\n"
     "  * Do NOT wrap the notes in a code fence.\n"
+    "  * Wording: state things plainly and let the material carry the weight. "
+    "Drop importance adjectives (crucial, essential, vital, powerful, "
+    "fundamental) unless the source itself makes that claim, and cut openers "
+    "like \"It is important to note that\" — just state the point.\n"
+    "  * Do not end a section or the notes with a paragraph that restates what "
+    "was already said, do not append \"-ing\" clauses that editorialise "
+    "(\", highlighting its importance\"), and do not stretch a point to three "
+    "items when two cover it. Never use em dashes.\n"
 )
 
 # Math rule for the assessment fields (mcq question/options/explanation,
@@ -378,6 +394,23 @@ _ASSESSMENT_MATH_RULE = (
     r"e.g. `$10^3$`, `$n^x$`, `$\int_0^1 x^2\,dx$` — never bare or `\(...\)`-style."
     "\n"
 )
+
+# Wording rule for the same assessment fields. Explanations are where the model
+# reaches for filler hardest: a one-line reason padded out by restating the
+# question and the chosen option before saying anything. Shared by every prompt
+# that produces MCQs or flashcards.
+_ASSESSMENT_VOICE_RULE = (
+    "- Wording: in explanations and flashcard backs, give the reason directly "
+    "and stop. Do not restate the question or the option text first, do not "
+    "open with filler like \"This is correct because it accurately reflects\", "
+    "and do not use em dashes.\n"
+)
+
+# The two rules above always travel together: every prompt that emits MCQs or
+# flashcards wants both, and none wants one alone. Splice THIS into new prompt
+# builders — pasting the halves separately is how the "generate more" prompts
+# ended up shipping without the math rule, rendering `10^3` as literal text.
+_ASSESSMENT_RULES = _ASSESSMENT_MATH_RULE + _ASSESSMENT_VOICE_RULE
 
 
 def _notes_length_rule(note_length: int) -> str:
@@ -455,7 +488,7 @@ def build_generation_prompt(
             "Respond with ONLY a JSON object of this exact shape (no prose, no code "
             f"fences):\n{shape}\n"
             f"{rules}"
-            f"{_ASSESSMENT_MATH_RULE}"
+            f"{_ASSESSMENT_RULES}"
             "- Do not invent material the source does not support.\n"
             f"{style_rule}{lang_rule}\n"
             f"# Topic\n{topic_title}\n\n"
@@ -475,11 +508,11 @@ def build_generation_prompt(
         "concise but complete; do not invent material "
         "the source does not support. Formatting rules (follow exactly):\n"
         f"{length_rule}"
-        f"{_NOTES_FORMAT_RULES}"
+        f"{_NOTES_RULES}"
         "- mcqs: 5-10 multiple-choice questions grounded in the notes; each with "
         "at least 2 options and a correct_index pointing to the right option.\n"
         "- flashcards: 5-10 flashcards grounded in the notes.\n"
-        f"{_ASSESSMENT_MATH_RULE}"
+        f"{_ASSESSMENT_RULES}"
         f"{style_rule}{lang_rule}\n"
         f"# Topic\n{topic_title}\n\n"
         f"# Source material\n{source_text}\n"
@@ -809,6 +842,7 @@ def build_more_mcqs_prompt(
         "- 8-12 NEW questions; each with at least 2 options, a correct_index "
         "pointing to the right option, and a clear explanation.\n"
         "- Do not invent material the source does not support.\n"
+        f"{_ASSESSMENT_RULES}"
         f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"{_existing_block('questions', existing_questions)}"
@@ -834,6 +868,7 @@ def build_more_flashcards_prompt(
         'fences):\n{"flashcards": [{"front": str, "back": str}]}\n'
         "- 8-12 NEW flashcards.\n"
         "- Do not invent material the source does not support.\n"
+        f"{_ASSESSMENT_RULES}"
         f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"{_existing_block('flashcard fronts', existing_fronts)}"
@@ -898,7 +933,7 @@ def build_regenerate_notes_prompt(
         "concise but complete; do not invent material "
         "the source does not support. Formatting rules (follow exactly):\n"
         f"{_notes_length_rule(note_length)}"
-        f"{_NOTES_FORMAT_RULES}"
+        f"{_NOTES_RULES}"
         f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"{feedback_block}"
@@ -940,7 +975,7 @@ def build_consolidate_notes_prompt(
         "duplicated explanations into one; keep every concept, definition, "
         "formula, and example that appears in ANY of the note sets; do not "
         "invent new material. Formatting rules (follow exactly):\n"
-        f"{_NOTES_FORMAT_RULES}"
+        f"{_NOTES_RULES}"
         f"{style_directive(ai_style)}"
         f"{language_directive(language)}"
         f"\n# Topic\n{topic_title}\n\n# Notes to merge\n{notes_md}\n"
