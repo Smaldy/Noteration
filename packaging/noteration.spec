@@ -120,8 +120,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "Noteration",
             "CFBundleDisplayName": "Noteration",
-            "CFBundleShortVersionString": "0.2.1",
-            "CFBundleVersion": "0.2.1",
+            "CFBundleShortVersionString": "0.3.0",
+            "CFBundleVersion": "0.3.0",
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "11.0",
         },
