@@ -1,5 +1,25 @@
 # Noteration 0.3.0
 
+![The library, organised into folders](https://raw.githubusercontent.com/Smaldy/Noteration/ceb9a07eb2b0c6d0390e5dc5b44d88ba94f04294/docs/screenshots/library-folders.png)
+
+*The flat grid is gone. Folders can be tagged to a subject and fill themselves,
+sit empty until you add something, or hold loose files by hand.*
+
+![Inside a folder: colour groups](https://raw.githubusercontent.com/Smaldy/Noteration/ceb9a07eb2b0c6d0390e5dc5b44d88ba94f04294/docs/screenshots/folder-groups.png)
+
+*Inside a folder, gather notes into named colour groups, with generated notes,
+PDFs, and images side by side.*
+
+![Recolour a folder and set the Main folder](https://raw.githubusercontent.com/Smaldy/Noteration/ceb9a07eb2b0c6d0390e5dc5b44d88ba94f04294/docs/screenshots/folder-settings.png)
+
+*Pick a colour (or a custom one), tag a subject, and mark one folder Main so
+generated notes always land in a single place.*
+
+![The docked AI study sidebar](https://raw.githubusercontent.com/Smaldy/Noteration/ceb9a07eb2b0c6d0390e5dc5b44d88ba94f04294/docs/screenshots/ai-sidebar.png)
+
+*The AI study sidebar answers from your own notes, grounded on a pinned topic,
+and can run entirely offline.*
+
 ## Added
 
 - **Folders replace the flat library.** The old grid grew unusable past a
