@@ -36,8 +36,6 @@ export interface LibraryStore {
   deleteSubject: (subjectId: number) => Promise<void>;
   /** Delete one document (its subject and sibling documents stay), then refresh. */
   deleteDocument: (documentId: number) => Promise<void>;
-  /** Bookmark/unbookmark a subject (optimistic; reverts on failure). */
-  toggleSubjectBookmark: (subjectId: number, bookmarked: boolean) => Promise<void>;
   /** Persist a new manual order of the cards (optimistic). */
   reorderDocuments: (orderedIds: number[]) => Promise<void>;
   /** Re-queue a failed/rate-limited audio document for transcription. */
@@ -116,20 +114,6 @@ function createDocumentsStore(mode: DocumentMode) {
   deleteDocument: async (documentId) => {
     await api.del(`/documents/${documentId}`);
     await get().fetchDocuments();
-  },
-  toggleSubjectBookmark: async (subjectId, bookmarked) => {
-    const apply = (value: boolean) =>
-      set((state) => ({
-        documents: state.documents.map((d) =>
-          d.subject_id === subjectId ? { ...d, subject_bookmarked: value } : d,
-        ),
-      }));
-    apply(bookmarked); // optimistic
-    try {
-      await api.put(`/subjects/${subjectId}/bookmark`, { bookmarked });
-    } catch {
-      apply(!bookmarked); // revert
-    }
   },
   reorderDocuments: async (orderedIds) => {
     const previous = get().documents;

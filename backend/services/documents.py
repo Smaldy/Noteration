@@ -105,7 +105,6 @@ class DocumentSummary:
     filename: str
     subject_id: int
     subject_name: str
-    subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
     status_detail: str | None
@@ -157,7 +156,7 @@ def list_documents(
     }
 
     query = (
-        select(Document, Subject.name, Subject.exam_date, Subject.bookmarked)
+        select(Document, Subject.name, Subject.exam_date)
         .join(Subject, Document.subject_id == Subject.id)
         # Manual order first; newest-first as the tie-break for un-reordered rows.
         .order_by(
@@ -171,7 +170,7 @@ def list_documents(
     rows = session.execute(query).all()
 
     summaries: list[DocumentSummary] = []
-    for document, subject_name, exam_date, bookmarked in rows:
+    for document, subject_name, exam_date in rows:
         total, ready = counts.get(document.id, (0, 0))
         ch_total, ch_running = chapter_counts.get(document.id, (0, 0))
         summaries.append(
@@ -180,7 +179,6 @@ def list_documents(
                 filename=document.filename,
                 subject_id=document.subject_id,
                 subject_name=subject_name,
-                subject_bookmarked=bookmarked,
                 exam_date=exam_date,
                 status=document.status,
                 status_detail=document.status_detail,

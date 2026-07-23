@@ -43,7 +43,6 @@ class Subject(Base):
     name: Mapped[str]
     accent_color: Mapped[str | None] = mapped_column(default=None)
     exam_date: Mapped[date | None] = mapped_column(default=None)
-    bookmarked: Mapped[bool] = mapped_column(default=False)
     # Per-subject queue lane state (Wave B): running / paused / overnight. The
     # lane is the unit the user pauses/resumes and puts in overnight mode.
     queue_state: Mapped[QueueLaneState] = mapped_column(

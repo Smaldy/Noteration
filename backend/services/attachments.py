@@ -16,8 +16,11 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.models import NoteAttachment, Topic
+from backend.models import ChatAttachment, FolderFile, NoteAttachment, Topic
 from backend.paths import ATTACHMENTS_DIR  # sibling of uploads/ under the cache dir
+
+# Every table holding a ``file_hash`` into the shared store. See release_file.
+_REFERENCING = (NoteAttachment, ChatAttachment, FolderFile)
 
 # Cap an attachment at 25 MB — generous for a lecture photo or a short clip while
 # keeping a single local file from ballooning the cache.
@@ -44,10 +47,35 @@ def _kind_for(content_type: str) -> str:
     raise UnsupportedAttachmentError(content_type)
 
 
+def store_path(file_hash: str, filename: str) -> Path:
+    """Where a stored file's bytes live: cache/attachments/<hash><ext>."""
+    return ATTACHMENTS_DIR / f"{file_hash}{Path(filename).suffix.lower()}"
+
+
+def release_file(session: Session, file_hash: str, filename: str) -> None:
+    """Delete stored bytes once nothing references them any more.
+
+    The store is content-addressed and shared by every feature that calls
+    ``persist_bytes``, so "is this file still needed?" can only be answered by
+    checking *all* of them at once. This is the single place that does it: a
+    new table that stores a ``file_hash`` must be added to ``_REFERENCING``, or
+    its files will be deleted out from under it the first time some other
+    feature drops the same content.
+    """
+    for model in _REFERENCING:
+        still_used = session.scalar(
+            select(func.count()).select_from(model).where(model.file_hash == file_hash)
+        )
+        if still_used:
+            return
+    path = store_path(file_hash, filename)
+    if path.is_file():
+        path.unlink()
+
+
 def attachment_path(attachment: NoteAttachment) -> Path:
-    """Where an attachment's bytes live: cache/attachments/<hash><ext>."""
-    ext = Path(attachment.filename).suffix.lower()
-    return ATTACHMENTS_DIR / f"{attachment.file_hash}{ext}"
+    """Where a note attachment's bytes live."""
+    return store_path(attachment.file_hash, attachment.filename)
 
 
 def attachment_url(attachment: NoteAttachment) -> str:
@@ -99,19 +127,10 @@ def delete_attachment(session: Session, attachment_id: int) -> None:
     attachment = session.get(NoteAttachment, attachment_id)
     if attachment is None:
         raise AttachmentNotFoundError(attachment_id)
-    path = attachment_path(attachment)
-    file_hash = attachment.file_hash
+    file_hash, filename = attachment.file_hash, attachment.filename
     session.delete(attachment)
     session.commit()
-    # Remove the bytes only when no remaining attachment shares this content hash
-    # (uploads are content-addressed, so two topics can point at the same file).
-    still_used = session.scalar(
-        select(func.count())
-        .select_from(NoteAttachment)
-        .where(NoteAttachment.file_hash == file_hash)
-    )
-    if not still_used and path.is_file():
-        path.unlink()
+    release_file(session, file_hash, filename)
 
 
 def persist_bytes(data: bytes, filename: str) -> str:

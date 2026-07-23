@@ -6,7 +6,6 @@ export interface Subject {
   accent_color: string | null;
   /** ISO date (YYYY-MM-DD) or null. */
   exam_date: string | null;
-  bookmarked: boolean;
   /** ISO datetime. */
   created_at: string;
   /** How many documents this subject has (0 for a freshly created, empty subject). */

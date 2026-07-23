@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 // Always-mounted (visible on every route), so they stay in the main bundle.
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
+import { AppSidebar } from "@/components/AppSidebar";
 import { ArcadeRoot } from "@/features/arcade/ArcadeRoot";
 import { AssistantLauncher } from "@/features/assistant/AssistantLauncher";
 import { CreditsOverlay } from "@/features/credits/CreditsOverlay";
@@ -26,6 +27,7 @@ function named<K extends string>(
 }
 
 const LibraryPage = named(() => import("@/features/library/LibraryPage"), "LibraryPage");
+const FolderPage = named(() => import("@/features/library/FolderPage"), "FolderPage");
 const ExamPrepPage = named(() => import("@/features/exam/ExamPrepPage"), "ExamPrepPage");
 const ExamPracticePage = named(() => import("@/features/exam/ExamPracticePage"), "ExamPracticePage");
 const CalendarPage = named(() => import("@/features/calendar/CalendarPage"), "CalendarPage");
@@ -55,31 +57,37 @@ export default function App() {
     // (transforms collapse to instant; opacity fades are kept, per Framer's rule).
     <AppErrorBoundary>
       <MotionConfig reducedMotion="user">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <Suspense fallback={<RouteFallback />}>
-              <Routes location={location}>
-                <Route path="/" element={<LibraryPage />} />
-                <Route path="/exam" element={<ExamPrepPage />} />
-                <Route path="/duplicator" element={<DuplicatorPage />} />
-                <Route path="/exam/practice/:scope/:id" element={<ExamPracticePage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/queue" element={<QueuePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/documents/:id/review" element={<StructureReviewPage />} />
-                <Route path="/documents/:id/study" element={<StudyPage />} />
-                <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </motion.div>
-        </AnimatePresence>
+        <AppSidebar />
+        {/* Inset matches AppSidebar's fixed width; the sidebar sits outside the
+            AnimatePresence so it doesn't re-animate on every navigation. */}
+        <div className="pl-[4.5rem] lg:pl-60">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Suspense fallback={<RouteFallback />}>
+                <Routes location={location}>
+                  <Route path="/" element={<LibraryPage />} />
+                  <Route path="/folders/:id" element={<FolderPage />} />
+                  <Route path="/exam" element={<ExamPrepPage />} />
+                  <Route path="/duplicator" element={<DuplicatorPage />} />
+                  <Route path="/exam/practice/:scope/:id" element={<ExamPracticePage />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/queue" element={<QueuePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/documents/:id/review" element={<StructureReviewPage />} />
+                  <Route path="/documents/:id/study" element={<StudyPage />} />
+                  <Route path="/documents/:id/study/:topicId" element={<StudyPage />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            </motion.div>
+          </AnimatePresence>
+        </div>
         {/* Persistent across routes — always-visible status + the running timer. */}
         <ProviderBadge />
         <FloatingWidgets />

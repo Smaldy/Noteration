@@ -21,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Transcript } from "@/types/document";
@@ -49,13 +48,11 @@ function baseName(filename: string): string {
 export function DocumentCard({
   doc,
   onDelete,
-  onToggleBookmark,
   onRetryTranscription,
   actions,
 }: {
   doc: DocumentSummary;
   onDelete?: (doc: DocumentSummary) => void;
-  onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
   /** Re-queue a failed/rate-limited audio transcription. */
   onRetryTranscription?: (doc: DocumentSummary) => void;
   /** Optional footer actions (e.g. Exam Prep deck Quiz/Flashcards buttons). */
@@ -161,11 +158,6 @@ export function DocumentCard({
               <CardTitle className="truncate">{doc.subject_name}</CardTitle>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <BookmarkButton
-                bookmarked={doc.subject_bookmarked}
-                label={doc.subject_name}
-                onToggle={(next) => onToggleBookmark(doc.subject_id, next)}
-              />
               {onDelete && (
                 <Button
                   variant="ghost"

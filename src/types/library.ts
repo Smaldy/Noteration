@@ -18,7 +18,6 @@ export interface DocumentSummary {
   filename: string;
   subject_id: number;
   subject_name: string;
-  subject_bookmarked: boolean;
   /** ISO date (YYYY-MM-DD) or null when no exam date is set. */
   exam_date: string | null;
   status: DocumentStatus;

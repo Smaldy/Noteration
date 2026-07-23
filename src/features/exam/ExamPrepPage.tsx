@@ -69,7 +69,6 @@ export function ExamPrepPage() {
     fetchDocuments,
     deleteDocument,
     reorderDocuments,
-    toggleSubjectBookmark,
   } = useExamStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
@@ -161,9 +160,6 @@ export function ExamPrepPage() {
               key={group.subjectId}
               group={group}
               onDelete={handleDelete}
-              onToggleBookmark={(subjectId, bookmarked) =>
-                void toggleSubjectBookmark(subjectId, bookmarked)
-              }
               onReorder={(ids) => void reorderDocuments(ids)}
             />
           ))}
@@ -176,12 +172,10 @@ export function ExamPrepPage() {
 function SubjectSection({
   group,
   onDelete,
-  onToggleBookmark,
   onReorder,
 }: {
   group: SubjectGroup;
   onDelete: (doc: DocumentSummary) => void;
-  onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
   onReorder: (ids: number[]) => void;
 }) {
   const navigate = useNavigate();
@@ -253,7 +247,6 @@ function SubjectSection({
                 key={doc.id}
                 doc={doc}
                 onDelete={onDelete}
-                onToggleBookmark={onToggleBookmark}
                 actions={
                   doc.status === "ready" || doc.topics_ready > 0 ? (
                     <PracticeButtons

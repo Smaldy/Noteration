@@ -4,10 +4,13 @@ import { Joystick } from "lucide-react";
 import { useArcadeStore } from "@/stores/arcade";
 
 /**
- * The arcade entry point: a small, muted joystick icon fixed at the bottom-left.
- * It stays quiet (dim, no fill/glow) so it blends with the app chrome, and only
- * gains presence on hover/focus. Clicking it opens the Arcade Machine overlay.
- * Hidden while the game/overlay is active.
+ * The arcade entry point: a small, muted joystick icon. It stays quiet (dim, no
+ * fill/glow) so it blends with the app chrome, and only gains presence on
+ * hover/focus. Clicking it opens the Arcade Machine overlay. Hidden while the
+ * game/overlay is active.
+ *
+ * Rendered inline in the sidebar footer rather than fixed to the bottom-left
+ * corner, which the sidebar's Settings button now occupies.
  */
 export function JoystickButton() {
   const open = useArcadeStore((s) => s.openOverlay);
@@ -23,7 +26,7 @@ export function JoystickButton() {
       onClick={open}
       aria-label="Open the arcade"
       title="Arcade"
-      className="group fixed bottom-4 left-4 z-[60] grid size-9 place-items-center rounded-lg text-muted-foreground/40 opacity-60 outline-none transition-[color,opacity,background-color] duration-200 hover:bg-muted/60 hover:text-foreground hover:opacity-100 focus-visible:bg-muted/60 focus-visible:text-foreground focus-visible:opacity-100"
+      className="group relative grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground/40 opacity-60 outline-none transition-[color,opacity,background-color] duration-200 hover:bg-muted/60 hover:text-foreground hover:opacity-100 focus-visible:bg-muted/60 focus-visible:text-foreground focus-visible:opacity-100"
       initial={{ opacity: 0 }}
       animate={{ opacity: 0.6 }}
       whileTap={{ scale: 0.94 }}

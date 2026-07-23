@@ -24,13 +24,13 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models.chat import ChatAttachment
 from backend.models.hierarchy import utcnow
 from backend.paths import ATTACHMENTS_DIR
-from backend.services.attachments import persist_bytes
+from backend.services.attachments import persist_bytes, release_file
 from backend.services.providers.base import ImagePart
 from backend.services.providers.waterfall import Waterfall
 
@@ -222,23 +222,13 @@ def document_block(attachments: list[ChatAttachment]) -> str:
 
 
 def delete_orphaned_file(session: Session, file_hash: str, filename: str) -> None:
-    """Remove stored bytes once no chat or note attachment references them."""
-    from backend.models import NoteAttachment  # local: avoids an import cycle
+    """Remove stored bytes once nothing references them.
 
-    still_used = session.scalar(
-        select(func.count())
-        .select_from(ChatAttachment)
-        .where(ChatAttachment.file_hash == file_hash)
-    ) or session.scalar(
-        select(func.count())
-        .select_from(NoteAttachment)
-        .where(NoteAttachment.file_hash == file_hash)
-    )
-    if still_used:
-        return
-    path = ATTACHMENTS_DIR / f"{file_hash}{Path(filename).suffix.lower()}"
-    if path.is_file():
-        path.unlink()
+    Delegates to ``attachments.release_file``, which checks every table holding
+    into the shared store — this used to check only chat and note rows, which
+    would have deleted files still referenced from a folder.
+    """
+    release_file(session, file_hash, filename)
 
 
 # --- internals ---------------------------------------------------------------

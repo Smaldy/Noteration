@@ -22,6 +22,7 @@ from backend.routers import (
     chat,
     documents,
     duplicator,
+    folders,
     local_ai,
     notes,
     queue,
@@ -103,6 +104,7 @@ api.include_router(assessment.router)
 api.include_router(attachments.router)
 api.include_router(duplicator.router)
 api.include_router(arcade.router)
+api.include_router(folders.router)
 
 # API routes are registered before the SPA catch-all so they always win.
 app.include_router(api)

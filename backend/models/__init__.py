@@ -40,6 +40,12 @@ from backend.models.enums import (
     TopicPriority,
     TopicStatus,
 )
+from backend.models.folders import (
+    Folder,
+    FolderFile,
+    FolderGroup,
+    FolderItem,
+)
 from backend.models.hierarchy import Chapter, Document, Subject, Topic
 from backend.models.local_ai import LocalAiSetup
 from backend.models.processing import HistoryEvent, ProviderState, QueueJob
@@ -52,6 +58,10 @@ __all__ = [
     "Document",
     "Chapter",
     "Topic",
+    "Folder",
+    "FolderGroup",
+    "FolderItem",
+    "FolderFile",
     "Note",
     "NoteAttachment",
     "Formula",

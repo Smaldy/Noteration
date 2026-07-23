@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from backend.db.database import get_session
 from backend.models import Subject
 from backend.models.enums import DocumentMode
-from backend.schemas.bookmarks import BookmarkUpdate
 from backend.schemas.subject import SubjectCreate, SubjectOut, SubjectTopicTreeOut
 from backend.services import subjects as subjectsvc
 
@@ -55,20 +54,6 @@ def subject_topic_tree(
     except subjectsvc.SubjectNotFoundError:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-
-@router.put("/{subject_id}/bookmark", response_model=SubjectOut)
-def set_subject_bookmark(
-    subject_id: int,
-    payload: BookmarkUpdate,
-    session: Session = Depends(get_session),
-) -> Subject:
-    """Bookmark or unbookmark a subject."""
-    try:
-        return subjectsvc.set_bookmark(
-            session, subject_id, bookmarked=payload.bookmarked
-        )
-    except subjectsvc.SubjectNotFoundError:
-        raise HTTPException(status_code=404, detail="Subject not found")
 
 
 @router.delete("/{subject_id}", status_code=status.HTTP_204_NO_CONTENT)

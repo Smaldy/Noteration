@@ -18,7 +18,6 @@ class DocumentSummaryOut(BaseModel):
     filename: str
     subject_id: int
     subject_name: str
-    subject_bookmarked: bool
     exam_date: date | None
     status: DocumentStatus
     status_detail: str | None

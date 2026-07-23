@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookmarkButton } from "@/features/bookmarks/BookmarkButton";
 import type { Subject } from "@/types/subject";
 
 /** A subject with no documents yet — created standalone, waiting for its first upload. */
@@ -11,12 +10,10 @@ export function EmptySubjectCard({
   subject,
   onUpload,
   onDelete,
-  onToggleBookmark,
 }: {
   subject: Subject;
   onUpload: (subject: Subject) => void;
   onDelete: (subject: Subject) => void;
-  onToggleBookmark: (subjectId: number, bookmarked: boolean) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -28,11 +25,6 @@ export function EmptySubjectCard({
             <CardTitle className="truncate">{subject.name}</CardTitle>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <BookmarkButton
-              bookmarked={subject.bookmarked}
-              label={subject.name}
-              onToggle={(next) => onToggleBookmark(subject.id, next)}
-            />
             <Button
               variant="ghost"
               size="icon"
